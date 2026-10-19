@@ -53,7 +53,7 @@ the viewer found on the machine.
   slightly loose. The SVG `font-family` lists common CJK and emoji families.
 - **resvg PNG limits** (resvg-js 2.6.2): a text run containing a colour emoji is
   drawn entirely as boxes, so PNG export replaces each emoji with "□" (SVG keeps the
-  emoji). A run with a CJK fallback glyph is drawn entirely in the fallback font, so
-  bold or italic can be lost in that run in PNG only.
+  emoji). A run with a CJK fallback glyph is drawn entirely in the fallback font; PNG
+  export therefore splits mixed lines into separate runs (decision 0003).
 - SVGs are self-contained and render identically on machines without Inter.
 - Repository size grows by about 1.7 MB of font files; npm package by the same.

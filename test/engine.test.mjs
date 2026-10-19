@@ -6,9 +6,13 @@ import { wordPieces, wrapText } from '../dist/engine/text.js';
 import { el, Canvas } from '../dist/engine/svg.js';
 import { drawEdge, drawMessageArrow } from '../dist/engine/edges.js';
 import { planSelfLoops, selfLoopRoute } from '../dist/engine/selfloops.js';
-import { distanceToBorder, contains, overlaps, segmentDistance, distanceToSegment } from '../dist/engine/geometry.js';
+import { distanceToBorder, contains, overlaps, segmentDistance, distanceToSegment, segmentIntersectsRect } from '../dist/engine/geometry.js';
 import { stressCenters } from '../dist/engine/stress.js';
 import { checkSvg } from '../dist/qa/index.js';
+import { splitFallbackRuns } from '../dist/engine/png.js';
+import { routeOrthogonal } from '../dist/engine/router.js';
+import { repairRoutes } from '../dist/engine/repair.js';
+import { aspectPenalty, chooseLayout, layoutScore } from '../dist/engine/aspect.js';
 
 const options = { direction: 'DOWN' };
 
@@ -292,4 +296,89 @@ test('geometry: small jogs in orthogonal routes are straightened, ends stay on t
   const kept = straightenJogs([{ x: 120, y: 40 }, { x: 120, y: 100 }, { x: 125, y: 100 }, { x: 125, y: 200 }], { source, target: narrow }, 8, 0);
   assert.deepEqual(kept.at(-1), { x: 125, y: 200 });
   assert.equal(kept.length, 2);
+});
+
+test('PNG text: lines mixing Inter and fallback glyphs are split into runs so the Latin part keeps Inter and bold', async () => {
+  const metrics = await loadFonts();
+  const svg = '<svg data-uml-renderer="engine"><text x="10" y="20" font-size="14" font-weight="700" data-uml-role="text">Kundin · Zoë 注文 &amp; x</text><text x="5" y="9" font-size="12">plain</text></svg>';
+  const texts = [...splitFallbackRuns(svg, metrics).matchAll(/<text([^>]*)>([^<]*)<\/text>/g)];
+  assert.deepEqual(texts.map(t => t[2]), ['Kundin · Zoë ', '注文', ' &amp; x', 'plain']);
+  for (const t of texts.slice(0, 3)) assert.match(t[1], /font-weight="700"/);
+  const xs = texts.slice(0, 3).map(t => Number(t[1].match(/ x="([^"]*)"/)[1]));
+  assert.equal(xs[0], 10);
+  assert.ok(Math.abs(xs[1] - (10 + metrics.measure('Kundin · Zoë ', { size: 14, bold: true }))) < 0.01);
+});
+
+test('router: an orthogonal route around an obstacle, leaving and entering perpendicular with straight stubs', () => {
+  const source = { x: 0, y: 0, width: 80, height: 40 }, target = { x: 0, y: 200, width: 80, height: 40 }, wall = { x: -40, y: 90, width: 160, height: 30 };
+  const route = routeOrthogonal({ source: { rect: source, stub: 20 }, target: { rect: target, stub: 20 }, obstacles: [wall], lines: [], area: { x: -100, y: -50, width: 300, height: 350 } });
+  assert.ok(route && route.length >= 2);
+  assert.ok(distanceToBorder(route[0], source) < 0.01 && distanceToBorder(route.at(-1), target) < 0.01);
+  for (let k = 1; k < route.length; k++) {
+    const a = route[k - 1], b = route[k];
+    assert.ok(a.x === b.x || a.y === b.y, 'orthogonal');
+    assert.ok(!segmentIntersectsRect(a, b, wall), 'clear of the obstacle');
+  }
+  assert.ok(Math.hypot(route[1].x - route[0].x, route[1].y - route[0].y) >= 20 && Math.hypot(route.at(-1).x - route.at(-2).x, route.at(-1).y - route.at(-2).y) >= 20, 'straight stubs at both ends');
+});
+
+test('repairRoutes: a line over a container name and a detour are rerouted; good routes stay', () => {
+  const nodes = [
+    { id: 'pkg', rect: { x: 0, y: 20, width: 300, height: 200 }, container: true, texts: [{ x: 0, y: 0, width: 120, height: 20 }] },
+    { id: 'in', parent: 'pkg', rect: { x: 40, y: 120, width: 80, height: 40 } },
+    { id: 'top', rect: { x: 40, y: -120, width: 80, height: 40 } },
+    { id: 'right', rect: { x: 420, y: 120, width: 80, height: 40 } },
+  ];
+  const edges = [
+    // Straight down through the package tab text into the nested node.
+    { id: 'tab', source: 'top', target: 'in', route: [{ x: 80, y: -80 }, { x: 80, y: 120 }], sourceMarker: 'none', targetMarker: 'open-arrow' },
+    // Leaves the wrong way and loops around everything.
+    { id: 'loop', source: 'in', target: 'right', route: [{ x: 80, y: 160 }, { x: 80, y: 400 }, { x: 600, y: 400 }, { x: 600, y: 140 }, { x: 500, y: 140 }], sourceMarker: 'none', targetMarker: 'open-arrow' },
+    // Fine as it is.
+    { id: 'ok', source: 'top', target: 'right', route: [{ x: 120, y: -100 }, { x: 460, y: -100 }, { x: 460, y: 120 }], sourceMarker: 'none', targetMarker: 'open-arrow' },
+  ];
+  const { routes, changed } = repairRoutes(nodes, edges);
+  assert.deepEqual([...changed].sort(), ['loop', 'tab']);
+  for (let k = 1; k < routes.get('tab').length; k++) assert.ok(!segmentIntersectsRect(routes.get('tab')[k - 1], routes.get('tab')[k], { x: 1, y: 1, width: 118, height: 18 }), 'clear of the tab');
+  const length = r => r.slice(1).reduce((s, p, k) => s + Math.hypot(p.x - r[k].x, p.y - r[k].y), 0);
+  assert.ok(length(routes.get('loop')) < 500, `short route, got ${length(routes.get('loop'))}`);
+  assert.deepEqual(routes.get('ok'), edges[2].route);
+});
+
+test('layout chooser: scores prefer a readable page and the conventional direction', async () => {
+  assert.equal(aspectPenalty(1600, 1000), 0);
+  assert.ok(aspectPenalty(800, 2400) > aspectPenalty(1200, 1600));
+  assert.ok(layoutScore({ width: 1200, height: 900 }) < layoutScore({ width: 600, height: 1800 }));
+  assert.ok(layoutScore({ width: 1200, height: 900, crossings: 10 }) > layoutScore({ width: 1200, height: 900 }));
+  const runs = [];
+  const chosen = await chooseLayout(['DOWN', 'RIGHT'], async (dir, variant) => { runs.push(`${dir}:${variant}`); return dir === 'DOWN' ? { width: 400, height: 2400 } : { width: 1500, height: 1000 }; }, r => r);
+  assert.deepEqual(chosen, { width: 1500, height: 1000 }, 'a tall chain loses against a landscape alternative');
+  assert.ok(runs.includes('DOWN:plain') && runs.includes('RIGHT:plain'));
+  const narrow = await chooseLayout(['DOWN'], async (dir, variant) => variant === 'narrow' ? { width: 1600, height: 1100 } : { width: 5000, height: 600 }, r => r);
+  assert.deepEqual(narrow, { width: 1600, height: 1100 }, 'a too wide layered layout tries narrow layering');
+  const kept = await chooseLayout(['DOWN', 'RIGHT'], async dir => dir === 'DOWN' ? { width: 1000, height: 800 } : { width: 1010, height: 760 }, r => r, { penalty: i => i ? 0.3 : 0 });
+  assert.deepEqual(kept, { width: 1000, height: 800 }, 'the convention wins when the alternative is not clearly better');
+});
+
+test('QA gates for the review findings: crowded ends, detours, bent arrowheads, container texts, broken words', async () => {
+  const a = node('a', 20, 20, 100, 50), b = node('b', 20, 200, 100, 50);
+  const dep = (id, points) => drawEdge({ id, type: 'dependency', source: 'b', target: 'a', points, style: 'dashed', sourceMarker: 'none', targetMarker: 'open-arrow' });
+  // Two lines 8 px apart into one side (A-09); 14 px is the line spacing.
+  const link = (id, x) => drawEdge({ id, type: 'association', source: 'b', target: 'a', points: [{ x, y: 200 }, { x, y: 70 }], style: 'solid', sourceMarker: 'none', targetMarker: 'none' });
+  assert.deepEqual(failed(await checkSvg(doc(a + b + link('e1', 60) + link('e2', 68)))), ['end-spacing']);
+  assert.deepEqual(failed(await checkSvg(doc(a + b + link('e1', 60) + link('e2', 74)))), []);
+  // A detour around the drawing for a 130 px gap (A-03).
+  assert.deepEqual(failed(await checkSvg(doc(a + b + dep('e1', [{ x: 60, y: 250 }, { x: 60, y: 290 }, { x: 390, y: 290 }, { x: 390, y: 5 }, { x: 60, y: 5 }, { x: 60, y: 20 }])))), ['route-length']);
+  // An arrowhead on a 6 px end segment after a bend (C-04).
+  assert.deepEqual(failed(await checkSvg(doc(a + b + dep('e1', [{ x: 60, y: 200 }, { x: 60, y: 120 }, { x: 90, y: 120 }, { x: 90, y: 76 }, { x: 96, y: 76 }, { x: 96, y: 70 }])))), ['markers']);
+  // A line through a container's name (A-01): p contains c, the line from b runs over the tab text.
+  const pkg = '<g data-uml-role="node" data-uml-id="p" data-uml-type="package" data-uml-bounds="200 20 180 150" data-uml-tab="200 20 80 20"><text x="205" y="35" font-size="13" data-uml-role="text">pkgname</text></g>';
+  const inner = '<g data-uml-role="node" data-uml-id="c" data-uml-type="class" data-uml-parent="p" data-uml-bounds="220 100 80 40"></g>';
+  const through = drawEdge({ id: 't', type: 'dependency', source: 'b', target: 'c', points: [{ x: 120, y: 225 }, { x: 230, y: 225 }, { x: 230, y: 5 }, { x: 260, y: 5 }, { x: 260, y: 100 }], style: 'dashed', sourceMarker: 'none', targetMarker: 'open-arrow' });
+  assert.ok(failed(await checkSvg(doc(a + b + pkg + inner + through))).includes('edge-endpoints'));
+  // A name broken between letters although it has a camelCase break (A-02).
+  const broken = '<g data-uml-role="node" data-uml-id="w" data-uml-type="class" data-uml-bounds="200 200 190 60"><text font-size="13" data-uml-role="text"><tspan x="205" y="220">OrderLineIt</tspan><tspan x="205" y="238">emFactory</tspan></text></g>';
+  assert.deepEqual(failed(await checkSvg(doc(broken))), ['text-fits']);
+  const fine = broken.replace('OrderLineIt', 'OrderLine').replace('>emFactory', '>ItemFactory');
+  assert.deepEqual(failed(await checkSvg(doc(fine))), []);
 });
