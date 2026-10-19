@@ -1,6 +1,7 @@
 import { pointer, type Diagnostic } from '../../core/errors.js';
-import { checkOwnership, nestedIn } from '../../model/nesting.js';
+import { checkOwnership, nestedIn, owners } from '../../model/nesting.js';
 import { checkMultiplicity, findCycles, reference, uniqueIds } from '../../model/rules.js';
+import { suggest } from '../../model/hints.js';
 import { isContainer, isNote, type Element, type ProfileDiagram } from './model.js';
 
 /**
@@ -65,7 +66,7 @@ export function validateProfileDiagram(model: ProfileDiagram): Diagnostic[] {
 
   const generalizations: { from: string; to: string; path: string }[] = [];
   const seen = new Map<string, string>();
-  const checked: { index: number; from: string; to: string }[] = [];
+  const checked: { index: number; from: string; to: string; applied?: boolean }[] = [];
   relationships.forEach((r, i) => {
     const at = pointer('', 'relationships', i);
     const fromOk = reference(r.from, pointer(at, 'from'), elements, diagnostics, 'element', { from: r.from, to: r.to });
@@ -95,7 +96,7 @@ export function validateProfileDiagram(model: ProfileDiagram): Diagnostic[] {
         if (!isContainer(from)) fail('INVALID_APPLICATION', 'from', `A profile is applied to a package; "${r.from}" is a ${from.type}`);
         else if (to.type !== 'profile') fail('INVALID_APPLICATION', 'to', `Only a profile can be applied; "${r.to}" is a ${to.type}`);
         else if (r.from === r.to) fail('INVALID_APPLICATION', 'to', `Profile "${r.from}" cannot apply itself`);
-        else checked.push({ index: i, from: r.from, to: r.to });
+        else checked.push({ index: i, from: r.from, to: r.to, applied: true });
         break;
       case 'reference':
         if (from.type !== 'profile') fail('INVALID_REFERENCE', 'from', `A metaclass reference goes from a profile; "${r.from}" is a ${from.type}`);
@@ -105,10 +106,27 @@ export function validateProfileDiagram(model: ProfileDiagram): Diagnostic[] {
     }
   });
   findCycles(generalizations, 'INHERITANCE_CYCLE', 'Generalization must be acyclic', diagnostics);
+  // Applied stereotypes name stereotypes this diagram defines.
+  const defined = model.elements.filter(e => e.type === 'stereotype').map(e => (e as { name: string }).name);
+  if (defined.length) {
+    model.elements.forEach((element, i) => {
+      if (element.type !== 'class') return;
+      (element.stereotypes ?? []).forEach((name, j) => {
+        if (defined.includes(name)) return;
+        const nearest = suggest(name, defined, 'id');
+        diagnostics.push({ code: 'UNKNOWN_STEREOTYPE', path: pointer('', 'elements', i, 'stereotypes', j), message: `Applied stereotype "${name}" is not defined in this diagram${nearest ? `; did you mean "${nearest}"?` : '.'} Defined stereotypes: ${defined.map(d => `"${d}"`).join(', ')}`, details: { defined, ...(nearest ? { suggestion: nearest } : {}) } });
+      });
+    });
+  }
   const owner = checkOwnership(ownership, diagnostics);
   if (!diagnostics.some(d => d.code === 'CONTAINMENT_CYCLE')) {
-    for (const { index, from, to } of checked) {
-      if (nestedIn(from, to, owner)) diagnostics.push({ code: 'RELATIONSHIP_WITH_OWN_MEMBER', path: pointer('', 'relationships', index), message: `"${from}" and "${to}" are nested in one another; a package already sees its members` });
+    for (const { index, from, to, applied } of checked) {
+      if (!nestedIn(from, to, owner)) continue;
+      // UML 2.5.1 (12.3.3) lets a package apply a profile it owns, but the arrow from a package to a
+      // member inside it cannot be drawn; say so instead of claiming the model is wrong.
+      if (applied && owners(to, owner).includes(from)) {
+        diagnostics.push({ code: 'RELATIONSHIP_WITH_OWN_MEMBER', path: pointer('', 'relationships', index), message: `Package "${from}" owns profile "${to}" and applies it: valid UML, but an «apply» arrow from a package to a profile inside it cannot be drawn. Remove "${to}" from the members of "${from}" so the profile is drawn beside the package` });
+      } else diagnostics.push({ code: 'RELATIONSHIP_WITH_OWN_MEMBER', path: pointer('', 'relationships', index), message: `"${from}" and "${to}" are nested in one another; a package already sees its members` });
     }
   }
   return diagnostics;

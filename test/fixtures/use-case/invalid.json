@@ -57,7 +57,7 @@
   "name": "unknown element type",
   "expect": {
    "code": "SCHEMA_INVALID",
-   "path": "/elements/0"
+   "path": "/elements/0/type"
   },
   "doc": {
    "kind": "use-case",

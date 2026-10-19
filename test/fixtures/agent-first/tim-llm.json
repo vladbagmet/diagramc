@@ -1,0 +1,11 @@
+{
+  "kind": "timing",
+  "title": "Elevator door",
+  "lifelines": [
+    { "id": "door", "name": "Door", "type": "robust", "states": ["Closed", "Opening", "Open", "Closing"],
+      "changes": [ { "time": 0, "state": "Closed" }, { "time": 2.5, "state": "Opening" }, { "time": 4, "state": "Open" }, { "time": 9, "state": "Closing" }, { "time": 11, "state": "Closed" } ] },
+    { "id": "sensor", "name": "Sensor", "type": "concise", "states": ["Clear", "Blocked"],
+      "changes": [ { "time": 0, "state": "Clear" }, { "time": 9.5, "state": "Blocked" } ] }
+  ],
+  "messages": [ { "from": "sensor", "to": "door", "at": 9.5, "label": "obstacle" } ]
+}

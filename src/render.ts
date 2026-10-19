@@ -5,6 +5,7 @@ import type { Backend } from './model/kind.js';
 import type { ParsedDocument } from './model/parse.js';
 import { embedFonts } from './plantuml/fonts.js';
 import { renderSvg, rendererOptions, type RendererOptions } from './plantuml/runner.js';
+import { checkSvg } from './qa/gates.js';
 
 export type OutputFormat = 'svg' | 'png';
 
@@ -45,4 +46,54 @@ export async function renderToSvg(parsed: ParsedDocument, options: RenderOptions
 export async function renderDocument(parsed: ParsedDocument, format: OutputFormat, options: RenderOptions & { scale?: number } = {}): Promise<Buffer> {
   const svg = await renderToSvg(parsed, options);
   return format === 'png' ? rasterize(svg, options.scale) : Buffer.from(svg, 'utf8');
+}
+
+/**
+ * A QA gate (src/qa/gates.ts) that the rendered drawing does not pass: the
+ * diagram is still written, but it has a layout defect (for example a label on a
+ * line) that a reader may notice. `uml render --strict` turns these into an error.
+ */
+export interface LayoutWarning {
+  code: 'LAYOUT_QUALITY';
+  gate: string;
+  message: string;
+  /** How many problems the gate found. */
+  count: number;
+  /** The first problems, as the gate reports them. */
+  problems: string[];
+  /** What usually helps, in terms of the model. */
+  advice: string;
+}
+
+/** Most problems listed per gate in a warning. */
+const MAX_PROBLEMS = 5;
+
+/** What usually helps when a gate fails, in terms of the model (gate names: src/qa/gates.ts). */
+const ADVICE: Record<string, string> = {
+  'node-overlap': 'Shapes overlap. Fewer elements per diagram or shorter names usually help.',
+  'label-overlap': 'A label overlaps a shape or another text. Shorter labels or names usually help.',
+  'label-edge-crossing': 'A line runs through a label. Shorter labels or fewer crossing relationships usually help.',
+  'label-proximity': 'A label is far from its line or nearer another one. Fewer relationships between the same elements usually help.',
+  'edge-endpoints': 'A line runs through a shape it does not connect. Fewer crossing relationships, less deeply nested structure, or splitting the diagram usually helps.',
+  markers: 'Arrowheads touch each other. Fewer relationships ending at the same element usually help.',
+  'message-arrows': 'A message arrow collides with something. Fewer messages on one link usually help.',
+};
+const RENDERER_DEFECT = 'This is a renderer defect, not a problem in the model; the diagram may still be usable.';
+
+/** Runs every QA gate on a rendered SVG and turns failed gates into warnings. */
+export async function layoutWarnings(svg: string, parsed: ParsedDocument, backend?: Backend<unknown>): Promise<LayoutWarning[]> {
+  const report = await checkSvg(svg, parsed.texts.map(t => t.text));
+  const held = backend && backend.name === 'plantuml' ? backend.gates : undefined;
+  return report.gates.filter(g => !g.ok && (!held || held.includes(g.gate))).map(g => ({
+    code: 'LAYOUT_QUALITY', gate: g.gate,
+    message: `Layout check "${g.gate}" found ${g.failures.length} problem${g.failures.length === 1 ? '' : 's'}: ${g.failures[0]}${g.failures.length > 1 ? ` (and ${g.failures.length - 1} more)` : ''}`,
+    count: g.failures.length, problems: g.failures.slice(0, MAX_PROBLEMS), advice: ADVICE[g.gate] ?? RENDERER_DEFECT,
+  }));
+}
+
+/** Renders like renderDocument and runs the QA gates on the drawing (a few ms). */
+export async function renderChecked(parsed: ParsedDocument, format: OutputFormat, options: RenderOptions & { scale?: number } = {}): Promise<{ data: Buffer; warnings: LayoutWarning[] }> {
+  const svg = await renderToSvg(parsed, options);
+  const warnings = await layoutWarnings(svg, parsed, selectBackend(parsed, options.backend));
+  return { data: format === 'png' ? await rasterize(svg, options.scale) : Buffer.from(svg, 'utf8'), warnings };
 }

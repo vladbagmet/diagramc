@@ -241,7 +241,8 @@ test('post-processing moves a crossed label beside the lifeline or paints a halo
   assert.ok(x > 154 && x + 60 < 396, `moved beside the lifeline (${x})`);
   // A 280px label cannot avoid the lifeline at 150 within its arrow: it gets a halo.
   const haloed = clearLabels(`<svg>${lifeline(100)}${lifeline(150)}${lifeline(400)}${message(100, 400, 280)}</svg>`);
-  assert.match(haloed, /<rect fill="#FFFFFF" height="[\d.]+" width="284" x="109" y="[\d.]+"\/><text/);
+  // The halo leaves HALO_PAD (4 px) of clear space on each side and has rounded corners.
+  assert.match(haloed, /<rect fill="#FFFFFF" height="[\d.]+" rx="3" ry="3" width="288" x="107" y="[\d.]+"\/><text/);
 });
 
 test('kinds, schema and validate work for sequence diagrams', () => {

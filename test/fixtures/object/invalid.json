@@ -29,7 +29,7 @@
     "doc": { "kind": "object", "elements": [{ "id": "a", "type": "instance", "name": "a" }, { "id": "b", "type": "instance", "name": "b" }], "relationships": [{ "type": "link", "from": "a", "to": "b", "toEnd": { "multiplicity": "1" } }] } },
   { "name": "slot without a value", "expect": { "code": "SCHEMA_INVALID", "path": "/elements/0/slots/0/value" },
     "doc": { "kind": "object", "elements": [{ "id": "a", "type": "instance", "name": "a", "slots": [{ "feature": "x" }] }] } },
-  { "name": "class element in an object diagram", "expect": { "code": "SCHEMA_INVALID", "path": "/elements/0" },
+  { "name": "class element in an object diagram", "expect": { "code": "SCHEMA_INVALID", "path": "/elements/0/type" },
     "doc": { "kind": "object", "elements": [{ "id": "a", "type": "class", "name": "A" }] } },
   { "name": "association instead of a link", "expect": { "code": "SCHEMA_INVALID", "path": "/relationships/0/type" },
     "doc": { "kind": "object", "elements": [{ "id": "a", "type": "instance", "name": "a" }, { "id": "b", "type": "instance", "name": "b" }], "relationships": [{ "type": "association", "from": "a", "to": "b" }] } },

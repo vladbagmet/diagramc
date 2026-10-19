@@ -19,6 +19,6 @@
     { "type": "association", "from": "long", "to": "policy", "name": "evaluated against the destination-specific shipping policy before dispatch",
       "fromEnd": { "role": "requests", "multiplicity": "0..*" }, "toEnd": { "role": "applicable policy", "multiplicity": "1" } },
     { "type": "association", "from": "kunde", "to": "long", "name": "crée · erstellt", "toEnd": { "multiplicity": "*", "navigable": true } },
-    { "type": "dependency", "from": "hostile", "to": "kunde", "keyword": "<<call>>" }
+    { "type": "dependency", "from": "hostile", "to": "kunde", "keyword": "<b>call</b>" }
   ]
 }

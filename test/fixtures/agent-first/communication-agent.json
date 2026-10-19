@@ -1,0 +1,24 @@
+{
+  "kind": "communication",
+  "title": "ATM withdrawal",
+  "lifelines": [
+    { "id": "customer", "name": "Customer" },
+    { "id": "atm", "name": "atm", "type": "ATM" },
+    { "id": "bank", "name": "bank", "type": "BankServer" },
+    { "id": "acct", "name": "acct", "type": "Account" }
+  ],
+  "links": [
+    { "from": "customer", "to": "atm" },
+    { "from": "atm", "to": "bank" }
+  ],
+  "messages": [
+    { "sequence": "1", "from": "customer", "to": "atm", "name": "insertCard()" },
+    { "sequence": "2", "from": "customer", "to": "atm", "name": "enterPin", "arguments": ["pin"] },
+    { "sequence": "2.1", "from": "atm", "to": "bank", "name": "verifyPin", "arguments": ["card", "pin"], "assignTo": "ok" },
+    { "sequence": "2.2", "from": "bank", "to": "acct", "name": "checkBalance" },
+    { "sequence": "3", "from": "customer", "to": "atm", "name": "withdraw", "arguments": ["amount"] },
+    { "sequence": "3.1", "from": "atm", "to": "bank", "name": "debit", "arguments": ["amount"] },
+    { "sequence": "3.2", "from": "bank", "to": "atm", "name": "debit", "returnValue": "ok", "sort": "reply" },
+    { "sequence": "4", "from": "atm", "to": "customer", "name": "dispenseCash", "sort": "async" }
+  ]
+}

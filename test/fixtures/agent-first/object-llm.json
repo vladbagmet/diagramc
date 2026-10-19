@@ -1,0 +1,14 @@
+{
+  "kind": "object",
+  "title": "Bank snapshot",
+  "classifiers": [{ "name": "Customer", "attributes": ["name"] }, { "name": "Account", "attributes": ["iban", "balance"] }],
+  "elements": [
+    { "id": "alice", "type": "object", "name": "alice", "classifier": "Customer", "attributes": { "name": "Alice" } },
+    { "id": "acc1", "type": "instance", "name": "acc1", "class": "Account", "slots": [{ "name": "balance", "value": 100 }] },
+    { "id": "acc2", "type": "instance", "classifier": "SavingsAccount", "slots": [{ "feature": "rate", "value": "0.02" }] }
+  ],
+  "relationships": [
+    { "type": "link", "from": "alice", "to": "acc1", "label": "owns", "toEnd": { "role": "accounts", "multiplicity": "*" } },
+    { "type": "association", "from": "alice", "to": "acc2" }
+  ]
+}

@@ -1,7 +1,7 @@
 import { pointer, type Diagnostic } from '../../core/errors.js';
 import { reference, uniqueIds } from '../../model/rules.js';
 import { CONTROL_TYPES, isFinal, type ActivityDiagram, type ActivityNode } from './model.js';
-import { structure, StructureError } from './structure.js';
+import { blockPartitions, structure, StructureError, type Block } from './structure.js';
 
 const DEGREE: Record<string, { code: string; inMin: number; inMax: number; outMin: number; outMax: number; text: string }> = {
   decision: { code: 'DECISION_DEGREE', inMin: 1, inMax: 1, outMin: 2, outMax: Infinity, text: 'one incoming and at least two outgoing flows' },
@@ -65,7 +65,9 @@ export function validateActivityDiagram(model: ActivityDiagram): Diagnostic[] {
     } else if (e.guard !== undefined) {
       diagnostics.push({ code: 'UNEXPECTED_GUARD', path: pointer(at, 'guard'), message: `Only flows leaving a decision node carry guards here; "${e.from}" is a ${from.type} node` });
     }
-    if (e.type === 'object') {
+    // Without an explicit type, a flow touching an object node is an object flow.
+    const type = e.type ?? (from.type === 'object' || to.type === 'object' ? 'object' : 'control');
+    if (type === 'object') {
       const passes = (n: ActivityNode) => n.type === 'object' || CONTROL_TYPES.has(n.type) && n.type !== 'initial';
       if (from.type === 'initial' || to.type === 'initial' || (!passes(from) && !passes(to))) {
         diagnostics.push({ code: 'INVALID_OBJECT_FLOW', path: pointer(at, 'type'), message: `An object flow must start or end at an object node (or pass through a control node other than the initial node); "${e.from}" to "${e.to}" does not` });
@@ -106,13 +108,41 @@ export function validateActivityDiagram(model: ActivityDiagram): Diagnostic[] {
   }
 
   if (!diagnostics.length) {
-    try { structure(model); }
+    let blocks: Block | undefined;
+    try { blocks = structure(model); }
     catch (error) {
       if (!(error instanceof StructureError)) throw error;
       diagnostics.push({ code: 'UNSTRUCTURED_FLOW', path: pointer('', 'nodes', nodeIndex.get(error.nodeId) ?? 0), message: `${error.message}. Activity diagrams must be well structured (see docs/kinds/activity.md)`, details: { node: error.nodeId } });
     }
+    if (blocks && partitions.length) checkMultiwayDecisions(blocks, nodeIndex, diagnostics);
   }
   return diagnostics;
 }
 
 const cap = (s: string): string => s[0]!.toUpperCase() + s.slice(1);
+
+/**
+ * PlantUML draws a decision with more than two branches (switch/case) only when
+ * the whole decision stays in one swimlane: a swimlane change inside a case loses
+ * flows and guards. Two-way decisions (if/else) may span swimlanes freely.
+ */
+function checkMultiwayDecisions(blocks: Block, nodeIndex: ReadonlyMap<string, number>, diagnostics: Diagnostic[]): void {
+  for (const step of blocks) {
+    if (step.kind === 'decision') {
+      if (step.branches.length > 2) {
+        const own = step.node.partition;
+        const others = [...new Set(step.branches.flatMap(b => [...blockPartitions(b.body)]))].filter(p => p !== own);
+        if (others.length) {
+          diagnostics.push({
+            code: 'DECISION_SPANS_PARTITIONS', path: pointer('', 'nodes', nodeIndex.get(step.node.id) ?? 0, 'partition'),
+            message: `Decision "${step.node.id}" has ${step.branches.length} branches and some of their nodes are in partition${others.length > 1 ? 's' : ''} ${others.map(p => `"${p}"`).join(', ')}, not in its own partition "${own}". `
+              + `A decision with more than two branches must keep all nodes up to its merge (or its final nodes) in its own partition; otherwise split it into nested two-way decisions, which may cross partitions`,
+            details: { node: step.node.id, partition: own, others },
+          });
+        }
+      }
+      for (const b of step.branches) checkMultiwayDecisions(b.body, nodeIndex, diagnostics);
+    } else if (step.kind === 'fork') for (const b of step.branches) checkMultiwayDecisions(b, nodeIndex, diagnostics);
+    else if (step.kind === 'while' || step.kind === 'repeat') checkMultiwayDecisions(step.body, nodeIndex, diagnostics);
+  }
+}

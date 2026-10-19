@@ -1,0 +1,15 @@
+{
+  "kind": "sequence",
+  "title": "Payment saga",
+  "lifelines": [
+    { "id": "client", "name": "Client", "symbol": "actor" },
+    { "id": "orders", "name": "Order Service" },
+    { "id": "pay", "name": "Payment Service" }
+  ],
+  "items": [
+    { "type": "message", "from": "client", "to": "orders", "name": "createOrder()", "sort": "synchronous" },
+    { "type": "message", "from": "orders", "to": "pay", "name": "charge(amount)", "sort": "asynchronous" },
+    { "type": "message", "from": "pay", "to": "orders", "name": "paymentOk", "sort": "reply" },
+    { "type": "fragment", "operator": "alt", "operands": [ { "guard": "[ok]", "items": [ { "type": "message", "from": "orders", "to": "client", "name": "201 Created", "sort": "reply" } ] } ] }
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "kind": "package",
+  "title": "App layers",
+  "elements": [
+    { "id": "ui", "type": "package", "name": "ui", "members": ["Controller"] },
+    { "id": "domain", "type": "package", "name": "domain", "members": ["order", "ui"] },
+    { "id": "order", "type": "class", "name": "Order", "attributes": [{ "name": "id" }] },
+    { "id": "infra", "type": "package", "name": "infrastructure", "members": ["order"] }
+  ],
+  "relationships": [
+    { "type": "import", "from": "ui", "to": "domain" },
+    { "type": "dependency", "from": "infra", "to": "domain", "stereotype": "use" },
+    { "type": "uses", "from": "ui", "to": "infra" },
+    { "type": "import", "from": "order", "to": "infra" }
+  ]
+}

@@ -97,6 +97,11 @@ function checkMembers(element: Classifier, at: string, diagnostics: Diagnostic[]
     if (isLegacy(attribute)) return;
     const path = pointer(at, 'attributes', j);
     checkMultiplicity(attribute.multiplicity, pointer(path, 'multiplicity'), diagnostics);
+    // The "/" of a derived attribute is drawn from the flag; written in the name it would be doubled or wrong.
+    if (attribute.name.startsWith('/') && attribute.name.length > 1) {
+      const bare = attribute.name.slice(1).trimStart();
+      diagnostics.push({ code: 'DERIVED_MARK_IN_NAME', path: pointer(path, 'name'), message: `Attribute name "${attribute.name}" starts with "/": write the name "${bare}" and set "derived": true, which draws the "/"`, details: { suggestion: bare } });
+    }
     const first = names.get(attribute.name);
     if (first !== undefined) diagnostics.push({ code: 'DUPLICATE_MEMBER', path: pointer(path, 'name'), message: `Attribute "${attribute.name}" is already defined at ${pointer(at, 'attributes', first)}` });
     else names.set(attribute.name, j);

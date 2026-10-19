@@ -1,0 +1,25 @@
+{
+  "kind": "use-case",
+  "title": "Ride sharing",
+  "elements": [
+    { "id": "rider", "type": "actor", "name": "Rider" },
+    { "id": "driver", "type": "actor", "name": "Driver" },
+    { "id": "pay", "type": "actor", "name": "Payment Gateway" },
+    { "id": "app", "type": "subject", "name": "RideApp", "useCases": ["book", "cancel", "rate", "pay1", "surge"] },
+    { "id": "book", "type": "useCase", "name": "Book ride" },
+    { "id": "cancel", "type": "useCase", "name": "Cancel ride" },
+    { "id": "rate", "type": "useCase", "name": "Rate driver" },
+    { "id": "pay1", "type": "useCase", "name": "Pay for ride" },
+    { "id": "surge", "type": "useCase", "name": "Apply surge pricing" }
+  ],
+  "relationships": [
+    { "type": "association", "from": "rider", "to": "book" },
+    { "type": "association", "from": "rider", "to": "cancel" },
+    { "type": "association", "from": "rider", "to": "rate" },
+    { "type": "association", "from": "driver", "to": "book" },
+    { "type": "include", "from": "book", "to": "pay1" },
+    { "type": "extend", "from": "book", "to": "surge" },
+    { "type": "association", "from": "pay1", "to": "pay" },
+    { "type": "association", "from": "rider", "to": "driver" }
+  ]
+}

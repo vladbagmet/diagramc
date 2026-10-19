@@ -2,7 +2,7 @@ import { kindSchema } from '../../model/schema.js';
 
 export const MAX_TIME = 1_000_000;
 const ref = (name: string, description?: string) => ({ $ref: `#/definitions/${name}`, ...(description ? { description } : {}) });
-const time = (description: string) => ({ type: 'integer', minimum: 0, maximum: MAX_TIME, description });
+const time = (description: string) => ({ type: 'integer', minimum: 0, maximum: MAX_TIME, description: `${description} A whole number of \`timeUnit\`; for fractions use a finer unit (2.5 s is 2500 with "timeUnit": "ms").` });
 
 /** JSON Schema of a timing diagram document (`uml schema timing`). */
 export const timingSchema = kindSchema({

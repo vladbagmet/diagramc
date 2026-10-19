@@ -1,29 +1,28 @@
+import type { FontMetrics, TextStyle } from '../engine/fonts.js';
+import { wrapText } from '../engine/text.js';
 import { displayText } from './encode.js';
 
+const graphemes = new Intl.Segmenter('en', { granularity: 'grapheme' });
+
+/** Text "metrics" that count graphemes, so the shared wrapper can wrap to a number of characters. */
+const COUNT: FontMetrics = {
+  measure: text => [...graphemes.segment(text)].length,
+  ascent: () => 0, descent: () => 0, lineHeight: () => 1, runs: text => [{ text, covered: true }],
+};
+
 /**
- * Splits display text into lines of at most `max` code points, breaking after
- * spaces where possible and inside long words otherwise. Spaces stay at the end
- * of their line, so `lines.join('') === text` and the QA reader can rebuild the
- * literal input from the drawn lines.
+ * Splits display text into lines of at most `max` graphemes with the shared
+ * wrapper (src/engine/text.ts): breaks after spaces first, then at identifier
+ * punctuation and camelCase boundaries, inside a word only as a last resort.
+ * `lines.join('') === text`, so the QA reader can rebuild the literal input.
  */
 export function wrapLines(text: string, max: number): string[] {
-  const chars = [...text];
-  if (chars.length <= max) return [text];
-  const lines: string[] = [];
-  let start = 0;
-  while (chars.length - start > max) {
-    let end = start + max;
-    // Break after the last space within the window (keep the space on this line).
-    let space = -1;
-    for (let i = end; i > start; i--) if (chars[i - 1] === ' ' && chars[i] !== ' ') { space = i; break; }
-    if (space > start + Math.floor(max / 3)) end = space;
-    // Let a run of spaces finish on this line rather than start the next one.
-    while (end < chars.length && chars[end] === ' ') end++;
-    lines.push(chars.slice(start, end).join(''));
-    start = end;
-  }
-  if (start < chars.length) lines.push(chars.slice(start).join(''));
-  return lines;
+  return wrapText(COUNT, text, { size: 1 }, max, { maxTokenWidth: max });
+}
+
+/** Splits display text into lines at most `maxWidth` px wide in `style` (the shared wrapper). */
+export function wrapMeasured(metrics: FontMetrics, text: string, style: TextStyle, maxWidth: number): string[] {
+  return wrapText(metrics, text, style, maxWidth);
 }
 
 /**

@@ -58,7 +58,7 @@ export const sequenceSchema = kindSchema({
         item('deactivate', 'Ends the innermost activation of `lifeline`.', ['lifeline'], { lifeline: ref('id') }),
         item('destroy', 'Destruction occurrence: an X ends `lifeline`. Nothing may refer to the lifeline afterwards.', ['lifeline'], { lifeline: ref('id') }),
         item('stateInvariant', 'State invariant: the constraint drawn in braces on `lifeline`, e.g. constraint "balance >= 0" is drawn {balance >= 0}.', ['lifeline', 'constraint'], {
-          id: ref('id'), lifeline: ref('id'), constraint: ref('text', 'Constraint text without braces.'),
+          id: ref('id'), lifeline: ref('id'), constraint: ref('constraint', 'Constraint text without braces, drawn {constraint} on the lifeline.'),
         }),
         item('note', 'A note (comment). position "over" spans the listed lifelines; "left" and "right" take exactly one lifeline.', ['position', 'lifelines', 'text'], {
           id: ref('id'), position: { enum: ['over', 'left', 'right'] },
@@ -81,7 +81,7 @@ export const sequenceSchema = kindSchema({
       type: 'object', additionalProperties: false, required: ['items'],
       description: 'An interaction operand: an optional guard and its items in time order.',
       properties: {
-        guard: ref('text', 'Guard condition without brackets, drawn [guard]. Use "else" for the last alt operand.'),
+        guard: ref('guard', 'Guard condition without brackets, drawn [guard]. Use "else" for the last alt operand.'),
         items: { type: 'array', minItems: 1, maxItems: MAX_ITEMS, items: ref('item') },
       },
     },

@@ -4,6 +4,7 @@ import { readFile, readdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { parseDocument } from '../../dist/model/parse.js';
 import { classToPlantUml } from '../../dist/kinds/class/to-plantuml.js';
+import { classKind } from '../../dist/kinds/class/index.js';
 import { renderSvg, rendererOptions } from '../../dist/plantuml/runner.js';
 import { renderToSvg } from '../../dist/render.js';
 import { loadFonts } from '../../dist/engine/fonts.js';
@@ -22,7 +23,7 @@ function visibleText(svg) {
 // Smetana (PlantUML's built-in layout) can put labels on nodes and draws note
 // pointers through other nodes, so the class fallback guarantees only the gates
 // that do not depend on layout quality. The own engine must pass all of them.
-const FALLBACK_GATES = ['safe-markup', 'inside-canvas', 'literal-text', 'min-font-size', 'text-fits'];
+const FALLBACK_GATES = classKind.backends.find(b => b.name === 'plantuml').gates;
 const fallbackFailures = report => report.gates.filter(g => FALLBACK_GATES.includes(g.gate) && !g.ok).map(g => `${g.gate}: ${g.failures.join('; ')}`);
 const examples = async dir => (await readdir(join(root, dir))).filter(f => f.endsWith('.json')).sort().map(f => join(root, dir, f));
 

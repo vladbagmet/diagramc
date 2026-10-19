@@ -1,0 +1,776 @@
+{
+ "kind": "activity",
+ "title": "Awkward activity with deep nesting and many notes",
+ "partitions": [
+  {
+   "id": "p0",
+   "name": "Department of Long Partition Names 0"
+  },
+  {
+   "id": "p1",
+   "name": "Department of Long Partition Names 1"
+  },
+  {
+   "id": "p2",
+   "name": "Department of Long Partition Names 2"
+  },
+  {
+   "id": "p3",
+   "name": "Department of Long Partition Names 3"
+  },
+  {
+   "id": "p4",
+   "name": "Department of Long Partition Names 4"
+  }
+ ],
+ "nodes": [
+  {
+   "id": "start",
+   "type": "initial",
+   "partition": "p0"
+  },
+  {
+   "id": "n1",
+   "type": "action",
+   "name": "Receive request",
+   "partition": "p0",
+   "note": "Entry point."
+  },
+  {
+   "id": "n2",
+   "type": "decision",
+   "partition": "p1"
+  },
+  {
+   "id": "n3",
+   "type": "merge"
+  },
+  {
+   "id": "n4",
+   "type": "decision",
+   "partition": "p4"
+  },
+  {
+   "id": "n5",
+   "type": "merge"
+  },
+  {
+   "id": "n6",
+   "type": "decision",
+   "partition": "p3"
+  },
+  {
+   "id": "n7",
+   "type": "merge"
+  },
+  {
+   "id": "n8",
+   "type": "decision",
+   "partition": "p2"
+  },
+  {
+   "id": "n9",
+   "type": "merge"
+  },
+  {
+   "id": "n10",
+   "type": "action",
+   "name": "Perform an action with a rather long descriptive name at leaf level 9",
+   "partition": "p1",
+   "note": "A note attached to this leaf action explaining why it exists in some detail."
+  },
+  {
+   "id": "n11",
+   "type": "action",
+   "name": "Perform an action with a rather long descriptive name at leaf level 10",
+   "partition": "p2",
+   "note": "A note attached to this leaf action explaining why it exists in some detail."
+  },
+  {
+   "id": "n12",
+   "type": "decision",
+   "partition": "p3"
+  },
+  {
+   "id": "n13",
+   "type": "merge"
+  },
+  {
+   "id": "n14",
+   "type": "action",
+   "name": "Perform an action with a rather long descriptive name at leaf level 13",
+   "partition": "p1",
+   "note": "A note attached to this leaf action explaining why it exists in some detail."
+  },
+  {
+   "id": "n15",
+   "type": "action",
+   "name": "Perform an action with a rather long descriptive name at leaf level 14",
+   "partition": "p2",
+   "note": "A note attached to this leaf action explaining why it exists in some detail."
+  },
+  {
+   "id": "n16",
+   "type": "decision",
+   "partition": "p4"
+  },
+  {
+   "id": "n17",
+   "type": "merge"
+  },
+  {
+   "id": "n18",
+   "type": "decision",
+   "partition": "p2"
+  },
+  {
+   "id": "n19",
+   "type": "merge"
+  },
+  {
+   "id": "n20",
+   "type": "action",
+   "name": "Perform an action with a rather long descriptive name at leaf level 19",
+   "partition": "p1",
+   "note": "A note attached to this leaf action explaining why it exists in some detail."
+  },
+  {
+   "id": "n21",
+   "type": "action",
+   "name": "Perform an action with a rather long descriptive name at leaf level 20",
+   "partition": "p2",
+   "note": "A note attached to this leaf action explaining why it exists in some detail."
+  },
+  {
+   "id": "n22",
+   "type": "decision",
+   "partition": "p3"
+  },
+  {
+   "id": "n23",
+   "type": "merge"
+  },
+  {
+   "id": "n24",
+   "type": "action",
+   "name": "Perform an action with a rather long descriptive name at leaf level 23",
+   "partition": "p1",
+   "note": "A note attached to this leaf action explaining why it exists in some detail."
+  },
+  {
+   "id": "n25",
+   "type": "action",
+   "name": "Perform an action with a rather long descriptive name at leaf level 24",
+   "partition": "p2",
+   "note": "A note attached to this leaf action explaining why it exists in some detail."
+  },
+  {
+   "id": "n26",
+   "type": "decision",
+   "partition": "p0"
+  },
+  {
+   "id": "n27",
+   "type": "merge"
+  },
+  {
+   "id": "n28",
+   "type": "decision",
+   "partition": "p3"
+  },
+  {
+   "id": "n29",
+   "type": "merge"
+  },
+  {
+   "id": "n30",
+   "type": "decision",
+   "partition": "p2"
+  },
+  {
+   "id": "n31",
+   "type": "merge"
+  },
+  {
+   "id": "n32",
+   "type": "action",
+   "name": "Perform an action with a rather long descriptive name at leaf level 31",
+   "partition": "p1",
+   "note": "A note attached to this leaf action explaining why it exists in some detail."
+  },
+  {
+   "id": "n33",
+   "type": "action",
+   "name": "Perform an action with a rather long descriptive name at leaf level 32",
+   "partition": "p2",
+   "note": "A note attached to this leaf action explaining why it exists in some detail."
+  },
+  {
+   "id": "n34",
+   "type": "decision",
+   "partition": "p3"
+  },
+  {
+   "id": "n35",
+   "type": "merge"
+  },
+  {
+   "id": "n36",
+   "type": "action",
+   "name": "Perform an action with a rather long descriptive name at leaf level 35",
+   "partition": "p1",
+   "note": "A note attached to this leaf action explaining why it exists in some detail."
+  },
+  {
+   "id": "n37",
+   "type": "action",
+   "name": "Perform an action with a rather long descriptive name at leaf level 36",
+   "partition": "p2",
+   "note": "A note attached to this leaf action explaining why it exists in some detail."
+  },
+  {
+   "id": "n38",
+   "type": "decision",
+   "partition": "p4"
+  },
+  {
+   "id": "n39",
+   "type": "merge"
+  },
+  {
+   "id": "n40",
+   "type": "decision",
+   "partition": "p2"
+  },
+  {
+   "id": "n41",
+   "type": "merge"
+  },
+  {
+   "id": "n42",
+   "type": "action",
+   "name": "Perform an action with a rather long descriptive name at leaf level 41",
+   "partition": "p1",
+   "note": "A note attached to this leaf action explaining why it exists in some detail."
+  },
+  {
+   "id": "n43",
+   "type": "action",
+   "name": "Perform an action with a rather long descriptive name at leaf level 42",
+   "partition": "p2",
+   "note": "A note attached to this leaf action explaining why it exists in some detail."
+  },
+  {
+   "id": "n44",
+   "type": "decision",
+   "partition": "p3"
+  },
+  {
+   "id": "n45",
+   "type": "merge"
+  },
+  {
+   "id": "n46",
+   "type": "action",
+   "name": "Perform an action with a rather long descriptive name at leaf level 45",
+   "partition": "p1",
+   "note": "A note attached to this leaf action explaining why it exists in some detail."
+  },
+  {
+   "id": "n47",
+   "type": "action",
+   "name": "Perform an action with a rather long descriptive name at leaf level 46",
+   "partition": "p2",
+   "note": "A note attached to this leaf action explaining why it exists in some detail."
+  },
+  {
+   "id": "n48",
+   "type": "merge"
+  },
+  {
+   "id": "n49",
+   "type": "action",
+   "name": "Retry the remote call with exponential backoff",
+   "partition": "p2",
+   "note": "Retries at most five times."
+  },
+  {
+   "id": "n50",
+   "type": "decision",
+   "partition": "p2"
+  },
+  {
+   "id": "n51",
+   "type": "fork",
+   "partition": "p3"
+  },
+  {
+   "id": "n52",
+   "type": "join"
+  },
+  {
+   "id": "n53",
+   "type": "action",
+   "name": "Parallel branch 0 work item",
+   "partition": "p0",
+   "note": "Branch 0 note"
+  },
+  {
+   "id": "n54",
+   "type": "action",
+   "name": "Parallel branch 1 work item",
+   "partition": "p1",
+   "note": "Branch 1 note"
+  },
+  {
+   "id": "n55",
+   "type": "action",
+   "name": "Parallel branch 2 work item",
+   "partition": "p2",
+   "note": "Branch 2 note"
+  },
+  {
+   "id": "n56",
+   "type": "action",
+   "name": "Parallel branch 3 work item",
+   "partition": "p3",
+   "note": "Branch 3 note"
+  },
+  {
+   "id": "n57",
+   "type": "action",
+   "name": "Parallel branch 4 work item",
+   "partition": "p4",
+   "note": "Branch 4 note"
+  },
+  {
+   "id": "n58",
+   "type": "activityFinal",
+   "partition": "p4"
+  }
+ ],
+ "edges": [
+  {
+   "type": "control",
+   "from": "start",
+   "to": "n1"
+  },
+  {
+   "type": "control",
+   "from": "n1",
+   "to": "n2"
+  },
+  {
+   "type": "control",
+   "from": "n2",
+   "to": "n4",
+   "guard": "condition 4-a is satisfied by the request"
+  },
+  {
+   "type": "control",
+   "from": "n4",
+   "to": "n6",
+   "guard": "condition 3-a is satisfied by the request"
+  },
+  {
+   "type": "control",
+   "from": "n6",
+   "to": "n8",
+   "guard": "condition 2-a is satisfied by the request"
+  },
+  {
+   "type": "control",
+   "from": "n8",
+   "to": "n10",
+   "guard": "condition 1-a is satisfied by the request"
+  },
+  {
+   "type": "control",
+   "from": "n10",
+   "to": "n9"
+  },
+  {
+   "type": "control",
+   "from": "n8",
+   "to": "n11",
+   "guard": "else"
+  },
+  {
+   "type": "control",
+   "from": "n11",
+   "to": "n9"
+  },
+  {
+   "type": "control",
+   "from": "n9",
+   "to": "n7"
+  },
+  {
+   "type": "control",
+   "from": "n6",
+   "to": "n12",
+   "guard": "else"
+  },
+  {
+   "type": "control",
+   "from": "n12",
+   "to": "n14",
+   "guard": "condition 1-a is satisfied by the request"
+  },
+  {
+   "type": "control",
+   "from": "n14",
+   "to": "n13"
+  },
+  {
+   "type": "control",
+   "from": "n12",
+   "to": "n15",
+   "guard": "else"
+  },
+  {
+   "type": "control",
+   "from": "n15",
+   "to": "n13"
+  },
+  {
+   "type": "control",
+   "from": "n13",
+   "to": "n7"
+  },
+  {
+   "type": "control",
+   "from": "n7",
+   "to": "n5"
+  },
+  {
+   "type": "control",
+   "from": "n4",
+   "to": "n16",
+   "guard": "else"
+  },
+  {
+   "type": "control",
+   "from": "n16",
+   "to": "n18",
+   "guard": "condition 2-a is satisfied by the request"
+  },
+  {
+   "type": "control",
+   "from": "n18",
+   "to": "n20",
+   "guard": "condition 1-a is satisfied by the request"
+  },
+  {
+   "type": "control",
+   "from": "n20",
+   "to": "n19"
+  },
+  {
+   "type": "control",
+   "from": "n18",
+   "to": "n21",
+   "guard": "else"
+  },
+  {
+   "type": "control",
+   "from": "n21",
+   "to": "n19"
+  },
+  {
+   "type": "control",
+   "from": "n19",
+   "to": "n17"
+  },
+  {
+   "type": "control",
+   "from": "n16",
+   "to": "n22",
+   "guard": "else"
+  },
+  {
+   "type": "control",
+   "from": "n22",
+   "to": "n24",
+   "guard": "condition 1-a is satisfied by the request"
+  },
+  {
+   "type": "control",
+   "from": "n24",
+   "to": "n23"
+  },
+  {
+   "type": "control",
+   "from": "n22",
+   "to": "n25",
+   "guard": "else"
+  },
+  {
+   "type": "control",
+   "from": "n25",
+   "to": "n23"
+  },
+  {
+   "type": "control",
+   "from": "n23",
+   "to": "n17"
+  },
+  {
+   "type": "control",
+   "from": "n17",
+   "to": "n5"
+  },
+  {
+   "type": "control",
+   "from": "n5",
+   "to": "n3"
+  },
+  {
+   "type": "control",
+   "from": "n2",
+   "to": "n26",
+   "guard": "else"
+  },
+  {
+   "type": "control",
+   "from": "n26",
+   "to": "n28",
+   "guard": "condition 3-a is satisfied by the request"
+  },
+  {
+   "type": "control",
+   "from": "n28",
+   "to": "n30",
+   "guard": "condition 2-a is satisfied by the request"
+  },
+  {
+   "type": "control",
+   "from": "n30",
+   "to": "n32",
+   "guard": "condition 1-a is satisfied by the request"
+  },
+  {
+   "type": "control",
+   "from": "n32",
+   "to": "n31"
+  },
+  {
+   "type": "control",
+   "from": "n30",
+   "to": "n33",
+   "guard": "else"
+  },
+  {
+   "type": "control",
+   "from": "n33",
+   "to": "n31"
+  },
+  {
+   "type": "control",
+   "from": "n31",
+   "to": "n29"
+  },
+  {
+   "type": "control",
+   "from": "n28",
+   "to": "n34",
+   "guard": "else"
+  },
+  {
+   "type": "control",
+   "from": "n34",
+   "to": "n36",
+   "guard": "condition 1-a is satisfied by the request"
+  },
+  {
+   "type": "control",
+   "from": "n36",
+   "to": "n35"
+  },
+  {
+   "type": "control",
+   "from": "n34",
+   "to": "n37",
+   "guard": "else"
+  },
+  {
+   "type": "control",
+   "from": "n37",
+   "to": "n35"
+  },
+  {
+   "type": "control",
+   "from": "n35",
+   "to": "n29"
+  },
+  {
+   "type": "control",
+   "from": "n29",
+   "to": "n27"
+  },
+  {
+   "type": "control",
+   "from": "n26",
+   "to": "n38",
+   "guard": "else"
+  },
+  {
+   "type": "control",
+   "from": "n38",
+   "to": "n40",
+   "guard": "condition 2-a is satisfied by the request"
+  },
+  {
+   "type": "control",
+   "from": "n40",
+   "to": "n42",
+   "guard": "condition 1-a is satisfied by the request"
+  },
+  {
+   "type": "control",
+   "from": "n42",
+   "to": "n41"
+  },
+  {
+   "type": "control",
+   "from": "n40",
+   "to": "n43",
+   "guard": "else"
+  },
+  {
+   "type": "control",
+   "from": "n43",
+   "to": "n41"
+  },
+  {
+   "type": "control",
+   "from": "n41",
+   "to": "n39"
+  },
+  {
+   "type": "control",
+   "from": "n38",
+   "to": "n44",
+   "guard": "else"
+  },
+  {
+   "type": "control",
+   "from": "n44",
+   "to": "n46",
+   "guard": "condition 1-a is satisfied by the request"
+  },
+  {
+   "type": "control",
+   "from": "n46",
+   "to": "n45"
+  },
+  {
+   "type": "control",
+   "from": "n44",
+   "to": "n47",
+   "guard": "else"
+  },
+  {
+   "type": "control",
+   "from": "n47",
+   "to": "n45"
+  },
+  {
+   "type": "control",
+   "from": "n45",
+   "to": "n39"
+  },
+  {
+   "type": "control",
+   "from": "n39",
+   "to": "n27"
+  },
+  {
+   "type": "control",
+   "from": "n27",
+   "to": "n3"
+  },
+  {
+   "type": "control",
+   "from": "n3",
+   "to": "n48"
+  },
+  {
+   "type": "control",
+   "from": "n48",
+   "to": "n49"
+  },
+  {
+   "type": "control",
+   "from": "n49",
+   "to": "n50"
+  },
+  {
+   "type": "control",
+   "from": "n50",
+   "to": "n48",
+   "guard": "transient failure"
+  },
+  {
+   "type": "control",
+   "from": "n50",
+   "to": "n51",
+   "guard": "done"
+  },
+  {
+   "type": "control",
+   "from": "n51",
+   "to": "n53"
+  },
+  {
+   "type": "control",
+   "from": "n53",
+   "to": "n52"
+  },
+  {
+   "type": "control",
+   "from": "n51",
+   "to": "n54"
+  },
+  {
+   "type": "control",
+   "from": "n54",
+   "to": "n52"
+  },
+  {
+   "type": "control",
+   "from": "n51",
+   "to": "n55"
+  },
+  {
+   "type": "control",
+   "from": "n55",
+   "to": "n52"
+  },
+  {
+   "type": "control",
+   "from": "n51",
+   "to": "n56"
+  },
+  {
+   "type": "control",
+   "from": "n56",
+   "to": "n52"
+  },
+  {
+   "type": "control",
+   "from": "n51",
+   "to": "n57"
+  },
+  {
+   "type": "control",
+   "from": "n57",
+   "to": "n52"
+  },
+  {
+   "type": "control",
+   "from": "n52",
+   "to": "n58"
+  }
+ ]
+}

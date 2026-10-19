@@ -1,0 +1,23 @@
+{ "kind": "activity", "title": "Cross-lane nested decision",
+  "partitions": [ { "id": "a", "name": "Lane A" }, { "id": "b", "name": "Lane B" }, { "id": "c", "name": "Lane C" } ],
+  "nodes": [
+    { "id": "i", "type": "initial", "partition": "a" },
+    { "id": "d1", "type": "decision", "partition": "a" },
+    { "id": "d2", "type": "decision", "partition": "b" },
+    { "id": "x", "type": "action", "name": "X", "partition": "b" },
+    { "id": "y", "type": "action", "name": "Y", "partition": "c" },
+    { "id": "m2", "type": "merge" },
+    { "id": "z", "type": "action", "name": "Z", "partition": "c" },
+    { "id": "m1", "type": "merge" },
+    { "id": "f", "type": "activityFinal", "partition": "a" } ],
+  "edges": [
+    { "type": "control", "from": "i", "to": "d1" },
+    { "type": "control", "from": "d1", "to": "d2", "guard": "p" },
+    { "type": "control", "from": "d1", "to": "z", "guard": "else" },
+    { "type": "control", "from": "d2", "to": "x", "guard": "q" },
+    { "type": "control", "from": "d2", "to": "y", "guard": "else" },
+    { "type": "control", "from": "x", "to": "m2" },
+    { "type": "control", "from": "y", "to": "m2" },
+    { "type": "control", "from": "m2", "to": "m1" },
+    { "type": "control", "from": "z", "to": "m1" },
+    { "type": "control", "from": "m1", "to": "f" } ] }

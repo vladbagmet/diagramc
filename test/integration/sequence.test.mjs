@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile, readdir } from 'node:fs/promises';
+import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { parseDocument } from '../../dist/model/parse.js';
 import { renderToSvg } from '../../dist/render.js';
@@ -88,6 +89,52 @@ test('UML notation: fragments, guards, interaction use and state invariant text'
   assert.ok(scene.texts.find(t => t.content === 'alt').bold, 'operator in bold');
 });
 
+test('review fixes: notes clear of other lifelines, found/lost inside fragments, regular guards, head names on one baseline (C-07, C-10, C-33, C-41)', async () => {
+  const checkout = await render(await readFile(join(root, 'examples/sequence/checkout.json'), 'utf8'));
+  // C-07: no note covers a lifeline other than its own.
+  const lifelines = [...checkout.svg.matchAll(/<line style="[^"]*dasharray:5,5;" x1="([\d.]+)" x2="\1" y1="([\d.]+)" y2="([\d.]+)"/g)].map(m => ({ x: Number(m[1]), top: Number(m[2]), bottom: Number(m[3]) }));
+  for (const note of checkout.scene.nodes.filter(n => n.type === 'note')) {
+    const crossing = lifelines.filter(l => l.x > note.bounds.x && l.x < note.bounds.x + note.bounds.width && l.bottom > note.bounds.y && l.top < note.bounds.y + note.bounds.height);
+    assert.ok(crossing.length <= 1, `note ${note.id} covers ${crossing.length} lifelines`);
+  }
+  // C-33: icon heads and rectangle heads have their names on one baseline.
+  const heads = [...checkout.svg.matchAll(/<g class="participant participant-head"[^>]*>((?:(?!<\/g>).)*)<\/g>/gs)].map(m => Math.max(...[...m[1].matchAll(/<text [^>]* y="([\d.]+)"/g)].map(t => Number(t[1]))));
+  assert.ok(new Set(heads.filter(y => y < 200).map(y => y.toFixed(1))).size === 1, `top heads on one baseline: ${heads}`);
+  const notation = await render(await readFile(join(root, 'examples/sequence/notation.json'), 'utf8'));
+  // C-41: guards are regular, operators bold.
+  for (const t of notation.scene.texts.filter(t => /^\[.*\]$/.test(t.content.replaceAll('​', '')))) assert.equal(t.bold, false, t.content);
+  assert.ok(notation.scene.texts.find(t => t.content === 'break').bold);
+  // C-10: the lost message in the break fragment ends inside it.
+  const frames = [...notation.svg.matchAll(/<rect fill="none" height="([\d.]+)" style="stroke:#475569;[^"]*" width="([\d.]+)" x="([\d.]+)" y="([\d.]+)"/g)].map(m => ({ h: Number(m[1]), w: Number(m[2]), x: Number(m[3]), y: Number(m[4]) }));
+  const lost = notation.svg.match(/<ellipse cx="([\d.]+)" cy="([\d.]+)" fill="#000000"/g).map(e => e.match(/cx="([\d.]+)" cy="([\d.]+)"/).slice(1).map(Number)).find(([, cy]) => frames.some(f => cy > f.y && cy < f.y + f.h && f.w < 250));
+  assert.ok(lost, 'lost message circle inside the small break frame');
+  const breakFrame = frames.filter(f => lost[1] > f.y && lost[1] < f.y + f.h).sort((a, b) => a.w - b.w)[0];
+  assert.ok(lost[0] < breakFrame.x + breakFrame.w - 8, 'circle inside the innermost fragment');
+});
+
+test('review fixes: identifiers wrap at word parts, untitled diagrams get a margin, activations end clear of fragments (C-08, C-38, C-45)', async () => {
+  const doc = { kind: 'sequence', lifelines: [{ id: 'a', name: 'client' }, { id: 'b', name: 'service1', classifier: 'VeryLongMicroserviceClassifierName1' }], items: [
+    { type: 'message', sort: 'synchronous', from: 'a', to: 'b', name: 'submitAnExtremelyLongOperationNameThatGoesOnAndOn', activate: true },
+    { type: 'fragment', operator: 'opt', operands: [{ guard: 'ready', items: [{ type: 'message', sort: 'asynchronous', from: 'b', to: 'a', name: 'notify' }] }] },
+    { type: 'deactivate', lifeline: 'b' },
+  ] };
+  const { svg, scene } = await render(doc);
+  const lines = [...svg.matchAll(/<text [^>]*>([^<]*)<\/text>/g)].map(m => m[1].replaceAll('&#8203;', ''));
+  // Lines break after spaces and at camelCase boundaries, never inside a word part.
+  const head = lines.slice(lines.indexOf('client') + 1, lines.findIndex(l => l.startsWith('submit')));
+  assert.ok(head.length > 1 && head.join('') === 'service1 : VeryLongMicroserviceClassifierName1', `head wrapped: ${head}`);
+  for (let i = 1; i < head.length; i++) assert.ok(!(/[a-z]$/.test(head[i - 1]) && /^[a-z]/.test(head[i])), `break inside a word part: ${head}`);
+  assert.ok(lines.includes('submitAnExtremelyLongOperationNameThatGoesOn') && lines.includes('AndOn'), `label breaks at a camelCase boundary: ${lines}`);
+  // C-45: 16 px margin around an untitled drawing.
+  const box = svg.match(/viewBox="0 0 ([\d.]+) ([\d.]+)"/).slice(1).map(Number);
+  const xs = scene.extents.flatMap(r => [r.x, r.x + r.width]), ys = scene.extents.flatMap(r => [r.y, r.y + r.height]);
+  assert.ok(Math.min(...xs) >= 15 && Math.min(...ys) >= 15 && box[0] - Math.max(...xs) >= 15, 'canvas margin');
+  // C-38: the bar ending after the fragment runs at least 10 px below its border.
+  const frame = svg.match(/<rect fill="none" height="([\d.]+)" style="stroke:#475569;[^"]*" width="[\d.]+" x="[\d.]+" y="([\d.]+)"/).slice(1).map(Number);
+  const bars = [...svg.matchAll(/<rect fill="#F8FAFC" height="([\d.]+)" style="stroke:#334155;[^"]*" width="[\d.]+" x="[\d.]+" y="([\d.]+)"/g)].map(m => Number(m[2]) + Number(m[1]));
+  assert.ok(bars.some(b => b - (frame[1] + frame[0]) >= 10), 'activation visibly continues below the fragment');
+});
+
 test('hostile, markup-like and Unicode text stays literal in every slot', async () => {
   const hostile = '" } !include https://evil.invalid <b>bold</b> [[https://evil.invalid]] **x** \\n @enduml';
   const samples = [hostile, '  spaced  ', '<svg onload="alert(1)">', 'Unicode: 🚀 𠀀 \u{10FFFD} 漢字'];
@@ -120,3 +167,12 @@ test('CLI renders sequence diagrams to SVG and PNG', async t => {
     else assert.match(bytes.toString(), /data-diagram-type="SEQUENCE"/);
   }
 });
+
+test('review models (sequence) render and pass every QA gate', async () => {
+  for (const name of ['seq-awkward.json', 'seq-oauth.json']) {
+    await assertGates(await readFile(join(root, 'test/fixtures/review', name), 'utf8'));
+  }
+  // C-23: the reviewer's guard "[ok]" used to be drawn [[ok]]; it is now rejected with the corrected text.
+  assert.throws(() => parseDocument(reviewText('seq-llm2.json')), e => e.diagnostics.some(d => d.path === '/items/3/operands/0/guard' && d.details.suggestion === 'ok'));
+});
+const reviewText = name => readFileSync(join(root, 'test/fixtures/review', name), 'utf8');

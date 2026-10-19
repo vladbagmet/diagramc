@@ -1,4 +1,5 @@
 import { pointer, type Diagnostic } from '../core/errors.js';
+import { suggest } from './hints.js';
 
 /**
  * Shared semantic checks. Kinds call these from `validate()` and add their own
@@ -26,7 +27,13 @@ export function uniqueIds(items: readonly Identified[], diagnostics: Diagnostic[
  */
 export function reference(id: string, path: string, known: ReadonlyMap<string, unknown>, diagnostics: Diagnostic[], what = 'element', details?: object): boolean {
   if (known.has(id)) return true;
-  diagnostics.push({ code: 'MISSING_REFERENCE', path, message: `Reference to unknown ${what} "${id}"`, details: details ?? { id } });
+  // The nearest known ID: same letters in another case or spelling, or a typo.
+  const nearest = suggest(id, [...known.keys()], 'id');
+  diagnostics.push({
+    code: 'MISSING_REFERENCE', path,
+    message: `Reference to unknown ${what} "${id}"${nearest ? `; did you mean "${nearest}"? References use IDs, not names` : `; known ${what} IDs: ${[...known.keys()].slice(0, 20).map(k => `"${k}"`).join(', ')}${known.size > 20 ? ', ...' : ''}`}`,
+    details: { ...(details ?? { id }), ...(nearest ? { suggestion: nearest } : {}) },
+  });
   return false;
 }
 

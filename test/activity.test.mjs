@@ -84,7 +84,9 @@ test('activity: PlantUML source uses UML shapes, encodes every display string an
     assert.equal(source.split(fragment).length - 1, fragment === '@enduml\n' ? 1 : 0, `raw ${fragment}`);
   }
   assert.doesNotMatch(source, /\bi\b.*\bp\b/u, 'user IDs never reach the source');
-  for (const line of ['start', 'stop', 'end', 'switch ()', 'endswitch', 'note right', 'end note']) assert.ok(source.split('\n').some(l => l.trim() === line), `missing ${line}`);
+  for (const line of ['start', 'stop', 'end', 'endif', 'note right', 'end note']) assert.ok(source.split('\n').some(l => l.trim() === line), `missing ${line}`);
+  // Two-way decisions are if/else: guards stay at their own branch and swimlane changes inside branches work.
+  assert.ok(source.split('\n').some(l => l.startsWith('if () then (​<U+')), 'two-way decision as if/else');
   for (const stereotype of ['<<callBehavior>>', '<<output>>', '<<input>>', '<<object>>']) assert.ok(source.includes(stereotype), stereotype);
   assert.match(source, /^mainframe \*\*act\*\* ​<U\+0022>/mu);
   assert.match(source, /^\|​<U\+0022>/mu, 'partition becomes an encoded swimlane');
@@ -104,6 +106,39 @@ test('activity: post-processor draws open arrowheads, drops mid-line arrows and 
   assert.match(fixed, /<polyline fill="none" points="54,89 60,100 66,89"/);
   assert.match(fixed, /<rect [^>]*stroke:#334155;/, 'marker stroke restored');
   assert.match(fixed, /<path d="M94,30 V42 M88,42 V36 H100 V42" fill="none"/, 'rake in the lower right corner');
+});
+
+test('activity: decisions with more than two branches use switch; repeat loops label both guards', async () => {
+  const valid = Object.fromEntries((await fixtures('valid.json')).map(c => [c.name, c.doc]));
+  const three = activityToPlantUml(model(valid['three-way decision']));
+  assert.match(three, /^switch \(\)$/mu);
+  assert.doesNotMatch(three, /^if /mu);
+  const repeat = activityToPlantUml(model(valid['repeat loop (test after)'])).split('\n');
+  // PlantUML drops is/not labels of repeat loops: the back guard is the condition, the exit guard labels the next flow.
+  const at = repeat.findIndex(l => l.startsWith('repeat while ('));
+  assert.ok(at > 0, 'repeat while with the returning guard');
+  assert.match(repeat[at + 1], /^->​<U\+005B>/u, 'exit guard on the leaving flow');
+});
+
+test('activity: post-processor mirrors accept event notches, trims bars and anchors notes with a dashed line', () => {
+  const svg = '<svg data-diagram-type="ACTIVITY" viewBox="0 0 400 300" width="400px" height="300px" style="width:400px;height:300px;"><g>'
+    // Accept event: notch on the right, as PlantUML draws <<input>>.
+    + '<polygon fill="#F8FAFC" points="10,10,110,10,100,30,110,50,10,50" style="stroke:#334155;stroke-width:1.25;"/>'
+    // Send signal (convex point on the right) stays as it is.
+    + '<polygon fill="#F8FAFC" points="10,60,100,60,110,80,100,100,10,100" style="stroke:#334155;stroke-width:1.25;"/>'
+    // A fork bar across the whole width with two flows leaving it at x=150 and x=190.
+    + '<rect fill="#334155" height="6" rx="2.5" ry="2.5" style="stroke:#334155;stroke-width:1;" width="380" x="10" y="120"/>'
+    + '<line style="stroke:#334155;stroke-width:1.25;" x1="150" x2="150" y1="126" y2="160"/>'
+    + '<line style="stroke:#334155;stroke-width:1.25;" x1="190" x2="190" y1="126" y2="160"/>'
+    // A note right of an action, with PlantUML's pointer on its left edge.
+    + '<path d="M240,200 L240,210 L220,214 L240,218 L240,240 A0,0 0 0 0 240,240 L380,240 A0,0 0 0 0 380,240 L380,210 L370,200 L240,200 A0,0 0 0 0 240,200" fill="#FFF8DB" style="stroke:#9A7B1C;stroke-width:1;"/>'
+    + '</g></svg>';
+  const fixed = fixActivitySvg(svg);
+  assert.match(fixed, /points="10,10,110,10,110,50,10,50,20,30"/, 'accept event notch on the left');
+  assert.match(fixed, /points="10,60,100,60,110,80,100,100,10,100"/, 'send signal unchanged');
+  assert.match(fixed, /<rect fill="#334155" height="6" [^>]*width="72" x="134" y="120"\/>/, 'bar spans its flows plus 16 px');
+  assert.match(fixed, /<path d="M240,200 L240,240 A0,0/, 'note pointer removed');
+  assert.match(fixed, /<line x1="240" y1="214" x2="220" y2="214" style="[^"]*stroke-dasharray:7,4;"\/>/, 'dashed anchor to the node');
 });
 
 test('activity: post-processor moves a guard off a crossing line and the QA reader sees flows', async () => {

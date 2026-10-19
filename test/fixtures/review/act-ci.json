@@ -1,0 +1,46 @@
+{
+  "kind": "activity",
+  "title": "CI pipeline",
+  "partitions": [
+    { "id": "dev", "name": "Developer" },
+    { "id": "ci", "name": "CI server" },
+    { "id": "reg", "name": "Registry" }
+  ],
+  "nodes": [
+    { "id": "start", "type": "initial", "partition": "dev" },
+    { "id": "push", "type": "action", "name": "Push commit", "partition": "dev" },
+    { "id": "hook", "type": "acceptEvent", "name": "Webhook received", "partition": "ci" },
+    { "id": "checkout", "type": "action", "name": "Check out sources", "partition": "ci" },
+    { "id": "split", "type": "fork", "partition": "ci" },
+    { "id": "lint", "type": "action", "name": "Lint", "partition": "ci" },
+    { "id": "unit", "type": "action", "name": "Run unit tests", "partition": "ci" },
+    { "id": "build", "type": "callBehavior", "name": "Build image", "partition": "ci", "note": "Multi-stage Docker build with layer cache." },
+    { "id": "sync", "type": "join" },
+    { "id": "ok", "type": "decision", "partition": "ci" },
+    { "id": "report", "type": "sendSignal", "name": "Notify failure", "partition": "ci" },
+    { "id": "fix", "type": "action", "name": "Fix the build", "partition": "dev" },
+    { "id": "failEnd", "type": "activityFinal", "partition": "dev" },
+    { "id": "image", "type": "object", "name": "Image", "state": "tested", "partition": "ci" },
+    { "id": "publish", "type": "action", "name": "Push image", "partition": "reg" },
+    { "id": "end", "type": "activityFinal", "partition": "reg" }
+  ],
+  "edges": [
+    { "type": "control", "from": "start", "to": "push" },
+    { "type": "control", "from": "push", "to": "hook" },
+    { "type": "control", "from": "hook", "to": "checkout" },
+    { "type": "control", "from": "checkout", "to": "split" },
+    { "type": "control", "from": "split", "to": "lint" },
+    { "type": "control", "from": "split", "to": "unit" },
+    { "type": "control", "from": "split", "to": "build" },
+    { "type": "control", "from": "lint", "to": "sync" },
+    { "type": "control", "from": "unit", "to": "sync" },
+    { "type": "control", "from": "build", "to": "sync" },
+    { "type": "control", "from": "sync", "to": "ok" },
+    { "type": "control", "from": "ok", "to": "report", "guard": "any step failed" },
+    { "type": "control", "from": "report", "to": "fix" },
+    { "type": "control", "from": "fix", "to": "failEnd" },
+    { "type": "object", "from": "ok", "to": "image", "guard": "all green" },
+    { "type": "object", "from": "image", "to": "publish" },
+    { "type": "control", "from": "publish", "to": "end" }
+  ]
+}
