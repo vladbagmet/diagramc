@@ -1,0 +1,17 @@
+{
+  "classes": [
+    { "id": "account", "name": "Account", "attributes": ["id: UUID", "email: String"], "methods": ["authenticate(): Boolean"] },
+    { "id": "customer", "name": "Customer", "attributes": ["name: String", "shippingAddress: Address"], "methods": ["placeOrder(): Order"] },
+    { "id": "order", "name": "Order", "attributes": ["number: String", "status: OrderStatus", "createdAt: DateTime"], "methods": ["total(): Money", "confirm()"] },
+    { "id": "line", "name": "OrderLine", "attributes": ["quantity: Integer", "unitPrice: Money"], "methods": ["subtotal(): Money"] },
+    { "id": "product", "name": "Product", "attributes": ["sku: String", "name: String", "price: Money"], "methods": ["isAvailable(): Boolean"] },
+    { "id": "payment", "name": "Payment", "attributes": ["reference: String", "amount: Money", "status: PaymentStatus"], "methods": ["capture()", "refund()"] }
+  ],
+  "relationships": [
+    { "type": "inheritance", "from": "customer", "to": "account" },
+    { "type": "association", "from": "customer", "to": "order", "label": "places" },
+    { "type": "association", "from": "order", "to": "line", "label": "contains" },
+    { "type": "association", "from": "line", "to": "product", "label": "references" },
+    { "type": "association", "from": "order", "to": "payment", "label": "paid by" }
+  ]
+}

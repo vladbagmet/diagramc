@@ -1,0 +1,11 @@
+{
+  "classes": [
+    { "id": "shape", "name": "Shape", "methods": ["area(): Number"] },
+    { "id": "circle", "name": "Circle", "attributes": ["radius: Number"], "methods": ["area(): Number"] },
+    { "id": "rectangle", "name": "Rectangle", "attributes": ["width: Number", "height: Number"], "methods": ["area(): Number"] }
+  ],
+  "relationships": [
+    { "type": "inheritance", "from": "circle", "to": "shape" },
+    { "type": "inheritance", "from": "rectangle", "to": "shape" }
+  ]
+}

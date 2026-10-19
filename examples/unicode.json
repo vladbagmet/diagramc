@@ -1,0 +1,7 @@
+{
+  "classes": [
+    { "id": "customer", "name": "Kundin · Zoë", "attributes": ["prénom: Texte", "Straße: Adresse"], "methods": ["bestellen(): Bestellung"] },
+    { "id": "order", "name": "Bestellung · 注文", "attributes": ["合計: 金額", "état: Statut"], "methods": ["confirmer()"] }
+  ],
+  "relationships": [{ "type": "association", "from": "customer", "to": "order", "label": "crée · erstellt" }]
+}

@@ -1,0 +1,6 @@
+{
+  "classes": [
+    { "id": "note", "name": "Note", "attributes": ["title: String", "body: String"], "methods": ["rename(title: String)", "archive()"] }
+  ],
+  "relationships": []
+}

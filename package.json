@@ -1,0 +1,20 @@
+{
+  "name": "agent-uml-cli",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A small, validated JSON-to-SVG class diagram CLI",
+  "type": "module",
+  "bin": { "uml": "dist/cli.js" },
+  "files": ["dist/", "schema/", "scripts/setup-renderer.mjs", "examples/"],
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "build": "tsc && node scripts/finish-build.mjs",
+    "prepack": "npm run build",
+    "setup:renderer": "node scripts/setup-renderer.mjs",
+    "test": "npm run build && node --test test/unit.test.mjs test/setup.test.mjs test/package.test.mjs",
+    "test:integration": "npm run build && node --test test/integration.test.mjs",
+    "render:example": "node dist/cli.js render examples/order-system.json -o artifacts/review.svg"
+  },
+  "dependencies": { "ajv": "8.20.0" },
+  "devDependencies": { "@types/node": "22.15.30", "typescript": "5.8.3" }
+}

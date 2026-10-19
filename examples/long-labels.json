@@ -1,0 +1,7 @@
+{
+  "classes": [
+    { "id": "request", "name": "International fulfillment request", "attributes": ["externalReference: Human-readable partner reference"], "methods": ["validateDeliveryInstructions(): ValidationResult"] },
+    { "id": "policy", "name": "Cross-border shipping policy", "attributes": ["supportedRegions: List<Region>"], "methods": ["estimateDuties(destination: Address): Money"] }
+  ],
+  "relationships": [{ "type": "association", "from": "request", "to": "policy", "label": "evaluated against the destination-specific shipping policy" }]
+}
