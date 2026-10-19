@@ -61,7 +61,12 @@ export function validateSequenceDiagram(model: SequenceDiagram): Diagnostic[] {
     const stack = state.activations.get(id) ?? [];
     const top = stack.at(-1);
     if (!top) { add('DEACTIVATION_WITHOUT_ACTIVATION', path, `Lifeline "${id}" has no open activation to end`, { lifeline: id }); return; }
-    if (top.scope !== scope) add('ACTIVATION_CROSSES_FRAGMENT', path, `The activation of "${id}" started at ${top.path} must end in the same interaction operand`, { lifeline: id, start: top.path });
+    if (top.scope !== scope) {
+      add('ACTIVATION_CROSSES_FRAGMENT', path,
+        `The activation of "${id}" started at ${top.path}, outside this interaction operand, so it cannot end inside it (each operand would end it again). `
+        + `Remove this deactivation and end the activation once after the fragment with {"type": "deactivate", "lifeline": "${id}"}, or activate "${id}" inside this operand`,
+        { lifeline: id, start: top.path, fix: { remove: path, addAfterFragment: { type: 'deactivate', lifeline: id } } });
+    }
     state.activations.set(id, stack.slice(0, -1));
   };
   const destroy = (id: string, path: string): void => {

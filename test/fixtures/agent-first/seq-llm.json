@@ -1,0 +1,14 @@
+{
+  "kind": "sequence",
+  "title": "Payment saga",
+  "participants": [
+    { "id": "client", "name": "Client", "type": "actor" },
+    { "id": "orders", "name": "Order Service" },
+    { "id": "pay", "name": "Payment Service" }
+  ],
+  "messages": [
+    { "from": "client", "to": "orders", "label": "createOrder()", "type": "sync" },
+    { "from": "orders", "to": "pay", "label": "charge(amount)", "type": "async" },
+    { "from": "pay", "to": "orders", "label": "paymentOk", "type": "return" }
+  ]
+}

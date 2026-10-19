@@ -1,6 +1,7 @@
 import { theme } from '../../core/theme.js';
 import { inflate, overlapArea, segmentIntersectsRect, type Point, type Rect } from '../../engine/geometry.js';
 import { CALL_BEHAVIOR_MARK } from '../../plantuml/skin.js';
+import { padCanvas } from '../../plantuml/geometry.js';
 
 /**
  * Fixes PlantUML's activity SVG where it deviates from UML 2.5.1 notation. Only
@@ -16,7 +17,7 @@ import { CALL_BEHAVIOR_MARK } from '../../plantuml/skin.js';
  *   narrow loops) is moved to the nearest free spot beside the same line; if
  *   there is none (a loop in a narrow swimlane), a column is opened for it.
  */
-export function fixActivitySvg(svg: string): string {
+export function fixActivitySvg(svg: string, model?: { title?: string }): string {
   const ends: [number, number][] = [];
   for (const [tag] of svg.matchAll(/<line\b[^>]*>/gu)) {
     const a = attrs(tag);
@@ -46,7 +47,9 @@ export function fixActivitySvg(svg: string): string {
     const d = `M${fmt(cx)},${fmt(top)} V${fmt(bottom)} M${fmt(left)},${fmt(bottom)} V${fmt(bar)} H${fmt(right)} V${fmt(bottom)}`;
     return `${fixed}<path d="${d}" fill="none" style="stroke:${theme.color.nodeStroke};stroke-width:${theme.stroke.node};"/>`;
   });
-  return moveCrossedLabels(anchorNotes(trimBars(mirrorAcceptEvents(svg))), 0);
+  const fixed = moveCrossedLabels(anchorNotes(trimBars(mirrorAcceptEvents(svg))), 0);
+  // Without a title there is no frame: give the drawing the own engine's canvas margin.
+  return model && model.title === undefined ? padCanvas(fixed, theme.spacing.canvas) : fixed;
 }
 
 /**

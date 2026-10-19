@@ -1,0 +1,19 @@
+{
+  "kind": "composite-structure",
+  "title": "Car",
+  "elements": [
+    { "id": "car", "type": "class", "name": "Car",
+      "parts": [
+        { "id": "engine", "name": "engine", "type": "Engine", "ports": [{ "id": "out", "name": "torqueOut", "provides": ["ITorque"] }] },
+        { "id": "gearbox", "type": "Gearbox" },
+        { "id": "wheels", "name": "wheels", "type": "Wheel", "multiplicity": "4", "aggregation": "composite" }
+      ],
+      "ports": [{ "id": "fuel", "name": "fuelIn", "conjugated": true }] }
+  ],
+  "relationships": [
+    { "type": "connector", "from": "engine", "to": "gearbox", "label": "shaft" },
+    { "type": "connector", "from": "gearbox", "to": "wheels", "toEnd": { "multiplicity": "2" } },
+    { "type": "connector", "from": "fuel", "to": "engine.tank" },
+    { "type": "connector", "from": "engine", "to": "engine" }
+  ]
+}
