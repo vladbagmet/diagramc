@@ -26,6 +26,13 @@ export interface LayoutPort {
    * for those labels. The edge attaches at the port's middle.
    */
   width?: number;
+  /**
+   * Fixed position of the port's middle relative to the node's top-left corner.
+   * When any port of a node has a position, the node uses FIXED_POS port
+   * constraints (e.g. the four vertices of a decision diamond, which are the only
+   * points of a diamond on its bounding box).
+   */
+  position?: Point;
 }
 export interface LayoutNode {
   id: string;
@@ -73,14 +80,18 @@ export async function layout(nodes: readonly LayoutNode[], edges: readonly Layou
     ...(node.children?.length ? { children: node.children.map(toElk) } : {}),
     ...(node.ports?.length ? { ports: node.ports.map(p => {
       const horizontal = p.side === 'NORTH' || p.side === 'SOUTH';
-      return { id: p.id, width: horizontal ? p.width ?? 0 : 0, height: horizontal ? 0 : p.width ?? 0, layoutOptions: { 'elk.port.side': p.side } };
+      const width = horizontal ? p.width ?? 0 : 0, height = horizontal ? 0 : p.width ?? 0;
+      return {
+        id: p.id, width, height, layoutOptions: { 'elk.port.side': p.side },
+        ...(p.position ? { x: p.position.x - width / 2, y: p.position.y - height / 2 } : {}),
+      };
     }) } : {}),
     // An invisible outside label reserves room right of the node. Its text must not
     // be empty: ELK ignores empty labels when computing node margins.
     ...(node.reserveRight ? { labels: [{ id: `${node.id}::reserve`, text: 'reserved', width: node.reserveRight, height: Math.max(1, node.height - 2), layoutOptions: { 'elk.nodeLabels.placement': '[OUTSIDE, H_RIGHT, V_CENTER]' } }] } : {}),
     layoutOptions: {
       ...(node.ports?.length ? {
-        'elk.portConstraints': 'FIXED_SIDE',
+        'elk.portConstraints': node.ports.some(p => p.position) ? 'FIXED_POS' : 'FIXED_SIDE',
         // Grow the node if its ports need more room than its content.
         'elk.nodeSize.constraints': '[PORTS, MINIMUM_SIZE]',
         'elk.nodeSize.minimum': `(${node.width}, ${node.height})`,
