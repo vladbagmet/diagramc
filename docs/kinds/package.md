@@ -67,7 +67,13 @@ uses the outline from `data-uml-tab`).
   compound nodes), so several lines can meet a package close together; they are
   kept at least 28 px apart along its border.
 - Lines between elements in different packages cross package borders; they never
-  run through unrelated packages or leaf nodes (gate `edge-endpoints`), but can
-  pass close to a tab.
-- Large, highly connected diagrams (the stress example) lay out left to right and
-  get wide, with long import lines to shared libraries.
+  run through unrelated packages, leaf nodes or any tab text (gate
+  `edge-endpoints`; the repair pass reroutes lines ELK puts over a tab).
+- Layout tries top-down, left to right and graph wrapping and keeps the most
+  readable result (`chooseLayout`). Large, highly connected diagrams (the stress
+  example) still have long import lines to shared libraries.
+- Many relationships between the same two packages follow the layered placement:
+  when ELK puts the target several layers away (it must stay below everything that
+  depends on it), the parallel dashed lines run long (the review's awkward model).
+- An empty package beside a container is centered on the line between them, so
+  their tabs are not top-aligned (the straight line wins).

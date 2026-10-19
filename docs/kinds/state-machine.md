@@ -29,7 +29,7 @@ example passes every QA gate.
 | Transition | `transitions[]` | Solid line, open arrowhead at the target, label `trigger [guard] / effect` (14.2.4) | sm: every transition `open-arrow` at the target, labels |
 | Self-transition | `from` = `to` | Loop on the state's right side, label right of the loop | fixture "self-transitions" |
 | Transition into a nested state | `to` inside a composite | Line enters the composite below its name (never over its texts) | fixture "transition from outside into a nested state"; engine: "lines over texts" gate |
-| Note | `type: "note"`, `attachedTo` | Folded-corner rectangle, dashed line to each annotated vertex; laid out inside the innermost composite holding its targets | sm: dashed `note-anchor` |
+| Note | `type: "note"`, `attachedTo` | Folded-corner rectangle, thin dotted line to each annotated vertex; laid out inside the innermost composite holding its targets | sm: dotted `note-anchor` |
 | Diagram frame | `title` | Pentagon heading **stm** name (Annex A) | sm: frame label |
 
 Lines end exactly on the outlines of circles and diamonds (`src/engine/clip.ts`;
@@ -80,6 +80,6 @@ the edge-endpoints gate reads `data-uml-shape`), pseudostates keep their size
   starts at the top. Strongly cyclic machines can still get long return lines.
 - Transitions from outside into a nested vertex enter the composite through its top;
   when the composite's name fills the header they detour around its side.
-- The lines-over-container-texts check of the edge-endpoints gate is enabled for
-  composite states and subjects only: profile diagrams (chunk 1) still route lines
-  over package tabs and would fail it.
+- Routes go through the shared repair pass (src/engine/repair.ts): lines over a
+  composite's header, detours, crowded ends and arrowheads on short end segments
+  are rerouted. The line-over-container-texts check now covers every container.
