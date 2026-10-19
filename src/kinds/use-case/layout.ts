@@ -196,7 +196,15 @@ export async function layoutUseCaseDiagram(model: UseCaseDiagram, metrics: FontM
       const id = end === 'source' ? p.r.from : p.r.to;
       if (byId.get(id)?.type !== 'actor' || route.length < 2) continue;
       const q = end === 'source' ? route[1]! : route.at(-2)!;
-      const at = sideCenter(rect(id), q);
+      const r = rect(id), center = sideCenter(r, q);
+      // A generalization's arrowhead sits beside the point where the associations meet,
+      // never on it (a side point shifted along the side).
+      const side = Math.abs(center.y - (r.y + r.height / 2)) < 0.5;
+      const own = end === 'source' ? route[0]! : route.at(-1)!;
+      const apart = 2 * theme.size.triangle.halfWidth + 6;
+      if (p.r.type === 'generalization' && distance(own, center) >= apart) continue;
+      // Shifted away from where the line comes from, so it stays clear of the caption below.
+      const at = p.r.type === 'generalization' && side ? { x: center.x, y: q.y > center.y ? Math.max(r.y + 2, center.y - apart) : Math.min(r.y + r.height - 2, center.y + apart) } : center;
       route = end === 'source' ? [at, ...route.slice(1)] : [...route.slice(0, -1), at];
       // An arrowhead needs a straight end segment: drop a bend too close to the new end.
       const marker = end === 'source' ? 'none' : p.target;
