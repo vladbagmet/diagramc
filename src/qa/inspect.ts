@@ -155,10 +155,14 @@ export async function inspectSvg(svg: string): Promise<Scene> {
 }
 
 /** See InspectedText.badBreaks. */
-function badBreaks(rows: readonly string[], style: { size: number; bold: boolean; italic: boolean }, metrics: FontMetrics): string[] {
+function badBreaks(rows: readonly string[], style: { size: number; bold: boolean; italic: boolean }, metrics: FontMetrics, starts: ReadonlySet<number>): string[] {
   const out: string[] = [];
-  for (const row of rows) if (rows.length > 1 && /^[\p{P}\p{S}]+$/u.test(row.trim())) out.push(`line ${JSON.stringify(row)} holds only punctuation`);
+  // A row that is a whole logical line (data-uml-starts) may be punctuation, e.g. a name "]]>".
+  rows.forEach((row, i) => {
+    if (rows.length > 1 && /^[\p{P}\p{S}]+$/u.test(row.trim()) && !(starts.has(i) && (starts.has(i + 1) || i === rows.length - 1))) out.push(`line ${JSON.stringify(row)} holds only punctuation`);
+  });
   for (let i = 1; i < rows.length; i++) {
+    if (starts.has(i)) continue;
     const before = rows[i - 1]!, after = rows[i]!;
     if (/\s$/u.test(before) || /^\s/u.test(after) || !before || !after) continue;
     const head = before.match(/\S+$/u)![0], tail = after.match(/^\S+/u)![0];
@@ -198,7 +202,7 @@ function readText(element: XmlElement, ancestors: XmlElement[], metrics: FontMet
   const plantRole = renderer === 'plantuml' ? (owner ? 'text' : ancestors.some(a => a.attrs.class === 'link') ? 'label' : undefined) : undefined;
   return {
     content: renderer === 'plantuml' ? content.replace(/^​|​$/gu, '') : content,
-    size, bold, italic, lines, rows, badBreaks: badBreaks(rows, style, metrics), bounds: union(lines),
+    size, bold, italic, lines, rows, badBreaks: badBreaks(rows, style, metrics, new Set((element.attrs['data-uml-starts'] ?? '0').split(' ').map(Number))), bounds: union(lines),
     ...(element.attrs['data-uml-role'] ? { role: element.attrs['data-uml-role'] } : plantRole ? { role: plantRole } : {}),
     ...(element.attrs['data-uml-owner'] ? { owner: element.attrs['data-uml-owner'] } : {}),
     ...(owner ? { node: owner.attrs['data-uml-id'] ?? owner.attrs['data-entity'] ?? '' } : {}),

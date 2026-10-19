@@ -7,7 +7,7 @@ import { structure } from '../dist/kinds/activity/structure.js';
 import { activityToPlantUml } from '../dist/kinds/activity/to-plantuml.js';
 import { fixActivitySvg } from '../dist/kinds/activity/postprocess.js';
 import { loadFonts } from '../dist/engine/fonts.js';
-import { inspectSvg, runGates } from '../dist/qa/index.js';
+import { ENGINE_ONLY_GATES, inspectSvg, runGates } from '../dist/qa/index.js';
 import { cli, fakeJava, root, workspace } from './helpers.mjs';
 import { existsSync } from 'node:fs';
 
@@ -122,7 +122,7 @@ test('activity: post-processor moves a guard off a crossing line and the QA read
   assert.ok(scene.edges[0].source && scene.edges[0].target, 'flow connects two nodes');
   const report = runGates(scene, ['[guard]']);
   assert.ok(report.ok, JSON.stringify(report.gates.filter(g => !g.ok)));
-  assert.ok(report.gates.every(g => !g.skipped), 'no gate is skipped for activity diagrams');
+  assert.ok(report.gates.every(g => !g.skipped || ENGINE_ONLY_GATES.includes(g.gate)), 'no gate is skipped for activity diagrams (except the engine-only ones)');
 });
 
 test('activity: validation, structuring included, finishes before Java is ever started', async t => {

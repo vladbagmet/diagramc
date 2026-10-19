@@ -18,6 +18,12 @@ export const GATES = [
   'edge-endpoints', 'end-spacing', 'route-length', 'markers', 'message-arrows', 'literal-text', 'min-font-size', 'text-fits', 'ports',
 ] as const;
 
+/**
+ * Gates that judge layout choices only the own engine makes (end spacing, route
+ * length); PlantUML output reports them as skipped.
+ */
+export const ENGINE_ONLY_GATES: readonly string[] = ['end-spacing', 'route-length'];
+
 /** Minimum gap between a label and a node border it does not overlap (labels must not touch outlines). */
 export const LABEL_BORDER_CLEARANCE = LABEL_CLEARANCE;
 /** A center label must lie within this distance of its own line. */

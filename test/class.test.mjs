@@ -92,9 +92,18 @@ test('self-associations stay inside the canvas with labels inside their loop', a
   const { svg } = await assertGates(doc);
   const scene = await inspectSvg(svg);
   const node = scene.nodes[0].bounds;
-  for (const e of scene.edges) {
-    assert.equal(e.points[0].x, node.x + node.width, 'loops leave the right border');
-    assert.equal(e.points.at(-1).x, node.x + node.width, 'loops return to the right border');
+  const right = node.x + node.width, bottom = node.y + node.height;
+  const [first, second, third] = scene.edges;
+  // Top-right corner, bottom-right corner, then the right side between them.
+  assert.ok(first.points[0].y === node.y && first.points.at(-1).x === right, 'first loop on the top-right corner');
+  assert.ok(second.points[0].x === right && second.points.at(-1).y === bottom, 'second loop on the bottom-right corner');
+  assert.ok(third.points[0].x === right && third.points.at(-1).x === right, 'third loop on the right side');
+  // Labels of a loop's ends sit inside the loop's bounding box.
+  for (const label of scene.texts.filter(t => t.end)) {
+    const loop = scene.edges.find(e => e.id === label.owner);
+    const xs = loop.points.map(p => p.x), ys = loop.points.map(p => p.y);
+    const box = { x: Math.min(...xs), y: Math.min(...ys), width: Math.max(...xs) - Math.min(...xs), height: Math.max(...ys) - Math.min(...ys) };
+    assert.ok(label.bounds.x >= box.x - 0.5 && label.bounds.x + label.bounds.width <= box.x + box.width + 0.5 && label.bounds.y >= box.y - 0.5 && label.bounds.y + label.bounds.height <= box.y + box.height + 0.5, `${label.content} inside its loop`);
   }
 });
 

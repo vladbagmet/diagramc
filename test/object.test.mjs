@@ -38,15 +38,16 @@ test('object notation: links are solid lines with underlined names, role names a
   assert.equal(label('item').end, 'target');
 });
 
-test('object notation: notes attach with dashed lines; self links loop on the right', async () => {
+test('object notation: notes attach with dotted anchor lines; a self link loops on the top-right corner', async () => {
   const { svg, scene } = await renderExample('object', 'notation');
   const anchors = scene.edges.filter(e => e.type === 'note-anchor');
   assert.equal(anchors.length, 2);
   for (const a of anchors) assert.ok(dashed(svg, a.id));
   const loop = scene.edges.find(e => e.source === 'named' && e.target === 'named');
   const node = scene.nodes.find(n => n.id === 'named').bounds;
-  assert.equal(loop.points[0].x, node.x + node.width);
-  assert.equal(loop.points.at(-1).x, node.x + node.width);
+  assert.equal(loop.points[0].y, node.y, 'leaves the top border');
+  assert.ok(loop.points[0].x < node.x + node.width);
+  assert.equal(loop.points.at(-1).x, node.x + node.width, 'returns to the right border');
 });
 
 test('object: hostile and markup-like text stays literal and cannot create active SVG', async () => {

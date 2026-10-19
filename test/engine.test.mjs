@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { layout } from '../dist/engine/elk.js';
 import { loadFonts, fontFaceCss } from '../dist/engine/fonts.js';
-import { wrapText } from '../dist/engine/text.js';
+import { wordPieces, wrapText } from '../dist/engine/text.js';
 import { el, Canvas } from '../dist/engine/svg.js';
 import { drawEdge, drawMessageArrow } from '../dist/engine/edges.js';
 import { planSelfLoops, selfLoopRoute } from '../dist/engine/selfloops.js';
@@ -53,20 +53,54 @@ test('elkjs: compound nodes contain their children and cross-hierarchy edges get
   assert.ok(distanceToBorder(inner[0], result.nodes.get('x')) < 0.01 && distanceToBorder(inner.at(-1), result.nodes.get('y')) < 0.01);
 });
 
-test('self-loops: engine routes nest on the right border inside the reserved room', async () => {
-  const plan = planSelfLoops([{ endLabelWidth: 40, endLabelRows: 2, labelHeight: 17 }, { endLabelWidth: 0, endLabelRows: 0, labelHeight: 17, centerLabel: { width: 30, height: 17 } }]);
+test('self-loops: corner loops first, then nested loops on the right side, all inside the reserved room', async () => {
+  const loops = [
+    { endLabelWidth: 40, endLabelRows: 2, labelHeight: 17 },
+    { endLabelWidth: 0, endLabelRows: 0, labelHeight: 17, centerLabel: { width: 30, height: 17 } },
+    { endLabelWidth: 20, endLabelRows: 1, labelHeight: 17 },
+  ];
+  // One or two loops need no extra height: they sit on the corners.
+  assert.ok(planSelfLoops(loops.slice(0, 1)).minHeight <= 60, 'one loop keeps a small node small');
+  const plan = planSelfLoops(loops);
   const result = await layout(
-    [{ id: 'top', width: 100, height: 40 }, { id: 'a', width: 100, height: plan.minHeight, reserveRight: plan.reserveRight }, { id: 'b', width: 100, height: 40 }, { id: 'c', width: 100, height: 40 }],
+    [{ id: 'top', width: 100, height: 40 }, { id: 'a', width: 100, height: plan.minHeight, reserveRight: plan.reserveRight, reserveAbove: plan.reserveAbove, reserveBelow: plan.reserveBelow }, { id: 'b', width: 100, height: 40 }, { id: 'c', width: 100, height: 40 }],
     [{ id: 'e1', source: 'top', target: 'a' }, { id: 'e2', source: 'top', target: 'b' }, { id: 'e3', source: 'top', target: 'c' }], options);
   const a = result.nodes.get('a');
-  const routes = [0, 1].map(i => selfLoopRoute(a, plan, i));
-  for (const route of routes) for (const point of route) {
-    assert.ok(point.x >= a.x + a.width && point.x <= a.x + a.width + plan.reserveRight);
-    assert.ok(point.y >= a.y && point.y <= a.y + a.height);
-  }
-  const reserved = { x: a.x + a.width, y: a.y, width: plan.reserveRight, height: a.height };
+  const routes = [0, 1, 2].map(i => selfLoopRoute(a, plan, i));
+  const right = a.x + a.width, bottom = a.y + a.height;
+  // Top-right corner: out of the top border, back into the right border; bottom-right: the mirror image.
+  assert.equal(routes[0][0].y, a.y); assert.ok(routes[0][0].x < right);
+  assert.equal(routes[0].at(-1).x, right);
+  assert.equal(routes[1][0].x, right);
+  assert.equal(routes[1].at(-1).y, bottom); assert.ok(routes[1].at(-1).x < right);
+  // The side loop lies between the corner loops' legs, on the right border.
+  assert.ok(routes[2][0].x === right && routes[2].at(-1).x === right);
+  assert.ok(routes[2][0].y > routes[0].at(-1).y && routes[2].at(-1).y < routes[1][0].y);
+  const room = { x: a.x, y: a.y - plan.reserveAbove.height, width: a.width + plan.reserveRight, height: a.height + plan.reserveAbove.height + plan.reserveBelow.height };
+  for (const route of routes) for (const point of route) assert.ok(point.x <= right + plan.reserveRight && point.y >= room.y && point.y <= room.y + room.height);
+  const reserved = { x: right, y: room.y, width: plan.reserveRight, height: room.height };
   for (const id of ['top', 'b', 'c']) assert.ok(!overlaps(reserved, result.nodes.get(id)), `ELK kept the reserved room free of ${id}`);
-  assert.ok(routes[1][1].x > routes[0][1].x && routes[1][0].y < routes[0][0].y, 'outer loop surrounds the inner loop');
+});
+
+test('wrapping breaks words at camelCase and punctuation, keeps short words whole, never leaves punctuation alone', async () => {
+  const metrics = await loadFonts();
+  const style = { size: 14, bold: true };
+  const breaksBetweenLetters = lines => lines.slice(1).some((line, i) => /[a-z]$/.test(lines[i]) && /^[a-z]/.test(line));
+  // A camelCase identifier breaks at its humps, never inside "Relationship".
+  const camel = wrapText(metrics, 'AbstractEnterpriseCustomerRelationshipManagementServiceFacadeImplementation', style, 260);
+  assert.equal(camel.join(''), 'AbstractEnterpriseCustomerRelationshipManagementServiceFacadeImplementation');
+  assert.ok(camel.length > 1 && !breaksBetweenLetters(camel), camel.join(' | '));
+  for (const line of camel) assert.match(line, /^[A-Z]/);
+  // Dotted names break after the dots.
+  const dotted = wrapText(metrics, 'org.example.enterprise.customerrelationshipmanagement.internal', style, 260);
+  assert.ok(dotted.slice(0, -1).every(line => line.endsWith('.')), dotted.join(' | '));
+  // A single word up to maxTokenWidth stays whole (the box grows instead).
+  assert.deepEqual(wrapText(metrics, 'VeryLongComponentTypeNameForLevel1', style, 200), ['VeryLongComponentTypeNameForLevel1']);
+  // "name : Classifier" never leaves the colon alone on a line.
+  const title = wrapText(metrics, 'primaryReplicationCoordinatorInstance : DistributedConsensusReplicationCoordinator', style, 260);
+  assert.ok(title.every(line => !/^[\s:]+$/.test(line)), title.join(' | '));
+  assert.equal(title.join(''), 'primaryReplicationCoordinatorInstance : DistributedConsensusReplicationCoordinator');
+  assert.deepEqual(wordPieces('HTTPServer_config-v2/path(x)'), ['HTTP', 'Server_', 'config-', 'v2/', 'path', '(x)']);
 });
 
 test('fonts: HarfBuzz measurement of the pinned Inter matches reference widths', async () => {
@@ -84,7 +118,7 @@ test('fonts: HarfBuzz measurement of the pinned Inter matches reference widths',
 test('wrapping keeps the text literal: lines join back to the input', async () => {
   const metrics = await loadFonts();
   for (const text of ['evaluated against the destination-specific shipping policy', 'Averyveryveryveryverylongwordwithoutanyspaces', '  leading and trailing  ', '注文 注文 注文 注文 注文 注文 注文']) {
-    const lines = wrapText(metrics, text, { size: 12 }, 80);
+    const lines = wrapText(metrics, text, { size: 12 }, 80, { maxTokenWidth: 80 });
     assert.equal(lines.join(''), text);
     for (const line of lines) assert.ok(metrics.measure(line.trimEnd(), { size: 12 }) <= 80 || [...line.trim()].length === 1);
   }
@@ -115,10 +149,11 @@ test('QA gates pass a clean drawing and catch each defect class', async () => {
   const reversed = drawEdge({ id: 'e', type: 'generalization', source: 'b', target: 'a', points: [{ x: 70, y: 150 }, { x: 70, y: 70 }], style: 'solid', sourceMarker: 'none', targetMarker: 'hollow-triangle' }).replace('data-uml-direction="0,-1"', 'data-uml-direction="0,1"');
   assert.deepEqual(failed(await checkSvg(doc(a + b + reversed))), ['markers']);
   const label = (x, y, text = 'label') => `<text x="${x}" y="${y}" font-size="12" data-uml-role="label" data-uml-owner="e">${text}</text>`;
-  assert.deepEqual(failed(await checkSvg(doc(a + b + edge + label(30, 40)))), ['label-overlap']);
-  assert.deepEqual(failed(await checkSvg(doc(a + b + edge + label(150, 110) + label(160, 112)))), ['label-overlap']);
+  assert.deepEqual(failed(await checkSvg(doc(a + b + edge + label(30, 64)))), ['label-overlap']);
+  assert.deepEqual(failed(await checkSvg(doc(a + b + edge + label(76, 110) + label(86, 112)))), ['label-overlap']);
   assert.deepEqual(failed(await checkSvg(doc(a + b + edge + label(50, 110)))), ['label-edge-crossing']);
-  assert.deepEqual(failed(await checkSvg(doc(a + b + edge + label(150, 110)), ['missing text'])), ['literal-text']);
+  assert.deepEqual(failed(await checkSvg(doc(a + b + edge + label(76, 110)), ['missing text'])), ['literal-text']);
+  assert.deepEqual(failed(await checkSvg(doc(a + b + edge + label(150, 110)))), ['label-proximity'], 'a center label far from its line');
   assert.deepEqual(failed(await checkSvg(doc(a + '<text x="30" y="40" font-size="9" data-uml-role="text" data-uml-owner="a">x</text>'))), ['min-font-size']);
   assert.deepEqual(failed(await checkSvg(doc(a + '<g data-uml-role="node" data-uml-id="t" data-uml-type="class" data-uml-bounds="200 20 40 30"><text x="205" y="40" font-size="13" data-uml-role="text">much too long for its box</text></g>'))), ['text-fits']);
   assert.deepEqual(failed(await checkSvg(doc(a + '<script>alert(1)</script>'))), ['safe-markup']);

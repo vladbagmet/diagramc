@@ -108,7 +108,7 @@ function endCandidates(request: LabelRequest): Rect[] {
   // A grid of boxes beside the end segment, nearest to the end point first. Steps
   // move by a label height along vertical lines and by a short hop across them,
   // so crowded ends still keep their labels close.
-  const stepAlong = vertical ? h + 2 : 10, stepAcross = vertical ? 10 : h + 2;
+  const stepAlong = vertical ? h + LABEL_CLEARANCE + 1 : 10, stepAcross = vertical ? 10 : h + LABEL_CLEARANCE + 1;
   const candidates: { rect: Rect; score: number }[] = [];
   for (let j = 0; j < 6; j++) {
     const t = GAP - 1 + j * stepAlong;
@@ -159,7 +159,8 @@ function centerCandidates(request: LabelRequest): Rect[] {
   return out;
 }
 
-function cost(rect: Rect, obstacles: Obstacles, placed: readonly Rect[], anchor: Point | undefined, request: LabelRequest): number {
+/** Cost of a label box: 0 when it touches nothing and names its line unambiguously. */
+export function labelCost(rect: Rect, obstacles: Obstacles, placed: readonly Rect[], anchor: Point | undefined, request: LabelRequest): number {
   let total = 0;
   if (anchor && obstacles.ends) {
     const own = distanceToRect(anchor, rect);
@@ -183,7 +184,7 @@ function cost(rect: Rect, obstacles: Obstacles, placed: readonly Rect[], anchor:
 export function labelFits(request: LabelRequest, obstacles: Obstacles): boolean {
   const candidates = request.candidates ?? (request.at === 'center' ? centerCandidates(request) : endCandidates(request));
   const anchor = request.at === 'source' ? request.route[0] : request.at === 'target' ? request.route.at(-1) : undefined;
-  return candidates.some(c => cost(c, obstacles, [], anchor, request) === 0);
+  return candidates.some(c => labelCost(c, obstacles, [], anchor, request) === 0);
 }
 
 /** Places labels in order; earlier labels get the better spots. */
@@ -195,7 +196,7 @@ export function placeLabels(requests: readonly LabelRequest[], obstacles: Obstac
     candidates.forEach((candidate, index) => {
       if (bestCost === 0) return;
       const anchor = request.at === 'source' ? request.route[0] : request.at === 'target' ? request.route.at(-1) : undefined;
-      const base = cost(candidate, obstacles, [...placed.values()], anchor, request);
+      const base = labelCost(candidate, obstacles, [...placed.values()], anchor, request);
       const c = base ? base + index * 0.01 : 0;
       if (c < bestCost) { best = candidate; bestCost = c; }
     });

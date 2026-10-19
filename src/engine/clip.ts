@@ -62,6 +62,39 @@ function lateral(a: Point, b: Point, c: Point): number {
   return ((b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x)) / len;
 }
 
+/**
+ * Spreads line ends around an ellipse so that no two ends are closer than the
+ * larger of their `min` px (polyline routes only: the end segments change their
+ * slant). Ends keep their order around the outline and move in small steps along
+ * it until they are far enough apart. `routes` is updated in place.
+ */
+export function spreadEllipseEnds(routes: Map<string, Point[]>, rect: Rect, ends: readonly { edge: string; end: 'source' | 'target'; min: number }[]): void {
+  const c = center(rect), a = rect.width / 2, b = rect.height / 2;
+  const pointAt = (t: number): Point => ({ x: c.x + a * Math.cos(t), y: c.y + b * Math.sin(t) });
+  const items = ends.map(e => {
+    const route = routes.get(e.edge)!;
+    const p = e.end === 'source' ? route[0]! : route.at(-1)!;
+    return { ...e, t: Math.atan2((p.y - c.y) / b, (p.x - c.x) / a) };
+  }).sort((x, y) => x.t - y.t);
+  if (items.length < 2) return;
+  const step = 1 / Math.max(a, b);
+  for (let pass = 0; pass < 400; pass++) {
+    let moved = false;
+    const pairs = items.length === 2 ? 1 : items.length;
+    for (let i = 0; i < pairs; i++) {
+      const x = items[i]!, y = items[(i + 1) % items.length]!;
+      if (distance(pointAt(x.t), pointAt(y.t)) >= Math.max(x.min, y.min)) continue;
+      x.t -= step; y.t += step;
+      moved = true;
+    }
+    if (!moved) break;
+  }
+  for (const item of items) {
+    const route = routes.get(item.edge)!;
+    if (item.end === 'source') route[0] = pointAt(item.t); else route[route.length - 1] = pointAt(item.t);
+  }
+}
+
 /** Distance from p to the outline of `shape` in `rect` (0 on the outline). */
 export function distanceToOutline(p: Point, rect: Rect, shape: NodeShape): number {
   const c = center(rect);

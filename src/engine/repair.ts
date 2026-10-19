@@ -1,7 +1,8 @@
 import { theme } from '../core/theme.js';
-import type { Marker } from './edges.js';
+import { markerHalf, markerLength, type Marker } from './edges.js';
 import { contains, distance, inflate, segmentIntersectsRect, union, type Point, type Rect } from './geometry.js';
 import { routeOrthogonal } from './router.js';
+export { markerHalf, markerLength } from './edges.js';
 import { countCrossings } from './aspect.js';
 
 /**
@@ -47,28 +48,6 @@ export interface RepairEdge {
   fixedTarget?: boolean;
 }
 
-/** Length of a marker along the line. */
-export function markerLength(marker: Marker): number {
-  switch (marker) {
-    case 'hollow-triangle': case 'filled-triangle': return theme.size.triangle.length;
-    case 'hollow-diamond': case 'filled-diamond': return theme.size.diamond.length;
-    case 'open-arrow': return theme.size.arrow.length;
-    case 'cross': return theme.size.cross.offset + theme.size.cross.half;
-    case 'circle-plus': return 2 * theme.size.circlePlus.radius;
-    default: return 0;
-  }
-}
-/** Half of a marker's width across the line. */
-export function markerHalf(marker: Marker): number {
-  switch (marker) {
-    case 'hollow-triangle': case 'filled-triangle': return theme.size.triangle.halfWidth;
-    case 'hollow-diamond': case 'filled-diamond': return theme.size.diamond.halfWidth;
-    case 'open-arrow': return theme.size.arrow.halfWidth;
-    case 'cross': return theme.size.cross.half;
-    case 'circle-plus': return theme.size.circlePlus.radius;
-    default: return 0;
-  }
-}
 
 /** Routes may be this factor longer than the gap between their nodes plus SLACK before they count as detours (stricter than the gate). */
 const DETOUR_FACTOR = 2.5;

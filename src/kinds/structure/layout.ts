@@ -69,6 +69,8 @@ export interface PlacedLabel {
   anchor?: Point;
   /** Text color when it is not the default edge text color. */
   fill?: string;
+  /** Rows that begin a logical line (a keyword above a name), see startsData. */
+  starts?: number[];
 }
 export interface StructScene {
   kind: string;
@@ -828,7 +830,8 @@ async function layoutIn(graph: StructGraph, metrics: FontMetrics, dir: 'RIGHT' |
         if (vertical) {
           // Ports on a left or right border: beside the square, above or below the line through it.
           const x = side < 0 ? c.x - g - width - shift : c.x + g + shift;
-          candidates.push({ x, y: c.y - LABEL_GAP - lh, width, height: lh }, { x, y: c.y + LABEL_GAP, width, height: lh });
+          // Clear of the line, and further off when an arrowhead or diamond sits at the port.
+          for (const off of [LABEL_GAP, LABEL_GAP + theme.size.diamond.halfWidth]) candidates.push({ x, y: c.y - off - lh, width, height: lh }, { x, y: c.y + off, width, height: lh });
         } else {
           // Ports on a top or bottom border: above or below the square, left or right of the line.
           const y = side < 0 ? c.y - g - lh - shift : c.y + g + shift;
@@ -848,7 +851,7 @@ async function layoutIn(graph: StructGraph, metrics: FontMetrics, dir: 'RIGHT' |
     const width = Math.max(...p.center.widths), height = p.center.lines.length * lh;
     const suggested = suggestions.get(id);
     requests.push({ id, owner: p.id, width, height, route: routes.get(p.id)!, at: 'center', suggestion: suggested && { x: suggested.x + 2, y: suggested.y, width, height } });
-    meta.set(id, { owner: p.id, lines: p.center.lines, widths: p.center.widths });
+    meta.set(id, { owner: p.id, lines: p.center.lines, widths: p.center.widths, ...(graph.edges.find(e => e.id === p.id)?.keyword !== undefined && p.center.lines.length > 1 ? { starts: [0, 1] } : {}) });
   }
   const labelledEnds = plans.flatMap(p => routes.has(p.id) ? [...new Set(p.ends.map(e => e.end))].map(end => end === 'source' ? routes.get(p.id)![0]! : routes.get(p.id)!.at(-1)!) : []);
   const placed = placeLabels(requests, { ...obstacles, ends: labelledEnds, lines: sceneEdges.map(e => ({ owner: e.id, points: e.points })) });

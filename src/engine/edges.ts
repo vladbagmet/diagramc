@@ -89,13 +89,19 @@ function markerShape(marker: Marker, tip: Point, u: Point, end: 'source' | 'targ
 }
 
 const pt = (p: Point): string => `${num(p.x)},${num(p.y)}`;
-
 /** Path data for an orthogonal polyline with small rounded bends. */
-export function roundedPath(points: readonly Point[], radius: number = theme.spacing.bendRadius): string {
+/**
+ * Path data for an orthogonal polyline with small rounded bends. `keep` lengths at
+ * the start and end stay straight (the part under an open arrowhead or a cross): a
+ * bend next to them is rounded with a smaller radius, or not at all.
+ */
+export function roundedPath(points: readonly Point[], radius: number = theme.spacing.bendRadius, keep: { start?: number; end?: number } = {}): string {
   let d = `M${pt(points[0]!)}`;
   for (let i = 1; i < points.length - 1; i++) {
     const prev = points[i - 1]!, p = points[i]!, next = points[i + 1]!;
-    const r = Math.min(radius, distance(prev, p) / 2, distance(p, next) / 2);
+    const room = (i === 1 ? distance(prev, p) - (keep.start ?? 0) : distance(prev, p) / 2);
+    const after = (i === points.length - 2 ? distance(p, next) - (keep.end ?? 0) : distance(p, next) / 2);
+    const r = Math.min(radius, room, after, distance(prev, p) / 2, distance(p, next) / 2);
     const a = direction(p, prev), b = direction(p, next);
     if (r < 0.5) { d += ` L${pt(p)}`; continue; }
     d += ` L${pt({ x: p.x + a.x * r, y: p.y + a.y * r })} Q${pt(p)} ${pt({ x: p.x + b.x * r, y: p.y + b.y * r })}`;
@@ -121,6 +127,8 @@ export function drawEdge(spec: EdgeSpec): string {
   const points = [...spec.points];
   if (points.length < 2) throw new Error(`Edge ${spec.id} has fewer than two points`);
   const sourceDir = direction(points[1]!, points[0]!), targetDir = direction(points.at(-2)!, points.at(-1)!);
+  // Note anchors (type note-anchor) are drawn thin, dotted and lighter in every kind.
+  const anchor = spec.type === 'note-anchor';
   let line = trimEnd(points, inset(spec.targetMarker));
   line = [...trimEnd([...line].reverse(), inset(spec.sourceMarker))].reverse();
   return el('g', {
@@ -129,8 +137,8 @@ export function drawEdge(spec: EdgeSpec): string {
     'data-uml-source-marker': spec.sourceMarker, 'data-uml-target-marker': spec.targetMarker, 'data-uml-points': pointsAttr(points),
   }, [
     el('path', {
-      d: roundedPath(line), fill: 'none', stroke: theme.color.edge, 'stroke-width': theme.stroke.edge,
-      'stroke-dasharray': spec.style === 'dashed' ? theme.stroke.dash : undefined, 'stroke-linejoin': 'round',
+      d: roundedPath(line, theme.spacing.bendRadius, { start: inset(spec.sourceMarker) ? 0 : markerLength(spec.sourceMarker), end: inset(spec.targetMarker) ? 0 : markerLength(spec.targetMarker) }), fill: 'none', stroke: anchor ? theme.color.anchor : theme.color.edge, 'stroke-width': anchor ? theme.stroke.anchor : theme.stroke.edge,
+      'stroke-dasharray': anchor ? theme.stroke.anchorDash : spec.style === 'dashed' ? theme.stroke.dash : undefined, 'stroke-linejoin': 'round', 'stroke-linecap': anchor ? 'round' : undefined,
     }),
     spec.drawSourceMarker === false ? '' : markerShape(spec.sourceMarker, points[0]!, sourceDir, 'source'),
     spec.drawTargetMarker === false ? '' : markerShape(spec.targetMarker, points.at(-1)!, targetDir, 'target'),
@@ -172,4 +180,26 @@ export function drawMessageArrow(spec: MessageArrowSpec): string {
     }),
     markerShape(spec.marker, spec.to, u, 'target'),
   ].filter(Boolean));
+}
+/** Length of a marker along the line. */
+export function markerLength(marker: Marker): number {
+  switch (marker) {
+    case 'hollow-triangle': case 'filled-triangle': return theme.size.triangle.length;
+    case 'hollow-diamond': case 'filled-diamond': return theme.size.diamond.length;
+    case 'open-arrow': return theme.size.arrow.length;
+    case 'cross': return theme.size.cross.offset + theme.size.cross.half;
+    case 'circle-plus': return 2 * theme.size.circlePlus.radius;
+    default: return 0;
+  }
+}
+/** Half of a marker's width across the line. */
+export function markerHalf(marker: Marker): number {
+  switch (marker) {
+    case 'hollow-triangle': case 'filled-triangle': return theme.size.triangle.halfWidth;
+    case 'hollow-diamond': case 'filled-diamond': return theme.size.diamond.halfWidth;
+    case 'open-arrow': return theme.size.arrow.halfWidth;
+    case 'cross': return theme.size.cross.half;
+    case 'circle-plus': return theme.size.circlePlus.radius;
+    default: return 0;
+  }
 }

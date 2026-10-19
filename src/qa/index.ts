@@ -2,7 +2,7 @@ import { parseDocument } from '../model/parse.js';
 import { renderToSvg, type RenderOptions } from '../render.js';
 import { checkSvg, type QaReport } from './gates.js';
 
-export { checkSvg, runGates, formatReport, GATES, type QaReport, type GateResult } from './gates.js';
+export { checkSvg, runGates, formatReport, GATES, ENGINE_ONLY_GATES, type QaReport, type GateResult } from './gates.js';
 export { inspectSvg, type Scene } from './inspect.js';
 
 /**

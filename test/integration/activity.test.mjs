@@ -4,7 +4,7 @@ import { readFile, readdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { parseDocument } from '../../dist/model/parse.js';
 import { renderToSvg } from '../../dist/render.js';
-import { inspectSvg } from '../../dist/qa/index.js';
+import { ENGINE_ONLY_GATES, inspectSvg } from '../../dist/qa/index.js';
 import { assertGates, cli, root, workspace } from '../helpers.mjs';
 
 // Real pinned PlantUML (npm run setup:renderer). Activity diagrams are drawn by
@@ -16,7 +16,7 @@ const svgOf = async doc => renderToSvg(parseDocument(typeof doc === 'string' ? d
 
 async function allGates(doc, label) {
   const { report, svg, ms } = await assertGates(doc);
-  assert.deepEqual(report.gates.filter(g => g.skipped).map(g => g.gate), [], `${label}: no gate may be skipped`);
+  assert.deepEqual(report.gates.filter(g => g.skipped && !ENGINE_ONLY_GATES.includes(g.gate)).map(g => g.gate), [], `${label}: no gate may be skipped`);
   return { svg, ms };
 }
 

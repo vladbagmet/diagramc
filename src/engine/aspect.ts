@@ -119,7 +119,6 @@ export async function chooseLayout<T>(directions: readonly Direction[], run: (di
   let best: T | undefined, bestScore = Infinity;
   const consider = (result: T, penalty: number): void => {
     const score = layoutScore({ ...measure(result), penalty });
-    if (process.env.UML_DEBUG_LAYOUT) console.error(JSON.stringify({ ...measure(result), penalty, score: Math.round(score) }));
     if (score < bestScore - 1e-6) { best = result; bestScore = score; }
   };
   for (const [i, dir] of directions.entries()) {

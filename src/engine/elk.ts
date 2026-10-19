@@ -58,6 +58,9 @@ export interface LayoutNode {
   fixedSize?: boolean;
   /** Free space to keep at the right of the node (self-loops and their labels). */
   reserveRight?: number;
+  /** Free space to keep above and below the node at its right end (self-loops on its corners). */
+  reserveAbove?: { width: number; height: number } | undefined;
+  reserveBelow?: { width: number; height: number } | undefined;
   /**
    * Room to keep free below the node for a caption drawn under it (an actor's
    * name): a centered box of this size directly under the node.
@@ -137,7 +140,9 @@ export async function layout(nodes: readonly LayoutNode[], edges: readonly Layou
     }) } : {}),
     // An invisible outside label reserves room right of the node. Its text must not
     // be empty: ELK ignores empty labels when computing node margins.
-    ...(node.reserveRight || node.reserveTop || node.labelBelow ? { labels: [
+    ...(node.reserveRight || node.reserveTop || node.labelBelow || node.reserveAbove || node.reserveBelow ? { labels: [
+      ...(node.reserveAbove ? [{ id: `${node.id}::reserve-above`, text: 'reserved', width: node.reserveAbove.width, height: node.reserveAbove.height, layoutOptions: { 'elk.nodeLabels.placement': '[OUTSIDE, H_RIGHT, V_TOP]' } }] : []),
+      ...(node.reserveBelow ? [{ id: `${node.id}::reserve-below`, text: 'reserved', width: node.reserveBelow.width, height: node.reserveBelow.height, layoutOptions: { 'elk.nodeLabels.placement': '[OUTSIDE, H_RIGHT, V_BOTTOM]' } }] : []),
       ...(node.reserveRight ? [{ id: `${node.id}::reserve`, text: 'reserved', width: node.reserveRight, height: Math.max(1, node.height - 2), layoutOptions: { 'elk.nodeLabels.placement': '[OUTSIDE, H_RIGHT, V_CENTER]' } }] : []),
       ...(node.reserveTop ? [{ id: `${node.id}::reserve-top`, text: 'reserved', width: node.reserveTop.width, height: node.reserveTop.height, layoutOptions: { 'elk.nodeLabels.placement': '[OUTSIDE, H_LEFT, V_TOP]' } }] : []),
       ...(node.labelBelow ? [{ id: `${node.id}::below`, text: 'caption', width: node.labelBelow.width, height: node.labelBelow.height, layoutOptions: { 'elk.nodeLabels.placement': '[OUTSIDE, H_CENTER, V_BOTTOM]' } }] : []),
