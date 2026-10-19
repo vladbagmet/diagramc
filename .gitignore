@@ -3,3 +3,4 @@ dist/
 .tools/
 *.tmp
 .DS_Store
+artifacts/gallery/

@@ -1,0 +1,11 @@
+{
+  "kind": "class",
+  "elements": [
+    { "id": "shape", "type": "class", "name": "Shape", "abstract": true,
+      "operations": [{ "name": "area", "visibility": "public", "returnType": "Double", "abstract": true }] },
+    { "id": "circle", "type": "class", "name": "Circle",
+      "attributes": [{ "name": "radius", "type": "Double", "visibility": "private" }],
+      "operations": [{ "name": "area", "visibility": "public", "returnType": "Double" }] }
+  ],
+  "relationships": [{ "type": "generalization", "from": "circle", "to": "shape" }]
+}

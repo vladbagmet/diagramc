@@ -1,0 +1,50 @@
+{
+  "kind": "class",
+  "title": "Notation reference",
+  "elements": [
+    { "id": "vehicle", "type": "class", "name": "Vehicle", "abstract": true,
+      "attributes": [
+        { "name": "vin", "type": "String", "visibility": "private", "readOnly": true },
+        { "name": "count", "type": "Integer", "visibility": "public", "static": true, "default": "0" },
+        { "name": "wheels", "type": "Wheel", "visibility": "protected", "multiplicity": "2..*" },
+        { "name": "age", "type": "Integer", "visibility": "package", "derived": true }
+      ],
+      "operations": [
+        { "name": "drive", "visibility": "public", "abstract": true, "parameters": [{ "name": "km", "type": "Double" }, { "name": "log", "type": "Trip", "direction": "out" }] },
+        { "name": "registry", "visibility": "public", "static": true, "returnType": "Registry" },
+        { "name": "isRoadworthy", "visibility": "public", "returnType": "Boolean", "query": true }
+      ] },
+    { "id": "car", "type": "class", "name": "Car" },
+    { "id": "truck", "type": "class", "name": "Truck" },
+    { "id": "bus", "type": "class", "name": "Bus" },
+    { "id": "insurable", "type": "interface", "name": "Insurable",
+      "operations": [{ "name": "premium", "visibility": "public", "returnType": "Money" }] },
+    { "id": "engine", "type": "class", "name": "Engine", "stereotypes": ["component", "replaceable"] },
+    { "id": "wheel", "type": "class", "name": "Wheel" },
+    { "id": "fleet", "type": "class", "name": "Fleet" },
+    { "id": "garage", "type": "class", "name": "Garage",
+      "operations": [{ "name": "service", "visibility": "public", "parameters": [{ "name": "v", "type": "Vehicle" }] }] },
+    { "id": "spec", "type": "class", "name": "Specification" },
+    { "id": "fuel", "type": "enumeration", "name": "FuelType", "literals": ["PETROL", "DIESEL", "ELECTRIC"] },
+    { "id": "money", "type": "datatype", "name": "Money",
+      "attributes": [{ "name": "amount", "type": "Decimal" }, { "name": "currency", "type": "String" }] },
+    { "id": "decimal", "type": "primitive", "name": "Decimal" },
+    { "id": "employee", "type": "class", "name": "Employee" },
+    { "id": "note", "type": "note", "text": "Generalizations to the same parent share one arrowhead (tree style).", "attachedTo": ["vehicle"] }
+  ],
+  "relationships": [
+    { "type": "generalization", "from": "car", "to": "vehicle" },
+    { "type": "generalization", "from": "truck", "to": "vehicle" },
+    { "type": "generalization", "from": "bus", "to": "vehicle" },
+    { "type": "realization", "from": "vehicle", "to": "insurable" },
+    { "type": "composition", "from": "vehicle", "to": "engine", "fromEnd": { "multiplicity": "1" }, "toEnd": { "role": "engine", "multiplicity": "1" } },
+    { "type": "aggregation", "from": "fleet", "to": "vehicle", "fromEnd": { "multiplicity": "0..1" }, "toEnd": { "role": "members", "multiplicity": "*" } },
+    { "type": "association", "from": "garage", "to": "vehicle", "name": "services",
+      "fromEnd": { "multiplicity": "0..*", "navigable": false }, "toEnd": { "multiplicity": "0..*", "navigable": true } },
+    { "type": "dependency", "from": "garage", "to": "spec", "keyword": "use" },
+    { "type": "containment", "from": "vehicle", "to": "fuel" },
+    { "type": "association", "from": "employee", "to": "employee", "name": "manages",
+      "fromEnd": { "role": "manager", "multiplicity": "0..1" }, "toEnd": { "role": "reports", "multiplicity": "*" } },
+    { "type": "dependency", "from": "money", "to": "decimal" }
+  ]
+}

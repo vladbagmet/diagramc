@@ -1,0 +1,32 @@
+[
+  { "name": "single note", "doc": { "kind": "class", "elements": [{ "id": "n", "type": "note", "text": "Only a note." }] } },
+  { "name": "every relationship type between two classes", "doc": { "kind": "class", "elements": [
+      { "id": "a", "type": "class", "name": "A" }, { "id": "b", "type": "class", "name": "B" }, { "id": "i", "type": "interface", "name": "I" }],
+    "relationships": [
+      { "type": "association", "from": "a", "to": "b", "name": "knows", "fromEnd": { "role": "x", "multiplicity": "1", "navigable": false }, "toEnd": { "role": "y", "multiplicity": "0..*", "navigable": true } },
+      { "type": "aggregation", "from": "a", "to": "b", "toEnd": { "multiplicity": "*" } },
+      { "type": "composition", "from": "a", "to": "b", "fromEnd": { "multiplicity": "0..1" }, "toEnd": { "navigable": true } },
+      { "type": "dependency", "from": "a", "to": "b", "keyword": "create", "name": "builds" },
+      { "type": "containment", "from": "a", "to": "b" },
+      { "type": "realization", "from": "a", "to": "i" },
+      { "type": "generalization", "from": "b", "to": "a" }] } },
+  { "name": "three labelled self-associations", "doc": { "kind": "class", "elements": [{ "id": "n", "type": "class", "name": "Node", "attributes": [{ "name": "id", "type": "UUID" }] }],
+    "relationships": [
+      { "type": "association", "from": "n", "to": "n", "name": "parent", "fromEnd": { "role": "children", "multiplicity": "*" }, "toEnd": { "role": "parent", "multiplicity": "0..1" } },
+      { "type": "aggregation", "from": "n", "to": "n", "toEnd": { "multiplicity": "*" } },
+      { "type": "dependency", "from": "n", "to": "n", "keyword": "call" }] } },
+  { "name": "interface hierarchy and multiple realization", "doc": { "kind": "class", "elements": [
+      { "id": "i", "type": "interface", "name": "Readable" }, { "id": "j", "type": "interface", "name": "Stream" }, { "id": "k", "type": "interface", "name": "Closeable" },
+      { "id": "f", "type": "class", "name": "FileStream" }, { "id": "s", "type": "class", "name": "SocketStream" }],
+    "relationships": [
+      { "type": "generalization", "from": "j", "to": "i" }, { "type": "generalization", "from": "j", "to": "k" },
+      { "type": "realization", "from": "f", "to": "j" }, { "type": "realization", "from": "s", "to": "j" }] } },
+  { "name": "isolated classes only", "doc": { "kind": "class", "title": "Isolated", "elements": [
+      { "id": "a", "type": "class", "name": "Alpha" }, { "id": "b", "type": "datatype", "name": "Beta" }, { "id": "c", "type": "primitive", "name": "Gamma" }] } },
+  { "name": "prototype-like IDs", "doc": { "kind": "class", "elements": [{ "id": "constructor", "type": "class", "name": "Constructor" }, { "id": "toString", "type": "class", "name": "ToString" }],
+    "relationships": [{ "type": "generalization", "from": "constructor", "to": "toString" }] } },
+  { "name": "parallel associations", "doc": { "kind": "class", "elements": [{ "id": "p", "type": "class", "name": "Person" }, { "id": "c", "type": "class", "name": "Company" }],
+    "relationships": [
+      { "type": "association", "from": "p", "to": "c", "name": "works for", "fromEnd": { "role": "employee", "multiplicity": "*" }, "toEnd": { "role": "employer", "multiplicity": "0..1" } },
+      { "type": "association", "from": "p", "to": "c", "name": "owns", "fromEnd": { "role": "owner", "multiplicity": "1..*" }, "toEnd": { "role": "property", "multiplicity": "*" } }] } }
+]

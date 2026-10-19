@@ -1,0 +1,1983 @@
+{
+ "kind": "class",
+ "title": "Hospital (stress)",
+ "elements": [
+  {
+   "id": "person",
+   "type": "class",
+   "name": "Person",
+   "abstract": true,
+   "attributes": [
+    {
+     "name": "id",
+     "type": "String",
+     "visibility": "private"
+    }
+   ]
+  },
+  {
+   "id": "patient",
+   "type": "class",
+   "name": "Patient",
+   "attributes": [
+    {
+     "name": "name",
+     "type": "Integer",
+     "visibility": "private"
+    },
+    {
+     "name": "code",
+     "type": "Date",
+     "visibility": "protected"
+    },
+    {
+     "name": "status",
+     "type": "DateTime",
+     "visibility": "protected"
+    },
+    {
+     "name": "createdAt3",
+     "type": "Money",
+     "visibility": "protected"
+    }
+   ],
+   "operations": [
+    {
+     "name": "validate",
+     "visibility": "public",
+     "returnType": "Boolean"
+    },
+    {
+     "name": "total",
+     "visibility": "public",
+     "returnType": "Money"
+    }
+   ]
+  },
+  {
+   "id": "doctor",
+   "type": "class",
+   "name": "Doctor",
+   "attributes": [
+    {
+     "name": "code",
+     "type": "Date",
+     "visibility": "private"
+    },
+    {
+     "name": "status",
+     "type": "DateTime",
+     "visibility": "protected"
+    },
+    {
+     "name": "createdAt",
+     "type": "Money",
+     "visibility": "protected"
+    }
+   ],
+   "operations": [
+    {
+     "name": "validate",
+     "visibility": "public",
+     "returnType": "Boolean"
+    }
+   ]
+  },
+  {
+   "id": "nurse",
+   "type": "class",
+   "name": "Nurse",
+   "attributes": [
+    {
+     "name": "status",
+     "type": "DateTime",
+     "visibility": "private"
+    },
+    {
+     "name": "createdAt",
+     "type": "Money",
+     "visibility": "protected"
+    }
+   ]
+  },
+  {
+   "id": "staff",
+   "type": "class",
+   "name": "Staff",
+   "abstract": true,
+   "attributes": [
+    {
+     "name": "createdAt",
+     "type": "Money",
+     "visibility": "private"
+    }
+   ],
+   "operations": [
+    {
+     "name": "validate",
+     "visibility": "public",
+     "returnType": "Boolean"
+    },
+    {
+     "name": "total",
+     "visibility": "public",
+     "returnType": "Money"
+    }
+   ]
+  },
+  {
+   "id": "department",
+   "type": "class",
+   "name": "Department",
+   "attributes": [
+    {
+     "name": "amount",
+     "type": "Boolean",
+     "visibility": "private"
+    },
+    {
+     "name": "id",
+     "type": "UUID",
+     "visibility": "protected"
+    },
+    {
+     "name": "name",
+     "type": "Code",
+     "visibility": "protected"
+    },
+    {
+     "name": "code3",
+     "type": "String",
+     "visibility": "protected"
+    }
+   ],
+   "operations": [
+    {
+     "name": "validate",
+     "visibility": "public",
+     "returnType": "Boolean"
+    }
+   ]
+  },
+  {
+   "id": "ward",
+   "type": "class",
+   "name": "Ward",
+   "attributes": [
+    {
+     "name": "id",
+     "type": "UUID",
+     "visibility": "private"
+    },
+    {
+     "name": "name",
+     "type": "Code",
+     "visibility": "protected"
+    },
+    {
+     "name": "code",
+     "type": "String",
+     "visibility": "protected"
+    }
+   ]
+  },
+  {
+   "id": "room",
+   "type": "class",
+   "name": "Room",
+   "attributes": [
+    {
+     "name": "name",
+     "type": "Code",
+     "visibility": "private"
+    },
+    {
+     "name": "code",
+     "type": "String",
+     "visibility": "protected"
+    }
+   ],
+   "operations": [
+    {
+     "name": "validate",
+     "visibility": "public",
+     "returnType": "Boolean"
+    },
+    {
+     "name": "total",
+     "visibility": "public",
+     "returnType": "Money"
+    }
+   ]
+  },
+  {
+   "id": "bed",
+   "type": "class",
+   "name": "Bed",
+   "attributes": [
+    {
+     "name": "code",
+     "type": "String",
+     "visibility": "private"
+    }
+   ],
+   "operations": [
+    {
+     "name": "validate",
+     "visibility": "public",
+     "returnType": "Boolean"
+    }
+   ]
+  },
+  {
+   "id": "admission",
+   "type": "class",
+   "name": "Admission",
+   "attributes": [
+    {
+     "name": "status",
+     "type": "Integer",
+     "visibility": "private"
+    },
+    {
+     "name": "createdAt",
+     "type": "Date",
+     "visibility": "protected"
+    },
+    {
+     "name": "amount",
+     "type": "DateTime",
+     "visibility": "protected"
+    },
+    {
+     "name": "id3",
+     "type": "Money",
+     "visibility": "protected"
+    }
+   ]
+  },
+  {
+   "id": "discharge",
+   "type": "class",
+   "name": "Discharge",
+   "attributes": [
+    {
+     "name": "createdAt",
+     "type": "Date",
+     "visibility": "private"
+    },
+    {
+     "name": "amount",
+     "type": "DateTime",
+     "visibility": "protected"
+    },
+    {
+     "name": "id",
+     "type": "Money",
+     "visibility": "protected"
+    }
+   ],
+   "operations": [
+    {
+     "name": "validate",
+     "visibility": "public",
+     "returnType": "Boolean"
+    },
+    {
+     "name": "total",
+     "visibility": "public",
+     "returnType": "Money"
+    }
+   ]
+  },
+  {
+   "id": "appointment",
+   "type": "class",
+   "name": "Appointment",
+   "attributes": [
+    {
+     "name": "amount",
+     "type": "DateTime",
+     "visibility": "private"
+    },
+    {
+     "name": "id",
+     "type": "Money",
+     "visibility": "protected"
+    }
+   ],
+   "operations": [
+    {
+     "name": "validate",
+     "visibility": "public",
+     "returnType": "Boolean"
+    }
+   ]
+  },
+  {
+   "id": "schedule",
+   "type": "class",
+   "name": "Schedule",
+   "attributes": [
+    {
+     "name": "id",
+     "type": "Money",
+     "visibility": "private"
+    }
+   ]
+  },
+  {
+   "id": "shift",
+   "type": "class",
+   "name": "Shift",
+   "attributes": [
+    {
+     "name": "name",
+     "type": "Boolean",
+     "visibility": "private"
+    },
+    {
+     "name": "code",
+     "type": "UUID",
+     "visibility": "protected"
+    },
+    {
+     "name": "status",
+     "type": "Code",
+     "visibility": "protected"
+    },
+    {
+     "name": "createdAt3",
+     "type": "String",
+     "visibility": "protected"
+    }
+   ],
+   "operations": [
+    {
+     "name": "validate",
+     "visibility": "public",
+     "returnType": "Boolean"
+    },
+    {
+     "name": "total",
+     "visibility": "public",
+     "returnType": "Money"
+    }
+   ]
+  },
+  {
+   "id": "prescription",
+   "type": "class",
+   "name": "Prescription",
+   "attributes": [
+    {
+     "name": "code",
+     "type": "UUID",
+     "visibility": "private"
+    },
+    {
+     "name": "status",
+     "type": "Code",
+     "visibility": "protected"
+    },
+    {
+     "name": "createdAt",
+     "type": "String",
+     "visibility": "protected"
+    }
+   ],
+   "operations": [
+    {
+     "name": "validate",
+     "visibility": "public",
+     "returnType": "Boolean"
+    }
+   ]
+  },
+  {
+   "id": "medication",
+   "type": "class",
+   "name": "Medication",
+   "attributes": [
+    {
+     "name": "status",
+     "type": "Code",
+     "visibility": "private"
+    },
+    {
+     "name": "createdAt",
+     "type": "String",
+     "visibility": "protected"
+    }
+   ]
+  },
+  {
+   "id": "dose",
+   "type": "class",
+   "name": "Dose",
+   "attributes": [
+    {
+     "name": "createdAt",
+     "type": "String",
+     "visibility": "private"
+    }
+   ],
+   "operations": [
+    {
+     "name": "validate",
+     "visibility": "public",
+     "returnType": "Boolean"
+    },
+    {
+     "name": "total",
+     "visibility": "public",
+     "returnType": "Money"
+    }
+   ]
+  },
+  {
+   "id": "allergy",
+   "type": "class",
+   "name": "Allergy",
+   "attributes": [
+    {
+     "name": "amount",
+     "type": "Integer",
+     "visibility": "private"
+    },
+    {
+     "name": "id",
+     "type": "Date",
+     "visibility": "protected"
+    },
+    {
+     "name": "name",
+     "type": "DateTime",
+     "visibility": "protected"
+    },
+    {
+     "name": "code3",
+     "type": "Money",
+     "visibility": "protected"
+    }
+   ],
+   "operations": [
+    {
+     "name": "validate",
+     "visibility": "public",
+     "returnType": "Boolean"
+    }
+   ]
+  },
+  {
+   "id": "diagnosis",
+   "type": "class",
+   "name": "Diagnosis",
+   "attributes": [
+    {
+     "name": "id",
+     "type": "Date",
+     "visibility": "private"
+    },
+    {
+     "name": "name",
+     "type": "DateTime",
+     "visibility": "protected"
+    },
+    {
+     "name": "code",
+     "type": "Money",
+     "visibility": "protected"
+    }
+   ]
+  },
+  {
+   "id": "condition",
+   "type": "class",
+   "name": "Condition",
+   "attributes": [
+    {
+     "name": "name",
+     "type": "DateTime",
+     "visibility": "private"
+    },
+    {
+     "name": "code",
+     "type": "Money",
+     "visibility": "protected"
+    }
+   ],
+   "operations": [
+    {
+     "name": "validate",
+     "visibility": "public",
+     "returnType": "Boolean"
+    },
+    {
+     "name": "total",
+     "visibility": "public",
+     "returnType": "Money"
+    }
+   ]
+  },
+  {
+   "id": "procedure",
+   "type": "class",
+   "name": "Procedure",
+   "attributes": [
+    {
+     "name": "code",
+     "type": "Money",
+     "visibility": "private"
+    }
+   ],
+   "operations": [
+    {
+     "name": "validate",
+     "visibility": "public",
+     "returnType": "Boolean"
+    }
+   ]
+  },
+  {
+   "id": "surgery",
+   "type": "class",
+   "name": "Surgery",
+   "attributes": [
+    {
+     "name": "status",
+     "type": "Boolean",
+     "visibility": "private"
+    },
+    {
+     "name": "createdAt",
+     "type": "UUID",
+     "visibility": "protected"
+    },
+    {
+     "name": "amount",
+     "type": "Code",
+     "visibility": "protected"
+    },
+    {
+     "name": "id3",
+     "type": "String",
+     "visibility": "protected"
+    }
+   ]
+  },
+  {
+   "id": "anesthesia",
+   "type": "class",
+   "name": "Anesthesia",
+   "attributes": [
+    {
+     "name": "createdAt",
+     "type": "UUID",
+     "visibility": "private"
+    },
+    {
+     "name": "amount",
+     "type": "Code",
+     "visibility": "protected"
+    },
+    {
+     "name": "id",
+     "type": "String",
+     "visibility": "protected"
+    }
+   ],
+   "operations": [
+    {
+     "name": "validate",
+     "visibility": "public",
+     "returnType": "Boolean"
+    },
+    {
+     "name": "total",
+     "visibility": "public",
+     "returnType": "Money"
+    }
+   ]
+  },
+  {
+   "id": "labOrder",
+   "type": "class",
+   "name": "LabOrder",
+   "attributes": [
+    {
+     "name": "amount",
+     "type": "Code",
+     "visibility": "private"
+    },
+    {
+     "name": "id",
+     "type": "String",
+     "visibility": "protected"
+    }
+   ],
+   "operations": [
+    {
+     "name": "validate",
+     "visibility": "public",
+     "returnType": "Boolean"
+    }
+   ]
+  },
+  {
+   "id": "labResult",
+   "type": "class",
+   "name": "LabResult",
+   "attributes": [
+    {
+     "name": "id",
+     "type": "String",
+     "visibility": "private"
+    }
+   ]
+  },
+  {
+   "id": "specimen",
+   "type": "class",
+   "name": "Specimen",
+   "attributes": [
+    {
+     "name": "name",
+     "type": "Integer",
+     "visibility": "private"
+    },
+    {
+     "name": "code",
+     "type": "Date",
+     "visibility": "protected"
+    },
+    {
+     "name": "status",
+     "type": "DateTime",
+     "visibility": "protected"
+    },
+    {
+     "name": "createdAt3",
+     "type": "Money",
+     "visibility": "protected"
+    }
+   ],
+   "operations": [
+    {
+     "name": "validate",
+     "visibility": "public",
+     "returnType": "Boolean"
+    },
+    {
+     "name": "total",
+     "visibility": "public",
+     "returnType": "Money"
+    }
+   ]
+  },
+  {
+   "id": "imaging",
+   "type": "class",
+   "name": "Imaging",
+   "attributes": [
+    {
+     "name": "code",
+     "type": "Date",
+     "visibility": "private"
+    },
+    {
+     "name": "status",
+     "type": "DateTime",
+     "visibility": "protected"
+    },
+    {
+     "name": "createdAt",
+     "type": "Money",
+     "visibility": "protected"
+    }
+   ],
+   "operations": [
+    {
+     "name": "validate",
+     "visibility": "public",
+     "returnType": "Boolean"
+    }
+   ]
+  },
+  {
+   "id": "report",
+   "type": "class",
+   "name": "Report",
+   "attributes": [
+    {
+     "name": "status",
+     "type": "DateTime",
+     "visibility": "private"
+    },
+    {
+     "name": "createdAt",
+     "type": "Money",
+     "visibility": "protected"
+    }
+   ]
+  },
+  {
+   "id": "invoice",
+   "type": "class",
+   "name": "Invoice",
+   "attributes": [
+    {
+     "name": "createdAt",
+     "type": "Money",
+     "visibility": "private"
+    }
+   ],
+   "operations": [
+    {
+     "name": "validate",
+     "visibility": "public",
+     "returnType": "Boolean"
+    },
+    {
+     "name": "total",
+     "visibility": "public",
+     "returnType": "Money"
+    }
+   ]
+  },
+  {
+   "id": "invoiceLine",
+   "type": "class",
+   "name": "InvoiceLine",
+   "attributes": [
+    {
+     "name": "amount",
+     "type": "Boolean",
+     "visibility": "private"
+    },
+    {
+     "name": "id",
+     "type": "UUID",
+     "visibility": "protected"
+    },
+    {
+     "name": "name",
+     "type": "Code",
+     "visibility": "protected"
+    },
+    {
+     "name": "code3",
+     "type": "String",
+     "visibility": "protected"
+    }
+   ],
+   "operations": [
+    {
+     "name": "validate",
+     "visibility": "public",
+     "returnType": "Boolean"
+    }
+   ]
+  },
+  {
+   "id": "payment",
+   "type": "class",
+   "name": "Payment",
+   "attributes": [
+    {
+     "name": "id",
+     "type": "UUID",
+     "visibility": "private"
+    },
+    {
+     "name": "name",
+     "type": "Code",
+     "visibility": "protected"
+    },
+    {
+     "name": "code",
+     "type": "String",
+     "visibility": "protected"
+    }
+   ]
+  },
+  {
+   "id": "insurance",
+   "type": "class",
+   "name": "Insurance",
+   "attributes": [
+    {
+     "name": "name",
+     "type": "Code",
+     "visibility": "private"
+    },
+    {
+     "name": "code",
+     "type": "String",
+     "visibility": "protected"
+    }
+   ],
+   "operations": [
+    {
+     "name": "validate",
+     "visibility": "public",
+     "returnType": "Boolean"
+    },
+    {
+     "name": "total",
+     "visibility": "public",
+     "returnType": "Money"
+    }
+   ]
+  },
+  {
+   "id": "policy",
+   "type": "class",
+   "name": "Policy",
+   "attributes": [
+    {
+     "name": "code",
+     "type": "String",
+     "visibility": "private"
+    }
+   ],
+   "operations": [
+    {
+     "name": "validate",
+     "visibility": "public",
+     "returnType": "Boolean"
+    }
+   ]
+  },
+  {
+   "id": "claim",
+   "type": "class",
+   "name": "Claim",
+   "attributes": [
+    {
+     "name": "status",
+     "type": "Integer",
+     "visibility": "private"
+    },
+    {
+     "name": "createdAt",
+     "type": "Date",
+     "visibility": "protected"
+    },
+    {
+     "name": "amount",
+     "type": "DateTime",
+     "visibility": "protected"
+    },
+    {
+     "name": "id3",
+     "type": "Money",
+     "visibility": "protected"
+    }
+   ]
+  },
+  {
+   "id": "address",
+   "type": "class",
+   "name": "Address",
+   "attributes": [
+    {
+     "name": "createdAt",
+     "type": "Date",
+     "visibility": "private"
+    },
+    {
+     "name": "amount",
+     "type": "DateTime",
+     "visibility": "protected"
+    },
+    {
+     "name": "id",
+     "type": "Money",
+     "visibility": "protected"
+    }
+   ],
+   "operations": [
+    {
+     "name": "validate",
+     "visibility": "public",
+     "returnType": "Boolean"
+    },
+    {
+     "name": "total",
+     "visibility": "public",
+     "returnType": "Money"
+    }
+   ]
+  },
+  {
+   "id": "contact",
+   "type": "class",
+   "name": "Contact",
+   "attributes": [
+    {
+     "name": "amount",
+     "type": "DateTime",
+     "visibility": "private"
+    },
+    {
+     "name": "id",
+     "type": "Money",
+     "visibility": "protected"
+    }
+   ],
+   "operations": [
+    {
+     "name": "validate",
+     "visibility": "public",
+     "returnType": "Boolean"
+    }
+   ]
+  },
+  {
+   "id": "emergencyContact",
+   "type": "class",
+   "name": "EmergencyContact",
+   "attributes": [
+    {
+     "name": "id",
+     "type": "Money",
+     "visibility": "private"
+    }
+   ]
+  },
+  {
+   "id": "medicalRecord",
+   "type": "class",
+   "name": "MedicalRecord",
+   "attributes": [
+    {
+     "name": "name",
+     "type": "Boolean",
+     "visibility": "private"
+    },
+    {
+     "name": "code",
+     "type": "UUID",
+     "visibility": "protected"
+    },
+    {
+     "name": "status",
+     "type": "Code",
+     "visibility": "protected"
+    },
+    {
+     "name": "createdAt3",
+     "type": "String",
+     "visibility": "protected"
+    }
+   ],
+   "operations": [
+    {
+     "name": "validate",
+     "visibility": "public",
+     "returnType": "Boolean"
+    },
+    {
+     "name": "total",
+     "visibility": "public",
+     "returnType": "Money"
+    }
+   ]
+  },
+  {
+   "id": "note",
+   "type": "class",
+   "name": "Note",
+   "attributes": [
+    {
+     "name": "code",
+     "type": "UUID",
+     "visibility": "private"
+    },
+    {
+     "name": "status",
+     "type": "Code",
+     "visibility": "protected"
+    },
+    {
+     "name": "createdAt",
+     "type": "String",
+     "visibility": "protected"
+    }
+   ],
+   "operations": [
+    {
+     "name": "validate",
+     "visibility": "public",
+     "returnType": "Boolean"
+    }
+   ]
+  },
+  {
+   "id": "vitals",
+   "type": "class",
+   "name": "Vitals",
+   "attributes": [
+    {
+     "name": "status",
+     "type": "Code",
+     "visibility": "private"
+    },
+    {
+     "name": "createdAt",
+     "type": "String",
+     "visibility": "protected"
+    }
+   ]
+  },
+  {
+   "id": "observation",
+   "type": "class",
+   "name": "Observation",
+   "attributes": [
+    {
+     "name": "createdAt",
+     "type": "String",
+     "visibility": "private"
+    }
+   ],
+   "operations": [
+    {
+     "name": "validate",
+     "visibility": "public",
+     "returnType": "Boolean"
+    },
+    {
+     "name": "total",
+     "visibility": "public",
+     "returnType": "Money"
+    }
+   ]
+  },
+  {
+   "id": "device",
+   "type": "class",
+   "name": "Device",
+   "attributes": [
+    {
+     "name": "amount",
+     "type": "Integer",
+     "visibility": "private"
+    },
+    {
+     "name": "id",
+     "type": "Date",
+     "visibility": "protected"
+    },
+    {
+     "name": "name",
+     "type": "DateTime",
+     "visibility": "protected"
+    },
+    {
+     "name": "code3",
+     "type": "Money",
+     "visibility": "protected"
+    }
+   ],
+   "operations": [
+    {
+     "name": "validate",
+     "visibility": "public",
+     "returnType": "Boolean"
+    }
+   ]
+  },
+  {
+   "id": "supplier",
+   "type": "class",
+   "name": "Supplier",
+   "attributes": [
+    {
+     "name": "id",
+     "type": "Date",
+     "visibility": "private"
+    },
+    {
+     "name": "name",
+     "type": "DateTime",
+     "visibility": "protected"
+    },
+    {
+     "name": "code",
+     "type": "Money",
+     "visibility": "protected"
+    }
+   ]
+  },
+  {
+   "id": "inventory",
+   "type": "class",
+   "name": "Inventory",
+   "attributes": [
+    {
+     "name": "name",
+     "type": "DateTime",
+     "visibility": "private"
+    },
+    {
+     "name": "code",
+     "type": "Money",
+     "visibility": "protected"
+    }
+   ],
+   "operations": [
+    {
+     "name": "validate",
+     "visibility": "public",
+     "returnType": "Boolean"
+    },
+    {
+     "name": "total",
+     "visibility": "public",
+     "returnType": "Money"
+    }
+   ]
+  },
+  {
+   "id": "stockItem",
+   "type": "class",
+   "name": "StockItem",
+   "attributes": [
+    {
+     "name": "code",
+     "type": "Money",
+     "visibility": "private"
+    }
+   ],
+   "operations": [
+    {
+     "name": "validate",
+     "visibility": "public",
+     "returnType": "Boolean"
+    }
+   ]
+  },
+  {
+   "id": "purchaseOrder",
+   "type": "class",
+   "name": "PurchaseOrder",
+   "attributes": [
+    {
+     "name": "status",
+     "type": "Boolean",
+     "visibility": "private"
+    },
+    {
+     "name": "createdAt",
+     "type": "UUID",
+     "visibility": "protected"
+    },
+    {
+     "name": "amount",
+     "type": "Code",
+     "visibility": "protected"
+    },
+    {
+     "name": "id3",
+     "type": "String",
+     "visibility": "protected"
+    }
+   ]
+  },
+  {
+   "id": "auditLog",
+   "type": "class",
+   "name": "AuditLog",
+   "attributes": [
+    {
+     "name": "createdAt",
+     "type": "UUID",
+     "visibility": "private"
+    },
+    {
+     "name": "amount",
+     "type": "Code",
+     "visibility": "protected"
+    },
+    {
+     "name": "id",
+     "type": "String",
+     "visibility": "protected"
+    }
+   ],
+   "operations": [
+    {
+     "name": "validate",
+     "visibility": "public",
+     "returnType": "Boolean"
+    },
+    {
+     "name": "total",
+     "visibility": "public",
+     "returnType": "Money"
+    }
+   ]
+  },
+  {
+   "id": "user",
+   "type": "class",
+   "name": "User",
+   "attributes": [
+    {
+     "name": "amount",
+     "type": "Code",
+     "visibility": "private"
+    },
+    {
+     "name": "id",
+     "type": "String",
+     "visibility": "protected"
+    }
+   ],
+   "operations": [
+    {
+     "name": "validate",
+     "visibility": "public",
+     "returnType": "Boolean"
+    }
+   ]
+  },
+  {
+   "id": "role",
+   "type": "enumeration",
+   "name": "Role",
+   "literals": [
+    "ADMIN",
+    "CLINICIAN",
+    "BILLING",
+    "AUDITOR"
+   ]
+  },
+  {
+   "id": "permission",
+   "type": "class",
+   "name": "Permission",
+   "attributes": [
+    {
+     "name": "name",
+     "type": "Integer",
+     "visibility": "private"
+    },
+    {
+     "name": "code",
+     "type": "Date",
+     "visibility": "protected"
+    },
+    {
+     "name": "status",
+     "type": "DateTime",
+     "visibility": "protected"
+    },
+    {
+     "name": "createdAt3",
+     "type": "Money",
+     "visibility": "protected"
+    }
+   ],
+   "operations": [
+    {
+     "name": "validate",
+     "visibility": "public",
+     "returnType": "Boolean"
+    },
+    {
+     "name": "total",
+     "visibility": "public",
+     "returnType": "Money"
+    }
+   ]
+  }
+ ],
+ "relationships": [
+  {
+   "type": "generalization",
+   "from": "patient",
+   "to": "person"
+  },
+  {
+   "type": "generalization",
+   "from": "staff",
+   "to": "person"
+  },
+  {
+   "type": "generalization",
+   "from": "doctor",
+   "to": "staff"
+  },
+  {
+   "type": "generalization",
+   "from": "nurse",
+   "to": "staff"
+  },
+  {
+   "type": "generalization",
+   "from": "surgery",
+   "to": "procedure"
+  },
+  {
+   "type": "generalization",
+   "from": "labResult",
+   "to": "report"
+  },
+  {
+   "type": "generalization",
+   "from": "imaging",
+   "to": "procedure"
+  },
+  {
+   "type": "generalization",
+   "from": "emergencyContact",
+   "to": "contact"
+  },
+  {
+   "type": "association",
+   "from": "person",
+   "to": "doctor",
+   "toEnd": {
+    "multiplicity": "0..1",
+    "navigable": true
+   }
+  },
+  {
+   "type": "composition",
+   "from": "patient",
+   "to": "nurse",
+   "fromEnd": {
+    "multiplicity": "1"
+   },
+   "toEnd": {
+    "multiplicity": "0..*"
+   }
+  },
+  {
+   "type": "aggregation",
+   "from": "patient",
+   "to": "doctor",
+   "toEnd": {
+    "multiplicity": "*"
+   }
+  },
+  {
+   "type": "association",
+   "from": "staff",
+   "to": "department",
+   "toEnd": {
+    "multiplicity": "1..*",
+    "navigable": true
+   },
+   "name": "has"
+  },
+  {
+   "type": "dependency",
+   "from": "nurse",
+   "to": "dose",
+   "keyword": "use"
+  },
+  {
+   "type": "association",
+   "from": "department",
+   "to": "ward",
+   "toEnd": {
+    "multiplicity": "1..*",
+    "navigable": true
+   }
+  },
+  {
+   "type": "association",
+   "from": "department",
+   "to": "room",
+   "toEnd": {
+    "multiplicity": "0..1",
+    "navigable": true
+   }
+  },
+  {
+   "type": "composition",
+   "from": "ward",
+   "to": "bed",
+   "fromEnd": {
+    "multiplicity": "1"
+   },
+   "toEnd": {
+    "multiplicity": "0..*"
+   }
+  },
+  {
+   "type": "aggregation",
+   "from": "room",
+   "to": "admission",
+   "toEnd": {
+    "multiplicity": "*"
+   }
+  },
+  {
+   "type": "association",
+   "from": "bed",
+   "to": "admission",
+   "toEnd": {
+    "multiplicity": "1..*",
+    "role": "admission",
+    "navigable": true
+   }
+  },
+  {
+   "type": "dependency",
+   "from": "ward",
+   "to": "room",
+   "keyword": "use"
+  },
+  {
+   "type": "association",
+   "from": "admission",
+   "to": "appointment",
+   "toEnd": {
+    "multiplicity": "1..*",
+    "navigable": true
+   },
+   "name": "has"
+  },
+  {
+   "type": "association",
+   "from": "bed",
+   "to": "surgery",
+   "toEnd": {
+    "multiplicity": "0..1",
+    "navigable": true
+   }
+  },
+  {
+   "type": "composition",
+   "from": "discharge",
+   "to": "appointment",
+   "fromEnd": {
+    "multiplicity": "1"
+   },
+   "toEnd": {
+    "multiplicity": "0..*"
+   }
+  },
+  {
+   "type": "aggregation",
+   "from": "discharge",
+   "to": "schedule",
+   "toEnd": {
+    "multiplicity": "*"
+   }
+  },
+  {
+   "type": "association",
+   "from": "appointment",
+   "to": "shift",
+   "toEnd": {
+    "multiplicity": "1..*",
+    "navigable": true
+   },
+   "name": "has"
+  },
+  {
+   "type": "dependency",
+   "from": "schedule",
+   "to": "prescription",
+   "keyword": "use"
+  },
+  {
+   "type": "association",
+   "from": "shift",
+   "to": "prescription",
+   "toEnd": {
+    "multiplicity": "1..*",
+    "navigable": true
+   }
+  },
+  {
+   "type": "association",
+   "from": "appointment",
+   "to": "schedule",
+   "toEnd": {
+    "multiplicity": "0..1",
+    "navigable": true
+   }
+  },
+  {
+   "type": "composition",
+   "from": "prescription",
+   "to": "allergy",
+   "fromEnd": {
+    "multiplicity": "1"
+   },
+   "toEnd": {
+    "multiplicity": "0..*"
+   }
+  },
+  {
+   "type": "aggregation",
+   "from": "shift",
+   "to": "imaging",
+   "toEnd": {
+    "multiplicity": "*"
+   }
+  },
+  {
+   "type": "association",
+   "from": "medication",
+   "to": "dose",
+   "toEnd": {
+    "multiplicity": "1..*",
+    "navigable": true
+   }
+  },
+  {
+   "type": "dependency",
+   "from": "medication",
+   "to": "allergy",
+   "keyword": "use"
+  },
+  {
+   "type": "association",
+   "from": "dose",
+   "to": "diagnosis",
+   "toEnd": {
+    "multiplicity": "1..*",
+    "navigable": true
+   },
+   "name": "has"
+  },
+  {
+   "type": "association",
+   "from": "allergy",
+   "to": "condition",
+   "toEnd": {
+    "multiplicity": "0..1",
+    "role": "condition",
+    "navigable": true
+   }
+  },
+  {
+   "type": "composition",
+   "from": "diagnosis",
+   "to": "condition",
+   "fromEnd": {
+    "multiplicity": "1"
+   },
+   "toEnd": {
+    "multiplicity": "0..*"
+   }
+  },
+  {
+   "type": "aggregation",
+   "from": "dose",
+   "to": "allergy",
+   "toEnd": {
+    "multiplicity": "*"
+   }
+  },
+  {
+   "type": "association",
+   "from": "condition",
+   "to": "procedure",
+   "toEnd": {
+    "multiplicity": "1..*",
+    "navigable": true
+   },
+   "name": "has"
+  },
+  {
+   "type": "dependency",
+   "from": "diagnosis",
+   "to": "insurance",
+   "keyword": "use"
+  },
+  {
+   "type": "association",
+   "from": "procedure",
+   "to": "anesthesia",
+   "toEnd": {
+    "multiplicity": "1..*",
+    "role": "anesthesia",
+    "navigable": true
+   }
+  },
+  {
+   "type": "association",
+   "from": "surgery",
+   "to": "labOrder",
+   "toEnd": {
+    "multiplicity": "0..1",
+    "navigable": true
+   }
+  },
+  {
+   "type": "composition",
+   "from": "anesthesia",
+   "to": "labResult",
+   "fromEnd": {
+    "multiplicity": "1"
+   },
+   "toEnd": {
+    "multiplicity": "0..*"
+   }
+  },
+  {
+   "type": "aggregation",
+   "from": "labOrder",
+   "to": "labResult",
+   "toEnd": {
+    "multiplicity": "*"
+   }
+  },
+  {
+   "type": "association",
+   "from": "surgery",
+   "to": "anesthesia",
+   "toEnd": {
+    "multiplicity": "1..*",
+    "navigable": true
+   }
+  },
+  {
+   "type": "dependency",
+   "from": "labResult",
+   "to": "imaging",
+   "keyword": "use"
+  },
+  {
+   "type": "association",
+   "from": "labOrder",
+   "to": "emergencyContact",
+   "toEnd": {
+    "multiplicity": "1..*",
+    "navigable": true
+   },
+   "name": "has"
+  },
+  {
+   "type": "association",
+   "from": "specimen",
+   "to": "imaging",
+   "toEnd": {
+    "multiplicity": "0..1",
+    "navigable": true
+   }
+  },
+  {
+   "type": "composition",
+   "from": "specimen",
+   "to": "report",
+   "fromEnd": {
+    "multiplicity": "1"
+   },
+   "toEnd": {
+    "multiplicity": "0..*"
+   }
+  },
+  {
+   "type": "aggregation",
+   "from": "imaging",
+   "to": "invoice",
+   "toEnd": {
+    "multiplicity": "*"
+   }
+  },
+  {
+   "type": "association",
+   "from": "report",
+   "to": "invoiceLine",
+   "toEnd": {
+    "multiplicity": "1..*",
+    "role": "invoiceLine",
+    "navigable": true
+   },
+   "name": "has"
+  },
+  {
+   "type": "dependency",
+   "from": "invoice",
+   "to": "invoiceLine",
+   "keyword": "use"
+  },
+  {
+   "type": "association",
+   "from": "imaging",
+   "to": "report",
+   "toEnd": {
+    "multiplicity": "1..*",
+    "navigable": true
+   }
+  },
+  {
+   "type": "association",
+   "from": "invoiceLine",
+   "to": "policy",
+   "toEnd": {
+    "multiplicity": "0..1",
+    "navigable": true
+   }
+  },
+  {
+   "type": "composition",
+   "from": "invoice",
+   "to": "device",
+   "fromEnd": {
+    "multiplicity": "1"
+   },
+   "toEnd": {
+    "multiplicity": "0..*"
+   }
+  },
+  {
+   "type": "aggregation",
+   "from": "payment",
+   "to": "insurance",
+   "toEnd": {
+    "multiplicity": "*"
+   }
+  },
+  {
+   "type": "association",
+   "from": "payment",
+   "to": "policy",
+   "toEnd": {
+    "multiplicity": "1..*",
+    "navigable": true
+   }
+  },
+  {
+   "type": "dependency",
+   "from": "insurance",
+   "to": "claim",
+   "keyword": "use"
+  },
+  {
+   "type": "association",
+   "from": "policy",
+   "to": "address",
+   "toEnd": {
+    "multiplicity": "1..*",
+    "navigable": true
+   },
+   "name": "has"
+  },
+  {
+   "type": "association",
+   "from": "claim",
+   "to": "address",
+   "toEnd": {
+    "multiplicity": "0..1",
+    "navigable": true
+   }
+  },
+  {
+   "type": "composition",
+   "from": "insurance",
+   "to": "policy",
+   "fromEnd": {
+    "multiplicity": "1"
+   },
+   "toEnd": {
+    "multiplicity": "0..*"
+   }
+  },
+  {
+   "type": "aggregation",
+   "from": "address",
+   "to": "contact",
+   "toEnd": {
+    "multiplicity": "*"
+   }
+  },
+  {
+   "type": "association",
+   "from": "claim",
+   "to": "auditLog",
+   "toEnd": {
+    "multiplicity": "1..*",
+    "navigable": true
+   },
+   "name": "has"
+  },
+  {
+   "type": "dependency",
+   "from": "contact",
+   "to": "medicalRecord",
+   "keyword": "use"
+  },
+  {
+   "type": "association",
+   "from": "emergencyContact",
+   "to": "note",
+   "toEnd": {
+    "multiplicity": "1..*",
+    "navigable": true
+   }
+  },
+  {
+   "type": "association",
+   "from": "medicalRecord",
+   "to": "vitals",
+   "toEnd": {
+    "multiplicity": "0..1",
+    "role": "vitals",
+    "navigable": true
+   }
+  },
+  {
+   "type": "composition",
+   "from": "note",
+   "to": "vitals",
+   "fromEnd": {
+    "multiplicity": "1"
+   },
+   "toEnd": {
+    "multiplicity": "0..*"
+   }
+  },
+  {
+   "type": "aggregation",
+   "from": "emergencyContact",
+   "to": "medicalRecord",
+   "toEnd": {
+    "multiplicity": "*"
+   }
+  },
+  {
+   "type": "association",
+   "from": "vitals",
+   "to": "device",
+   "toEnd": {
+    "multiplicity": "1..*",
+    "navigable": true
+   }
+  },
+  {
+   "type": "dependency",
+   "from": "note",
+   "to": "patient",
+   "keyword": "use"
+  },
+  {
+   "type": "association",
+   "from": "observation",
+   "to": "device",
+   "toEnd": {
+    "multiplicity": "1..*",
+    "role": "device",
+    "navigable": true
+   },
+   "name": "has"
+  },
+  {
+   "type": "association",
+   "from": "observation",
+   "to": "supplier",
+   "toEnd": {
+    "multiplicity": "0..1",
+    "navigable": true
+   }
+  },
+  {
+   "type": "composition",
+   "from": "device",
+   "to": "inventory",
+   "fromEnd": {
+    "multiplicity": "1"
+   },
+   "toEnd": {
+    "multiplicity": "0..*"
+   }
+  },
+  {
+   "type": "aggregation",
+   "from": "supplier",
+   "to": "stockItem",
+   "toEnd": {
+    "multiplicity": "*"
+   }
+  },
+  {
+   "type": "association",
+   "from": "inventory",
+   "to": "stockItem",
+   "toEnd": {
+    "multiplicity": "1..*",
+    "navigable": true
+   },
+   "name": "has"
+  },
+  {
+   "type": "dependency",
+   "from": "device",
+   "to": "supplier",
+   "keyword": "use"
+  },
+  {
+   "type": "association",
+   "from": "stockItem",
+   "to": "user",
+   "toEnd": {
+    "multiplicity": "1..*",
+    "navigable": true
+   }
+  },
+  {
+   "type": "association",
+   "from": "inventory",
+   "to": "ward",
+   "toEnd": {
+    "multiplicity": "0..1",
+    "navigable": true
+   }
+  },
+  {
+   "type": "composition",
+   "from": "purchaseOrder",
+   "to": "auditLog",
+   "fromEnd": {
+    "multiplicity": "1"
+   },
+   "toEnd": {
+    "multiplicity": "0..*"
+   }
+  },
+  {
+   "type": "aggregation",
+   "from": "purchaseOrder",
+   "to": "user",
+   "toEnd": {
+    "multiplicity": "*"
+   }
+  },
+  {
+   "type": "association",
+   "from": "auditLog",
+   "to": "role",
+   "toEnd": {
+    "multiplicity": "1..*",
+    "role": "role",
+    "navigable": true
+   }
+  },
+  {
+   "type": "dependency",
+   "from": "user",
+   "to": "permission",
+   "keyword": "use"
+  },
+  {
+   "type": "association",
+   "from": "role",
+   "to": "permission",
+   "toEnd": {
+    "multiplicity": "1..*",
+    "navigable": true
+   },
+   "name": "has"
+  }
+ ]
+}

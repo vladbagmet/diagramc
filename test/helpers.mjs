@@ -2,6 +2,8 @@ import { mkdtemp, writeFile, chmod, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
+import assert from 'node:assert/strict';
+import { renderAndCheck, formatReport } from '../dist/qa/index.js';
 
 export const root = resolve(import.meta.dirname, '..');
 export async function workspace(t) {
@@ -17,8 +19,21 @@ export async function fakeJava(dir, code, name = 'java') {
 }
 export function cli(args, options = {}) {
   return spawnSync(process.execPath, [join(root, 'dist/cli.js'), ...args], {
-    cwd: root, encoding: 'utf8', timeout: 30_000, ...options,
+    cwd: root, encoding: 'utf8', timeout: 60_000, ...options,
   });
 }
+/** Smallest valid v1 document (MVP format). */
 export const minimal = { classes: [{ id: 'a', name: 'A' }], relationships: [] };
+/** Smallest valid v2 class document. */
+export const minimalV2 = { kind: 'class', elements: [{ id: 'a', type: 'class', name: 'A' }] };
 export const fakeSvg = '<svg xml:space="preserve" data-diagram-type="CLASS"></svg>';
+
+/**
+ * Renders a document (own engine by default) and asserts that every QA gate
+ * passes. Returns the SVG, the gate report and the render time in ms.
+ */
+export async function assertGates(document, options = {}) {
+  const result = await renderAndCheck(document, options);
+  assert.ok(result.report.ok, `QA gates failed:\n${formatReport(result.report)}`);
+  return result;
+}
