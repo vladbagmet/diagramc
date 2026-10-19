@@ -82,6 +82,10 @@ export const theme = {
     cross: { offset: 12, half: 5 },
     circlePlus: { radius: 6.5 },
     noteFold: 10,
+    /** Corner radius of activity actions (rounded rectangles). */
+    actionRadius: 12,
+    /** Rake symbol of call behavior actions (UML 16.3.4). */
+    rake: { width: 12, height: 12 },
     packageTab: { minWidth: 48, height: 20 },
   },
 } as const;

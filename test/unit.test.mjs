@@ -176,7 +176,7 @@ test('CLI help, version, usage and machine-readable read/parse/encoding failures
     assert.equal(result.stderr.trim().split('\n').length, 1);
   }
 });
-test('CLI validate, schema and kinds print JSON on stdout', () => {
+test('CLI validate, schema and kinds print JSON on stdout', async () => {
   let result = cli(['validate', '-'], { input: JSON.stringify(minimalV2) });
   assert.equal(result.status, 0, result.stderr);
   assert.deepEqual(JSON.parse(result.stdout), { valid: true, kind: 'class', version: 2 });
@@ -192,7 +192,10 @@ test('CLI validate, schema and kinds print JSON on stdout', () => {
   assert.equal(result.status, 0);
   assert.equal(JSON.parse(result.stdout).properties.kind.const, 'class');
   result = cli(['kinds']);
-  assert.deepEqual(JSON.parse(result.stdout).map(k => k.kind), ['class']);
+  // Every registered kind is listed, class first (other kinds are added by their chunks).
+  const { kinds } = await import('../dist/model/registry.js');
+  assert.deepEqual(JSON.parse(result.stdout).map(k => k.kind), kinds.map(k => k.kind));
+  assert.equal(JSON.parse(result.stdout)[0].kind, 'class');
   assert.deepEqual(JSON.parse(result.stdout)[0].backends, ['engine', 'plantuml']);
 });
 test('invalid input never spawns renderer or creates/replaces output', async t => {

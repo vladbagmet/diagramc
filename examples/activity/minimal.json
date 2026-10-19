@@ -1,0 +1,14 @@
+{
+  "kind": "activity",
+  "nodes": [
+    { "id": "start", "type": "initial" },
+    { "id": "brew", "type": "action", "name": "Brew coffee" },
+    { "id": "pour", "type": "action", "name": "Pour into cup" },
+    { "id": "done", "type": "activityFinal" }
+  ],
+  "edges": [
+    { "type": "control", "from": "start", "to": "brew" },
+    { "type": "control", "from": "brew", "to": "pour" },
+    { "type": "control", "from": "pour", "to": "done" }
+  ]
+}

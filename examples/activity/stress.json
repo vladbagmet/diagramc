@@ -1,0 +1,877 @@
+{
+  "kind": "activity",
+  "title": "Batch pipeline",
+  "partitions": [
+    {
+      "id": "intake",
+      "name": "Intake"
+    },
+    {
+      "id": "processing",
+      "name": "Processing"
+    },
+    {
+      "id": "delivery",
+      "name": "Delivery"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "start",
+      "type": "initial",
+      "partition": "intake"
+    },
+    {
+      "id": "s0-task",
+      "type": "action",
+      "name": "Receive batch 1",
+      "partition": "intake"
+    },
+    {
+      "id": "s0-check",
+      "type": "decision",
+      "partition": "intake"
+    },
+    {
+      "id": "s0-quick",
+      "type": "action",
+      "name": "Quick receive path",
+      "partition": "intake"
+    },
+    {
+      "id": "s0-full",
+      "type": "action",
+      "name": "Full receive review",
+      "partition": "intake"
+    },
+    {
+      "id": "s0-sign",
+      "type": "action",
+      "name": "Sign off receive",
+      "partition": "intake"
+    },
+    {
+      "id": "s0-merge",
+      "type": "merge"
+    },
+    {
+      "id": "s0-fork",
+      "type": "fork",
+      "partition": "intake"
+    },
+    {
+      "id": "s0-archive",
+      "type": "action",
+      "name": "Archive receive data",
+      "partition": "intake"
+    },
+    {
+      "id": "s0-report",
+      "type": "action",
+      "name": "Report receive metrics",
+      "partition": "intake"
+    },
+    {
+      "id": "s0-join",
+      "type": "join"
+    },
+    {
+      "id": "s1-task",
+      "type": "action",
+      "name": "Classify batch 2",
+      "partition": "intake"
+    },
+    {
+      "id": "s1-check",
+      "type": "decision",
+      "partition": "intake"
+    },
+    {
+      "id": "s1-quick",
+      "type": "action",
+      "name": "Quick classify path",
+      "partition": "intake"
+    },
+    {
+      "id": "s1-full",
+      "type": "action",
+      "name": "Full classify review",
+      "partition": "intake"
+    },
+    {
+      "id": "s1-sign",
+      "type": "action",
+      "name": "Sign off classify",
+      "partition": "intake"
+    },
+    {
+      "id": "s1-merge",
+      "type": "merge"
+    },
+    {
+      "id": "s1-fork",
+      "type": "fork",
+      "partition": "intake"
+    },
+    {
+      "id": "s1-archive",
+      "type": "action",
+      "name": "Archive classify data",
+      "partition": "intake"
+    },
+    {
+      "id": "s1-report",
+      "type": "action",
+      "name": "Report classify metrics",
+      "partition": "intake"
+    },
+    {
+      "id": "s1-join",
+      "type": "join"
+    },
+    {
+      "id": "s1-loop",
+      "type": "merge"
+    },
+    {
+      "id": "s1-retry",
+      "type": "action",
+      "name": "Retry classify step",
+      "partition": "intake"
+    },
+    {
+      "id": "s1-again",
+      "type": "decision",
+      "partition": "intake"
+    },
+    {
+      "id": "s1-next",
+      "type": "action",
+      "name": "Close classify",
+      "partition": "intake"
+    },
+    {
+      "id": "s2-task",
+      "type": "action",
+      "name": "Enrich batch 3",
+      "partition": "processing"
+    },
+    {
+      "id": "s2-check",
+      "type": "decision",
+      "partition": "processing"
+    },
+    {
+      "id": "s2-quick",
+      "type": "action",
+      "name": "Quick enrich path",
+      "partition": "processing"
+    },
+    {
+      "id": "s2-full",
+      "type": "action",
+      "name": "Full enrich review",
+      "partition": "processing"
+    },
+    {
+      "id": "s2-sign",
+      "type": "action",
+      "name": "Sign off enrich",
+      "partition": "processing"
+    },
+    {
+      "id": "s2-merge",
+      "type": "merge"
+    },
+    {
+      "id": "s2-fork",
+      "type": "fork",
+      "partition": "processing"
+    },
+    {
+      "id": "s2-archive",
+      "type": "action",
+      "name": "Archive enrich data",
+      "partition": "processing"
+    },
+    {
+      "id": "s2-report",
+      "type": "action",
+      "name": "Report enrich metrics",
+      "partition": "processing"
+    },
+    {
+      "id": "s2-join",
+      "type": "join"
+    },
+    {
+      "id": "s3-task",
+      "type": "action",
+      "name": "Assemble batch 4",
+      "partition": "processing"
+    },
+    {
+      "id": "s3-check",
+      "type": "decision",
+      "partition": "processing"
+    },
+    {
+      "id": "s3-quick",
+      "type": "action",
+      "name": "Quick assemble path",
+      "partition": "processing"
+    },
+    {
+      "id": "s3-full",
+      "type": "action",
+      "name": "Full assemble review",
+      "partition": "processing"
+    },
+    {
+      "id": "s3-sign",
+      "type": "action",
+      "name": "Sign off assemble",
+      "partition": "processing"
+    },
+    {
+      "id": "s3-merge",
+      "type": "merge"
+    },
+    {
+      "id": "s3-fork",
+      "type": "fork",
+      "partition": "processing"
+    },
+    {
+      "id": "s3-archive",
+      "type": "action",
+      "name": "Archive assemble data",
+      "partition": "processing"
+    },
+    {
+      "id": "s3-report",
+      "type": "action",
+      "name": "Report assemble metrics",
+      "partition": "processing"
+    },
+    {
+      "id": "s3-join",
+      "type": "join"
+    },
+    {
+      "id": "s3-loop",
+      "type": "merge"
+    },
+    {
+      "id": "s3-retry",
+      "type": "action",
+      "name": "Retry assemble step",
+      "partition": "processing"
+    },
+    {
+      "id": "s3-again",
+      "type": "decision",
+      "partition": "processing"
+    },
+    {
+      "id": "s3-next",
+      "type": "action",
+      "name": "Close assemble",
+      "partition": "processing"
+    },
+    {
+      "id": "s4-task",
+      "type": "action",
+      "name": "Verify batch 5",
+      "partition": "delivery"
+    },
+    {
+      "id": "s4-check",
+      "type": "decision",
+      "partition": "delivery"
+    },
+    {
+      "id": "s4-quick",
+      "type": "action",
+      "name": "Quick verify path",
+      "partition": "delivery"
+    },
+    {
+      "id": "s4-full",
+      "type": "action",
+      "name": "Full verify review",
+      "partition": "delivery"
+    },
+    {
+      "id": "s4-sign",
+      "type": "action",
+      "name": "Sign off verify",
+      "partition": "delivery"
+    },
+    {
+      "id": "s4-merge",
+      "type": "merge"
+    },
+    {
+      "id": "s4-fork",
+      "type": "fork",
+      "partition": "delivery"
+    },
+    {
+      "id": "s4-archive",
+      "type": "action",
+      "name": "Archive verify data",
+      "partition": "delivery"
+    },
+    {
+      "id": "s4-report",
+      "type": "action",
+      "name": "Report verify metrics",
+      "partition": "delivery"
+    },
+    {
+      "id": "s4-join",
+      "type": "join"
+    },
+    {
+      "id": "s5-task",
+      "type": "action",
+      "name": "Dispatch batch 6",
+      "partition": "delivery"
+    },
+    {
+      "id": "s5-check",
+      "type": "decision",
+      "partition": "delivery"
+    },
+    {
+      "id": "s5-quick",
+      "type": "action",
+      "name": "Quick dispatch path",
+      "partition": "delivery"
+    },
+    {
+      "id": "s5-full",
+      "type": "action",
+      "name": "Full dispatch review",
+      "partition": "delivery"
+    },
+    {
+      "id": "s5-sign",
+      "type": "action",
+      "name": "Sign off dispatch",
+      "partition": "delivery"
+    },
+    {
+      "id": "s5-merge",
+      "type": "merge"
+    },
+    {
+      "id": "s5-fork",
+      "type": "fork",
+      "partition": "delivery"
+    },
+    {
+      "id": "s5-archive",
+      "type": "action",
+      "name": "Archive dispatch data",
+      "partition": "delivery"
+    },
+    {
+      "id": "s5-report",
+      "type": "action",
+      "name": "Report dispatch metrics",
+      "partition": "delivery"
+    },
+    {
+      "id": "s5-join",
+      "type": "join"
+    },
+    {
+      "id": "s5-loop",
+      "type": "merge"
+    },
+    {
+      "id": "s5-retry",
+      "type": "action",
+      "name": "Retry dispatch step",
+      "partition": "delivery"
+    },
+    {
+      "id": "s5-again",
+      "type": "decision",
+      "partition": "delivery"
+    },
+    {
+      "id": "s5-next",
+      "type": "action",
+      "name": "Close dispatch",
+      "partition": "delivery"
+    },
+    {
+      "id": "end",
+      "type": "activityFinal",
+      "partition": "delivery"
+    }
+  ],
+  "edges": [
+    {
+      "type": "control",
+      "from": "start",
+      "to": "s0-task"
+    },
+    {
+      "type": "control",
+      "from": "s0-task",
+      "to": "s0-check"
+    },
+    {
+      "type": "control",
+      "from": "s0-check",
+      "to": "s0-quick",
+      "guard": "simple"
+    },
+    {
+      "type": "control",
+      "from": "s0-check",
+      "to": "s0-full",
+      "guard": "complex"
+    },
+    {
+      "type": "control",
+      "from": "s0-full",
+      "to": "s0-sign"
+    },
+    {
+      "type": "control",
+      "from": "s0-quick",
+      "to": "s0-merge"
+    },
+    {
+      "type": "control",
+      "from": "s0-sign",
+      "to": "s0-merge"
+    },
+    {
+      "type": "control",
+      "from": "s0-merge",
+      "to": "s0-fork"
+    },
+    {
+      "type": "control",
+      "from": "s0-fork",
+      "to": "s0-archive"
+    },
+    {
+      "type": "control",
+      "from": "s0-fork",
+      "to": "s0-report"
+    },
+    {
+      "type": "control",
+      "from": "s0-archive",
+      "to": "s0-join"
+    },
+    {
+      "type": "control",
+      "from": "s0-report",
+      "to": "s0-join"
+    },
+    {
+      "type": "control",
+      "from": "s0-join",
+      "to": "s1-task"
+    },
+    {
+      "type": "control",
+      "from": "s1-task",
+      "to": "s1-check"
+    },
+    {
+      "type": "control",
+      "from": "s1-check",
+      "to": "s1-quick",
+      "guard": "simple"
+    },
+    {
+      "type": "control",
+      "from": "s1-check",
+      "to": "s1-full",
+      "guard": "complex"
+    },
+    {
+      "type": "control",
+      "from": "s1-full",
+      "to": "s1-sign"
+    },
+    {
+      "type": "control",
+      "from": "s1-quick",
+      "to": "s1-merge"
+    },
+    {
+      "type": "control",
+      "from": "s1-sign",
+      "to": "s1-merge"
+    },
+    {
+      "type": "control",
+      "from": "s1-merge",
+      "to": "s1-fork"
+    },
+    {
+      "type": "control",
+      "from": "s1-fork",
+      "to": "s1-archive"
+    },
+    {
+      "type": "control",
+      "from": "s1-fork",
+      "to": "s1-report"
+    },
+    {
+      "type": "control",
+      "from": "s1-archive",
+      "to": "s1-join"
+    },
+    {
+      "type": "control",
+      "from": "s1-report",
+      "to": "s1-join"
+    },
+    {
+      "type": "control",
+      "from": "s1-join",
+      "to": "s1-loop"
+    },
+    {
+      "type": "control",
+      "from": "s1-loop",
+      "to": "s1-retry"
+    },
+    {
+      "type": "control",
+      "from": "s1-retry",
+      "to": "s1-again"
+    },
+    {
+      "type": "control",
+      "from": "s1-again",
+      "to": "s1-loop",
+      "guard": "retry"
+    },
+    {
+      "type": "control",
+      "from": "s1-again",
+      "to": "s1-next",
+      "guard": "ok"
+    },
+    {
+      "type": "control",
+      "from": "s1-next",
+      "to": "s2-task"
+    },
+    {
+      "type": "control",
+      "from": "s2-task",
+      "to": "s2-check"
+    },
+    {
+      "type": "control",
+      "from": "s2-check",
+      "to": "s2-quick",
+      "guard": "simple"
+    },
+    {
+      "type": "control",
+      "from": "s2-check",
+      "to": "s2-full",
+      "guard": "complex"
+    },
+    {
+      "type": "control",
+      "from": "s2-full",
+      "to": "s2-sign"
+    },
+    {
+      "type": "control",
+      "from": "s2-quick",
+      "to": "s2-merge"
+    },
+    {
+      "type": "control",
+      "from": "s2-sign",
+      "to": "s2-merge"
+    },
+    {
+      "type": "control",
+      "from": "s2-merge",
+      "to": "s2-fork"
+    },
+    {
+      "type": "control",
+      "from": "s2-fork",
+      "to": "s2-archive"
+    },
+    {
+      "type": "control",
+      "from": "s2-fork",
+      "to": "s2-report"
+    },
+    {
+      "type": "control",
+      "from": "s2-archive",
+      "to": "s2-join"
+    },
+    {
+      "type": "control",
+      "from": "s2-report",
+      "to": "s2-join"
+    },
+    {
+      "type": "control",
+      "from": "s2-join",
+      "to": "s3-task"
+    },
+    {
+      "type": "control",
+      "from": "s3-task",
+      "to": "s3-check"
+    },
+    {
+      "type": "control",
+      "from": "s3-check",
+      "to": "s3-quick",
+      "guard": "simple"
+    },
+    {
+      "type": "control",
+      "from": "s3-check",
+      "to": "s3-full",
+      "guard": "complex"
+    },
+    {
+      "type": "control",
+      "from": "s3-full",
+      "to": "s3-sign"
+    },
+    {
+      "type": "control",
+      "from": "s3-quick",
+      "to": "s3-merge"
+    },
+    {
+      "type": "control",
+      "from": "s3-sign",
+      "to": "s3-merge"
+    },
+    {
+      "type": "control",
+      "from": "s3-merge",
+      "to": "s3-fork"
+    },
+    {
+      "type": "control",
+      "from": "s3-fork",
+      "to": "s3-archive"
+    },
+    {
+      "type": "control",
+      "from": "s3-fork",
+      "to": "s3-report"
+    },
+    {
+      "type": "control",
+      "from": "s3-archive",
+      "to": "s3-join"
+    },
+    {
+      "type": "control",
+      "from": "s3-report",
+      "to": "s3-join"
+    },
+    {
+      "type": "control",
+      "from": "s3-join",
+      "to": "s3-loop"
+    },
+    {
+      "type": "control",
+      "from": "s3-loop",
+      "to": "s3-retry"
+    },
+    {
+      "type": "control",
+      "from": "s3-retry",
+      "to": "s3-again"
+    },
+    {
+      "type": "control",
+      "from": "s3-again",
+      "to": "s3-loop",
+      "guard": "retry"
+    },
+    {
+      "type": "control",
+      "from": "s3-again",
+      "to": "s3-next",
+      "guard": "ok"
+    },
+    {
+      "type": "control",
+      "from": "s3-next",
+      "to": "s4-task"
+    },
+    {
+      "type": "control",
+      "from": "s4-task",
+      "to": "s4-check"
+    },
+    {
+      "type": "control",
+      "from": "s4-check",
+      "to": "s4-quick",
+      "guard": "simple"
+    },
+    {
+      "type": "control",
+      "from": "s4-check",
+      "to": "s4-full",
+      "guard": "complex"
+    },
+    {
+      "type": "control",
+      "from": "s4-full",
+      "to": "s4-sign"
+    },
+    {
+      "type": "control",
+      "from": "s4-quick",
+      "to": "s4-merge"
+    },
+    {
+      "type": "control",
+      "from": "s4-sign",
+      "to": "s4-merge"
+    },
+    {
+      "type": "control",
+      "from": "s4-merge",
+      "to": "s4-fork"
+    },
+    {
+      "type": "control",
+      "from": "s4-fork",
+      "to": "s4-archive"
+    },
+    {
+      "type": "control",
+      "from": "s4-fork",
+      "to": "s4-report"
+    },
+    {
+      "type": "control",
+      "from": "s4-archive",
+      "to": "s4-join"
+    },
+    {
+      "type": "control",
+      "from": "s4-report",
+      "to": "s4-join"
+    },
+    {
+      "type": "control",
+      "from": "s4-join",
+      "to": "s5-task"
+    },
+    {
+      "type": "control",
+      "from": "s5-task",
+      "to": "s5-check"
+    },
+    {
+      "type": "control",
+      "from": "s5-check",
+      "to": "s5-quick",
+      "guard": "simple"
+    },
+    {
+      "type": "control",
+      "from": "s5-check",
+      "to": "s5-full",
+      "guard": "complex"
+    },
+    {
+      "type": "control",
+      "from": "s5-full",
+      "to": "s5-sign"
+    },
+    {
+      "type": "control",
+      "from": "s5-quick",
+      "to": "s5-merge"
+    },
+    {
+      "type": "control",
+      "from": "s5-sign",
+      "to": "s5-merge"
+    },
+    {
+      "type": "control",
+      "from": "s5-merge",
+      "to": "s5-fork"
+    },
+    {
+      "type": "control",
+      "from": "s5-fork",
+      "to": "s5-archive"
+    },
+    {
+      "type": "control",
+      "from": "s5-fork",
+      "to": "s5-report"
+    },
+    {
+      "type": "control",
+      "from": "s5-archive",
+      "to": "s5-join"
+    },
+    {
+      "type": "control",
+      "from": "s5-report",
+      "to": "s5-join"
+    },
+    {
+      "type": "control",
+      "from": "s5-join",
+      "to": "s5-loop"
+    },
+    {
+      "type": "control",
+      "from": "s5-loop",
+      "to": "s5-retry"
+    },
+    {
+      "type": "control",
+      "from": "s5-retry",
+      "to": "s5-again"
+    },
+    {
+      "type": "control",
+      "from": "s5-again",
+      "to": "s5-loop",
+      "guard": "retry"
+    },
+    {
+      "type": "control",
+      "from": "s5-again",
+      "to": "s5-next",
+      "guard": "ok"
+    },
+    {
+      "type": "control",
+      "from": "s5-next",
+      "to": "end"
+    }
+  ]
+}

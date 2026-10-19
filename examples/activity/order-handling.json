@@ -1,0 +1,48 @@
+{
+  "kind": "activity",
+  "title": "Order handling",
+  "partitions": [
+    { "id": "customer", "name": "Customer" },
+    { "id": "shop", "name": "Shop" },
+    { "id": "warehouse", "name": "Warehouse" }
+  ],
+  "nodes": [
+    { "id": "start", "type": "initial", "partition": "customer" },
+    { "id": "place", "type": "action", "name": "Place order", "partition": "customer" },
+    { "id": "order", "type": "object", "name": "Order", "state": "placed", "partition": "customer" },
+    { "id": "check", "type": "callBehavior", "name": "Check stock", "partition": "shop", "note": "Calls the inventory activity for every order line." },
+    { "id": "inStock", "type": "decision", "partition": "shop" },
+    { "id": "reject", "type": "sendSignal", "name": "Out of stock", "partition": "shop" },
+    { "id": "rejected", "type": "activityFinal", "partition": "shop" },
+    { "id": "split", "type": "fork", "partition": "shop" },
+    { "id": "charge", "type": "action", "name": "Charge card", "partition": "shop" },
+    { "id": "paid", "type": "acceptEvent", "name": "Payment confirmed", "partition": "shop" },
+    { "id": "pickLoop", "type": "merge" },
+    { "id": "pick", "type": "action", "name": "Pick item", "partition": "warehouse" },
+    { "id": "more", "type": "decision", "partition": "warehouse" },
+    { "id": "pack", "type": "action", "name": "Pack parcel", "partition": "warehouse" },
+    { "id": "sync", "type": "join" },
+    { "id": "ship", "type": "action", "name": "Ship parcel", "partition": "warehouse" },
+    { "id": "end", "type": "activityFinal", "partition": "warehouse" }
+  ],
+  "edges": [
+    { "type": "control", "from": "start", "to": "place" },
+    { "type": "object", "from": "place", "to": "order" },
+    { "type": "object", "from": "order", "to": "check" },
+    { "type": "control", "from": "check", "to": "inStock" },
+    { "type": "control", "from": "inStock", "to": "split", "guard": "all in stock" },
+    { "type": "control", "from": "inStock", "to": "reject", "guard": "else" },
+    { "type": "control", "from": "reject", "to": "rejected" },
+    { "type": "control", "from": "split", "to": "charge" },
+    { "type": "control", "from": "charge", "to": "paid" },
+    { "type": "control", "from": "paid", "to": "sync" },
+    { "type": "control", "from": "split", "to": "pickLoop" },
+    { "type": "control", "from": "pickLoop", "to": "pick" },
+    { "type": "control", "from": "pick", "to": "more" },
+    { "type": "control", "from": "more", "to": "pickLoop", "guard": "items left" },
+    { "type": "control", "from": "more", "to": "pack", "guard": "all picked" },
+    { "type": "control", "from": "pack", "to": "sync" },
+    { "type": "control", "from": "sync", "to": "ship" },
+    { "type": "control", "from": "ship", "to": "end" }
+  ]
+}

@@ -1,0 +1,1831 @@
+[
+ {
+  "name": "unknown property",
+  "expect": {
+   "code": "SCHEMA_INVALID",
+   "path": "/nodes/1/label"
+  },
+  "doc": {
+   "kind": "activity",
+   "nodes": [
+    {
+     "id": "i",
+     "type": "initial"
+    },
+    {
+     "id": "a",
+     "type": "action",
+     "name": "A",
+     "label": "x"
+    },
+    {
+     "id": "f",
+     "type": "activityFinal"
+    }
+   ],
+   "edges": [
+    {
+     "type": "control",
+     "from": "i",
+     "to": "a"
+    },
+    {
+     "type": "control",
+     "from": "a",
+     "to": "f"
+    }
+   ]
+  }
+ },
+ {
+  "name": "unknown node type",
+  "expect": {
+   "code": "SCHEMA_INVALID",
+   "path": "/nodes/1"
+  },
+  "doc": {
+   "kind": "activity",
+   "nodes": [
+    {
+     "id": "i",
+     "type": "initial"
+    },
+    {
+     "id": "a",
+     "type": "pin",
+     "name": "A"
+    },
+    {
+     "id": "f",
+     "type": "activityFinal"
+    }
+   ],
+   "edges": [
+    {
+     "type": "control",
+     "from": "i",
+     "to": "a"
+    },
+    {
+     "type": "control",
+     "from": "a",
+     "to": "f"
+    }
+   ]
+  }
+ },
+ {
+  "name": "name on a merge node",
+  "expect": {
+   "code": "SCHEMA_INVALID",
+   "path": "/nodes/1/name"
+  },
+  "doc": {
+   "kind": "activity",
+   "nodes": [
+    {
+     "id": "i",
+     "type": "initial"
+    },
+    {
+     "id": "a",
+     "type": "merge",
+     "name": "M"
+    },
+    {
+     "id": "f",
+     "type": "activityFinal"
+    }
+   ],
+   "edges": [
+    {
+     "type": "control",
+     "from": "i",
+     "to": "a"
+    },
+    {
+     "type": "control",
+     "from": "a",
+     "to": "f"
+    }
+   ]
+  }
+ },
+ {
+  "name": "partition on a join node",
+  "expect": {
+   "code": "SCHEMA_INVALID",
+   "path": "/nodes/1/partition"
+  },
+  "doc": {
+   "kind": "activity",
+   "nodes": [
+    {
+     "id": "i",
+     "type": "initial"
+    },
+    {
+     "id": "a",
+     "type": "join",
+     "partition": "p"
+    },
+    {
+     "id": "f",
+     "type": "activityFinal"
+    }
+   ],
+   "edges": [
+    {
+     "type": "control",
+     "from": "i",
+     "to": "a"
+    },
+    {
+     "type": "control",
+     "from": "a",
+     "to": "f"
+    }
+   ]
+  }
+ },
+ {
+  "name": "unknown edge type",
+  "expect": {
+   "code": "SCHEMA_INVALID",
+   "path": "/edges/0/type"
+  },
+  "doc": {
+   "kind": "activity",
+   "nodes": [
+    {
+     "id": "i",
+     "type": "initial"
+    },
+    {
+     "id": "a",
+     "type": "action",
+     "name": "A"
+    },
+    {
+     "id": "f",
+     "type": "activityFinal"
+    }
+   ],
+   "edges": [
+    {
+     "type": "data",
+     "from": "i",
+     "to": "a"
+    },
+    {
+     "type": "control",
+     "from": "a",
+     "to": "f"
+    }
+   ]
+  }
+ },
+ {
+  "name": "multi-line name",
+  "expect": {
+   "code": "SCHEMA_INVALID",
+   "path": "/nodes/1/name"
+  },
+  "doc": {
+   "kind": "activity",
+   "nodes": [
+    {
+     "id": "i",
+     "type": "initial"
+    },
+    {
+     "id": "a",
+     "type": "action",
+     "name": "a\nb"
+    },
+    {
+     "id": "f",
+     "type": "activityFinal"
+    }
+   ],
+   "edges": [
+    {
+     "type": "control",
+     "from": "i",
+     "to": "a"
+    },
+    {
+     "type": "control",
+     "from": "a",
+     "to": "f"
+    }
+   ]
+  }
+ },
+ {
+  "name": "blank name",
+  "expect": {
+   "code": "INVALID_TEXT",
+   "path": "/nodes/1/name"
+  },
+  "doc": {
+   "kind": "activity",
+   "nodes": [
+    {
+     "id": "i",
+     "type": "initial"
+    },
+    {
+     "id": "a",
+     "type": "action",
+     "name": "   "
+    },
+    {
+     "id": "f",
+     "type": "activityFinal"
+    }
+   ],
+   "edges": [
+    {
+     "type": "control",
+     "from": "i",
+     "to": "a"
+    },
+    {
+     "type": "control",
+     "from": "a",
+     "to": "f"
+    }
+   ]
+  }
+ },
+ {
+  "name": "bidi control in guard",
+  "expect": {
+   "code": "INVALID_TEXT",
+   "path": "/edges/1/guard"
+  },
+  "doc": {
+   "kind": "activity",
+   "nodes": [
+    {
+     "id": "i",
+     "type": "initial"
+    },
+    {
+     "id": "d",
+     "type": "decision"
+    },
+    {
+     "id": "x",
+     "type": "action",
+     "name": "X"
+    },
+    {
+     "id": "y",
+     "type": "action",
+     "name": "Y"
+    },
+    {
+     "id": "m",
+     "type": "merge"
+    },
+    {
+     "id": "f",
+     "type": "activityFinal"
+    }
+   ],
+   "edges": [
+    {
+     "type": "control",
+     "from": "i",
+     "to": "d"
+    },
+    {
+     "type": "control",
+     "from": "d",
+     "to": "x",
+     "guard": "a‮b"
+    },
+    {
+     "type": "control",
+     "from": "d",
+     "to": "y",
+     "guard": "no"
+    },
+    {
+     "type": "control",
+     "from": "x",
+     "to": "m"
+    },
+    {
+     "type": "control",
+     "from": "y",
+     "to": "m"
+    },
+    {
+     "type": "control",
+     "from": "m",
+     "to": "f"
+    }
+   ]
+  }
+ },
+ {
+  "name": "duplicate node ID",
+  "expect": {
+   "code": "DUPLICATE_ID",
+   "path": "/nodes/2/id"
+  },
+  "doc": {
+   "kind": "activity",
+   "nodes": [
+    {
+     "id": "i",
+     "type": "initial"
+    },
+    {
+     "id": "a",
+     "type": "action",
+     "name": "A"
+    },
+    {
+     "id": "a",
+     "type": "activityFinal"
+    }
+   ],
+   "edges": [
+    {
+     "type": "control",
+     "from": "i",
+     "to": "a"
+    },
+    {
+     "type": "control",
+     "from": "a",
+     "to": "f"
+    }
+   ]
+  }
+ },
+ {
+  "name": "edge ID clashes with node ID",
+  "expect": {
+   "code": "DUPLICATE_ID",
+   "path": "/edges/0/id"
+  },
+  "doc": {
+   "kind": "activity",
+   "nodes": [
+    {
+     "id": "i",
+     "type": "initial"
+    },
+    {
+     "id": "a",
+     "type": "action",
+     "name": "A"
+    },
+    {
+     "id": "f",
+     "type": "activityFinal"
+    }
+   ],
+   "edges": [
+    {
+     "type": "control",
+     "from": "i",
+     "to": "a",
+     "id": "a"
+    },
+    {
+     "type": "control",
+     "from": "a",
+     "to": "f"
+    }
+   ]
+  }
+ },
+ {
+  "name": "unknown edge target",
+  "expect": {
+   "code": "MISSING_REFERENCE",
+   "path": "/edges/1/to"
+  },
+  "doc": {
+   "kind": "activity",
+   "nodes": [
+    {
+     "id": "i",
+     "type": "initial"
+    },
+    {
+     "id": "a",
+     "type": "action",
+     "name": "A"
+    },
+    {
+     "id": "f",
+     "type": "activityFinal"
+    }
+   ],
+   "edges": [
+    {
+     "type": "control",
+     "from": "i",
+     "to": "a"
+    },
+    {
+     "type": "control",
+     "from": "a",
+     "to": "nope"
+    }
+   ]
+  }
+ },
+ {
+  "name": "unknown partition",
+  "expect": {
+   "code": "MISSING_REFERENCE",
+   "path": "/nodes/1/partition"
+  },
+  "doc": {
+   "kind": "activity",
+   "nodes": [
+    {
+     "id": "i",
+     "type": "initial"
+    },
+    {
+     "id": "a",
+     "type": "action",
+     "name": "A",
+     "partition": "nope"
+    },
+    {
+     "id": "f",
+     "type": "activityFinal"
+    }
+   ],
+   "edges": [
+    {
+     "type": "control",
+     "from": "i",
+     "to": "a"
+    },
+    {
+     "type": "control",
+     "from": "a",
+     "to": "f"
+    }
+   ]
+  }
+ },
+ {
+  "name": "node without partition in a partitioned diagram",
+  "expect": {
+   "code": "MISSING_PARTITION",
+   "path": "/nodes/0/partition"
+  },
+  "doc": {
+   "kind": "activity",
+   "partitions": [
+    {
+     "id": "p",
+     "name": "P"
+    }
+   ],
+   "nodes": [
+    {
+     "id": "i",
+     "type": "initial"
+    },
+    {
+     "id": "a",
+     "type": "action",
+     "name": "A",
+     "partition": "p"
+    },
+    {
+     "id": "f",
+     "type": "activityFinal",
+     "partition": "p"
+    }
+   ],
+   "edges": [
+    {
+     "type": "control",
+     "from": "i",
+     "to": "a"
+    },
+    {
+     "type": "control",
+     "from": "a",
+     "to": "f"
+    }
+   ]
+  }
+ },
+ {
+  "name": "no initial node",
+  "expect": {
+   "code": "MISSING_INITIAL_NODE",
+   "path": "/nodes"
+  },
+  "doc": {
+   "kind": "activity",
+   "nodes": [
+    {
+     "id": "a",
+     "type": "action",
+     "name": "A"
+    },
+    {
+     "id": "f",
+     "type": "activityFinal"
+    }
+   ],
+   "edges": [
+    {
+     "type": "control",
+     "from": "a",
+     "to": "f"
+    }
+   ]
+  }
+ },
+ {
+  "name": "two initial nodes",
+  "expect": {
+   "code": "MULTIPLE_INITIAL_NODES",
+   "path": "/nodes/1"
+  },
+  "doc": {
+   "kind": "activity",
+   "nodes": [
+    {
+     "id": "i",
+     "type": "initial"
+    },
+    {
+     "id": "i2",
+     "type": "initial"
+    },
+    {
+     "id": "a",
+     "type": "action",
+     "name": "A"
+    },
+    {
+     "id": "f",
+     "type": "activityFinal"
+    },
+    {
+     "id": "m",
+     "type": "merge"
+    }
+   ],
+   "edges": [
+    {
+     "type": "control",
+     "from": "i",
+     "to": "m"
+    },
+    {
+     "type": "control",
+     "from": "i2",
+     "to": "m"
+    },
+    {
+     "type": "control",
+     "from": "m",
+     "to": "a"
+    },
+    {
+     "type": "control",
+     "from": "a",
+     "to": "f"
+    }
+   ]
+  }
+ },
+ {
+  "name": "flow into the initial node",
+  "expect": {
+   "code": "INITIAL_NODE_HAS_INCOMING",
+   "path": "/edges/2/to"
+  },
+  "doc": {
+   "kind": "activity",
+   "nodes": [
+    {
+     "id": "i",
+     "type": "initial"
+    },
+    {
+     "id": "a",
+     "type": "action",
+     "name": "A"
+    },
+    {
+     "id": "f",
+     "type": "activityFinal"
+    },
+    {
+     "id": "b",
+     "type": "action",
+     "name": "B"
+    }
+   ],
+   "edges": [
+    {
+     "type": "control",
+     "from": "i",
+     "to": "a"
+    },
+    {
+     "type": "control",
+     "from": "a",
+     "to": "f"
+    },
+    {
+     "type": "control",
+     "from": "b",
+     "to": "i"
+    }
+   ]
+  }
+ },
+ {
+  "name": "flow out of an activity final",
+  "expect": {
+   "code": "FINAL_NODE_HAS_OUTGOING",
+   "path": "/edges/2/from"
+  },
+  "doc": {
+   "kind": "activity",
+   "nodes": [
+    {
+     "id": "i",
+     "type": "initial"
+    },
+    {
+     "id": "a",
+     "type": "action",
+     "name": "A"
+    },
+    {
+     "id": "f",
+     "type": "activityFinal"
+    },
+    {
+     "id": "b",
+     "type": "action",
+     "name": "B"
+    }
+   ],
+   "edges": [
+    {
+     "type": "control",
+     "from": "i",
+     "to": "a"
+    },
+    {
+     "type": "control",
+     "from": "a",
+     "to": "f"
+    },
+    {
+     "type": "control",
+     "from": "f",
+     "to": "b"
+    }
+   ]
+  }
+ },
+ {
+  "name": "flow out of a flow final",
+  "expect": {
+   "code": "FINAL_NODE_HAS_OUTGOING",
+   "path": "/edges/1/from"
+  },
+  "doc": {
+   "kind": "activity",
+   "nodes": [
+    {
+     "id": "i",
+     "type": "initial"
+    },
+    {
+     "id": "ff",
+     "type": "flowFinal"
+    },
+    {
+     "id": "a",
+     "type": "action",
+     "name": "A"
+    }
+   ],
+   "edges": [
+    {
+     "type": "control",
+     "from": "i",
+     "to": "ff"
+    },
+    {
+     "type": "control",
+     "from": "ff",
+     "to": "a"
+    }
+   ]
+  }
+ },
+ {
+  "name": "unguarded flow out of a decision",
+  "expect": {
+   "code": "MISSING_GUARD",
+   "path": "/edges/2/guard"
+  },
+  "doc": {
+   "kind": "activity",
+   "nodes": [
+    {
+     "id": "i",
+     "type": "initial"
+    },
+    {
+     "id": "d",
+     "type": "decision"
+    },
+    {
+     "id": "x",
+     "type": "action",
+     "name": "X"
+    },
+    {
+     "id": "y",
+     "type": "action",
+     "name": "Y"
+    },
+    {
+     "id": "m",
+     "type": "merge"
+    },
+    {
+     "id": "f",
+     "type": "activityFinal"
+    }
+   ],
+   "edges": [
+    {
+     "type": "control",
+     "from": "i",
+     "to": "d"
+    },
+    {
+     "type": "control",
+     "from": "d",
+     "to": "x",
+     "guard": "yes"
+    },
+    {
+     "type": "control",
+     "from": "d",
+     "to": "y"
+    },
+    {
+     "type": "control",
+     "from": "x",
+     "to": "m"
+    },
+    {
+     "type": "control",
+     "from": "y",
+     "to": "m"
+    },
+    {
+     "type": "control",
+     "from": "m",
+     "to": "f"
+    }
+   ]
+  }
+ },
+ {
+  "name": "duplicate guard",
+  "expect": {
+   "code": "DUPLICATE_GUARD",
+   "path": "/edges/2/guard"
+  },
+  "doc": {
+   "kind": "activity",
+   "nodes": [
+    {
+     "id": "i",
+     "type": "initial"
+    },
+    {
+     "id": "d",
+     "type": "decision"
+    },
+    {
+     "id": "x",
+     "type": "action",
+     "name": "X"
+    },
+    {
+     "id": "y",
+     "type": "action",
+     "name": "Y"
+    },
+    {
+     "id": "m",
+     "type": "merge"
+    },
+    {
+     "id": "f",
+     "type": "activityFinal"
+    }
+   ],
+   "edges": [
+    {
+     "type": "control",
+     "from": "i",
+     "to": "d"
+    },
+    {
+     "type": "control",
+     "from": "d",
+     "to": "x",
+     "guard": "x"
+    },
+    {
+     "type": "control",
+     "from": "d",
+     "to": "y",
+     "guard": "x"
+    },
+    {
+     "type": "control",
+     "from": "x",
+     "to": "m"
+    },
+    {
+     "type": "control",
+     "from": "y",
+     "to": "m"
+    },
+    {
+     "type": "control",
+     "from": "m",
+     "to": "f"
+    }
+   ]
+  }
+ },
+ {
+  "name": "guard on a flow not leaving a decision",
+  "expect": {
+   "code": "UNEXPECTED_GUARD",
+   "path": "/edges/0/guard"
+  },
+  "doc": {
+   "kind": "activity",
+   "nodes": [
+    {
+     "id": "i",
+     "type": "initial"
+    },
+    {
+     "id": "a",
+     "type": "action",
+     "name": "A"
+    },
+    {
+     "id": "f",
+     "type": "activityFinal"
+    }
+   ],
+   "edges": [
+    {
+     "type": "control",
+     "from": "i",
+     "to": "a",
+     "guard": "g"
+    },
+    {
+     "type": "control",
+     "from": "a",
+     "to": "f"
+    }
+   ]
+  }
+ },
+ {
+  "name": "decision with one outgoing flow",
+  "expect": {
+   "code": "DECISION_DEGREE",
+   "path": "/nodes/1"
+  },
+  "doc": {
+   "kind": "activity",
+   "nodes": [
+    {
+     "id": "i",
+     "type": "initial"
+    },
+    {
+     "id": "d",
+     "type": "decision"
+    },
+    {
+     "id": "a",
+     "type": "action",
+     "name": "A"
+    },
+    {
+     "id": "f",
+     "type": "activityFinal"
+    }
+   ],
+   "edges": [
+    {
+     "type": "control",
+     "from": "i",
+     "to": "d"
+    },
+    {
+     "type": "control",
+     "from": "d",
+     "to": "a",
+     "guard": "g"
+    },
+    {
+     "type": "control",
+     "from": "a",
+     "to": "f"
+    }
+   ]
+  }
+ },
+ {
+  "name": "merge with one incoming flow",
+  "expect": {
+   "code": "MERGE_DEGREE",
+   "path": "/nodes/1"
+  },
+  "doc": {
+   "kind": "activity",
+   "nodes": [
+    {
+     "id": "i",
+     "type": "initial"
+    },
+    {
+     "id": "m",
+     "type": "merge"
+    },
+    {
+     "id": "a",
+     "type": "action",
+     "name": "A"
+    },
+    {
+     "id": "f",
+     "type": "activityFinal"
+    }
+   ],
+   "edges": [
+    {
+     "type": "control",
+     "from": "i",
+     "to": "m"
+    },
+    {
+     "type": "control",
+     "from": "m",
+     "to": "a"
+    },
+    {
+     "type": "control",
+     "from": "a",
+     "to": "f"
+    }
+   ]
+  }
+ },
+ {
+  "name": "fork with one outgoing flow",
+  "expect": {
+   "code": "FORK_DEGREE",
+   "path": "/nodes/1"
+  },
+  "doc": {
+   "kind": "activity",
+   "nodes": [
+    {
+     "id": "i",
+     "type": "initial"
+    },
+    {
+     "id": "k",
+     "type": "fork"
+    },
+    {
+     "id": "a",
+     "type": "action",
+     "name": "A"
+    },
+    {
+     "id": "f",
+     "type": "activityFinal"
+    }
+   ],
+   "edges": [
+    {
+     "type": "control",
+     "from": "i",
+     "to": "k"
+    },
+    {
+     "type": "control",
+     "from": "k",
+     "to": "a"
+    },
+    {
+     "type": "control",
+     "from": "a",
+     "to": "f"
+    }
+   ]
+  }
+ },
+ {
+  "name": "join with two outgoing flows",
+  "expect": {
+   "code": "JOIN_DEGREE",
+   "path": "/nodes/4"
+  },
+  "doc": {
+   "kind": "activity",
+   "nodes": [
+    {
+     "id": "i",
+     "type": "initial"
+    },
+    {
+     "id": "k",
+     "type": "fork"
+    },
+    {
+     "id": "x",
+     "type": "action",
+     "name": "X"
+    },
+    {
+     "id": "y",
+     "type": "action",
+     "name": "Y"
+    },
+    {
+     "id": "j",
+     "type": "join"
+    },
+    {
+     "id": "f",
+     "type": "activityFinal"
+    },
+    {
+     "id": "g",
+     "type": "flowFinal"
+    }
+   ],
+   "edges": [
+    {
+     "type": "control",
+     "from": "i",
+     "to": "k"
+    },
+    {
+     "type": "control",
+     "from": "k",
+     "to": "x"
+    },
+    {
+     "type": "control",
+     "from": "k",
+     "to": "y"
+    },
+    {
+     "type": "control",
+     "from": "x",
+     "to": "j"
+    },
+    {
+     "type": "control",
+     "from": "y",
+     "to": "j"
+    },
+    {
+     "type": "control",
+     "from": "j",
+     "to": "f"
+    },
+    {
+     "type": "control",
+     "from": "j",
+     "to": "g"
+    }
+   ]
+  }
+ },
+ {
+  "name": "action with two outgoing flows (implicit fork)",
+  "expect": {
+   "code": "IMPLICIT_FORK",
+   "path": "/edges/2/from"
+  },
+  "doc": {
+   "kind": "activity",
+   "nodes": [
+    {
+     "id": "i",
+     "type": "initial"
+    },
+    {
+     "id": "a",
+     "type": "action",
+     "name": "A"
+    },
+    {
+     "id": "f",
+     "type": "activityFinal"
+    },
+    {
+     "id": "g",
+     "type": "flowFinal"
+    }
+   ],
+   "edges": [
+    {
+     "type": "control",
+     "from": "i",
+     "to": "a"
+    },
+    {
+     "type": "control",
+     "from": "a",
+     "to": "f"
+    },
+    {
+     "type": "control",
+     "from": "a",
+     "to": "g"
+    }
+   ]
+  }
+ },
+ {
+  "name": "action with two incoming flows (implicit merge)",
+  "expect": {
+   "code": "IMPLICIT_MERGE",
+   "path": "/edges/3/to"
+  },
+  "doc": {
+   "kind": "activity",
+   "nodes": [
+    {
+     "id": "i",
+     "type": "initial"
+    },
+    {
+     "id": "d",
+     "type": "decision"
+    },
+    {
+     "id": "x",
+     "type": "action",
+     "name": "X"
+    },
+    {
+     "id": "f",
+     "type": "activityFinal"
+    }
+   ],
+   "edges": [
+    {
+     "type": "control",
+     "from": "i",
+     "to": "d"
+    },
+    {
+     "type": "control",
+     "from": "d",
+     "to": "x",
+     "guard": "a"
+    },
+    {
+     "type": "control",
+     "from": "x",
+     "to": "f"
+    },
+    {
+     "type": "control",
+     "from": "d",
+     "to": "x",
+     "guard": "b"
+    }
+   ]
+  }
+ },
+ {
+  "name": "action without outgoing flow",
+  "expect": {
+   "code": "MISSING_OUTGOING_FLOW",
+   "path": "/nodes/1"
+  },
+  "doc": {
+   "kind": "activity",
+   "nodes": [
+    {
+     "id": "i",
+     "type": "initial"
+    },
+    {
+     "id": "a",
+     "type": "action",
+     "name": "A"
+    },
+    {
+     "id": "f",
+     "type": "activityFinal"
+    }
+   ],
+   "edges": [
+    {
+     "type": "control",
+     "from": "i",
+     "to": "a"
+    }
+   ]
+  }
+ },
+ {
+  "name": "unreachable node",
+  "expect": {
+   "code": "UNREACHABLE_NODE",
+   "path": "/nodes/3"
+  },
+  "doc": {
+   "kind": "activity",
+   "nodes": [
+    {
+     "id": "i",
+     "type": "initial"
+    },
+    {
+     "id": "a",
+     "type": "action",
+     "name": "A"
+    },
+    {
+     "id": "f",
+     "type": "activityFinal"
+    },
+    {
+     "id": "b",
+     "type": "action",
+     "name": "B"
+    },
+    {
+     "id": "g",
+     "type": "flowFinal"
+    }
+   ],
+   "edges": [
+    {
+     "type": "control",
+     "from": "i",
+     "to": "a"
+    },
+    {
+     "type": "control",
+     "from": "a",
+     "to": "f"
+    },
+    {
+     "type": "control",
+     "from": "b",
+     "to": "g"
+    }
+   ]
+  }
+ },
+ {
+  "name": "object flow between two actions",
+  "expect": {
+   "code": "INVALID_OBJECT_FLOW",
+   "path": "/edges/1/type"
+  },
+  "doc": {
+   "kind": "activity",
+   "nodes": [
+    {
+     "id": "i",
+     "type": "initial"
+    },
+    {
+     "id": "a",
+     "type": "action",
+     "name": "A"
+    },
+    {
+     "id": "b",
+     "type": "action",
+     "name": "B"
+    },
+    {
+     "id": "f",
+     "type": "activityFinal"
+    }
+   ],
+   "edges": [
+    {
+     "type": "control",
+     "from": "i",
+     "to": "a"
+    },
+    {
+     "type": "object",
+     "from": "a",
+     "to": "b"
+    },
+    {
+     "type": "control",
+     "from": "b",
+     "to": "f"
+    }
+   ]
+  }
+ },
+ {
+  "name": "object flow from the initial node",
+  "expect": {
+   "code": "INVALID_OBJECT_FLOW",
+   "path": "/edges/0/type"
+  },
+  "doc": {
+   "kind": "activity",
+   "nodes": [
+    {
+     "id": "i",
+     "type": "initial"
+    },
+    {
+     "id": "o",
+     "type": "object",
+     "name": "O"
+    },
+    {
+     "id": "f",
+     "type": "activityFinal"
+    }
+   ],
+   "edges": [
+    {
+     "type": "object",
+     "from": "i",
+     "to": "o"
+    },
+    {
+     "type": "object",
+     "from": "o",
+     "to": "f"
+    }
+   ]
+  }
+ },
+ {
+  "name": "control flow into an object node",
+  "expect": {
+   "code": "INVALID_CONTROL_FLOW",
+   "path": "/edges/1/type"
+  },
+  "doc": {
+   "kind": "activity",
+   "nodes": [
+    {
+     "id": "i",
+     "type": "initial"
+    },
+    {
+     "id": "a",
+     "type": "action",
+     "name": "A"
+    },
+    {
+     "id": "o",
+     "type": "object",
+     "name": "O"
+    },
+    {
+     "id": "f",
+     "type": "activityFinal"
+    }
+   ],
+   "edges": [
+    {
+     "type": "control",
+     "from": "i",
+     "to": "a"
+    },
+    {
+     "type": "control",
+     "from": "a",
+     "to": "o"
+    },
+    {
+     "type": "object",
+     "from": "o",
+     "to": "f"
+    }
+   ]
+  }
+ },
+ {
+  "name": "decision branches meet at a join",
+  "expect": {
+   "code": "UNSTRUCTURED_FLOW",
+   "path": "/nodes/1"
+  },
+  "doc": {
+   "kind": "activity",
+   "nodes": [
+    {
+     "id": "i",
+     "type": "initial"
+    },
+    {
+     "id": "d",
+     "type": "decision"
+    },
+    {
+     "id": "x",
+     "type": "action",
+     "name": "X"
+    },
+    {
+     "id": "y",
+     "type": "action",
+     "name": "Y"
+    },
+    {
+     "id": "j",
+     "type": "join"
+    },
+    {
+     "id": "f",
+     "type": "activityFinal"
+    }
+   ],
+   "edges": [
+    {
+     "type": "control",
+     "from": "i",
+     "to": "d"
+    },
+    {
+     "type": "control",
+     "from": "d",
+     "to": "x",
+     "guard": "a"
+    },
+    {
+     "type": "control",
+     "from": "d",
+     "to": "y",
+     "guard": "b"
+    },
+    {
+     "type": "control",
+     "from": "x",
+     "to": "j"
+    },
+    {
+     "type": "control",
+     "from": "y",
+     "to": "j"
+    },
+    {
+     "type": "control",
+     "from": "j",
+     "to": "f"
+    }
+   ]
+  }
+ },
+ {
+  "name": "merge shared by two decisions (jump into a block)",
+  "expect": {
+   "code": "UNSTRUCTURED_FLOW",
+   "path": "/nodes/3"
+  },
+  "doc": {
+   "kind": "activity",
+   "nodes": [
+    {
+     "id": "i",
+     "type": "initial"
+    },
+    {
+     "id": "d1",
+     "type": "decision"
+    },
+    {
+     "id": "a",
+     "type": "action",
+     "name": "A"
+    },
+    {
+     "id": "d2",
+     "type": "decision"
+    },
+    {
+     "id": "b",
+     "type": "action",
+     "name": "B"
+    },
+    {
+     "id": "c",
+     "type": "action",
+     "name": "C"
+    },
+    {
+     "id": "m",
+     "type": "merge"
+    },
+    {
+     "id": "f",
+     "type": "activityFinal"
+    }
+   ],
+   "edges": [
+    {
+     "type": "control",
+     "from": "i",
+     "to": "d1"
+    },
+    {
+     "type": "control",
+     "from": "d1",
+     "to": "a",
+     "guard": "p"
+    },
+    {
+     "type": "control",
+     "from": "d1",
+     "to": "d2",
+     "guard": "q"
+    },
+    {
+     "type": "control",
+     "from": "a",
+     "to": "m"
+    },
+    {
+     "type": "control",
+     "from": "d2",
+     "to": "b",
+     "guard": "r"
+    },
+    {
+     "type": "control",
+     "from": "d2",
+     "to": "c",
+     "guard": "s"
+    },
+    {
+     "type": "control",
+     "from": "b",
+     "to": "m"
+    },
+    {
+     "type": "control",
+     "from": "c",
+     "to": "m"
+    },
+    {
+     "type": "control",
+     "from": "m",
+     "to": "f"
+    }
+   ]
+  }
+ },
+ {
+  "name": "loop with two exits",
+  "expect": {
+   "code": "UNSTRUCTURED_FLOW",
+   "path": "/nodes/1"
+  },
+  "doc": {
+   "kind": "activity",
+   "nodes": [
+    {
+     "id": "i",
+     "type": "initial"
+    },
+    {
+     "id": "m",
+     "type": "merge"
+    },
+    {
+     "id": "d1",
+     "type": "decision"
+    },
+    {
+     "id": "x",
+     "type": "action",
+     "name": "X"
+    },
+    {
+     "id": "d2",
+     "type": "decision"
+    },
+    {
+     "id": "m2",
+     "type": "merge"
+    },
+    {
+     "id": "f",
+     "type": "activityFinal"
+    }
+   ],
+   "edges": [
+    {
+     "type": "control",
+     "from": "i",
+     "to": "m"
+    },
+    {
+     "type": "control",
+     "from": "m",
+     "to": "d1"
+    },
+    {
+     "type": "control",
+     "from": "d1",
+     "to": "x",
+     "guard": "go"
+    },
+    {
+     "type": "control",
+     "from": "d1",
+     "to": "m2",
+     "guard": "stop"
+    },
+    {
+     "type": "control",
+     "from": "x",
+     "to": "d2"
+    },
+    {
+     "type": "control",
+     "from": "d2",
+     "to": "m",
+     "guard": "again"
+    },
+    {
+     "type": "control",
+     "from": "d2",
+     "to": "m2",
+     "guard": "quit"
+    },
+    {
+     "type": "control",
+     "from": "m2",
+     "to": "f"
+    }
+   ]
+  }
+ },
+ {
+  "name": "loop with nodes before and after its decision",
+  "expect": {
+   "code": "UNSTRUCTURED_FLOW",
+   "path": "/nodes/3"
+  },
+  "doc": {
+   "kind": "activity",
+   "nodes": [
+    {
+     "id": "i",
+     "type": "initial"
+    },
+    {
+     "id": "m",
+     "type": "merge"
+    },
+    {
+     "id": "x",
+     "type": "action",
+     "name": "X"
+    },
+    {
+     "id": "d",
+     "type": "decision"
+    },
+    {
+     "id": "y",
+     "type": "action",
+     "name": "Y"
+    },
+    {
+     "id": "z",
+     "type": "action",
+     "name": "Z"
+    },
+    {
+     "id": "f",
+     "type": "activityFinal"
+    }
+   ],
+   "edges": [
+    {
+     "type": "control",
+     "from": "i",
+     "to": "m"
+    },
+    {
+     "type": "control",
+     "from": "m",
+     "to": "x"
+    },
+    {
+     "type": "control",
+     "from": "x",
+     "to": "d"
+    },
+    {
+     "type": "control",
+     "from": "d",
+     "to": "y",
+     "guard": "again"
+    },
+    {
+     "type": "control",
+     "from": "y",
+     "to": "z"
+    },
+    {
+     "type": "control",
+     "from": "z",
+     "to": "m"
+    },
+    {
+     "type": "control",
+     "from": "d",
+     "to": "f",
+     "guard": "done"
+    }
+   ]
+  }
+ },
+ {
+  "name": "unknown kind",
+  "expect": {
+   "code": "UNKNOWN_KIND",
+   "path": "/kind"
+  },
+  "doc": {
+   "kind": "activities",
+   "nodes": [
+    {
+     "id": "i",
+     "type": "initial"
+    },
+    {
+     "id": "a",
+     "type": "action",
+     "name": "A"
+    },
+    {
+     "id": "f",
+     "type": "activityFinal"
+    }
+   ],
+   "edges": [
+    {
+     "type": "control",
+     "from": "i",
+     "to": "a"
+    },
+    {
+     "type": "control",
+     "from": "a",
+     "to": "f"
+    }
+   ]
+  }
+ }
+]
