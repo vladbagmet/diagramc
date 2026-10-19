@@ -147,6 +147,22 @@ test('the published component schema describes the contract', async () => {
   assert.equal(componentKind.frameKeyword, 'cmp');
 });
 
+test('layout: assembly connectors between neighbours are straight (B-19)', async () => {
+  const { scene: s } = await scene(await readFile(join(root, 'test/fixtures/regression/component-c3-agent-v3.json'), 'utf8'));
+  const halves = s.edges.filter(e => e.type === 'assembly-required' || e.type === 'assembly-provided');
+  assert.ok(halves.length >= 4);
+  for (const e of halves) assert.equal(e.points.length, 2, `${e.id} has a jog`);
+});
+
+test('notation: an interface drawn as a box with a «use» or realization line gets no second socket or lollipop (B-18)', async () => {
+  const { scene: s } = await scene(await readFile(join(root, 'test/fixtures/regression/component-c1-ridesharing.json'), 'utf8'));
+  const stubs = s.nodes.filter(n => n.type === 'required-interface' || n.type === 'provided-interface').map(n => n.id);
+  assert.ok(!stubs.some(id => /location/i.test(id)), `no dangling ILocation socket: ${stubs}`);
+  const { scene: w } = await scene(await example('webshop.json'));
+  const balls = w.nodes.filter(n => n.type === 'provided-interface').map(n => n.id);
+  assert.ok(!balls.some(id => /orderstore/i.test(id)), `no IOrderStore lollipop next to the realization: ${balls}`);
+});
+
 test('layout: a medium model that runs far left to right is laid out top to bottom when that reads better (B-14)', async () => {
   const { svg } = await scene(await readFile(join(root, 'test/fixtures/regression/component-c1-ridesharing.json'), 'utf8'));
   const [, w, h] = /width="([\d.]+)" height="([\d.]+)"/.exec(svg).map(Number);

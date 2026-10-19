@@ -87,6 +87,8 @@ export interface LayoutEdge {
   labels?: LayoutLabel[];
   /** Higher values make ELK keep this edge pointing in the layout direction. */
   directionPriority?: number;
+  /** Higher values make ELK node placement keep this edge straight (fewer jogs). */
+  straightness?: number;
 }
 export interface LayoutOptions {
   direction: Direction;
@@ -198,7 +200,10 @@ export async function layout(nodes: readonly LayoutNode[], edges: readonly Layou
         id: l.id, text: l.id, width: l.width, height: l.height,
         layoutOptions: { 'elk.edgeLabels.placement': l.placement.toUpperCase() },
       })),
-      ...(e.directionPriority ? { layoutOptions: { 'elk.layered.priority.direction': String(e.directionPriority) } } : {}),
+      ...(e.directionPriority || e.straightness ? { layoutOptions: {
+        ...(e.directionPriority ? { 'elk.layered.priority.direction': String(e.directionPriority) } : {}),
+        ...(e.straightness ? { 'elk.layered.priority.straightness': String(e.straightness) } : {}),
+      } } : {}),
     })),
   };
   const result = await elk.layout(graph);

@@ -96,6 +96,8 @@ const LAYER_SPACING = 44;
 const LABEL_GAP = 3;
 /** Room at the right end of a top border kept for the icon in the corner. */
 const ICON_ROOM = 30;
+/** ELK straightness priority of stems and assembly halves (joints in line with their ports). */
+const STRAIGHT = 10;
 /** A conventional layout within this size is kept (see layoutStructure). */
 const SMALL_LAYOUT = { width: 1000, height: 1000 };
 /** Inner padding of containers; sides with ports get more for delegation stubs. */
@@ -502,8 +504,8 @@ async function layoutIn(graph: StructGraph, metrics: FontMetrics, dir: 'RIGHT' |
         const ownerIsSource = symbol.kind === 'joint' ? p.id.endsWith('::required') : symbol.side !== 'WEST';
         const labels = portLabelFor(source, symbol.id, ownerIsSource);
         const far = symbol.kind === 'joint' ? `${symbol.id}::${ownerIsSource ? 'in' : 'out'}` : `${symbol.id}::port`;
-        if (ownerIsSource) elkEdges.push({ id: p.id, source: owner, target: far, labels });
-        else { elkEdges.push({ id: p.id, source: far, target: owner, labels }); reversed.add(p.id); }
+        if (ownerIsSource) elkEdges.push({ id: p.id, source: owner, target: far, labels, straightness: STRAIGHT });
+        else { elkEdges.push({ id: p.id, source: far, target: owner, labels, straightness: STRAIGHT }); reversed.add(p.id); }
         continue;
       }
       const labels: LayoutLabel[] = [];
@@ -785,12 +787,45 @@ async function layoutIn(graph: StructGraph, metrics: FontMetrics, dir: 'RIGHT' |
       else if (p.target === x.id) routes.set(p.id, shifted([...route].reverse()).reverse());
     }
   }
+  // Two notes side by side whose anchors cross trade places (ELK orders notes by the
+  // model, and a hierarchy-crossing anchor often meets its container's border on the
+  // far side); their anchors are then routed afresh.
+  const noteIds = [...rects.keys()].filter(id => info.get(id)!.node.shape === 'note');
+  const anchorRoutes = (note: string): Point[][] => plans.filter(p => p.type === 'note-anchor' && p.source === note && routes.has(p.id)).map(p => routes.get(p.id)!);
+  for (const [i, a] of noteIds.entries()) {
+    for (const b of noteIds.slice(i + 1)) {
+      if (info.get(a)!.parent !== info.get(b)!.parent) continue;
+      const ra = rects.get(a)!, rb = rects.get(b)!;
+      const together = [...anchorRoutes(a), ...anchorRoutes(b)];
+      if (!together.length || countCrossings(together) === 0) continue;
+      // Same column (one above the other) or same row: swap along that axis.
+      const column = Math.min(ra.x + ra.width, rb.x + rb.width) > Math.max(ra.x, rb.x);
+      const [first, second] = column ? (ra.y < rb.y ? [ra, rb] : [rb, ra]) : (ra.x < rb.x ? [ra, rb] : [rb, ra]);
+      const gap = column ? second.y - first.y - first.height : second.x - first.x - first.width;
+      if (gap < 0) continue;
+      const movedSecond = column ? { ...second, y: first.y } : { ...second, x: first.x };
+      const movedFirst = column ? { ...first, y: first.y + second.height + gap } : { ...first, x: first.x + second.width + gap };
+      const others = [...rects].filter(([id]) => id !== a && id !== b && !info.get(id)!.node.children?.length).map(([, r]) => r);
+      if ([movedFirst, movedSecond].some(r => others.some(o => overlaps(inflate(r, 4), o)) || symbols.some(s => overlaps(inflate(r, 4), s.bounds)))) continue;
+      const firstId = first === ra ? a : b, secondId = first === ra ? b : a;
+      rects.set(firstId, movedFirst);
+      rects.set(secondId, movedSecond);
+      for (const n of repairNodes) if (n.id === firstId) n.rect = movedFirst; else if (n.id === secondId) n.rect = movedSecond;
+      for (const p of plans) {
+        if (p.type !== 'note-anchor' || (p.source !== a && p.source !== b) || !routes.has(p.id)) continue;
+        const r = rects.get(p.source)!, t = rects.get(p.target) ?? symbols.find(s => s.id === p.target)?.bounds;
+        if (!t) continue;
+        routes.set(p.id, provisionalRoute(r, t));
+        unrouted.add(p.id);
+      }
+    }
+  }
   // Ports, interface symbols and ellipses keep their attachment points (and directions).
   const pinned = (id: string): boolean => symbolIds.has(id) || info.get(id)?.node.shape === 'ellipse';
   const repaired = repairRoutes(repairNodes, plans.filter(p => routes.has(p.id)).map(p => ({
     id: p.id, source: p.source, target: p.target, route: routes.get(p.id)!, sourceMarker: p.sourceMarker, targetMarker: p.targetMarker,
     fixedSource: pinned(p.source), fixedTarget: pinned(p.target),
-  })), { keep: new Set(plans.filter(p => p.symbol !== undefined).map(p => p.id)), force: unrouted });
+  })), { keep: new Set(plans.filter(p => p.symbol !== undefined).map(p => p.id)), force: unrouted, junctions: true });
   for (const id of repaired.changed) { routes.set(id, repaired.routes.get(id)!); for (const key of [...suggestions.keys()]) if (key.startsWith(`${id}::`)) suggestions.delete(key); }
 
   // ---- Scene edges ----

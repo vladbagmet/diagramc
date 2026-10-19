@@ -1,0 +1,76 @@
+{
+ "kind": "component",
+ "title": "Checkout",
+ "elements": [
+  {
+   "id": "web",
+   "type": "component",
+   "name": "Web Frontend",
+   "requires": [
+    "ICart"
+   ]
+  },
+  {
+   "id": "cart",
+   "type": "component",
+   "name": "Cart Service",
+   "provides": [
+    "ICart"
+   ],
+   "requires": [
+    "IPayment"
+   ]
+  },
+  {
+   "id": "pay",
+   "type": "component",
+   "name": "Payment Service",
+   "provides": [
+    "IPayment"
+   ]
+  },
+  {
+   "id": "ICart",
+   "type": "interface",
+   "name": "ICart"
+  },
+  {
+   "id": "IPayment",
+   "type": "interface",
+   "name": "IPayment"
+  },
+  {
+   "id": "db",
+   "type": "component",
+   "name": "Orders DB",
+   "stereotypes": [
+    "database"
+   ]
+  }
+ ],
+ "relationships": [
+  {
+   "type": "assembly",
+   "from": "web",
+   "to": "cart",
+   "interface": "ICart"
+  },
+  {
+   "type": "assembly",
+   "from": "cart",
+   "to": "pay",
+   "interface": "IPayment"
+  },
+  {
+   "type": "dependency",
+   "from": "pay",
+   "to": "db",
+   "name": "writes"
+  },
+  {
+   "type": "usage",
+   "from": "web",
+   "to": "ICart"
+  }
+ ]
+}
