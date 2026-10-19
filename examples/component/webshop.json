@@ -1,0 +1,35 @@
+{
+  "kind": "component",
+  "title": "Web shop",
+  "elements": [
+    { "id": "ui", "type": "component", "name": "Storefront UI", "requires": ["iOrders"] },
+    { "id": "ordering", "type": "component", "name": "Ordering",
+      "ports": [
+        { "id": "pOrders", "name": "orders", "provides": ["iOrders"] },
+        { "id": "pPay", "name": "pay", "requires": ["iPayment"] }
+      ],
+      "elements": [
+        { "id": "manager", "type": "component", "name": "OrderManager",
+          "ports": [{ "id": "mIn", "provides": ["iOrders"] }, { "id": "mOut", "requires": ["iPayment"] }] },
+        { "id": "repo", "type": "class", "name": "OrderRepository", "provides": ["iStore"] }
+      ] },
+    { "id": "payment", "type": "component", "name": "Payment Gateway", "stereotypes": ["external"],
+      "provides": ["iPayment", "iRefunds"] },
+    { "id": "iOrders", "type": "interface", "name": "IOrders" },
+    { "id": "iPayment", "type": "interface", "name": "IPayment" },
+    { "id": "iRefunds", "type": "interface", "name": "IRefunds" },
+    { "id": "iStore", "type": "interface", "name": "IOrderStore",
+      "operations": [{ "name": "save", "parameters": [{ "name": "order", "type": "Order" }] }] },
+    { "id": "jar", "type": "artifact", "name": "ordering.jar" },
+    { "id": "n1", "type": "note", "text": "Card data never leaves the gateway.", "attachedTo": ["payment"] }
+  ],
+  "relationships": [
+    { "type": "assembly", "from": "ui", "to": "pOrders", "interface": "iOrders" },
+    { "type": "assembly", "from": "pPay", "to": "payment", "interface": "iPayment" },
+    { "type": "delegation", "from": "pOrders", "to": "mIn" },
+    { "type": "delegation", "from": "mOut", "to": "pPay" },
+    { "type": "usage", "from": "manager", "to": "iStore" },
+    { "type": "realization", "from": "repo", "to": "iStore" },
+    { "type": "manifest", "from": "jar", "to": "ordering" }
+  ]
+}
