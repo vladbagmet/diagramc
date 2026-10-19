@@ -14,6 +14,14 @@ fixture and example also passes all QA gates, including the `ports` gate.
 - Left to right. Provided interfaces face left (WEST), required interfaces right
   (EAST), so an assembly runs from the requiring element on the left, through its
   ball-and-socket joint, to the providing element on the right.
+- A drawing larger than 1000 x 1000 px is also laid out top to bottom (provided
+  interfaces up, required down) and the more readable result wins
+  (`chooseLayout`, src/engine/aspect.ts). Ports on a container's top border
+  slide beside its name, with their lollipops and sockets.
+- Joints line up with their ports (ELK straightness priority on stems and
+  assembly halves); zig-zags and small jogs between neighbours are straightened.
+- An interface with its own box and a «use» or realization line from an element
+  gets no second, unconnected socket or lollipop on that element.
 - A port's side follows its connections: outward connectors leave from the side
   facing their partner; delegations into the owner come from the opposite side.
 - Nested elements are laid out inside their component's body, below the name
@@ -81,9 +89,10 @@ fixture and example also passes all QA gates, including the `ports` gate.
 
 ## Known limitations
 
-- Long chains of components grow horizontally (the stress example is about
-  4300 x 1100 px); there is no automatic wrapping into rows.
+- Long chains of large containers grow horizontally (the stress example is about
+  4700 x 1100 px, top to bottom would be about 1600 x 2900); ELK's graph wrapping
+  routes cut lines around whole rows, so it is not used.
 - When one port fans out to several symbols or connectors, the lines split just
-  outside the port; ELK may add a small jog there.
+  outside the port.
 - Leaf components that carry many interfaces or ports grow taller than their name
   needs, so their stems can stay straight.
