@@ -827,6 +827,63 @@ async function layoutIn(graph: StructGraph, metrics: FontMetrics, dir: 'RIGHT' |
     fixedSource: pinned(p.source), fixedTarget: pinned(p.target),
   })), { keep: new Set(plans.filter(p => p.symbol !== undefined).map(p => p.id)), force: unrouted, junctions: true });
   for (const id of repaired.changed) { routes.set(id, repaired.routes.get(id)!); for (const key of [...suggestions.keys()]) if (key.startsWith(`${id}::`)) suggestions.delete(key); }
+  straightenZigZags();
+
+  /**
+   * A line between two nodes side by side that zig-zags (out, across, in) because
+   * ELK attached it at different heights becomes one straight segment when one of
+   * its ends can slide along its node's side: within the side, clear of other ends,
+   * nodes, container texts and lines, and without adding crossings.
+   */
+  function straightenZigZags(): void {
+    const nodeRect = (id: string): Rect | undefined => pinned(id) || portOwner.has(id) ? undefined : rects.get(id);
+    const texts = repairNodes.flatMap(n => n.texts ?? []);
+    for (const p of plans) {
+      const r = routes.get(p.id);
+      if (!r || r.length < 4 || p.symbol !== undefined) continue;
+      const n = r.length;
+      // Both end segments along one axis, and the route never turns back along it.
+      const monotone = (axis: 'x' | 'y'): boolean => {
+        const steps = r.slice(1).map((q, i) => Math.sign(Math.round(q[axis] - r[i]![axis])));
+        return !(steps.includes(1) && steps.includes(-1));
+      };
+      const horizontal = Math.abs(r[0]!.y - r[1]!.y) < 0.01 && Math.abs(r[n - 2]!.y - r[n - 1]!.y) < 0.01 && monotone('x');
+      const vertical = Math.abs(r[0]!.x - r[1]!.x) < 0.01 && Math.abs(r[n - 2]!.x - r[n - 1]!.x) < 0.01 && monotone('y');
+      if (!horizontal && !vertical) continue;
+      const k = horizontal ? 'y' as const : 'x' as const;
+      const others = plans.filter(o => o.id !== p.id && routes.has(o.id)).map(o => ({ o, route: routes.get(o.id)! }));
+      const before = countCrossings([r, ...others.map(x => x.route)]);
+      const related = new Set([...ancestors(ownerNode(p.source)), ...ancestors(ownerNode(p.target))]);
+      for (const [moving, value] of [['target', r[0]![k]], ['source', r[n - 1]![k]]] as const) {
+        const node = nodeRect(moving === 'source' ? p.source : p.target);
+        if (!node) continue;
+        const lo = k === 'y' ? node.y : node.x, size = k === 'y' ? node.height : node.width;
+        if (value < lo + 10 || value > lo + size - 10) continue;
+        const next = horizontal
+          ? [{ x: r[0]!.x, y: value }, { x: r[n - 1]!.x, y: value }]
+          : [{ x: value, y: r[0]!.y }, { x: value, y: r[n - 1]!.y }];
+        const end = moving === 'source' ? next[0]! : next[1]!, endpoint = moving === 'source' ? p.source : p.target;
+        const box = { x: Math.min(next[0]!.x, next[1]!.x), y: Math.min(next[0]!.y, next[1]!.y), width: Math.abs(next[0]!.x - next[1]!.x), height: Math.abs(next[0]!.y - next[1]!.y) };
+        const blocked = [...rects].some(([id, rect]) => !related.has(id) && id !== ownerNode(p.source) && id !== ownerNode(p.target) && segmentIntersectsRect(next[0]!, next[1]!, inflate(rect, -1)))
+          || symbols.some(s => s.id !== p.source && s.id !== p.target && segmentIntersectsRect(next[0]!, next[1]!, inflate(s.bounds, 2)))
+          || texts.some(t => segmentIntersectsRect(next[0]!, next[1]!, t))
+          || others.some(({ route }) => route.slice(1).some((q, i) => {
+            const a = route[i]!;
+            // Running along another line closer than the line spacing.
+            const parallel = horizontal ? Math.abs(a.y - q.y) < 0.01 && Math.abs(a.y - value) < theme.spacing.edgeEdge : Math.abs(a.x - q.x) < 0.01 && Math.abs(a.x - value) < theme.spacing.edgeEdge;
+            if (!parallel) return false;
+            const [s0, s1] = horizontal ? [Math.min(a.x, q.x), Math.max(a.x, q.x)] : [Math.min(a.y, q.y), Math.max(a.y, q.y)];
+            const [t0, t1] = horizontal ? [box.x, box.x + box.width] : [box.y, box.y + box.height];
+            return Math.min(s1, t1) - Math.max(s0, t0) > 0;
+          }))
+          || others.some(({ o, route }) => [[o.source, route[0]!], [o.target, route.at(-1)!]].some(([n, q]) => n === endpoint && distance(q as Point, end) < theme.spacing.endEnd));
+        if (blocked || countCrossings([next, ...others.map(x => x.route)]) > before) continue;
+        routes.set(p.id, next);
+        for (const key of [...suggestions.keys()]) if (key.startsWith(`${p.id}::`)) suggestions.delete(key);
+        break;
+      }
+    }
+  }
 
   // ---- Scene edges ----
   const sceneEdges: PlacedEdge[] = [];

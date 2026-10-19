@@ -106,6 +106,11 @@ function crossings(a, b) {
   return out;
 }
 
+test('layout: a path between neighbours is straight when its ends can slide along their nodes (B-21)', async () => {
+  const { scene: s } = await scene(await regression('deployment-d3-agent-v3.json'));
+  for (const id of ['relationships/0', 'relationships/2', 'relationships/3']) assert.equal(s.edges.find(e => e.id === id).points.length, 2, `${id} zig-zags`);
+});
+
 test('layout: anchors of notes beside each other do not cross (B-13)', async () => {
   const { scene: s } = await scene(await regression('deployment-d2-awkward.json'));
   const anchors = s.edges.filter(e => e.type === 'note-anchor');
