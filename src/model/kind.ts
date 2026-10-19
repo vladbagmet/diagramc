@@ -18,7 +18,14 @@ export interface PlantUmlBackend<M> {
   readonly name: 'plantuml';
   /** Value PlantUML writes to `data-diagram-type` on the root <svg>, e.g. "CLASS" or "SEQUENCE". */
   readonly diagramType: string;
-  toPlantUml(model: M): string;
+  /** May be async (e.g. to measure text for wrapping). Runs only after full validation. */
+  toPlantUml(model: M): string | Promise<string>;
+  /**
+   * Optional fix-up of PlantUML's SVG before fonts are embedded, for notation
+   * PlantUML cannot draw itself. Works on PlantUML's own output only, never
+   * inserts input text, and must keep the SVG within the safe element set.
+   */
+  postProcess?(svg: string, model: M): string;
 }
 
 export type Backend<M> = EngineBackend<M> | PlantUmlBackend<M>;

@@ -33,9 +33,10 @@ export async function renderToSvg(parsed: ParsedDocument, options: RenderOptions
     svg = await backend.render(parsed.model);
   } else {
     // Only now, after full validation, is the Java renderer discovered and started.
-    const source = backend.toPlantUml(parsed.model);
+    const source = await backend.toPlantUml(parsed.model);
     const runner = options.plantuml ?? await rendererOptions();
-    svg = await embedFonts((await renderSvg(source, { ...runner, diagramType: backend.diagramType })).toString('utf8'));
+    const raw = (await renderSvg(source, { ...runner, diagramType: backend.diagramType })).toString('utf8');
+    svg = await embedFonts(backend.postProcess ? backend.postProcess(raw, parsed.model) : raw);
   }
   if (Buffer.byteLength(svg, 'utf8') > MAX_OUTPUT_BYTES) throw new UmlError('RENDER_OUTPUT_LIMIT', 'Rendered SVG exceeds the byte limit', 3);
   return svg;
