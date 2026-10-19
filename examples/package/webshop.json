@@ -1,0 +1,28 @@
+{
+  "kind": "package",
+  "title": "Web shop",
+  "elements": [
+    { "id": "shop", "type": "package", "name": "shop", "members": ["web", "domain", "persistence", "n1"] },
+    { "id": "web", "type": "package", "name": "web", "members": ["controller", "view"] },
+    { "id": "controller", "type": "class", "name": "OrderController" },
+    { "id": "view", "type": "class", "name": "OrderView" },
+    { "id": "domain", "type": "package", "name": "domain", "members": ["order", "customer", "repo"] },
+    { "id": "order", "type": "class", "name": "Order" },
+    { "id": "customer", "type": "class", "name": "Customer" },
+    { "id": "repo", "type": "interface", "name": "OrderRepository" },
+    { "id": "persistence", "type": "package", "name": "persistence", "members": ["jpa"] },
+    { "id": "jpa", "type": "class", "name": "JpaOrderRepository" },
+    { "id": "events", "type": "class", "name": "DomainEvents" },
+    { "id": "javaUtil", "type": "package", "name": "java.util", "stereotypes": ["library"] },
+    { "id": "kernel", "type": "package", "name": "kernel" },
+    { "id": "n1", "type": "note", "text": "Domain code must not depend on web or persistence.", "attachedTo": ["domain"] }
+  ],
+  "relationships": [
+    { "type": "import", "from": "web", "to": "domain" },
+    { "type": "access", "from": "persistence", "to": "domain" },
+    { "type": "import", "from": "domain", "to": "javaUtil" },
+    { "type": "merge", "from": "domain", "to": "kernel" },
+    { "type": "containment", "from": "domain", "to": "events" },
+    { "type": "dependency", "from": "controller", "to": "repo", "keyword": "use" }
+  ]
+}

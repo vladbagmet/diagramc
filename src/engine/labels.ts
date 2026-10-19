@@ -24,6 +24,12 @@ export interface LabelRequest {
   clearance?: number;
   /** A position suggested by the layout engine (tried first for center labels, early for end labels). */
   suggestion?: Rect | undefined;
+  /**
+   * Explicit candidate boxes, best first, replacing the generated ones (labels
+   * that belong to a point rather than a line, e.g. a port name). `route` and
+   * `at` then only matter for the anchor check of end labels.
+   */
+  candidates?: readonly Rect[];
 }
 
 export interface Obstacles {
@@ -118,7 +124,7 @@ function cost(rect: Rect, obstacles: Obstacles, placed: readonly Rect[], anchor?
 export function placeLabels(requests: readonly LabelRequest[], obstacles: Obstacles): Map<string, Rect> {
   const placed = new Map<string, Rect>();
   for (const request of requests) {
-    const candidates = request.at === 'center' ? centerCandidates(request) : endCandidates(request);
+    const candidates = request.candidates ?? (request.at === 'center' ? centerCandidates(request) : endCandidates(request));
     let best: Rect | undefined, bestCost = Infinity;
     candidates.forEach((candidate, index) => {
       if (bestCost === 0) return;

@@ -1,0 +1,60 @@
+[
+  { "name": "single note", "doc": { "kind": "component", "elements": [{ "id": "n", "type": "note", "text": "Only a note." }] } },
+  { "name": "lone component with unconnected ports", "doc": { "kind": "component", "elements": [
+      { "id": "a", "type": "component", "name": "Sensor Hub", "ports": [{ "id": "p1", "name": "north" }, { "id": "p2" }, { "id": "p3", "name": "diag", "type": "Jtag" }] }] } },
+  { "name": "port providing and requiring unconnected interfaces", "doc": { "kind": "component", "elements": [
+      { "id": "a", "type": "component", "name": "Cache", "ports": [{ "id": "p", "name": "store", "provides": ["get"], "requires": ["load"] }], "provides": ["stats"], "requires": ["clock"] },
+      { "id": "get", "type": "interface", "name": "IGet" }, { "id": "load", "type": "interface", "name": "ILoad" },
+      { "id": "stats", "type": "interface", "name": "IStats" }, { "id": "clock", "type": "interface", "name": "IClock" }] } },
+  { "name": "assemblies in both directions (a cycle)", "doc": { "kind": "component", "elements": [
+      { "id": "a", "type": "component", "name": "Orders", "provides": ["j"], "requires": ["i"] },
+      { "id": "b", "type": "component", "name": "Stock", "provides": ["i"], "requires": ["j"] },
+      { "id": "i", "type": "interface", "name": "IStock" }, { "id": "j", "type": "interface", "name": "IOrders" }],
+    "relationships": [{ "type": "assembly", "from": "a", "to": "b", "interface": "i" }, { "type": "assembly", "from": "b", "to": "a", "interface": "j" }] } },
+  { "name": "three requirers of one provided port", "doc": { "kind": "component", "elements": [
+      { "id": "s", "type": "component", "name": "Search", "ports": [{ "id": "q", "name": "query", "provides": ["i"] }] },
+      { "id": "a", "type": "component", "name": "Web", "requires": ["i"] }, { "id": "b", "type": "component", "name": "Mobile", "requires": ["i"] },
+      { "id": "c", "type": "component", "name": "Batch", "ports": [{ "id": "cp", "requires": ["i"] }] },
+      { "id": "i", "type": "interface", "name": "ISearch" }],
+    "relationships": [
+      { "type": "assembly", "from": "a", "to": "q", "interface": "i" }, { "type": "assembly", "from": "b", "to": "q", "interface": "i" },
+      { "type": "assembly", "from": "cp", "to": "q", "interface": "i" }] } },
+  { "name": "four nesting levels with a delegation chain", "doc": { "kind": "component", "elements": [
+      { "id": "c1", "type": "component", "name": "System", "ports": [{ "id": "p1", "name": "api", "provides": ["i"] }], "elements": [
+        { "id": "c2", "type": "component", "name": "Subsystem", "ports": [{ "id": "p2", "provides": ["i"] }], "elements": [
+          { "id": "c3", "type": "component", "name": "Module", "ports": [{ "id": "p3", "provides": ["i"] }], "elements": [
+            { "id": "c4", "type": "component", "name": "Unit", "ports": [{ "id": "p4", "provides": ["i"] }], "elements": [
+              { "id": "c5", "type": "class", "name": "Handler", "provides": ["i"] }] }] }] }] },
+      { "id": "client", "type": "component", "name": "Client", "requires": ["i"] },
+      { "id": "i", "type": "interface", "name": "IApi" }],
+    "relationships": [
+      { "type": "assembly", "from": "client", "to": "p1", "interface": "i" },
+      { "type": "delegation", "from": "p1", "to": "p2" }, { "type": "delegation", "from": "p2", "to": "p3" },
+      { "type": "delegation", "from": "p3", "to": "p4" }, { "type": "delegation", "from": "p4", "to": "c5" }] } },
+  { "name": "required delegation outward and interface boxes", "doc": { "kind": "component", "elements": [
+      { "id": "a", "type": "component", "name": "Billing", "ports": [{ "id": "out", "name": "tax", "requires": ["t"] }], "elements": [
+        { "id": "inv", "type": "component", "name": "Invoicer", "requires": ["t"] }] },
+      { "id": "t", "type": "interface", "name": "ITax", "operations": [{ "name": "rate", "parameters": [{ "name": "region", "type": "String" }], "returnType": "Decimal" }] },
+      { "id": "impl", "type": "component", "name": "Tax Service" }],
+    "relationships": [
+      { "type": "delegation", "from": "inv", "to": "out" },
+      { "type": "realization", "from": "impl", "to": "t" },
+      { "type": "usage", "from": "a", "to": "t" }] } },
+  { "name": "dependency between ports, a note on a lollipop-only interface", "doc": { "kind": "component", "elements": [
+      { "id": "a", "type": "component", "name": "A", "ports": [{ "id": "pa", "name": "out" }] },
+      { "id": "b", "type": "component", "name": "B", "ports": [{ "id": "pb", "name": "in" }], "provides": ["i"] },
+      { "id": "i", "type": "interface", "name": "IThing" },
+      { "id": "n", "type": "note", "text": "Notes annotate components and interfaces.", "attachedTo": ["a", "i"] }],
+    "relationships": [{ "type": "dependency", "from": "pa", "to": "pb", "keyword": "flow", "name": "events" }] } },
+  { "name": "artifacts manifesting nested components", "doc": { "kind": "component", "elements": [
+      { "id": "app", "type": "component", "name": "Application", "elements": [
+        { "id": "core", "type": "component", "name": "Core" }, { "id": "ui", "type": "component", "name": "UI" }] },
+      { "id": "x", "type": "artifact", "name": "core.dll" }, { "id": "y", "type": "artifact", "name": "ui.dll", "stereotypes": ["library"] }],
+    "relationships": [{ "type": "manifest", "from": "x", "to": "core" }, { "type": "manifest", "from": "y", "to": "ui" }] } },
+  { "name": "long and Unicode names", "doc": { "kind": "component", "title": "Größe 東京 🚀", "elements": [
+      { "id": "a", "type": "component", "name": "Ein sehr langer Komponentenname für die Auftragsverarbeitung und Abrechnung", "requires": ["i"],
+        "ports": [{ "id": "p", "name": "Verbindungsendpunkt", "type": "Sicherer Kanal 東京" }] },
+      { "id": "b", "type": "component", "name": "東京サービス 🚀", "provides": ["i"] },
+      { "id": "i", "type": "interface", "name": "IAuftragsverarbeitungsSchnittstelle" }],
+    "relationships": [{ "type": "assembly", "from": "a", "to": "b", "interface": "i" }] } }
+]

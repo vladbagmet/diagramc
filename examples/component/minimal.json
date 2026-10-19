@@ -1,0 +1,11 @@
+{
+  "kind": "component",
+  "elements": [
+    { "id": "client", "type": "component", "name": "Client", "requires": ["api"] },
+    { "id": "server", "type": "component", "name": "Server", "provides": ["api"] },
+    { "id": "api", "type": "interface", "name": "OrderAPI" }
+  ],
+  "relationships": [
+    { "type": "assembly", "from": "client", "to": "server", "interface": "api" }
+  ]
+}

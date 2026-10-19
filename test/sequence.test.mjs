@@ -183,7 +183,12 @@ test('QA reader: a stored sequence render yields lifelines, messages and labels,
   assert.ok(scene.texts.some(t => t.role === 'frame-label' && t.content === 'sd' && t.bold));
   const report = await checkSvg(svg, ['Sorts', 'user', 'signal', 'init', 'drop', 'tick', 'gone', 'self', 'Ctl', 'Store']);
   assert.ok(report.ok, JSON.stringify(report.gates.filter(g => !g.ok)));
-  assert.deepEqual(report.gates.filter(g => g.skipped).map(g => g.gate), ['label-proximity', 'edge-endpoints', 'markers']);
+  // Engine-only gates are reported as skipped; the ones this reader supplies data for are evaluated.
+  const skipped = report.gates.filter(g => g.skipped).map(g => g.gate);
+  for (const gate of ['label-proximity', 'edge-endpoints', 'markers']) assert.ok(skipped.includes(gate), gate);
+  for (const gate of ['label-overlap', 'label-edge-crossing', 'message-endpoints', 'inside-canvas', 'literal-text', 'min-font-size', 'text-fits']) {
+    assert.ok(report.gates.some(g => g.gate === gate && !g.skipped), `${gate} evaluated`);
+  }
 });
 
 test('QA reader: the message-endpoints gate catches arrows that miss their lifeline or point the wrong way', async () => {

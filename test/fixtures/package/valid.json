@@ -1,0 +1,39 @@
+[
+  { "name": "single empty package", "doc": { "kind": "package", "elements": [{ "id": "a", "type": "package", "name": "A" }] } },
+  { "name": "single note", "doc": { "kind": "package", "elements": [{ "id": "n", "type": "note", "text": "Only a note." }] } },
+  { "name": "every relationship type", "doc": { "kind": "package", "elements": [
+      { "id": "a", "type": "package", "name": "a" }, { "id": "b", "type": "package", "name": "b" }, { "id": "c", "type": "package", "name": "c" },
+      { "id": "d", "type": "package", "name": "d" }, { "id": "e", "type": "package", "name": "e" }, { "id": "k", "type": "class", "name": "K" }],
+    "relationships": [
+      { "id": "imp", "type": "import", "from": "a", "to": "b" }, { "id": "acc", "type": "access", "from": "a", "to": "c" },
+      { "id": "mrg", "type": "merge", "from": "b", "to": "d" }, { "id": "dep", "type": "dependency", "from": "c", "to": "e", "keyword": "use", "name": "needs" },
+      { "id": "own", "type": "containment", "from": "e", "to": "k" },
+      { "id": "eimp", "type": "import", "from": "a", "to": "k" }] } },
+  { "name": "three levels of nesting with cross-level imports", "doc": { "kind": "package", "elements": [
+      { "id": "top", "type": "package", "name": "top", "members": ["mid", "side"] },
+      { "id": "mid", "type": "package", "name": "mid", "members": ["low", "m1"] },
+      { "id": "low", "type": "package", "name": "low", "members": ["l1", "l2"] },
+      { "id": "l1", "type": "class", "name": "Leaf1" }, { "id": "l2", "type": "interface", "name": "Leaf2" }, { "id": "m1", "type": "datatype", "name": "Mid" },
+      { "id": "side", "type": "package", "name": "side" }, { "id": "ext", "type": "package", "name": "external" }],
+    "relationships": [
+      { "type": "import", "from": "low", "to": "ext" }, { "type": "import", "from": "side", "to": "low" },
+      { "type": "dependency", "from": "l1", "to": "m1" }, { "type": "access", "from": "side", "to": "ext" }] } },
+  { "name": "nested empty package and nested note", "doc": { "kind": "package", "elements": [
+      { "id": "p", "type": "package", "name": "p", "members": ["q", "n", "c"] }, { "id": "q", "type": "package", "name": "q", "stereotypes": ["subsystem"] },
+      { "id": "c", "type": "enumeration", "name": "Color" },
+      { "id": "n", "type": "note", "text": "Notes can live inside packages.", "attachedTo": ["q"] }] } },
+  { "name": "many imports into one package", "doc": { "kind": "package", "elements": [
+      { "id": "t", "type": "package", "name": "target", "members": ["tc"] }, { "id": "tc", "type": "class", "name": "Core" },
+      { "id": "a", "type": "package", "name": "a" }, { "id": "b", "type": "package", "name": "b" }, { "id": "c", "type": "package", "name": "c" }, { "id": "d", "type": "package", "name": "d" }],
+    "relationships": [
+      { "type": "import", "from": "a", "to": "t" }, { "type": "import", "from": "b", "to": "t" }, { "type": "access", "from": "c", "to": "t" }, { "type": "merge", "from": "d", "to": "t" }] } },
+  { "name": "containment between classes and of packages", "doc": { "kind": "package", "elements": [
+      { "id": "outer", "type": "class", "name": "Outer" }, { "id": "inner", "type": "class", "name": "Inner" },
+      { "id": "p", "type": "package", "name": "p" }, { "id": "q", "type": "package", "name": "q" }],
+    "relationships": [{ "type": "containment", "from": "outer", "to": "inner" }, { "type": "containment", "from": "p", "to": "q" }, { "type": "containment", "from": "p", "to": "outer" }] } },
+  { "name": "long and Unicode names", "doc": { "kind": "package", "title": "Ünïcödé 包 🚀", "elements": [
+      { "id": "a", "type": "package", "name": "com.example.platform.billing.infrastructure.persistence.adapters.jpa.repositories", "members": ["x"] },
+      { "id": "x", "type": "class", "name": "注文リポジトリ実装クラス", "abstract": true },
+      { "id": "b", "type": "package", "name": "  spaced  <b>markup</b> & \"quotes\"  " }],
+    "relationships": [{ "type": "import", "from": "a", "to": "b" }] } }
+]

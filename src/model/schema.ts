@@ -69,7 +69,7 @@ function dedupe(texts: DocumentText[]): DocumentText[] {
 /** Points at the offending property itself for missing and unknown properties. */
 function errorPath(error: ErrorObject): string {
   const params = error.params as Record<string, unknown>;
-  if (error.keyword === 'required' && typeof params.missingProperty === 'string') return pointer(error.instancePath, params.missingProperty);
+  if ((error.keyword === 'required' || error.keyword === 'dependencies') && typeof params.missingProperty === 'string') return pointer(error.instancePath, params.missingProperty);
   if (error.keyword === 'additionalProperties' && typeof params.additionalProperty === 'string') return pointer(error.instancePath, params.additionalProperty);
   return error.instancePath;
 }
@@ -79,6 +79,7 @@ function describe(error: ErrorObject): string {
   const where = errorPath(error) || '(document root)';
   if (error.keyword === 'additionalProperties') return `unknown property ${where}`;
   if (error.keyword === 'required') return `missing required property ${where}`;
+  if (error.keyword === 'dependencies') return `missing property ${where}, required when ${pointer(error.instancePath, String(params.property))} is present`;
   if (error.keyword === 'enum' && Array.isArray(params.allowedValues)) return `${where} must be one of ${params.allowedValues.map(v => JSON.stringify(v)).join(', ')}`;
   if (error.keyword === 'const') return `${where} must be ${JSON.stringify(params.allowedValue)}`;
   return `${where} ${error.message ?? 'is invalid'}`;

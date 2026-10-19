@@ -1,0 +1,33 @@
+[
+  { "name": "single note", "doc": { "kind": "deployment", "elements": [{ "id": "n", "type": "note", "text": "Only a note." }] } },
+  { "name": "every node type and artifact kind, nested", "doc": { "kind": "deployment", "elements": [
+      { "id": "rack", "type": "node", "name": "Rack 7", "elements": [
+        { "id": "srv", "type": "device", "name": "Server", "stereotypes": ["blade"], "elements": [
+          { "id": "os", "type": "executionEnvironment", "name": "Linux", "elements": [
+            { "id": "jvm", "type": "executionEnvironment", "name": "JVM", "elements": [
+              { "id": "app", "type": "artifact", "name": "app.jar", "stereotypes": ["executable"] },
+              { "id": "cfg", "type": "deploymentSpecification", "name": "app.xml", "properties": [{ "name": "heap", "value": "2g" }] },
+              { "id": "cmp", "type": "component", "name": "Orders" }] }] }] }] }],
+    "relationships": [{ "type": "manifest", "from": "app", "to": "cmp" }, { "type": "dependency", "from": "cfg", "to": "app", "keyword": "configures" }] } },
+  { "name": "communication paths with protocols, names and multiplicities in a ring", "doc": { "kind": "deployment", "elements": [
+      { "id": "a", "type": "device", "name": "Edge A" }, { "id": "b", "type": "device", "name": "Edge B" }, { "id": "c", "type": "device", "name": "Core" }],
+    "relationships": [
+      { "type": "communicationPath", "from": "a", "to": "b", "protocol": "BGP", "fromEnd": { "multiplicity": "1" }, "toEnd": { "multiplicity": "1" } },
+      { "type": "communicationPath", "from": "b", "to": "c", "name": "uplink", "fromEnd": { "multiplicity": "2..*" }, "toEnd": { "multiplicity": "1" } },
+      { "type": "communicationPath", "from": "c", "to": "a", "protocol": "MPLS", "name": "backhaul" }] } },
+  { "name": "deploy dependencies onto nested execution environments", "doc": { "kind": "deployment", "elements": [
+      { "id": "h", "type": "device", "name": "Host", "elements": [{ "id": "k8s", "type": "executionEnvironment", "name": "Kubernetes" }, { "id": "db", "type": "executionEnvironment", "name": "MySQL" }] },
+      { "id": "img", "type": "artifact", "name": "shop:1.4" }, { "id": "ddl", "type": "artifact", "name": "schema.sql" },
+      { "id": "spec", "type": "deploymentSpecification", "name": "values.yaml" }],
+    "relationships": [
+      { "type": "deploy", "from": "img", "to": "k8s" }, { "type": "deploy", "from": "ddl", "to": "db" }, { "type": "deploy", "from": "spec", "to": "k8s" }] } },
+  { "name": "paths between nested nodes of different parents", "doc": { "kind": "deployment", "elements": [
+      { "id": "dc1", "type": "node", "name": "DC Frankfurt", "elements": [{ "id": "s1", "type": "device", "name": "db-1" }] },
+      { "id": "dc2", "type": "node", "name": "DC Dublin", "elements": [{ "id": "s2", "type": "device", "name": "db-2" }] },
+      { "id": "n", "type": "note", "text": "Synchronous replication between data centers.", "attachedTo": ["s1", "s2"] }],
+    "relationships": [{ "type": "communicationPath", "from": "s1", "to": "s2", "protocol": "TCP", "name": "replication", "fromEnd": { "multiplicity": "1" }, "toEnd": { "multiplicity": "1" } }] } },
+  { "name": "long and Unicode names", "doc": { "kind": "deployment", "title": "Übersicht 東京", "elements": [
+      { "id": "a", "type": "node", "name": "Ein sehr langer Knotenname für das Rechenzentrum in Frankfurt am Main", "elements": [{ "id": "x", "type": "artifact", "name": "東京-service.war" }] },
+      { "id": "b", "type": "device", "name": "端末 🚀" }],
+    "relationships": [{ "type": "communicationPath", "from": "b", "to": "a", "protocol": "HTTPS/2", "name": "sichere Verbindung über das öffentliche Internet" }] } }
+]
