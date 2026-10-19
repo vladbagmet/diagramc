@@ -1,0 +1,9 @@
+{
+  "kind": "communication",
+  "lifelines": [
+    { "id": "client", "name": "client", "type": "Client" },
+    { "id": "server", "type": "Server" }
+  ],
+  "links": [{ "from": "client", "to": "server" }],
+  "messages": [{ "sequence": "1", "from": "client", "to": "server", "name": "ping", "arguments": [] }]
+}

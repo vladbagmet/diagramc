@@ -48,6 +48,8 @@ export const theme = {
     note: 1,
     /** Dash pattern for dashed UML lines (dependency, realization, note anchors). */
     dash: '7 4',
+    /** Dash pattern for short dashed lines (reply message arrows, small fragments). */
+    shortDash: '4 3',
   },
   spacing: {
     /** Empty margin around the whole drawing. */

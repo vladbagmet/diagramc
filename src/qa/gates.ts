@@ -1,5 +1,5 @@
 import { theme } from '../core/theme.js';
-import { contains, direction, distance, distanceToBorder, distanceToRect, inflate, overlapArea, segmentIntersectsRect, type Rect } from '../engine/geometry.js';
+import { boundsOfPoints, contains, direction, distance, distanceToBorder, distanceToRect, inflate, overlapArea, segmentDistance, segmentIntersectsRect, union, type Rect } from '../engine/geometry.js';
 import { inspectSvg, type Scene } from './inspect.js';
 
 /**
@@ -12,7 +12,7 @@ export interface QaReport { ok: boolean; renderer: Scene['renderer']; gates: Gat
 
 export const GATES = [
   'safe-markup', 'inside-canvas', 'node-overlap', 'label-overlap', 'label-edge-crossing', 'label-proximity',
-  'edge-endpoints', 'markers', 'literal-text', 'min-font-size', 'text-fits',
+  'edge-endpoints', 'markers', 'message-arrows', 'literal-text', 'min-font-size', 'text-fits',
 ] as const;
 
 const fmt = (r: Rect): string => `[${r.x.toFixed(1)},${r.y.toFixed(1)} ${r.width.toFixed(1)}x${r.height.toFixed(1)}]`;
@@ -28,6 +28,13 @@ function markerBox(m: { marker: string; tip: { x: number; y: number }; direction
   const xs = [m.tip.x, base.x + n.x * size.halfWidth, base.x - n.x * size.halfWidth];
   const ys = [m.tip.y, base.y + n.y * size.halfWidth, base.y - n.y * size.halfWidth];
   return { x: Math.min(...xs), y: Math.min(...ys), width: Math.max(...xs) - Math.min(...xs), height: Math.max(...ys) - Math.min(...ys) };
+}
+
+/** Gap between two rectangles (0 when they touch or overlap). */
+function gapBetween(a: Rect, b: Rect): number {
+  const dx = Math.max(0, b.x - (a.x + a.width), a.x - (b.x + b.width));
+  const dy = Math.max(0, b.y - (a.y + a.height), a.y - (b.y + b.height));
+  return Math.hypot(dx, dy);
 }
 
 export function runGates(scene: Scene, expectedTexts: readonly string[] = []): QaReport {
@@ -158,8 +165,53 @@ export function runGates(scene: Scene, expectedTexts: readonly string[] = []): Q
       }
     });
     for (const m of scene.markers) {
+      if (scene.arrows.some(a => distance(a.to, m.tip) <= 0.5)) continue;
       if (!scene.edges.some(e => distance(e.points[0]!, m.tip) <= 0.5 || distance(e.points.at(-1)!, m.tip) <= 0.5)) fail(`${m.marker} at (${m.tip.x}, ${m.tip.y}) is not at an edge end`);
     }
+  }, !engine);
+
+  gate('message-arrows', fail => {
+    // Message arrows (communication diagrams) sit beside their own link, parallel
+    // to it, point from sender to receiver, touch nothing, and their labels are
+    // next to them.
+    const boxes = scene.arrows.map(a => inflate(boundsOfPoints([a.from, a.to]), a.marker.includes('triangle') ? theme.size.triangle.halfWidth : theme.size.arrow.halfWidth));
+    scene.arrows.forEach((a, i) => {
+      const name = `message arrow ${a.group}`;
+      const edge = scene.edges.find(e => e.id === a.owner);
+      if (!edge) { fail(`${name} has no link ${a.owner}`); return; }
+      const u = direction(a.from, a.to);
+      const marker = scene.markers.find(m => m.marker === a.marker && distance(m.tip, a.to) <= 0.5);
+      if (!marker) fail(`${name}: no ${a.marker} at its tip`);
+      else if (marker.direction.x * u.x + marker.direction.y * u.y < 0.99) fail(`${name}: ${a.marker} points the wrong way`);
+      const mid = { x: (a.from.x + a.to.x) / 2, y: (a.from.y + a.to.y) / 2 };
+      let best: { d: number; dot: number; along: boolean } | undefined;
+      for (let k = 1; k < edge.points.length; k++) {
+        const p = edge.points[k - 1]!, q = edge.points[k]!, v = direction(p, q);
+        const t = (mid.x - p.x) * v.x + (mid.y - p.y) * v.y, length = distance(p, q);
+        const d = Math.abs((mid.x - p.x) * v.y - (mid.y - p.y) * v.x);
+        const dot = u.x * v.x + u.y * v.y;
+        if (Math.abs(dot) < 0.99 || t < 0 || t > length) continue;
+        if (!best || d < best.d) best = { d, dot, along: true };
+      }
+      if (!best) { fail(`${name} is not parallel to, and beside, a segment of link ${a.owner}`); return; }
+      if (best.d < 4 || best.d > 26) fail(`${name} is ${best.d.toFixed(1)}px from link ${a.owner} (expected 4 to 26)`);
+      const self = edge.source === edge.target;
+      const forward = a.source === edge.source && a.target === edge.target;
+      const backward = a.source === edge.target && a.target === edge.source;
+      if (!forward && !backward) fail(`${name} (${a.source} -> ${a.target}) does not travel on link ${a.owner} (${edge.source} - ${edge.target})`);
+      else if ((forward || self) ? best.dot < 0 : best.dot > 0) fail(`${name} points against its message direction ${a.source} -> ${a.target}`);
+      // The arrow line (and its head) must keep clear of every line.
+      const clearance = (a.marker.includes('triangle') ? theme.size.triangle.halfWidth : theme.size.arrow.halfWidth) * 0.4;
+      for (const e of scene.edges) for (let k = 1; k < e.points.length; k++) {
+        if (segmentDistance(e.points[k - 1]!, e.points[k]!, a.from, a.to) < clearance) { fail(`${name} touches or crosses edge ${e.id}`); break; }
+      }
+      for (const n of scene.nodes) if (overlapArea(boxes[i]!, n.bounds) > 0.5) fail(`${name} overlaps node ${n.id}`);
+      boxes.forEach((other, j) => { if (j > i && overlapArea(boxes[i]!, other) > 0.5) fail(`${name} overlaps message arrow ${scene.arrows[j]!.group}`); });
+      for (const t of labels) if (overlapArea(boxes[i]!, t.bounds) > 0.5) fail(`${name} overlaps label ${snippet(t.content)}`);
+      const own = labels.filter(t => t.group === a.group);
+      if (!own.length) fail(`${name} has no labels`);
+      else if (gapBetween(boxes[i]!, union(own.map(t => t.bounds))) > 12) fail(`labels of ${name} are not next to it`);
+    });
   }, !engine);
 
   gate('literal-text', fail => {

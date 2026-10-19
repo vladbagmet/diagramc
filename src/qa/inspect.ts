@@ -11,6 +11,8 @@ import { parseXml, textContent, walk, type XmlElement } from './xml.js';
 export interface InspectedNode { id: string; type: string; bounds: Rect; parent?: string; tab?: Rect }
 export interface InspectedEdge { id: string; type: string; source: string; target: string; points: Point[]; sourceMarker: string; targetMarker: string }
 export interface InspectedMarker { marker: string; end: string; tip: Point; direction: Point }
+/** A free-standing message arrow beside a link (communication diagrams). */
+export interface InspectedArrow { owner: string; group: string; source: string; target: string; marker: string; from: Point; to: Point; dashed: boolean }
 export interface InspectedText {
   content: string;
   size: number;
@@ -25,6 +27,8 @@ export interface InspectedText {
   node?: string;
   end?: string;
   anchor?: Point;
+  /** data-uml-group: ties message labels to their message arrow. */
+  group?: string;
 }
 export interface Scene {
   renderer: 'engine' | 'plantuml' | 'unknown';
@@ -33,6 +37,7 @@ export interface Scene {
   nodes: InspectedNode[];
   edges: InspectedEdge[];
   markers: InspectedMarker[];
+  arrows: InspectedArrow[];
   texts: InspectedText[];
   /** All coordinates of drawing primitives (best effort), for the canvas gate. */
   extents: Rect[];
@@ -92,7 +97,7 @@ export async function inspectSvg(svg: string): Promise<Scene> {
   const view = numbers(root.attrs.viewBox);
   const viewBox = view.length === 4 ? { x: view[0]!, y: view[1]!, width: view[2]!, height: view[3]! } : { x: 0, y: 0, width: Number.parseFloat(root.attrs.width ?? '0'), height: Number.parseFloat(root.attrs.height ?? '0') };
   const renderer = root.attrs['data-uml-renderer'] === 'engine' ? 'engine' : root.attrs['data-diagram-type'] ? 'plantuml' : 'unknown';
-  const scene: Scene = { renderer, ...(root.attrs['data-uml-kind'] ? { kind: root.attrs['data-uml-kind'] } : {}), viewBox, nodes: [], edges: [], markers: [], texts: [], extents: [], unsafe: [] };
+  const scene: Scene = { renderer, ...(root.attrs['data-uml-kind'] ? { kind: root.attrs['data-uml-kind'] } : {}), viewBox, nodes: [], edges: [], markers: [], arrows: [], texts: [], extents: [], unsafe: [] };
 
   for (const { element, ancestors } of walk(root)) {
     if (UNSAFE_TAGS.has(element.tag)) scene.unsafe.push(`<${element.tag}>`);
@@ -141,6 +146,7 @@ function readText(element: XmlElement, ancestors: XmlElement[], metrics: FontMet
     ...(owner ? { node: owner.attrs['data-uml-id'] ?? owner.attrs['data-entity'] ?? '' } : {}),
     ...(element.attrs['data-uml-end'] ? { end: element.attrs['data-uml-end'] } : {}),
     ...(element.attrs['data-uml-anchor'] ? { anchor: point(element.attrs['data-uml-anchor'])! } : {}),
+    ...(element.attrs['data-uml-group'] ? { group: element.attrs['data-uml-group'] } : {}),
   };
 }
 
@@ -154,6 +160,13 @@ function readEngine(root: XmlElement, scene: Scene): void {
         id: a['data-uml-id'] ?? '', type: a['data-uml-type'] ?? '', source: a['data-uml-source'] ?? '', target: a['data-uml-target'] ?? '',
         points: pointList(a['data-uml-points']), sourceMarker: a['data-uml-source-marker'] ?? 'none', targetMarker: a['data-uml-target-marker'] ?? 'none',
       });
+    } else if (a['data-uml-role'] === 'message-arrow') {
+      const [from, to] = pointList(a['data-uml-points']);
+      const path = element.children.find((c): c is XmlElement => typeof c !== 'string' && c.tag === 'path');
+      scene.arrows.push({
+        owner: a['data-uml-owner'] ?? '', group: a['data-uml-group'] ?? '', source: a['data-uml-source'] ?? '', target: a['data-uml-target'] ?? '',
+        marker: a['data-uml-marker'] ?? 'none', from: from!, to: to!, dashed: !!path?.attrs['stroke-dasharray'],
+      });
     } else if (a['data-uml-role'] === 'marker') {
       scene.markers.push({ marker: a['data-uml-marker'] ?? '', end: a['data-uml-end'] ?? '', tip: point(a['data-uml-tip'])!, direction: point(a['data-uml-direction'])! });
     } else if (a['data-uml-role'] === 'frame') {
@@ -163,6 +176,7 @@ function readEngine(root: XmlElement, scene: Scene): void {
   }
   for (const n of scene.nodes) scene.extents.push(n.bounds);
   for (const e of scene.edges) for (const p of e.points) scene.extents.push({ ...p, width: 0, height: 0 });
+  for (const a of scene.arrows) for (const p of [a.from, a.to]) scene.extents.push({ ...p, width: 0, height: 0 });
 }
 
 /** Best effort: entity groups give nodes, primitives give extents. */
