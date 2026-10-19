@@ -1,0 +1,51 @@
+{
+  "kind": "interaction-overview",
+  "title": "WithdrawCash",
+  "lifelines": [":Customer", ":ATM", ":Bank"],
+  "nodes": [
+    { "id": "start", "type": "initial" },
+    { "id": "auth", "type": "interaction-use", "name": "Authenticate", "arguments": ["card"] },
+    { "id": "authorized", "type": "decision" },
+    { "id": "select", "type": "interaction", "name": "SelectAmount",
+      "lifelines": [{ "id": "customer1", "type": "Customer" }, { "id": "atm1", "type": "ATM" }, { "id": "bank1", "type": "Bank" }],
+      "messages": [
+        { "from": "atm1", "to": "customer1", "name": "showAmounts", "sort": "asynchronous" },
+        { "from": "customer1", "to": "atm1", "name": "select", "arguments": ["amount"], "sort": "asynchronous" },
+        { "from": "atm1", "to": "bank1", "name": "debit", "arguments": ["account", "amount"] },
+        { "from": "bank1", "to": "atm1", "name": "ok", "sort": "reply" }
+      ] },
+    { "id": "funds", "type": "decision" },
+    { "id": "split", "type": "fork" },
+    { "id": "dispense", "type": "interaction-use", "name": "DispenseCash", "arguments": ["amount"] },
+    { "id": "receipt", "type": "interaction-use", "name": "PrintReceipt" },
+    { "id": "done", "type": "join" },
+    { "id": "refuse", "type": "interaction-use", "name": "ShowInsufficientFunds" },
+    { "id": "retain", "type": "interaction-use", "name": "RetainCard" },
+    { "id": "rejoin", "type": "merge" },
+    { "id": "eject", "type": "interaction", "name": "EjectCard",
+      "lifelines": [{ "id": "customer2", "type": "Customer" }, { "id": "atm2", "type": "ATM" }],
+      "messages": [
+        { "from": "atm2", "to": "customer2", "name": "ejectCard", "arguments": [], "sort": "asynchronous" },
+        { "from": "customer2", "to": "atm2", "name": "cardTaken", "sort": "asynchronous" }
+      ] },
+    { "id": "end", "type": "final" }
+  ],
+  "flows": [
+    { "from": "start", "to": "auth" },
+    { "from": "auth", "to": "authorized" },
+    { "from": "authorized", "to": "select", "guard": "pin valid" },
+    { "from": "authorized", "to": "retain", "guard": "else" },
+    { "from": "select", "to": "funds" },
+    { "from": "funds", "to": "split", "guard": "debited" },
+    { "from": "funds", "to": "refuse", "guard": "else" },
+    { "from": "split", "to": "dispense" },
+    { "from": "split", "to": "receipt" },
+    { "from": "dispense", "to": "done" },
+    { "from": "receipt", "to": "done" },
+    { "from": "done", "to": "rejoin" },
+    { "from": "refuse", "to": "rejoin" },
+    { "from": "retain", "to": "end" },
+    { "from": "rejoin", "to": "eject" },
+    { "from": "eject", "to": "end" }
+  ]
+}

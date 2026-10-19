@@ -1,0 +1,41 @@
+{
+  "kind": "interaction-overview",
+  "title": "Notation reference",
+  "nodes": [
+    { "id": "start", "type": "initial" },
+    { "id": "again", "type": "merge" },
+    { "id": "poll", "type": "interaction", "name": "Poll",
+      "lifelines": [{ "id": "client", "name": "c", "type": "Client" }, { "id": "server", "type": "Server" }],
+      "messages": [
+        { "from": "client", "to": "server", "name": "status", "arguments": ["job"] },
+        { "from": "server", "to": "server", "name": "lookup", "arguments": ["job"] },
+        { "from": "server", "to": "client", "name": "state", "sort": "reply" }
+      ] },
+    { "id": "state", "type": "decision" },
+    { "id": "wait", "type": "interaction-use", "name": "Wait", "arguments": ["5 s"] },
+    { "id": "fetch", "type": "interaction-use", "name": "FetchResult" },
+    { "id": "report", "type": "interaction-use", "name": "ReportFailure" },
+    { "id": "fan", "type": "fork" },
+    { "id": "store", "type": "interaction-use", "name": "StoreResult" },
+    { "id": "notify", "type": "interaction", "name": "Notify",
+      "lifelines": [{ "id": "client2", "type": "Client" }, { "id": "user", "type": "User" }],
+      "messages": [{ "from": "client2", "to": "user", "name": "done", "sort": "asynchronous" }] },
+    { "id": "stop", "type": "flow-final" },
+    { "id": "end", "type": "final" }
+  ],
+  "flows": [
+    { "from": "start", "to": "again" },
+    { "from": "again", "to": "poll" },
+    { "from": "poll", "to": "state" },
+    { "from": "state", "to": "wait", "guard": "running" },
+    { "from": "state", "to": "fetch", "guard": "done" },
+    { "from": "state", "to": "report", "guard": "failed" },
+    { "from": "wait", "to": "again" },
+    { "from": "fetch", "to": "fan" },
+    { "from": "fan", "to": "store" },
+    { "from": "fan", "to": "notify" },
+    { "from": "notify", "to": "stop" },
+    { "from": "store", "to": "end" },
+    { "from": "report", "to": "end" }
+  ]
+}

@@ -1,6 +1,7 @@
 import type { KindDefinition } from './kind.js';
 import { classKind } from '../kinds/class/index.js';
 import { communicationKind } from '../kinds/communication/index.js';
+import { interactionOverviewKind } from '../kinds/interaction-overview/index.js';
 
 /**
  * Every diagram kind the CLI knows, in `uml kinds` order. To add a kind, create
@@ -10,6 +11,7 @@ import { communicationKind } from '../kinds/communication/index.js';
 export const kinds: readonly KindDefinition[] = [
   classKind,
   communicationKind,
+  interactionOverviewKind,
 ];
 
 export function findKind(name: string): KindDefinition | undefined {
