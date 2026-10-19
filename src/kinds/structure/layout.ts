@@ -2,7 +2,7 @@ import { theme } from '../../core/theme.js';
 import type { LineStyle, Marker } from '../../engine/edges.js';
 import { layout, type Direction, type LayoutEdge, type LayoutLabel, type LayoutNode, type LayoutPort, type Side } from '../../engine/elk.js';
 import type { FontMetrics, TextStyle } from '../../engine/fonts.js';
-import { contains, direction, distance, inflate, overlaps, segmentIntersectsRect, simplify, union, type Point, type Rect } from '../../engine/geometry.js';
+import { contains, direction, distance, inflate, overlaps, segmentIntersectsRect, simplify, straightenJogs, union, type Point, type Rect } from '../../engine/geometry.js';
 import { placeLabels, type LabelRequest } from '../../engine/labels.js';
 import { measureBox, measureFrameHeading, measureNote, type Compartment, type MeasuredBox } from '../../engine/shapes.js';
 import { ballBounds, socketBounds } from '../../engine/symbols.js';
@@ -882,6 +882,21 @@ async function layoutIn(graph: StructGraph, metrics: FontMetrics, dir: 'RIGHT' |
         for (const key of [...suggestions.keys()]) if (key.startsWith(`${p.id}::`)) suggestions.delete(key);
         break;
       }
+    }
+    // Small jogs (a few px, where ELK fans lines out of one side) are removed by sliding an end.
+    for (const p of plans) {
+      const r = routes.get(p.id), s = nodeRect(p.source), t = nodeRect(p.target);
+      if (!r || r.length < 4 || !s || !t || p.symbol !== undefined) continue;
+      const next = straightenJogs(r, { source: s, target: t });
+      if (next.length === r.length) continue;
+      const related = new Set([...ancestors(ownerNode(p.source)), ...ancestors(ownerNode(p.target)), p.source, p.target]);
+      const ends: [string, Point][] = [[p.source, next[0]!], [p.target, next.at(-1)!]];
+      const crowded = plans.some(o => o.id !== p.id && routes.has(o.id) && ends.some(([n, q]) =>
+        (o.source === n && distance(routes.get(o.id)![0]!, q) < theme.spacing.endEnd) || (o.target === n && distance(routes.get(o.id)!.at(-1)!, q) < theme.spacing.endEnd)));
+      const blocked = next.slice(1).some((q, i) => [...rects].some(([id, rect]) => !related.has(id) && segmentIntersectsRect(next[i]!, q, inflate(rect, -1))) || texts.some(x => segmentIntersectsRect(next[i]!, q, x)));
+      if (crowded || blocked) continue;
+      routes.set(p.id, next);
+      for (const key of [...suggestions.keys()]) if (key.startsWith(`${p.id}::`)) suggestions.delete(key);
     }
   }
 
