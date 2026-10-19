@@ -53,6 +53,11 @@ export interface DiagramEdgeSpec {
    * port and one drawn arrowhead.
    */
   tree?: boolean;
+  /**
+   * Laid out from the target down to the source like a tree edge, but with its
+   * own line and arrowhead (extension: metaclass above its stereotypes).
+   */
+  reversed?: boolean;
   /** ELK direction priority; higher keeps the edge pointing in the layout direction. */
   priority?: number;
 }
@@ -128,6 +133,42 @@ function straightenJog(route: Point[], node: Rect): Point[] {
   if (vertical && (start.x < node.x + margin || start.x > node.x + node.width - margin)) return route;
   if (horizontal && (start.y < node.y + margin || start.y > node.y + node.height - margin)) return route;
   return simplify([start, ...route.slice(2)]);
+}
+
+/**
+ * Makes the start of a route meet a package's outline (tab or body). Empty
+ * packages are laid out as their body, so a vertical line onto the body under the
+ * tab is cut back to the tab's top. Containers include the tab: a vertical start
+ * on the top border right of the tab is extended down to the body, and a
+ * horizontal start on the right border beside the tab is shifted down into the
+ * body's height (with a jog when the route is a single segment).
+ */
+function fitToTab(route: Point[], tab: Rect | undefined, node: Rect): Point[] {
+  if (!tab || route.length < 2) return route;
+  const bodyTop = tab.y + tab.height;
+  const [p, q] = route as [Point, Point];
+  const out = route.map(pt => ({ ...pt }));
+  const fromAbove = Math.abs(q.x - p.x) < 0.5 && q.y < p.y;
+  // A line through the tab onto the body stops at the tab instead.
+  if (fromAbove && Math.abs(p.y - bodyTop) < 0.5 && p.x >= tab.x - 0.5 && p.x <= tab.x + tab.width + 0.5) {
+    out[0] = { x: p.x, y: tab.y };
+    return out;
+  }
+  if (p.y >= bodyTop - 0.5) return route;
+  if (Math.abs(p.y - node.y) < 0.5 && p.x > tab.x + tab.width + 0.5 && fromAbove) {
+    out[0] = { x: p.x, y: bodyTop };
+    return out;
+  }
+  const rightBorder = Math.abs(p.x - (node.x + node.width)) < 0.5;
+  if (!rightBorder || Math.abs(q.y - p.y) > 0.5) return route;
+  const y = bodyTop + Math.min(10, (node.y + node.height - bodyTop) / 2);
+  if (route.length === 2) {
+    const mid = (p.x + q.x) / 2;
+    return [{ x: p.x, y }, { x: mid, y }, { x: mid, y: q.y }, q];
+  }
+  out[0] = { x: p.x, y };
+  out[1] = { x: q.x, y };
+  return out;
 }
 
 interface EdgePlan {
@@ -235,42 +276,61 @@ export async function layoutDiagram(spec: DiagramSpec, metrics: FontMetrics): Pr
         const horizontalSide = side.out === 'SOUTH' || side.out === 'NORTH';
         const across = horizontalSide ? Math.max(0, ...labels.map(l => l.width)) : labels.length * (lineHeight + 2);
         const half = Math.max(labels.length ? across + marker.half + 8 : 0, marker.half + 5);
-        addPort(end === 'source' ? e.source : e.target, { id, side: end === 'source' ? side.out : side.in, width: 2 * half });
+        const leaving = (end === 'source') !== !!e.reversed;
+        addPort(end === 'source' ? e.source : e.target, { id, side: leaving ? side.out : side.in, width: 2 * half });
         endPort.set(`${e.id}\u0000${end}`, id);
       }
     }
+    // ELK ignores minimum sizes of compound nodes: a container narrower than its
+    // tab gets extra right padding and the layout runs again.
+    const extraRight = new Map<string, number>();
     const toLayout = (id: string): LayoutNode => {
       const { spec: node } = all.get(id)!;
       const size = sizes.get(id)!;
       const loops = loopPlans.get(id);
       const pkg = packages.get(id);
       const nodePorts = ports.get(id);
+      // An empty package is laid out as its body; its tab is reserved above it.
+      const leafPackage = pkg && !node.children?.length ? pkg : undefined;
       return {
-        id, width: size.width, height: Math.max(size.height, loops?.minHeight ?? 0),
+        id, width: size.width, height: Math.max(size.height - (leafPackage?.tab.height ?? 0), loops?.minHeight ?? 0),
+        ...(leafPackage ? { reserveTop: leafPackage.tab } : {}),
         ...(node.children?.length ? {
           children: node.children.map(c => toLayout(c.id)),
-          padding: { top: pkg!.tab.height + CONTAINER_PAD, left: CONTAINER_PAD, bottom: CONTAINER_PAD, right: CONTAINER_PAD },
+          padding: { top: pkg!.tab.height + CONTAINER_PAD, left: CONTAINER_PAD, bottom: CONTAINER_PAD, right: CONTAINER_PAD + (extraRight.get(id) ?? 0) },
           portSpacing: CONTAINER_PORT_SPACING,
         } : {}),
         ...(nodePorts?.length ? { ports: nodePorts } : {}),
         ...(loops ? { reserveRight: loops.reserveRight } : {}),
       };
     };
-    const nodes = spec.nodes.map(n => toLayout(n.id));
     const edges: LayoutEdge[] = plans.filter(p => p.spec.source !== p.spec.target).map(p => {
       const e = p.spec;
       const labels: LayoutLabel[] = [];
       if (p.center) labels.push({ id: `${e.id}::center`, width: Math.max(...p.center.widths) + 4, height: p.center.lines.length * lineHeight, placement: 'center' });
-      p.ends.forEach((l, k) => labels.push({ id: `${e.id}::end${k}`, width: l.width + 4, height: lineHeight, placement: (l.end === 'source') !== !!e.tree ? 'tail' : 'head' }));
+      p.ends.forEach((l, k) => labels.push({ id: `${e.id}::end${k}`, width: l.width + 4, height: lineHeight, placement: (l.end === 'source') !== !!(e.tree || e.reversed) ? 'tail' : 'head' }));
+      const sourcePort = endPort.get(`${e.id}\u0000source`) ?? e.source, targetPort = endPort.get(`${e.id}\u0000target`) ?? e.target;
       return {
         id: e.id,
-        source: e.tree ? p.elkSource : endPort.get(`${e.id}\u0000source`) ?? e.source,
-        target: e.tree ? e.source : endPort.get(`${e.id}\u0000target`) ?? e.target,
+        source: e.tree ? p.elkSource : e.reversed ? targetPort : sourcePort,
+        target: e.tree ? e.source : e.reversed ? sourcePort : targetPort,
         labels,
-        directionPriority: e.priority ?? (e.tree ? 10 : 1),
+        directionPriority: e.priority ?? (e.tree || e.reversed ? 10 : 1),
       };
     });
-    return { result: await layout(nodes, edges, { direction: dir }), dir };
+    let result = await layout(spec.nodes.map(n => toLayout(n.id)), edges, { direction: dir });
+    for (let pass = 0; pass < 3; pass++) {
+      let changed = false;
+      for (const [id, pkg] of packages) {
+        const width = result.nodes.get(id)!.width;
+        if (!all.get(id)!.spec.children?.length || width >= pkg.width - 0.5) continue;
+        extraRight.set(id, (extraRight.get(id) ?? 0) + Math.ceil(pkg.width - width));
+        changed = true;
+      }
+      if (!changed) break;
+      result = await layout(spec.nodes.map(n => toLayout(n.id)), edges, { direction: dir });
+    }
+    return { result, dir };
   };
 
   // Try each direction; keep the one that fits a landscape page best.
@@ -281,7 +341,11 @@ export async function layoutDiagram(spec: DiagramSpec, metrics: FontMetrics): Pr
     if (score < bestScore - 1) { best = candidate; bestScore = score; }
   }
   const result = best!.result;
-  const rects = new Map<string, Rect>([...all.keys()].map(id => [id, result.nodes.get(id)!]));
+  const rects = new Map<string, Rect>([...all.keys()].map(id => {
+    const r = result.nodes.get(id)!, pkg = packages.get(id);
+    // Leaf packages were laid out as their body: add the tab back on top.
+    return [id, pkg && !all.get(id)!.spec.children?.length ? { x: r.x, y: r.y - pkg.tab.height, width: r.width, height: r.height + pkg.tab.height } : r];
+  }));
   const tabs = new Map<string, Rect>([...packages].map(([id, pkg]) => [id, packageTabRect(pkg, rects.get(id)!)]));
 
   // Routes from the semantic source border to the semantic target border.
@@ -296,20 +360,14 @@ export async function layoutDiagram(spec: DiagramSpec, metrics: FontMetrics): Pr
       continue;
     }
     const points = result.edges.get(e.id)!.points;
-    let route = e.tree ? [...points].reverse() : [...points];
+    let route = e.tree || e.reversed ? [...points].reverse() : [...points];
     // Shared tree ports must stay put; other ends may slide to remove small jogs.
     route = straightenJog(route, rects.get(e.source)!);
     if (!e.tree) route = straightenJog([...route].reverse(), rects.get(e.target)!).reverse();
-    // A line meeting a package's top border right of its tab would stop in the
-    // empty space above the body: extend it down to the body.
-    for (const [node, at] of [[e.source, 0], [e.target, route.length - 1]] as const) {
-      const tab = tabs.get(node);
-      if (!tab) continue;
-      const p = route[at]!, q = route[at === 0 ? 1 : at - 1]!;
-      if (Math.abs(p.y - tab.y) < 0.5 && p.x > tab.x + tab.width + 0.5 && Math.abs(q.x - p.x) < 0.5 && q.y < p.y) {
-        route[at] = { x: p.x, y: tab.y + tab.height };
-      }
-    }
+    // Lines must meet a package's outline (tab or body), not the empty corner
+    // right of the tab.
+    route = fitToTab(route, tabs.get(e.source), rects.get(e.source)!);
+    route = fitToTab([...route].reverse(), tabs.get(e.target), rects.get(e.target)!).reverse();
     routes.set(e.id, route);
   }
 

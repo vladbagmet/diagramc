@@ -31,13 +31,22 @@ export interface LayoutNode {
   id: string;
   width: number;
   height: number;
-  /** Nested nodes (compound node). The node's size is then computed by ELK. */
+  /**
+   * Nested nodes (compound node). The node's size is then computed by ELK from its
+   * children and padding; `width` and `height` are ignored (ELK 0.11 does not
+   * apply a minimum size to compound nodes; widen them through `padding`).
+   */
   children?: LayoutNode[];
   /** Inner padding of a compound node (room for a package tab, a name compartment...). */
   padding?: { top: number; left: number; bottom: number; right: number };
   ports?: LayoutPort[];
   /** Free space to keep at the right of the node (self-loops and their labels). */
   reserveRight?: number;
+  /**
+   * Free space to keep above the node's top-left corner (a package tab): the node
+   * itself is then only the part edges attach to (the package body).
+   */
+  reserveTop?: { width: number; height: number };
   /**
    * Minimum distance between edge attachment points on this node's sides. For a
    * compound node this also spaces the points where edges cross its border
@@ -95,7 +104,10 @@ export async function layout(nodes: readonly LayoutNode[], edges: readonly Layou
     }) } : {}),
     // An invisible outside label reserves room right of the node. Its text must not
     // be empty: ELK ignores empty labels when computing node margins.
-    ...(node.reserveRight ? { labels: [{ id: `${node.id}::reserve`, text: 'reserved', width: node.reserveRight, height: Math.max(1, node.height - 2), layoutOptions: { 'elk.nodeLabels.placement': '[OUTSIDE, H_RIGHT, V_CENTER]' } }] } : {}),
+    ...(node.reserveRight || node.reserveTop ? { labels: [
+      ...(node.reserveRight ? [{ id: `${node.id}::reserve`, text: 'reserved', width: node.reserveRight, height: Math.max(1, node.height - 2), layoutOptions: { 'elk.nodeLabels.placement': '[OUTSIDE, H_RIGHT, V_CENTER]' } }] : []),
+      ...(node.reserveTop ? [{ id: `${node.id}::reserve-top`, text: 'reserved', width: node.reserveTop.width, height: node.reserveTop.height, layoutOptions: { 'elk.nodeLabels.placement': '[OUTSIDE, H_LEFT, V_TOP]' } }] : []),
+    ] } : {}),
     layoutOptions: {
       ...(node.children?.length ? spacing : {}),
       ...(node.ports?.length ? {
