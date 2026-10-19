@@ -21,9 +21,9 @@ export interface PlantUmlBackend<M> {
   /** May be async (e.g. to measure text for wrapping). Runs only after full validation. */
   toPlantUml(model: M): string | Promise<string>;
   /**
-   * Optional fix-up of PlantUML's SVG before fonts are embedded, for notation
-   * PlantUML cannot draw itself. Works on PlantUML's own output only, never
-   * inserts input text, and must keep the SVG within the safe element set.
+   * Optional fix-up of PlantUML's SVG where its drawing deviates from UML
+   * notation. Runs before font embedding and the QA gates; it may only adjust
+   * geometry and fixed theme styling, never introduce input text or markup.
    */
   postProcess?(svg: string, model: M): string;
 }

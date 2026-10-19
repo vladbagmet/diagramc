@@ -1,0 +1,10 @@
+{
+  "kind": "timing",
+  "title": "Blink",
+  "timeUnit": "s",
+  "lifelines": [
+    { "id": "led", "name": "led", "classifier": "Led", "notation": "robust",
+      "states": ["On", "Off"],
+      "changes": [ { "at": 0, "state": "Off" }, { "at": 1, "state": "On" }, { "at": 2, "state": "Off" }, { "at": 3, "state": "On" }, { "at": 4, "state": "Off" } ] }
+  ]
+}

@@ -8,6 +8,8 @@ import { interactionOverviewKind } from '../kinds/interaction-overview/index.js'
 import { componentKind } from '../kinds/component/index.js';
 import { deploymentKind } from '../kinds/deployment/index.js';
 import { compositeStructureKind } from '../kinds/composite-structure/index.js';
+import { sequenceKind } from '../kinds/sequence/index.js';
+import { timingKind } from '../kinds/timing/index.js';
 import { activityKind } from '../kinds/activity/index.js';
 import { stateMachineKind } from '../kinds/state-machine/index.js';
 import { useCaseKind } from '../kinds/use-case/index.js';
@@ -27,6 +29,8 @@ export const kinds: readonly KindDefinition[] = [
   componentKind,
   deploymentKind,
   compositeStructureKind,
+  sequenceKind,
+  timingKind,
   activityKind,
   stateMachineKind,
   useCaseKind,

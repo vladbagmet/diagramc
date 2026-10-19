@@ -1,0 +1,12 @@
+{
+  "kind": "sequence",
+  "title": "Ping",
+  "lifelines": [
+    { "id": "client", "name": "client", "classifier": "Client" },
+    { "id": "server", "name": "server", "classifier": "Server" }
+  ],
+  "items": [
+    { "type": "message", "sort": "synchronous", "from": "client", "to": "server", "name": "ping", "arguments": [], "activate": true },
+    { "type": "message", "sort": "reply", "from": "server", "to": "client", "name": "ping", "returnValue": "pong", "deactivate": true }
+  ]
+}

@@ -1,0 +1,620 @@
+{
+ "kind": "sequence",
+ "title": "Order fulfilment",
+ "autonumber": true,
+ "lifelines": [
+  {
+   "id": "client",
+   "name": "client",
+   "symbol": "actor"
+  },
+  {
+   "id": "gateway",
+   "name": "gw",
+   "classifier": "ApiGateway",
+   "symbol": "boundary"
+  },
+  {
+   "id": "orders",
+   "name": "orders",
+   "classifier": "OrderService",
+   "symbol": "control"
+  },
+  {
+   "id": "job",
+   "name": "job",
+   "classifier": "FulfilmentJob"
+  },
+  {
+   "id": "inventory",
+   "name": "inventory",
+   "classifier": "InventoryService"
+  },
+  {
+   "id": "payments",
+   "name": "payments",
+   "classifier": "PaymentService"
+  },
+  {
+   "id": "ledger",
+   "classifier": "Ledger",
+   "symbol": "entity"
+  },
+  {
+   "id": "notifier",
+   "name": "notifier",
+   "classifier": "Notifier"
+  }
+ ],
+ "items": [
+  {
+   "type": "message",
+   "sort": "synchronous",
+   "from": "client",
+   "to": "gateway",
+   "name": "submitOrder",
+   "arguments": [
+    "request"
+   ],
+   "activate": true
+  },
+  {
+   "type": "message",
+   "sort": "synchronous",
+   "from": "gateway",
+   "to": "gateway",
+   "name": "authenticate",
+   "arguments": [
+    "token"
+   ],
+   "activate": true
+  },
+  {
+   "type": "deactivate",
+   "lifeline": "gateway"
+  },
+  {
+   "type": "message",
+   "sort": "synchronous",
+   "from": "gateway",
+   "to": "orders",
+   "name": "createOrder",
+   "arguments": [
+    "request"
+   ],
+   "activate": true
+  },
+  {
+   "type": "ref",
+   "covered": [
+    "orders",
+    "inventory"
+   ],
+   "name": "ValidateOrder",
+   "arguments": [
+    "request"
+   ]
+  },
+  {
+   "type": "message",
+   "sort": "create",
+   "from": "orders",
+   "to": "job",
+   "name": "FulfilmentJob",
+   "arguments": [
+    "orderId"
+   ]
+  },
+  {
+   "type": "stateInvariant",
+   "lifeline": "job",
+   "constraint": "state = PENDING"
+  },
+  {
+   "type": "message",
+   "sort": "asynchronous",
+   "from": "orders",
+   "to": "job",
+   "name": "start"
+  },
+  {
+   "type": "activate",
+   "lifeline": "job"
+  },
+  {
+   "type": "fragment",
+   "operator": "loop",
+   "min": 1,
+   "max": "*",
+   "operands": [
+    {
+     "guard": "for each order line",
+     "items": [
+      {
+       "type": "fragment",
+       "operator": "alt",
+       "operands": [
+        {
+         "guard": "line in stock",
+         "items": [
+          {
+           "type": "message",
+           "sort": "synchronous",
+           "from": "job",
+           "to": "inventory",
+           "name": "reserve",
+           "arguments": [
+            "line1"
+           ],
+           "activate": true
+          },
+          {
+           "type": "message",
+           "sort": "reply",
+           "from": "inventory",
+           "to": "job",
+           "name": "reserve",
+           "returnValue": "ok",
+           "deactivate": true
+          },
+          {
+           "type": "message",
+           "sort": "synchronous",
+           "from": "job",
+           "to": "inventory",
+           "name": "reserve",
+           "arguments": [
+            "line2"
+           ],
+           "activate": true
+          },
+          {
+           "type": "message",
+           "sort": "reply",
+           "from": "inventory",
+           "to": "job",
+           "name": "reserve",
+           "returnValue": "ok",
+           "deactivate": true
+          }
+         ]
+        },
+        {
+         "guard": "backorder allowed",
+         "items": [
+          {
+           "type": "message",
+           "sort": "synchronous",
+           "from": "job",
+           "to": "inventory",
+           "name": "reserve",
+           "arguments": [
+            "line3"
+           ],
+           "activate": true
+          },
+          {
+           "type": "message",
+           "sort": "reply",
+           "from": "inventory",
+           "to": "job",
+           "name": "reserve",
+           "returnValue": "partial",
+           "deactivate": true
+          },
+          {
+           "type": "message",
+           "sort": "asynchronous",
+           "from": "job",
+           "to": "notifier",
+           "name": "backordered",
+           "arguments": [
+            "line3"
+           ]
+          }
+         ]
+        },
+        {
+         "guard": "else",
+         "items": [
+          {
+           "type": "message",
+           "sort": "asynchronous",
+           "from": "job",
+           "to": "orders",
+           "name": "lineRejected",
+           "arguments": [
+            "line3"
+           ]
+          },
+          {
+           "type": "fragment",
+           "operator": "break",
+           "operands": [
+            {
+             "guard": "order cannot be filled",
+             "items": [
+              {
+               "type": "message",
+               "sort": "asynchronous",
+               "from": "orders",
+               "to": "notifier",
+               "name": "orderRejected",
+               "arguments": [
+                "orderId"
+               ]
+              },
+              {
+               "type": "lost",
+               "sort": "asynchronous",
+               "from": "notifier",
+               "name": "pageOnCall",
+               "arguments": [
+                "orderId"
+               ]
+              }
+             ]
+            }
+           ]
+          }
+         ]
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "type": "message",
+   "sort": "synchronous",
+   "from": "job",
+   "to": "payments",
+   "name": "authorize",
+   "arguments": [
+    "total"
+   ],
+   "activate": true
+  },
+  {
+   "type": "fragment",
+   "operator": "critical",
+   "operands": [
+    {
+     "items": [
+      {
+       "type": "message",
+       "sort": "synchronous",
+       "from": "payments",
+       "to": "ledger",
+       "name": "debit",
+       "arguments": [
+        "account",
+        "total"
+       ],
+       "activate": true
+      },
+      {
+       "type": "message",
+       "sort": "reply",
+       "from": "ledger",
+       "to": "payments",
+       "name": "debit",
+       "returnValue": "entryId",
+       "deactivate": true
+      },
+      {
+       "type": "message",
+       "sort": "synchronous",
+       "from": "payments",
+       "to": "ledger",
+       "name": "credit",
+       "arguments": [
+        "merchant",
+        "total"
+       ],
+       "activate": true
+      },
+      {
+       "type": "message",
+       "sort": "reply",
+       "from": "ledger",
+       "to": "payments",
+       "name": "credit",
+       "returnValue": "entryId",
+       "deactivate": true
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "type": "message",
+   "sort": "reply",
+   "from": "payments",
+   "to": "job",
+   "name": "authorize",
+   "returnValue": "authCode",
+   "deactivate": true,
+   "assignment": "auth"
+  },
+  {
+   "type": "fragment",
+   "operator": "opt",
+   "operands": [
+    {
+     "guard": "auth.requiresReview",
+     "items": [
+      {
+       "type": "message",
+       "sort": "asynchronous",
+       "from": "job",
+       "to": "notifier",
+       "name": "reviewNeeded",
+       "arguments": [
+        "orderId"
+       ]
+      },
+      {
+       "type": "note",
+       "position": "right",
+       "lifelines": [
+        "notifier"
+       ],
+       "text": "Reviews are handled by the risk team within one business day."
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "type": "fragment",
+   "operator": "par",
+   "operands": [
+    {
+     "items": [
+      {
+       "type": "message",
+       "sort": "asynchronous",
+       "from": "job",
+       "to": "notifier",
+       "name": "emailCustomer",
+       "arguments": [
+        "orderId"
+       ]
+      },
+      {
+       "type": "message",
+       "sort": "asynchronous",
+       "from": "notifier",
+       "to": "client",
+       "name": "orderConfirmed",
+       "arguments": [
+        "orderId"
+       ]
+      }
+     ]
+    },
+    {
+     "items": [
+      {
+       "type": "message",
+       "sort": "asynchronous",
+       "from": "job",
+       "to": "ledger",
+       "name": "recordShipment",
+       "arguments": [
+        "orderId"
+       ]
+      }
+     ]
+    },
+    {
+     "items": [
+      {
+       "type": "message",
+       "sort": "synchronous",
+       "from": "job",
+       "to": "inventory",
+       "name": "commit",
+       "arguments": [
+        "orderId"
+       ],
+       "activate": true
+      },
+      {
+       "type": "message",
+       "sort": "reply",
+       "from": "inventory",
+       "to": "job",
+       "name": "commit",
+       "deactivate": true
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "type": "fragment",
+   "operator": "neg",
+   "operands": [
+    {
+     "items": [
+      {
+       "type": "message",
+       "sort": "synchronous",
+       "from": "client",
+       "to": "ledger",
+       "name": "readEntries"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "type": "deactivate",
+   "lifeline": "job"
+  },
+  {
+   "type": "message",
+   "sort": "asynchronous",
+   "from": "job",
+   "to": "orders",
+   "name": "fulfilled",
+   "arguments": [
+    "orderId"
+   ]
+  },
+  {
+   "type": "message",
+   "sort": "delete",
+   "from": "orders",
+   "to": "job",
+   "name": "dispose"
+  },
+  {
+   "type": "message",
+   "sort": "synchronous",
+   "from": "orders",
+   "to": "ledger",
+   "name": "summary",
+   "arguments": [
+    "orderId"
+   ],
+   "activate": true
+  },
+  {
+   "type": "message",
+   "sort": "reply",
+   "from": "ledger",
+   "to": "orders",
+   "name": "summary",
+   "returnValue": "Summary",
+   "deactivate": true
+  },
+  {
+   "type": "message",
+   "sort": "asynchronous",
+   "from": "orders",
+   "to": "notifier",
+   "name": "orderCompleted",
+   "arguments": [
+    "orderId"
+   ]
+  },
+  {
+   "type": "fragment",
+   "operator": "loop",
+   "min": 0,
+   "max": 5,
+   "operands": [
+    {
+     "guard": "until delivered",
+     "items": [
+      {
+       "type": "message",
+       "sort": "asynchronous",
+       "from": "notifier",
+       "to": "client",
+       "name": "trackingUpdate",
+       "arguments": [
+        "status"
+       ]
+      },
+      {
+       "type": "message",
+       "sort": "synchronous",
+       "from": "notifier",
+       "to": "notifier",
+       "name": "scheduleNext",
+       "arguments": [
+        "interval"
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "type": "message",
+   "sort": "reply",
+   "from": "orders",
+   "to": "gateway",
+   "name": "createOrder",
+   "returnValue": "orderId",
+   "deactivate": true
+  },
+  {
+   "type": "message",
+   "sort": "synchronous",
+   "from": "gateway",
+   "to": "gateway",
+   "name": "logRequest",
+   "arguments": [
+    "orderId"
+   ]
+  },
+  {
+   "type": "fragment",
+   "operator": "alt",
+   "operands": [
+    {
+     "guard": "client accepts JSON",
+     "items": [
+      {
+       "type": "message",
+       "sort": "reply",
+       "from": "gateway",
+       "to": "client",
+       "assignment": "response",
+       "name": "submitOrder",
+       "returnValue": "201 Created"
+      }
+     ]
+    },
+    {
+     "guard": "else",
+     "items": [
+      {
+       "type": "message",
+       "sort": "reply",
+       "from": "gateway",
+       "to": "client",
+       "name": "submitOrder",
+       "returnValue": "406 Not Acceptable"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "type": "deactivate",
+   "lifeline": "gateway"
+  },
+  {
+   "type": "found",
+   "sort": "asynchronous",
+   "to": "notifier",
+   "name": "retryTick"
+  },
+  {
+   "type": "message",
+   "sort": "asynchronous",
+   "from": "notifier",
+   "to": "client",
+   "name": "reminder",
+   "arguments": [
+    "orderId"
+   ]
+  },
+  {
+   "type": "note",
+   "position": "over",
+   "lifelines": [
+    "client",
+    "gateway"
+   ],
+   "text": "Replies are dashed with open arrowheads; asynchronous messages are solid with open arrowheads."
+  }
+ ]
+}

@@ -1,0 +1,57 @@
+{
+  "kind": "sequence",
+  "title": "Notation",
+  "lifelines": [
+    { "id": "user", "name": "user", "symbol": "actor" },
+    { "id": "screen", "name": "screen", "classifier": "LoginScreen", "symbol": "boundary" },
+    { "id": "auth", "name": "auth", "classifier": "AuthController", "symbol": "control" },
+    { "id": "session", "name": "s", "classifier": "Session" },
+    { "id": "store", "classifier": "UserStore", "symbol": "entity" }
+  ],
+  "items": [
+    { "type": "found", "sort": "asynchronous", "to": "screen", "name": "wake" },
+    { "type": "message", "sort": "synchronous", "from": "user", "to": "screen", "name": "submit", "arguments": ["name", "password"], "activate": true },
+    { "type": "message", "sort": "synchronous", "from": "screen", "to": "auth", "name": "login", "arguments": ["name", "password"], "activate": true },
+    { "type": "message", "sort": "synchronous", "from": "auth", "to": "auth", "name": "hash", "arguments": ["password"], "activate": true },
+    { "type": "deactivate", "lifeline": "auth" },
+    { "type": "ref", "covered": ["auth", "store"], "name": "FindUser", "arguments": ["name"] },
+    { "type": "fragment", "operator": "alt", "operands": [
+      { "guard": "user found", "items": [
+        { "type": "message", "sort": "create", "from": "auth", "to": "session", "name": "Session", "arguments": ["user"] },
+        { "type": "stateInvariant", "lifeline": "session", "constraint": "open" },
+        { "type": "fragment", "operator": "opt", "operands": [
+          { "guard": "remember me", "items": [
+            { "type": "message", "sort": "asynchronous", "from": "auth", "to": "store", "name": "saveToken", "arguments": ["s"] }
+          ] }
+        ] }
+      ] },
+      { "guard": "else", "items": [
+        { "type": "fragment", "operator": "loop", "min": 1, "max": 3, "operands": [
+          { "guard": "attempts < 3", "items": [
+            { "type": "message", "sort": "asynchronous", "from": "auth", "to": "screen", "name": "showError" }
+          ] }
+        ] },
+        { "type": "fragment", "operator": "break", "operands": [
+          { "guard": "locked", "items": [
+            { "type": "lost", "sort": "asynchronous", "from": "auth", "name": "alertSecurity" }
+          ] }
+        ] }
+      ] }
+    ] },
+    { "type": "fragment", "operator": "par", "operands": [
+      { "items": [ { "type": "message", "sort": "asynchronous", "from": "auth", "to": "store", "name": "audit", "arguments": ["login"] } ] },
+      { "items": [ { "type": "message", "sort": "asynchronous", "from": "auth", "to": "screen", "name": "refresh" } ] }
+    ] },
+    { "type": "fragment", "operator": "critical", "operands": [
+      { "items": [ { "type": "message", "sort": "synchronous", "from": "auth", "to": "store", "name": "incrementCounter" } ] }
+    ] },
+    { "type": "fragment", "operator": "neg", "operands": [
+      { "items": [ { "type": "message", "sort": "synchronous", "from": "screen", "to": "store", "name": "readPassword" } ] }
+    ] },
+    { "type": "message", "sort": "reply", "from": "auth", "to": "screen", "name": "login", "returnValue": "ok", "deactivate": true },
+    { "type": "note", "position": "over", "lifelines": ["screen", "auth"], "text": "Replies use a dashed line with an open arrowhead." },
+    { "type": "message", "sort": "reply", "from": "screen", "to": "user", "name": "submit", "deactivate": true },
+    { "type": "note", "position": "left", "lifelines": ["user"], "text": "Actor lifeline" },
+    { "type": "destroy", "lifeline": "session" }
+  ]
+}

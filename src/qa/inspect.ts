@@ -2,6 +2,7 @@ import { loadFonts, type FontMetrics } from '../engine/fonts.js';
 import { union, type Point, type Rect } from '../engine/geometry.js';
 import { parseXml, textContent, walk, type XmlElement } from './xml.js';
 import { readPlantUmlActivity } from './plantuml-activity.js';
+import { readSequence, readTiming, type Interaction } from './plantuml-interaction.js';
 
 /**
  * Geometry extracted from a rendered SVG. Own-engine output is read exactly from
@@ -61,6 +62,10 @@ export interface Scene {
   unsafe: string[];
   /** True when edges, markers and labels were read exactly, so the edge gates can run. */
   exactEdges?: boolean;
+  /** PlantUML interaction diagrams (sequence, timing): lifelines and messages for the message-endpoints gate. */
+  interaction?: Interaction;
+  /** Gates normally evaluated only on own-engine output that this PlantUML scene supplies exact data for. */
+  evaluated?: string[];
 }
 
 const numbers = (s: string | undefined): number[] => (s ?? '').match(/-?\d*\.?\d+(?:e-?\d+)?/giu)?.map(Number) ?? [];
@@ -72,7 +77,7 @@ const point = (s: string | undefined): Point | undefined => {
   const [x, y] = numbers(s);
   return y === undefined ? undefined : { x: x!, y };
 };
-const pointList = (s: string | undefined): Point[] => {
+export const pointList = (s: string | undefined): Point[] => {
   const n = numbers(s), out: Point[] = [];
   for (let i = 0; i + 1 < n.length; i += 2) out.push({ x: n[i]!, y: n[i + 1]! });
   return out;
@@ -132,6 +137,8 @@ export async function inspectSvg(svg: string): Promise<Scene> {
   }
 
   if (renderer === 'engine') readEngine(root, scene);
+  else if (root.attrs['data-diagram-type'] === 'SEQUENCE') readSequence(root, scene);
+  else if (root.attrs['data-diagram-type'] === 'TIMING') readTiming(root, scene);
   else if (root.attrs['data-diagram-type'] === 'ACTIVITY') readPlantUmlActivity(root, scene);
   else readPlantUml(root, scene);
   return scene;
