@@ -158,11 +158,35 @@ export function routeOrthogonal(request: RouteRequest): Point[] | undefined {
     ...blocked.flatMap(r => [r.y, r.y + r.height, r.y - theme.spacing.edgeEdge, r.y + r.height + theme.spacing.edgeEdge]),
     ...okStarts.map(a => a.stub.y), ...okGoals.map(a => a.stub.y),
   ]).filter(y => y >= area.y - 2 * margin - 0.5 && y <= area.y + area.height + 2 * margin + 0.5);
-  const xi = new Map(xs.map((x, i) => [x, i])), yi = new Map(ys.map((y, i) => [y, i]));
   const W = xs.length, H = ys.length;
   const key = (i: number, j: number, d: number): number => ((j * W + i) << 2) | d;
+  const index = (values: readonly number[], v: number): number | undefined => {
+    let lo = 0, hi = values.length - 1;
+    const r = Math.round(v * 2) / 2;
+    while (lo <= hi) { const m = (lo + hi) >> 1; if (values[m]! === r) return m; if (values[m]! < r) lo = m + 1; else hi = m - 1; }
+    return undefined;
+  };
 
-  // Existing lines, split into horizontal and vertical segments.
+  // Blocked grid points and grid moves: inside an inflated obstacle (strictly).
+  // Grid lines lie on the obstacles' sides, so a move between neighbours is either
+  // entirely inside an obstacle or entirely outside.
+  const pointBlocked = new Uint8Array(W * H), hBlocked = new Uint8Array(W * H), vBlocked = new Uint8Array(W * H);
+  const firstAbove = (values: readonly number[], v: number): number => { let k = 0; while (k < values.length && values[k]! <= v + 0.01) k++; return k; };
+  for (const r of blocked) {
+    const i0 = firstAbove(xs, r.x), j0 = firstAbove(ys, r.y);
+    for (let j = j0; j < H && ys[j]! < r.y + r.height - 0.01; j++) for (let i = i0; i < W && xs[i]! < r.x + r.width - 0.01; i++) pointBlocked[j * W + i] = 1;
+    // Horizontal moves (i -> i+1) on a row strictly inside, whose midpoint is inside.
+    for (let j = j0; j < H && ys[j]! < r.y + r.height - 0.01; j++) for (let i = Math.max(0, i0 - 1); i + 1 < W && xs[i]! < r.x + r.width - 0.01; i++) {
+      const mid = (xs[i]! + xs[i + 1]!) / 2;
+      if (mid > r.x + 0.01 && mid < r.x + r.width - 0.01) hBlocked[j * W + i] = 1;
+    }
+    for (let i = i0; i < W && xs[i]! < r.x + r.width - 0.01; i++) for (let j = Math.max(0, j0 - 1); j + 1 < H && ys[j]! < r.y + r.height - 0.01; j++) {
+      const mid = (ys[j]! + ys[j + 1]!) / 2;
+      if (mid > r.y + 0.01 && mid < r.y + r.height - 0.01) vBlocked[j * W + i] = 1;
+    }
+  }
+
+  // Existing lines, split into horizontal and vertical segments, indexed by grid row and column.
   const horizontal: { y: number; x0: number; x1: number }[] = [], vertical: { x: number; y0: number; y1: number }[] = [];
   for (const line of request.lines) for (let k = 1; k < line.length; k++) {
     const a = line[k - 1]!, b = line[k]!;
@@ -170,8 +194,32 @@ export function routeOrthogonal(request: RouteRequest): Point[] | undefined {
     else if (Math.abs(a.x - b.x) < 0.5) vertical.push({ x: a.x, y0: Math.min(a.y, b.y), y1: Math.max(a.y, b.y) });
   }
   const near = request.spacing ?? theme.spacing.edgeEdge - 1;
-  /** Extra cost of a grid move from a to b (crossings and running along lines). */
-  const moveCost = (a: Point, b: Point): number => {
+  const rowNear = ys.map(y => horizontal.filter(s => Math.abs(s.y - y) < near));
+  const rowCross = ys.map(y => vertical.filter(s => y > s.y0 && y < s.y1));
+  const colNear = xs.map(x => vertical.filter(s => Math.abs(s.x - x) < near));
+  const colCross = xs.map(x => horizontal.filter(s => x > s.x0 && x < s.x1));
+  /** Extra cost of a grid move (crossings and running along lines), cached per move. */
+  const hCost = new Float64Array(W * H).fill(-1), vCost = new Float64Array(W * H).fill(-1);
+  const horizontalCost = (i: number, j: number): number => {
+    const at = j * W + i;
+    if (hCost[at]! >= 0) return hCost[at]!;
+    const x0 = xs[i]!, x1 = xs[i + 1]!;
+    let cost = 0;
+    for (const s of rowNear[j]!) cost += Math.max(0, Math.min(x1, s.x1) - Math.max(x0, s.x0)) * ALONG;
+    for (const s of rowCross[j]!) if (s.x > x0 && s.x < x1) cost += CROSS;
+    return (hCost[at] = cost);
+  };
+  const verticalCost = (i: number, j: number): number => {
+    const at = j * W + i;
+    if (vCost[at]! >= 0) return vCost[at]!;
+    const y0 = ys[j]!, y1 = ys[j + 1]!;
+    let cost = 0;
+    for (const s of colNear[i]!) cost += Math.max(0, Math.min(y1, s.y1) - Math.max(y0, s.y0)) * ALONG;
+    for (const s of colCross[i]!) if (s.y > y0 && s.y < y1) cost += CROSS;
+    return (vCost[at] = cost);
+  };
+  /** Extra cost of a stub (not on the grid). */
+  const stubCost = (a: Point, b: Point): number => {
     let cost = 0;
     if (Math.abs(a.y - b.y) < 0.01) {
       const x0 = Math.min(a.x, b.x), x1 = Math.max(a.x, b.x);
@@ -185,56 +233,62 @@ export function routeOrthogonal(request: RouteRequest): Point[] | undefined {
     return cost;
   };
 
-  const best = new Map<number, number>(), from = new Map<number, number>();
+  const best = new Float64Array(W * H * 4).fill(Infinity), from = new Int32Array(W * H * 4).fill(-1);
   const heap = new Heap();
   const startAttach = new Map<number, Attach>();
-  for (const a of okStarts) {
-    const i = xi.get(Math.round(a.stub.x * 2) / 2), j = yi.get(Math.round(a.stub.y * 2) / 2);
-    if (i === undefined || j === undefined || inside(a.stub, blocked)) continue;
-    const k = key(i, j, a.dir), c = distance(a.border, a.stub) + a.cost + moveCost(a.border, a.stub);
-    if (c < (best.get(k) ?? Infinity)) { best.set(k, c); startAttach.set(k, a); heap.push([c, k]); }
-  }
   const goalAt = new Map<number, Attach[]>();
   for (const g of okGoals) {
-    const i = xi.get(Math.round(g.stub.x * 2) / 2), j = yi.get(Math.round(g.stub.y * 2) / 2);
-    if (i === undefined || j === undefined || inside(g.stub, blocked)) continue;
+    const i = index(xs, g.stub.x), j = index(ys, g.stub.y);
+    if (i === undefined || j === undefined || pointBlocked[j * W + i]) continue;
     const at = j * W + i;
     goalAt.set(at, [...(goalAt.get(at) ?? []), g]);
   }
+  if (!goalAt.size) return undefined;
+  // A*: the Manhattan distance to the nearest goal stub never overestimates.
+  const goalPoints = okGoals.map(g => g.stub);
+  const h = (i: number, j: number): number => Math.min(...goalPoints.map(g => Math.abs(g.x - xs[i]!) + Math.abs(g.y - ys[j]!)));
+  for (const a of okStarts) {
+    const i = index(xs, a.stub.x), j = index(ys, a.stub.y);
+    if (i === undefined || j === undefined || pointBlocked[j * W + i]) continue;
+    const k = key(i, j, a.dir), c = distance(a.border, a.stub) + a.cost + stubCost(a.border, a.stub);
+    if (c < best[k]!) { best[k] = c; startAttach.set(k, a); heap.push([c + h(i, j), k]); }
+  }
   let found: { state: number; goal: Attach; cost: number } | undefined;
   while (heap.size) {
-    const [c, k] = heap.pop();
-    if (c > (best.get(k) ?? Infinity)) continue;
-    if (found && c >= found.cost) break;
+    const [f, k] = heap.pop();
+    const c = best[k]!;
+    if (found && f >= found.cost) break;
     const at = k >> 2, d = k & 3, i = at % W, j = (at - i) / W;
-    const p = { x: xs[i]!, y: ys[j]! };
+    if (f > c + h(i, j) + 1e-6) continue;
     for (const g of goalAt.get(at) ?? []) {
       // Arrive heading into the target: opposite of the goal's outward direction.
       const into = (g.dir + 2) % 4;
-      const total = c + (d === into ? 0 : BEND) + distance(g.stub, g.border) + g.cost + moveCost(g.stub, g.border);
-      if (d !== (g.dir) && (!found || total < found.cost)) found = { state: k, goal: g, cost: total };
+      const total = c + (d === into ? 0 : BEND) + distance(g.stub, g.border) + g.cost + stubCost(g.stub, g.border);
+      if (d !== g.dir && (!found || total < found.cost)) found = { state: k, goal: g, cost: total };
     }
     for (let nd = 0; nd < 4; nd++) {
       if (nd === (d + 2) % 4) continue;
       const u = DIRS[nd]!;
       const ni = i + u.x, nj = j + u.y;
-      if (ni < 0 || nj < 0 || ni >= W || nj >= H) continue;
-      const q = { x: xs[ni]!, y: ys[nj]! };
-      if (inside({ x: (p.x + q.x) / 2, y: (p.y + q.y) / 2 }, blocked) || inside(q, blocked)) continue;
+      if (ni < 0 || nj < 0 || ni >= W || nj >= H || pointBlocked[nj * W + ni]) continue;
+      // The move's cell: the lower-left grid point of the move.
+      const mi = Math.min(i, ni), mj = Math.min(j, nj);
+      if (u.y === 0 ? hBlocked[mj * W + mi] : vBlocked[mj * W + mi]) continue;
       const nk = key(ni, nj, nd);
-      const nc = c + distance(p, q) + (nd === d ? 0 : BEND) + moveCost(p, q);
-      if (nc < (best.get(nk) ?? Infinity) - 1e-9) { best.set(nk, nc); from.set(nk, k); heap.push([nc, nk]); }
+      const step = u.y === 0 ? xs[mi + 1]! - xs[mi]! : ys[mj + 1]! - ys[mj]!;
+      const nc = c + step + (nd === d ? 0 : BEND) + (u.y === 0 ? horizontalCost(mi, mj) : verticalCost(mi, mj));
+      if (nc < best[nk]! - 1e-9) { best[nk] = nc; from[nk] = k; heap.push([nc + h(ni, nj), nk]); }
     }
   }
   if (!found) return undefined;
   const path: Point[] = [found.goal.border, found.goal.stub];
-  let k: number | undefined = found.state;
+  let k = found.state;
   let first = k;
-  while (k !== undefined) {
+  while (k >= 0) {
     const at = k >> 2, i = at % W, j = (at - i) / W;
     path.push({ x: xs[i]!, y: ys[j]! });
     first = k;
-    k = from.get(k);
+    k = from[k]!;
   }
   path.push(startAttach.get(first)!.border);
   return simplify(path.reverse());

@@ -50,5 +50,5 @@ export function objectDiagramSpec(model: ObjectDiagram): DiagramSpec {
     if (!isNote(e)) continue;
     for (const target of e.attachedTo ?? []) edges.push({ id: `${e.id}->${target}`, type: 'note-anchor', source: e.id, target, style: 'dashed', sourceMarker: 'none', targetMarker: 'none' });
   }
-  return { kind: 'object', frameKeyword: 'object', title: model.title, nodes: model.elements.map(node), edges, directions: ['DOWN', 'RIGHT'] };
+  return { kind: 'object', frameKeyword: 'object', title: model.title, nodes: model.elements.map(node), edges, directions: ['DOWN', 'RIGHT'], wrap: true };
 }
