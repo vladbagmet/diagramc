@@ -17,12 +17,19 @@ PlantUML's activity syntax is structured (`switch`, `fork`, `while`, `repeat`), 
 `structure.ts` recovers the structure of the JSON graph before anything is drawn:
 
 - a decision closes at the merge node all its continuing branches reach; branches
-  that end in final nodes need no merge (`switch` ... `endswitch`, one diamond
-  with several guarded flows);
+  that end in final nodes need no merge. A two-way decision is `if` ... `else` ...
+  `endif`, which keeps each guard at its own branch and lets branches go to other
+  swimlanes; a decision with more than two branches is `switch` ... `endswitch`,
+  whose branches must stay in the decision's swimlane (PlantUML loses the flows
+  and guards of a case that changes swimlane), so such a model is rejected with
+  `DECISION_SPANS_PARTITIONS` (split it into nested two-way decisions);
 - a fork closes at the join all its branches reach (`fork` ... `end fork`);
 - a loop enters at a merge node that receives a returning flow and leaves through
   exactly one flow of a two-way decision: test first is `while`, test last is
-  `repeat ... repeat while`, and one action on the returning flow is `backward`;
+  `repeat ... repeat while`, and one action on the returning flow is `backward`.
+  PlantUML drops the is/not labels of `repeat while` with plain diamonds and in
+  swimlanes, so the returning guard is the condition beside the diamond and the
+  leaving guard labels the next flow (`->[guard];`);
 - a decision whose other branches all terminate has no merge in the model; the one
   continuing branch then carries the rest of the flow, so PlantUML draws no merge
   diamond that the model does not have.
@@ -40,21 +47,21 @@ and the semantics unambiguous.
 
 | Construct | JSON | UML 2.5.1 notation | Proof |
 |---|---|---|---|
-| Opaque action | `nodes[].type = "action"` | Rounded rectangle with the name (16.2.4) | integration: "UML 2.5.1 notation of every construct" (type `action`, rounded rect) |
+| Opaque action | `nodes[].type = "action"` | Rounded rectangle with the name, wrapped at 260 px at natural break points (16.2.4) | integration: "UML 2.5.1 notation of every construct" (type `action`, rounded rect) |
 | Call behavior action | `type: "callBehavior"` | Rounded rectangle with the rake symbol in the lower right corner (16.3.4) | unit: "post-processor draws open arrowheads, drops mid-line arrows and adds the rake"; integration: rake path present |
 | Send signal action | `type: "sendSignal"` | Convex pentagon (16.3.4) | integration: `signal` node, five-point polygon |
-| Accept event action | `type: "acceptEvent"` | Rectangle with a concave notch (16.3.4) | integration: `signal` node |
+| Accept event action | `type: "acceptEvent"` | Rectangle with a concave notch on the left (16.10.4); PlantUML's notch on the right is mirrored | unit: post-processor test; integration: notch point inside the left edge |
 | Object node | `type: "object"`, `state` | Rectangle with the type name and `[state]` below it (15.4.4) | integration: `object` node with `[complete]` |
 | Initial node | `type: "initial"` | Filled circle (15.3.4) | integration: one filled circle r=10 |
 | Activity final | `type: "activityFinal"` | Circle with a filled inner circle (15.3.4) | integration: bull's eye |
 | Flow final | `type: "flowFinal"` | Circle with an X (15.3.4) | integration: three circles in the notation example |
 | Decision / merge | `type: "decision"` / `"merge"` | Diamond; guards `[g]` on the flows leaving a decision; a merge directly followed by a loop decision is drawn as one combined diamond (15.3.4 allows this) | integration: diamonds and guard labels; unit: "flow graphs become structured blocks" |
-| Fork / join | `type: "fork"` / `"join"` | Thick bar (15.3.4) | integration: two bars |
-| Control flow, object flow | `edges[].type` | Solid line with an open arrowhead at the target (15.2.4); PlantUML's filled, notched heads are rewritten to open heads | integration: every flow's target marker is `open-arrow`, no filled heads |
+| Fork / join | `type: "fork"` / `"join"` | Thick bar spanning its flows plus 16 px (15.3.4); PlantUML's bars across the whole block are trimmed | integration: two bars, overhang at most 16 px |
+| Control flow, object flow | `edges[].type` (optional: object flow when an end is an object node) | Solid line with an open arrowhead at the target (15.2.4); PlantUML's filled, notched heads are rewritten to open heads | integration: every flow's target marker is `open-arrow`, no filled heads |
 | Guard | `edges[].guard` | `[guard]` next to the flow | integration: guards are labels |
 | Loops | merge + decision + returning flow | Merge diamond, decision diamond, returning flow with its guard | unit: while/repeat/backward; fixtures "while loop", "repeat loop", "loop with an action on the returning flow" |
 | Partitions | `partitions`, `nodes[].partition` | Swimlanes left to right in input order, bold names (15.6.4) | integration: "partitions are swimlanes in input order with bold names" |
-| Note | `note` on an executable node | Rectangle with a folded corner next to the node | integration: one `note` node |
+| Note | `note` on an executable node | Rectangle with a folded corner next to the node, attached by a dashed line (7.2.4); PlantUML's speech-bubble pointer is removed | integration: one `note` node and its dashed anchor |
 | Diagram frame | `title` | Frame with pentagon heading **act** name (Annex A) | integration: frame label `act` bold |
 
 ## Semantic rules
@@ -76,6 +83,7 @@ and the semantics unambiguous.
 | INVALID_OBJECT_FLOW | an object flow touches an object node or a control node, never the initial node | `/edges/1/type`, `/edges/0/type` |
 | INVALID_CONTROL_FLOW | flows into or out of object nodes are object flows | `/edges/1/type` |
 | UNSTRUCTURED_FLOW | the graph is well structured (see above) | `/nodes/1`, `/nodes/3` |
+| DECISION_SPANS_PARTITIONS | a decision with more than two branches keeps them in its own partition | `/nodes/1/partition` |
 | SCHEMA_INVALID, INVALID_TEXT, UNKNOWN_KIND | shared rules | see `invalid.json` |
 
 ## Unsupported (rejected by the schema)

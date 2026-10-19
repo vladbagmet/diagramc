@@ -3,10 +3,12 @@
 An agent-first CLI: validated JSON UML models in, readable SVG or PNG out. No
 server, API key, browser, Graphviz or global installation. Rendering is offline.
 
-Status (0.2.0): the foundation for all 14 UML 2.5.1 diagram kinds (see
-[`docs/plans/full-uml-plan.md`](docs/plans/full-uml-plan.md)). **Class diagrams**
-are complete on the own layout engine; the other kinds plug in through
-[`docs/kinds/README.md`](docs/kinds/README.md).
+Status (0.2.0): all 14 UML 2.5.1 diagram kinds are implemented: class, object,
+package, profile, component, deployment, composite structure, communication,
+interaction overview, state machine and use case on the own layout engine;
+sequence, timing and activity on a pinned, sandboxed PlantUML (see
+[`docs/plans/full-uml-plan.md`](docs/plans/full-uml-plan.md) and the per-kind
+checklists in [`docs/kinds/`](docs/kinds/README.md)).
 
 ## Setup
 
@@ -18,7 +20,8 @@ npm run build
 npm test                    # unit tests, no Java needed
 ```
 
-Own-engine kinds (class, object, package, component, state machine, use case, ...)
+Own-engine kinds (class, object, package, profile, component, deployment,
+composite structure, communication, interaction overview, state machine, use case)
 need nothing else. PlantUML kinds (sequence, timing, activity, and the
 `--backend plantuml` class fallback) need the pinned local renderer:
 
@@ -40,16 +43,36 @@ set both `UML_JAVA` and `PLANTUML_JAR`.
 uml render model.json -o diagram.svg          # or .png (2x by default)
 cat model.json | uml render - -o diagram.png --scale 3
 uml render model.json -o diagram.svg --backend plantuml
+uml render model.json -o diagram.svg --strict # fail instead of warning on layout defects
 uml validate model.json                       # {"valid":true,"kind":"class","version":2}
-uml kinds                                     # supported kinds as JSON
-uml schema class                              # JSON Schema of a kind
+uml example sequence                          # a minimal valid model to start from
+uml schema class                              # JSON Schema of a kind: every property, allowed values
+uml kinds                                     # the 14 kinds as JSON
 uml --help
 ```
+
+Writing a model: start from `uml example <kind>`, look properties up in
+`uml schema <kind>`, then `uml validate`. When validation fails, the error lists
+every problem with a corrected value where one is clear (see [Errors](#errors)).
 
 Run it with `npm exec --offline -- uml ...` or `./dist/cli.js ...`. The output
 format follows the `-o` extension unless `--format svg|png` is given. Output is
 replaced atomically, only after a successful render; its parent must exist.
-Successful runs print nothing (except `validate`, `kinds`, `schema`).
+Successful runs print nothing on stdout (except `validate`, `example`, `kinds`,
+`schema`).
+
+### Layout checks: warnings and `--strict`
+
+Every render runs the same QA gates the test suite uses (a few milliseconds; see
+[Quality assurance](#quality-assurance)). When the drawing fails one, the file is
+still written and the exit code is 0, but stderr carries one JSON object:
+
+```json
+{"warnings":[{"code":"LAYOUT_QUALITY","gate":"label-edge-crossing","message":"Layout check \"label-edge-crossing\" found 1 problem: label \"places\" crosses edge r3","count":1,"problems":["label \"places\" crosses edge r3"],"advice":"A line runs through a label. Shorter labels or fewer crossing relationships usually help."}]}
+```
+
+With `--strict` the same finding is an error instead: exit code 5, code
+`LAYOUT_QUALITY`, `details.warnings` as above, and no output is written or changed.
 
 ## Model
 
@@ -249,7 +272,9 @@ Examples: [`examples/interaction-overview/`](examples/interaction-overview/).
 
 ### Sequence diagrams
 
-Drawn by PlantUML. `lifelines` (left to right; `name`, `classifier`, `symbol`
+Drawn by PlantUML, post-processed to UML notation (guards in regular weight,
+notes kept clear of other lifelines, found and lost messages inside their
+fragment). `lifelines` (left to right; `name`, `classifier`, `symbol`
 rectangle, actor, boundary, control or entity) and `items` in time order, top to
 bottom: `message` from `from` to `to` with a `sort` (synchronous: filled
 arrowhead; asynchronous: open; reply: dashed, open; create: dashed to the new
@@ -258,9 +283,10 @@ lifeline's head; delete: ends in the X of `to`), `found` and `lost` messages,
 `deactivate: true` for the sender), `destroy`, `stateInvariant`, `note`, `ref`
 (interaction use over `covered` lifelines) and `fragment` (`operator` alt, opt,
 loop with `min`/`max`, par, break, critical, neg, strict, seq, assert; `operands`
-with optional `guard` and their own items). A created lifeline must not appear
-before its create message, nothing may follow a destruction, and activations end
-in the operand where they start.
+with optional `guard`, written without brackets, and their own items). A created
+lifeline must not appear before its create message, nothing may follow a
+destruction, and activations end in the operand where they start (end one that
+spans a fragment with a `deactivate` item after the fragment).
 
 ```json
 { "kind": "sequence", "title": "Ping",
@@ -278,11 +304,15 @@ Examples: [`examples/sequence/`](examples/sequence/).
 Drawn by PlantUML. `lifelines` (top to bottom) with `notation` robust (one row per
 state, a stepped state line) or concise (values in bands), their declared
 `states` and `changes` (`at`, `state`) in increasing time order. All times are
-integers in `timeUnit`, which labels the time axis. Optional `messages` (sent by
-`from` at `fromTime`, received by `to` at `toTime`), `durationConstraints`
-(arrow labelled `{min..max}` on a lifeline between two times), `timeConstraints`
-(the change of `lifeline` at `at` must happen within `[from, to]`), `highlights`
-and `notes` (concise lifelines).
+integers in `timeUnit`, which labels the time axis (for 2.5 s use `"ms"` and
+2500). Optional `messages` (sent by `from` at `fromTime`, received by `to` at
+`toTime`), `durationConstraints` (arrow labelled `{min..max}` in a band above its
+lifeline, with dotted lines to the two times), `timeConstraints` (the change of
+`lifeline` at `at` must happen within `[from, to]`: a shaded window in that
+lifeline's row), `highlights` and `notes` (concise lifelines). The time scale
+follows what has to fit between two times; text that cannot fit even on the
+widest axis (3200 px) is rejected with `TIMELINE_TOO_DENSE` and the room it needs,
+never drawn over other text.
 
 ```json
 { "kind": "timing", "title": "Blink", "timeUnit": "s",
@@ -298,9 +328,12 @@ Examples: [`examples/timing/`](examples/timing/).
 Drawn by PlantUML's activity engine (needs the pinned renderer). `nodes` of type
 `action`, `callBehavior` (with the rake symbol), `sendSignal`, `acceptEvent`,
 `object` (with an optional `[state]`), `initial`, `activityFinal`, `flowFinal`,
-`decision`, `merge`, `fork` and `join`, connected by `edges` of type `control` or
-`object` from `from` to `to`. Flows leaving a decision carry a `guard`; executable
-nodes may carry a `note`; optional `partitions` become swimlanes. Decisions and
+`decision`, `merge`, `fork` and `join`, connected by `edges` from `from` to `to`
+(`type` control or object, inferred when omitted). Flows leaving a decision carry
+a `guard` written without brackets; executable nodes may carry a `note`, attached
+with a dashed line; optional `partitions` become swimlanes, and two-way decisions
+may send their branches to other swimlanes (a decision with more than two branches
+keeps them in its own swimlane, `DECISION_SPANS_PARTITIONS`). Decisions and
 merges, forks and joins are explicit nodes (an action has at most one incoming and
 one outgoing flow), and the graph must be well structured: each decision closes at
 its own merge, each fork at its join, loops enter at a merge and leave through one
@@ -360,25 +393,51 @@ Examples: [`examples/use-case/`](examples/use-case/).
 Errors are one JSON object on stderr; no output file is written or changed.
 
 ```json
-{"error":{"code":"MISSING_REFERENCE","message":"Reference to unknown element \"missing\"","path":"/relationships/0/to","details":{"from":"customer","to":"missing"},"diagnostics":[...]}}
+{"error":{"code":"SCHEMA_INVALID","message":"2 problems; fix all of them (each is also listed in \"diagnostics\" with its path): (1) Unknown property \"methods\" in /elements/0 (type \"class\"); did you mean \"operations\". Allowed properties: id, type, name, stereotypes, attributes, operations, abstract (2) /relationships/0/type is \"inheritance\", which is not a known type; did you mean \"generalization\". Allowed values: \"generalization\", \"realization\", ...","path":"/elements/0/methods","diagnostics":[{"code":"SCHEMA_INVALID","path":"/elements/0/methods","message":"...","details":{"rule":"additionalProperties","property":"methods","allowed":["id","type","name","stereotypes","attributes","operations","abstract"],"suggestion":"operations"}},{"code":"SCHEMA_INVALID","path":"/relationships/0/type","message":"...","details":{"rule":"discriminator","allowed":["generalization","realization","association","aggregation","composition","dependency","containment"],"value":"inheritance","suggestion":"generalization"}}]}}
 ```
 
-`path` is a JSON Pointer into the input; `diagnostics` lists every problem found
-(fix them all in one pass). Exit codes: `0` success, `2` usage/input validation,
-`3` renderer, `4` file I/O, `130`/`143` interrupted by SIGINT/SIGTERM. Codes
-include `USAGE`, `INVALID_JSON`, `INVALID_ENCODING`, `INPUT_TOO_LARGE`,
-`SCHEMA_INVALID` (details: every schema error), `INVALID_TEXT`, `UNKNOWN_KIND`,
-`DUPLICATE_ID`, `MISSING_REFERENCE`, kind-specific rule codes (see
-`docs/kinds/<kind>.md`), `UNSUPPORTED_BACKEND`, `RENDERER_MISSING`,
-`RENDER_FAILED`, `RENDER_TIMEOUT`, `RENDER_OUTPUT_LIMIT`, `RENDER_INTERRUPTED`,
-`RASTERIZE_FAILED`, `OUTPUT_WRITE_FAILED`.
+Written so an agent can fix a model in one round:
+
+- `diagnostics` lists every problem, one entry per problem, in document order,
+  each with a JSON Pointer `path`; `message` summarises all of them; `code` and
+  `path` are the first one's.
+- Unknown properties list the allowed ones and the nearest match (typos and names
+  from other tools: `methods` -> `operations`, `label` -> `name`, `source`/`target`
+  -> `from`/`to`, `participants` -> `lifelines`, `tags` -> `attributes`, ...).
+  Wrong `type` (or other enumerated) values list the allowed values and the nearest
+  one (`inheritance` -> `generalization`, `"type": "alt"` -> a fragment with
+  `"operator": "alt"`). Formats are described in words with examples, never as a
+  regular expression (`"0..n"` -> `"0..*"`, `"engine.tank"` -> `"engine-tank"`).
+- `details.suggestion` holds the corrected value or property name where it is
+  clear; `details.swap` the corrected `from`/`to` when a relationship looks
+  reversed. Problems that appear once those corrections are made are reported in
+  the same error, marked `details.afterFixes`.
+- Unknown kinds, IDs and commands get "did you mean"; a reference by name points
+  at the ID; keywords written with guillemets and guards or constraints written
+  with their brackets are rejected with the bare text (the diagram adds them).
+- `INVALID_JSON` gives the line, column and a hint (trailing comma, comment,
+  single quotes); file errors name the path and the reason (`errno`).
+
+Exit codes: `0` success (possibly with layout warnings), `2` usage or input
+validation, `3` renderer, `4` file I/O, `5` layout check failed under `--strict`,
+`130`/`143` interrupted by SIGINT/SIGTERM. Codes include `USAGE`, `INVALID_JSON`,
+`INVALID_ENCODING`, `INPUT_TOO_LARGE`, `INPUT_READ_FAILED`, `SCHEMA_INVALID`,
+`INVALID_TEXT`, `UNKNOWN_KIND`, `DUPLICATE_ID`, `MISSING_REFERENCE`, kind-specific
+rule codes (see `docs/kinds/<kind>.md`), `UNSUPPORTED_BACKEND`,
+`RENDERER_MISSING`, `RENDER_FAILED`, `RENDER_TIMEOUT`, `RENDER_OUTPUT_LIMIT`,
+`RENDER_INTERRUPTED`, `RASTERIZE_FAILED`, `OUTPUT_WRITE_FAILED`, `LAYOUT_QUALITY`.
 
 ## Rendering and safety
 
-- **Hybrid backends.** Own engine (elkjs 0.11.1 layout + hand-written SVG) for
-  class, object, package, profile, component, deployment, composite structure,
-  communication and interaction overview; PlantUML for sequence, timing, activity,
-  state machine and use case. Both share theme tokens (`src/core/theme.ts`).
+- **Hybrid backends.**
+
+  | Backend | Kinds |
+  |---|---|
+  | Own engine (elkjs 0.11.1 layout + hand-written SVG) | class, object, package, profile, component, deployment, composite structure, communication, interaction overview, state machine, use case |
+  | PlantUML 1.2025.10 (Smetana or its own engines, no Graphviz), post-processed to UML notation | sequence, timing, activity; class with `--backend plantuml` |
+
+  Both share theme tokens (`src/core/theme.ts`). Untitled PlantUML drawings get
+  the own engine's 16 px canvas margin.
 - **Validation first.** The whole document is validated before any renderer is
   discovered or started.
 - **Own engine SVG** is written by an escaping writer that only knows presentation
@@ -413,8 +472,9 @@ activation bars, messages, state lines and labels, so label overlaps, labels on
 lines, the `message-endpoints` gate (every message starts and ends on its
 lifeline or state line, arrowhead at the receiving end, found/lost circles) and
 the `lifeline-crossing` gate (no lifeline or activation bar through any text)
-are evaluated; gates without data are reported as skipped. `npm run gallery` renders every
-example to SVG and PNG with an `index.html` overview.
+are evaluated; gates without data are reported as skipped. `uml render` runs the
+same gates on every drawing (see [Layout checks](#layout-checks-warnings-and---strict)).
+`npm run gallery` renders every example to SVG and PNG with an `index.html` overview.
 
 ## Repository layout
 
