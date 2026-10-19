@@ -18,7 +18,7 @@ Tests referenced below: `class` = `test/class.test.mjs`, `engine` =
 | Enumeration | `type: "enumeration"`, `literals` | «enumeration», literals compartment one per line (10.2.4) | class: «enumeration»; example `notation` |
 | Data type, primitive | `type: "datatype"` / `"primitive"` | «dataType» / «primitive» (10.2.4) | class: keywords present |
 | Stereotypes | `stereotypes: ["a","b"]` | «a, b» above the name, comma-separated in one pair of guillemets (22.3.4) | class: «component, replaceable» |
-| Compartments | attributes, operations | Name, attributes, operations compartments; both member compartments shown when either is non-empty; empty ones suppressed for name-only classes (9.2.4) | gallery `notation`, `ordering` |
+| Compartments | attributes, operations | Name, attributes, operations compartments (9.2.4). One rule for every classifier: with no attribute and no operation only the name compartment is shown; with any member both member compartments are shown, an empty one as a thin empty band, so the reader always knows which is which. Enumerations always show their literals compartment and other compartments only when non-empty | gallery `notation`, `ordering` |
 | Visibility | `visibility` | `+` public, `-` private, `#` protected, `~` package (7.4.4) | class: member formats |
 | Attribute | `name`, `type`, `multiplicity`, `default`, `readOnly`, `derived` | `[vis] [/]name [: Type] [[mult]] [= default] [{readOnly}]` (9.5.4) | class: `- vin : String {readOnly}`, `# wheels : Wheel [2..*]`, `~ /age : Integer` |
 | Static member | `static: true` | Underlined (9.4.4) | class: underline geometry check |
@@ -33,8 +33,8 @@ Tests referenced below: `class` = `test/class.test.mjs`, `engine` =
 | Composite aggregation | `type: "composition"`, from = whole | Filled diamond at the whole (11.5.4) | class: `filled-diamond` at source |
 | Dependency | `type: "dependency"`, `keyword` | Dashed line, open arrowhead at the supplier, «keyword» near the middle (7.7.4) | class: dashed + `open-arrow`; «use» present |
 | Containment (nesting) | `type: "containment"`, from = owner | Solid line, circle with a plus at the owner (9.2.4, owned classifiers) | class: `circle-plus` at source |
-| Note (comment) | `type: "note"`, `attachedTo` | Rectangle with folded corner, dashed line to each annotated element (7.2.4) | gallery `ordering`, `notation`; fixture "single note" |
-| Self-association | `from` = `to` | Rectangular loop on the right side inside reserved room, labels inside the loop | class: "self-associations stay inside..."; engine: self-loop proof |
+| Note (comment) | `type: "note"`, `attachedTo` | Rectangle with folded corner, thin dotted lighter anchor line to each annotated element, distinct from dashed dependencies (7.2.4) | gallery `ordering`, `notation`; fixture "single note" |
+| Self-association | `from` = `to` | First loop on the top-right corner, second on the bottom-right corner, further loops nested on the right side; labels inside their loop; one or two loops keep the box at its natural size | class: "self-associations stay inside..."; engine: self-loop proof |
 | Diagram frame | `title` | Frame with pentagon heading `class <title>` (Annex A) | class: frame heading check |
 | v1 documents | no `kind`, `classes` | inheritance = generalization, association = association, members verbatim | unit: v1 tests; class: "v1 MVP documents..." |
 
@@ -75,11 +75,17 @@ Tests referenced below: `class` = `test/class.test.mjs`, `engine` =
 
 ## Known limitations
 
-- Layered top-down layout: superclasses and wholes above, which can make chain-like
-  models tall (the stress example is about 2300 x 6000 px). ELK graph wrapping was
-  tried and rejected: it adds long wrap-around edge bundles.
-- Where many edges converge on one side of a node, ELK may bend routes near the node
-  and end labels move up to the gate's 48 px limit.
+- Layout: top-down (superclasses and wholes above) is the convention; left to right
+  and ELK graph wrapping are tried too and the most readable result wins
+  (`chooseLayout`, src/engine/aspect.ts: close to 4:3 to 16:9, few crossings, short
+  lines; the more of the diagram is generalization, the more top-down is preferred).
+  Routes are then repaired (src/engine/repair.ts). Very large or chain-like models
+  can still end up 3:1 (the 50-class stress example) and wrapped layouts can keep a
+  few long lines between rows.
+- Four or more associations between the same two classes stack their end labels
+  along a side; the labels stay unambiguous (gate `label-proximity`) but are dense.
+- Where many edges converge on one side of a node, end labels move up to the gate's
+  48 px limit.
 - PlantUML fallback: Smetana can put labels on nodes and draw note pointers through
   nodes, so that backend only guarantees the layout-independent gates
   (integration test `FALLBACK_GATES`).

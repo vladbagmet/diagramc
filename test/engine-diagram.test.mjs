@@ -97,17 +97,18 @@ const label = (owner, x, y) => `<text x="${x}" y="${y}" font-size="12" data-uml-
 test('QA gates: a line may end on a package tab or body but not beside the tab', async () => {
   assert.deepEqual(failed(await checkSvg(doc(pkg + outside + line('e', 'o', 'p', [{ x: 365, y: 50 }, { x: 365, y: 40 }, { x: 200, y: 40 }, { x: 200, y: 40 }])))), []);
   assert.deepEqual(failed(await checkSvg(doc(pkg + outside + line('e', 'o', 'p', [{ x: 365, y: 50 }, { x: 365, y: 60 }, { x: 320, y: 60 }])))), []);
-  assert.deepEqual(failed(await checkSvg(doc(pkg + outside + line('e', 'o', 'p', [{ x: 365, y: 20 }, { x: 365, y: 10 }, { x: 50, y: 10 }, { x: 50, y: 20 }])))), [], 'on the tab top');
+  // (This route is also a detour for route-length; only the endpoint rule matters here.)
+  assert.ok(!failed(await checkSvg(doc(pkg + outside + line('e', 'o', 'p', [{ x: 365, y: 20 }, { x: 365, y: 10 }, { x: 50, y: 10 }, { x: 50, y: 20 }])))).includes('edge-endpoints'), 'on the tab top');
   assert.deepEqual(failed(await checkSvg(doc(pkg + outside + line('e', 'o', 'p', [{ x: 365, y: 20 }, { x: 365, y: 10 }, { x: 200, y: 10 }, { x: 200, y: 20 }])))), ['edge-endpoints'], 'beside the tab');
 });
 
 test('QA gates: labels may sit inside a container that encloses an end of their edge, clear of its tab', async () => {
   const a = inner('a', 40, 60), b = inner('b', 40, 160), e = line('e', 'a', 'b', [{ x: 70, y: 90 }, { x: 70, y: 160 }]);
   assert.deepEqual(failed(await checkSvg(doc(pkg + a + b + e + label('e', 80, 130)))), []);
-  assert.deepEqual(failed(await checkSvg(doc(pkg + a + b + e + label('e', 30, 35)))), ['label-overlap'], 'on the tab');
+  assert.ok(failed(await checkSvg(doc(pkg + a + b + e + label('e', 30, 35)))).includes('label-overlap'), 'on the tab');
   const f = line('f', 'o', 'o2', [{ x: 365, y: 50 }, { x: 365, y: 240 }]);
   const o2 = '<g data-uml-role="node" data-uml-id="o2" data-uml-type="class" data-uml-bounds="340 240 50 30"></g>';
-  assert.deepEqual(failed(await checkSvg(doc(pkg + outside + o2 + f + label('f', 200, 130)))), ['label-overlap'], 'label of an unrelated edge inside the container');
+  assert.ok(failed(await checkSvg(doc(pkg + outside + o2 + f + label('f', 200, 130)))).includes('label-overlap'), 'label of an unrelated edge inside the container');
 });
 
 test('nesting rules: one owner, no duplicates, no cycles', () => {

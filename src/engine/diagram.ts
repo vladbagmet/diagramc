@@ -3,10 +3,12 @@ import { drawEdge, type LineStyle, type Marker } from './edges.js';
 import { layout, type Direction, type LayoutEdge, type LayoutLabel, type LayoutNode, type LayoutPort, type LayoutResult, type Side } from './elk.js';
 import type { FontMetrics, TextStyle } from './fonts.js';
 import { direction, simplify, union, type Point, type Rect } from './geometry.js';
-import { placeLabels, type LabelRequest } from './labels.js';
+import { labelCost, labelFits, placeLabels, type LabelRequest } from './labels.js';
 import { drawPackageNode, measurePackage, packageTabRect, type MeasuredPackage, type PackageHeader } from './packages.js';
+import { repairRoutes, type RepairNode } from './repair.js';
+import { chooseLayout, countCrossings, LAYOUT_VARIANTS, routesLength, type LayoutVariant } from './aspect.js';
 import { planSelfLoops, selfLoopRoute, type SelfLoopPlan } from './selfloops.js';
-import { baselineOffset, drawBox, drawFrame, drawNote, measureBox, measureFrameHeading, measureNote, type Compartment, type MeasuredBox } from './shapes.js';
+import { baselineOffset, startsData, drawBox, drawFrame, drawNote, measureBox, measureFrameHeading, measureNote, type Compartment, type MeasuredBox } from './shapes.js';
 import { Canvas, el, num } from './svg.js';
 import { wrapText } from './text.js';
 
@@ -33,7 +35,7 @@ export interface DiagramNodeSpec {
   children?: DiagramNodeSpec[];
 }
 
-export interface CenterLine { text: string; underline?: boolean }
+export interface CenterLine { text: string; underline?: boolean; /** Set on the first row of each logical line after wrapping. */ start?: boolean }
 
 export interface DiagramEdgeSpec {
   id: string;
@@ -69,8 +71,17 @@ export interface DiagramSpec {
   title?: string | undefined;
   nodes: DiagramNodeSpec[];
   edges: DiagramEdgeSpec[];
-  /** Layout directions to try; the most compact result (closest to a landscape page) wins. Default DOWN. */
+  /**
+   * Layout directions to try, the conventional one first; the most readable result
+   * wins (see src/engine/aspect.ts). Default DOWN.
+   */
   directions?: Direction[];
+  /**
+   * Also try ELK graph wrapping (long layer sequences folded into rows). Off by
+   * default: wrapped layouts get long lines from the end of one row back to the
+   * start of the next, which rarely beats another direction.
+   */
+  wrap?: boolean;
 }
 
 interface SceneNode { spec: DiagramNodeSpec; parent?: string | undefined; bounds: Rect; box?: MeasuredBox; rows?: string[]; pkg?: MeasuredPackage }
@@ -225,7 +236,7 @@ export async function layoutDiagram(spec: DiagramSpec, metrics: FontMetrics): Pr
     const p: EdgePlan = { spec: e, ends: [], elkSource: e.tree ? `${e.target}::tree::${e.type}` : e.source };
     if (e.center?.length) {
       const lines: CenterLine[] = [];
-      for (const line of e.center) for (const row of wrapText(metrics, line.text, LABEL, CENTER_LABEL_WIDTH)) lines.push({ ...line, text: row });
+      for (const line of e.center) wrapText(metrics, line.text, LABEL, CENTER_LABEL_WIDTH).forEach((row, k) => lines.push({ ...line, text: row, start: k === 0 }));
       p.center = { lines, widths: lines.map(l => Math.ceil(metrics.measure(l.text.trimEnd(), LABEL))) };
     }
     for (const end of e.ends ?? []) p.ends.push({ ...end, width: width(end.text) });
@@ -239,13 +250,20 @@ export async function layoutDiagram(spec: DiagramSpec, metrics: FontMetrics): Pr
   for (const [node, loops] of loopsByNode) {
     loopPlans.set(node, planSelfLoops(loops.map(l => ({
       endLabelWidth: Math.max(0, ...l.ends.map(e => e.width)),
+      sourceLabelWidth: Math.max(0, ...l.ends.filter(e => e.end === 'source').map(e => e.width)),
+      targetLabelWidth: Math.max(0, ...l.ends.filter(e => e.end === 'target').map(e => e.width)),
       endLabelRows: Math.max(l.ends.filter(e => e.end === 'source').length, l.ends.filter(e => e.end === 'target').length),
       labelHeight: lineHeight,
       centerLabel: l.center ? { width: Math.max(...l.center.widths), height: l.center.lines.length * lineHeight } : undefined,
     }))));
   }
 
-  const attempt = async (dir: Direction): Promise<{ result: LayoutResult; dir: Direction }> => {
+  /**
+   * One layout run in direction `dir`; `variant`: see LAYOUT_VARIANTS in
+   * src/engine/aspect.ts. Edges that ELK sends against the direction (cycles)
+   * leave their fixed-side port the wrong way; repairRoutes reroutes them.
+   */
+  const attempt = async (dir: Direction, variant: LayoutVariant): Promise<{ result: LayoutResult; dir: Direction }> => {
     const side = sides(dir);
     const ports = new Map<string, LayoutPort[]>();
     // Compound nodes get no ports: ELK's hierarchical layout fails on some port
@@ -301,7 +319,7 @@ export async function layoutDiagram(spec: DiagramSpec, metrics: FontMetrics): Pr
           portSpacing: CONTAINER_PORT_SPACING,
         } : {}),
         ...(nodePorts?.length ? { ports: nodePorts } : {}),
-        ...(loops ? { reserveRight: loops.reserveRight } : {}),
+        ...(loops ? { reserveRight: loops.reserveRight, reserveAbove: loops.reserveAbove, reserveBelow: loops.reserveBelow } : {}),
       };
     };
     const edges: LayoutEdge[] = plans.filter(p => p.spec.source !== p.spec.target).map(p => {
@@ -318,7 +336,8 @@ export async function layoutDiagram(spec: DiagramSpec, metrics: FontMetrics): Pr
         directionPriority: e.priority ?? (e.tree || e.reversed ? 10 : 1),
       };
     });
-    let result = await layout(spec.nodes.map(n => toLayout(n.id)), edges, { direction: dir });
+    const options = { direction: dir, elk: LAYOUT_VARIANTS[variant] };
+    let result = await layout(spec.nodes.map(n => toLayout(n.id)), edges, options);
     for (let pass = 0; pass < 3; pass++) {
       let changed = false;
       for (const [id, pkg] of packages) {
@@ -328,19 +347,20 @@ export async function layoutDiagram(spec: DiagramSpec, metrics: FontMetrics): Pr
         changed = true;
       }
       if (!changed) break;
-      result = await layout(spec.nodes.map(n => toLayout(n.id)), edges, { direction: dir });
+      result = await layout(spec.nodes.map(n => toLayout(n.id)), edges, options);
     }
     return { result, dir };
   };
 
-  // Try each direction; keep the one that fits a landscape page best.
-  let best: { result: LayoutResult; dir: Direction } | undefined, bestScore = Infinity;
-  for (const dir of spec.directions ?? ['DOWN']) {
-    const candidate = await attempt(dir);
-    const score = Math.max(candidate.result.width / 1.5, candidate.result.height);
-    if (score < bestScore - 1) { best = candidate; bestScore = score; }
-  }
-  const result = best!.result;
+  // Try each direction (and variants); keep the most readable result.
+  // The kind's first direction is its convention; others must be clearly better,
+  // the more so the more of the diagram is a hierarchy (generalizations, extensions).
+  const hierarchy = spec.edges.filter(e => e.tree || e.reversed).length / Math.max(1, spec.edges.filter(e => e.type !== 'note-anchor').length);
+  const best = await chooseLayout(spec.directions ?? ['DOWN'], attempt, ({ result: r }) => {
+    const lines = [...r.edges.values()].map(e => e.points);
+    return { width: r.width, height: r.height, crossings: countCrossings(lines), edgeLength: routesLength(lines) };
+  }, { penalty: i => i ? 0.15 + 0.6 * hierarchy : 0, wrap: !!spec.wrap });
+  const result = best.result;
   const rects = new Map<string, Rect>([...all.keys()].map(id => {
     const r = result.nodes.get(id)!, pkg = packages.get(id);
     // Leaf packages were laid out as their body: add the tab back on top.
@@ -371,73 +391,136 @@ export async function layoutDiagram(spec: DiagramSpec, metrics: FontMetrics): Pr
     routes.set(e.id, route);
   }
 
-  // Tree edges into one shared port draw their arrowhead once.
-  const drawnTips = new Set<string>();
-  const sceneEdges: SceneEdge[] = plans.map(p => {
-    const points = routes.get(p.spec.id)!;
-    const tip = points.at(-1)!;
-    const key = `${p.spec.type}\u0000${p.spec.targetMarker}@${tip.x},${tip.y}`;
-    const drawTargetMarker = !p.spec.tree || !drawnTips.has(key);
-    drawnTips.add(key);
-    return { spec: p.spec, points, drawTargetMarker };
+  // Repair routes that cross texts or nodes, detour, crowd other ends or bend under a marker.
+  const repairNodes: RepairNode[] = [...all.keys()].map(id => {
+    const r = rects.get(id)!, tab = tabs.get(id);
+    return {
+      id, parent: all.get(id)!.parent, container: !!all.get(id)!.spec.children?.length,
+      rect: tab ? { x: r.x, y: r.y + tab.height, width: r.width, height: r.height - tab.height } : r,
+      texts: tab ? [tab] : [],
+    };
   });
-
-  // Labels. Leaf nodes, package tabs and markers are obstacles; a container's
-  // border lines are obstacles too, and a container's inside is free only for
-  // labels of edges that start or end inside it.
-  const containers = [...all.keys()].filter(id => all.get(id)!.spec.children?.length);
-  const ancestors = (id: string): Set<string> => {
-    const out = new Set<string>();
-    for (let p = all.get(id)?.parent; p; p = all.get(p)?.parent) out.add(p);
-    return out;
-  };
-  const baseRects: Rect[] = [];
-  const segments: [Point, Point][] = [];
-  for (const [id, r] of rects) {
-    if (!containers.includes(id)) { baseRects.push(r); continue; }
-    baseRects.push(tabs.get(id)!);
-    const corners = [{ x: r.x, y: r.y + tabs.get(id)!.height }, { x: r.x + r.width, y: r.y + tabs.get(id)!.height }, { x: r.x + r.width, y: r.y + r.height }, { x: r.x, y: r.y + r.height }];
-    corners.forEach((c, k) => segments.push([c, corners[(k + 1) % 4]!]));
+  // The room of a node's self-loops is an obstacle for every other line.
+  for (const [id] of loopPlans) {
+    const loops = plans.filter(p => p.spec.source === id && p.spec.target === id).map(p => routes.get(p.spec.id)!);
+    repairNodes.push({ id: `${id}::self-loops`, rect: union(loops.flat().map(p => ({ ...p, width: 0, height: 0 }))), parent: all.get(id)!.parent });
   }
-  for (const edge of sceneEdges) {
-    edge.points.slice(1).forEach((p, k) => segments.push([edge.points[k]!, p]));
-    for (const r of [markerRect(edge.points[0]!, edge.points[1]!, edge.spec.sourceMarker), markerRect(edge.points.at(-1)!, edge.points.at(-2)!, edge.spec.targetMarker)]) if (r) baseRects.push(r);
+  const labelObstacles = [...all.keys()].flatMap(id => all.get(id)!.spec.children?.length ? [tabs.get(id)!] : [rects.get(id)!]);
+  const containerBorders: [Point, Point][] = [];
+  for (const id of all.keys()) {
+    if (!all.get(id)!.spec.children?.length) continue;
+    const r = rects.get(id)!, top = r.y + tabs.get(id)!.height;
+    const c = [{ x: r.x, y: top }, { x: r.x + r.width, y: top }, { x: r.x + r.width, y: r.y + r.height }, { x: r.x, y: r.y + r.height }];
+    c.forEach((q, k) => containerBorders.push([q, c[(k + 1) % 4]!]));
   }
-  const foreign = new Map<string, Rect[]>();
-  for (const p of plans) {
-    const inside = new Set([...ancestors(p.spec.source), ...ancestors(p.spec.target)]);
-    foreign.set(p.spec.id, containers.filter(c => !inside.has(c)).map(c => rects.get(c)!));
-  }
-  const requests: { owner: string; request: LabelRequest; lines: CenterLine[]; widths: number[]; end?: 'source' | 'target'; anchor?: Point }[] = [];
-  for (const p of plans) {
-    const e = p.spec, route = routes.get(e.id)!;
-    p.ends.forEach((l, k) => {
-      const id = `${e.id}::end${k}`;
-      const marker = l.end === 'source' ? e.sourceMarker : e.targetMarker;
-      const suggested = result.edges.get(e.id)?.labels.get(id);
-      const inside = e.source === e.target ? { onlySide: l.end === 'source' ? -1 as const : 1 as const } : {};
-      requests.push({
-        owner: e.id, lines: [{ text: l.text }], widths: [l.width], end: l.end, anchor: l.end === 'source' ? route[0]! : route.at(-1)!,
-        request: { id, width: l.width, height: lineHeight, route, at: l.end, side: l.kind === 'multiplicity' ? 1 : -1, clearance: markerExtent(marker).half + 3, ...inside, suggestion: suggested && { x: suggested.x + 2, y: suggested.y, width: l.width, height: lineHeight } },
-      });
+  const baseRoutes = new Map(routes);
+  /**
+   * Repairs routes, then places labels. `crowded`: edges whose center label found
+   * no clean spot in an earlier pass; their lines are spread apart from the others.
+   */
+  const routeAndLabel = (crowded: ReadonlySet<string>, previous?: ReadonlyMap<string, Point[]>) => {
+    const unplaced = new Set<string>();
+    const repaired = repairRoutes(repairNodes, plans.map(p => ({
+      id: p.spec.id, source: p.spec.source, target: p.spec.target, route: baseRoutes.get(p.spec.id)!,
+      sourceMarker: p.spec.sourceMarker, targetMarker: p.spec.targetMarker,
+      group: p.spec.tree ? `${p.spec.type}@${p.spec.target}` : undefined,
+    })), {
+      // Center labels need a clean spot beside their own line (no crossing, not as
+      // close to another line); bundled lines without one are spread apart.
+      labelFits: (id, route, current) => {
+        const p = plans.find(q => q.spec.id === id)!;
+        if (!p.center) return true;
+        // The original route of a crowded edge has no room (an earlier pass found none); a new route is judged normally.
+        if (crowded.has(id) && [baseRoutes.get(id), previous?.get(id)].some(r => JSON.stringify(route) === JSON.stringify(r))) return false;
+        const others = [...current].filter(([other]) => other !== id);
+        const segments: [Point, Point][] = [...containerBorders];
+        for (const [, r] of others) r.slice(1).forEach((q, k) => segments.push([r[k]!, q]));
+        const request: LabelRequest = { id: `${id}::center`, owner: id, width: Math.max(...p.center.widths), height: p.center.lines.length * lineHeight, route, at: 'center' };
+        return labelFits(request, { rects: labelObstacles, segments, lines: others.map(([owner, points]) => ({ owner, points })) });
+      },
+      labelSpacing: id => {
+        const p = plans.find(q => q.spec.id === id)!;
+        return p.center ? Math.max(...p.center.widths) + 16 : undefined;
+      },
     });
-  }
-  for (const p of plans) {
-    if (!p.center) continue;
-    const e = p.spec, id = `${e.id}::center`;
-    const w = Math.max(...p.center.widths), h = p.center.lines.length * lineHeight;
-    const suggested = result.edges.get(e.id)?.labels.get(id);
-    requests.push({ owner: e.id, lines: p.center.lines, widths: p.center.widths, request: { id, width: w, height: h, route: routes.get(e.id)!, at: 'center', suggestion: suggested && { x: suggested.x + 2, y: suggested.y, width: w, height: h } } });
-  }
-  const labelledEnds = plans.flatMap(p => [...new Set(p.ends.map(l => l.end))].map(end => end === 'source' ? routes.get(p.spec.id)![0]! : routes.get(p.spec.id)!.at(-1)!));
-  const placedRects: Rect[] = [];
-  const labels: SceneLabel[] = [];
-  for (const r of requests) {
-    const placed = placeLabels([r.request], { rects: [...baseRects, ...placedRects, ...foreign.get(r.owner)!], segments, ends: labelledEnds }).get(r.request.id);
-    if (!placed) continue;
-    placedRects.push(placed);
-    labels.push({ owner: r.owner, rect: placed, lines: r.lines, widths: r.widths, ...(r.end ? { end: r.end, anchor: r.anchor! } : {}) });
-  }
+    const routes = new Map(baseRoutes);
+    for (const id of repaired.changed) routes.set(id, repaired.routes.get(id)!);
+
+    // Tree edges into one shared port draw their arrowhead once.
+    const drawnTips = new Set<string>();
+    const sceneEdges: SceneEdge[] = plans.map(p => {
+      const points = routes.get(p.spec.id)!;
+      const tip = points.at(-1)!;
+      const key = `${p.spec.type}\u0000${p.spec.targetMarker}@${tip.x},${tip.y}`;
+      const drawTargetMarker = !p.spec.tree || !drawnTips.has(key);
+      drawnTips.add(key);
+      return { spec: p.spec, points, drawTargetMarker };
+    });
+
+    // Labels. Leaf nodes, package tabs and markers are obstacles; a container's
+    // border lines are obstacles too, and a container's inside is free only for
+    // labels of edges that start or end inside it.
+    const containers = [...all.keys()].filter(id => all.get(id)!.spec.children?.length);
+    const ancestors = (id: string): Set<string> => {
+      const out = new Set<string>();
+      for (let p = all.get(id)?.parent; p; p = all.get(p)?.parent) out.add(p);
+      return out;
+    };
+    const baseRects: Rect[] = [];
+    const segments: [Point, Point][] = [];
+    for (const [id, r] of rects) {
+      if (!containers.includes(id)) { baseRects.push(r); continue; }
+      baseRects.push(tabs.get(id)!);
+      const corners = [{ x: r.x, y: r.y + tabs.get(id)!.height }, { x: r.x + r.width, y: r.y + tabs.get(id)!.height }, { x: r.x + r.width, y: r.y + r.height }, { x: r.x, y: r.y + r.height }];
+      corners.forEach((c, k) => segments.push([c, corners[(k + 1) % 4]!]));
+    }
+    for (const edge of sceneEdges) {
+      edge.points.slice(1).forEach((p, k) => segments.push([edge.points[k]!, p]));
+      for (const r of [markerRect(edge.points[0]!, edge.points[1]!, edge.spec.sourceMarker), markerRect(edge.points.at(-1)!, edge.points.at(-2)!, edge.spec.targetMarker)]) if (r) baseRects.push(r);
+    }
+    const foreign = new Map<string, Rect[]>();
+    for (const p of plans) {
+      const inside = new Set([...ancestors(p.spec.source), ...ancestors(p.spec.target)]);
+      foreign.set(p.spec.id, containers.filter(c => !inside.has(c)).map(c => rects.get(c)!));
+    }
+    const requests: { owner: string; request: LabelRequest; lines: CenterLine[]; widths: number[]; end?: 'source' | 'target'; anchor?: Point }[] = [];
+    for (const p of plans) {
+      const e = p.spec, route = routes.get(e.id)!;
+      p.ends.forEach((l, k) => {
+        const id = `${e.id}::end${k}`;
+        const marker = l.end === 'source' ? e.sourceMarker : e.targetMarker;
+        const suggested = repaired.changed.has(e.id) ? undefined : result.edges.get(e.id)?.labels.get(id);
+        const inside = e.source === e.target ? { onlySide: l.end === 'source' ? -1 as const : 1 as const } : {};
+        requests.push({
+          owner: e.id, lines: [{ text: l.text }], widths: [l.width], end: l.end, anchor: l.end === 'source' ? route[0]! : route.at(-1)!,
+          request: { id, width: l.width, height: lineHeight, route, at: l.end, side: l.kind === 'multiplicity' ? 1 : -1, clearance: markerExtent(marker).half + 3, ...inside, suggestion: suggested && { x: suggested.x + 2, y: suggested.y, width: l.width, height: lineHeight } },
+        });
+      });
+    }
+    for (const p of plans) {
+      if (!p.center) continue;
+      const e = p.spec, id = `${e.id}::center`;
+      const w = Math.max(...p.center.widths), h = p.center.lines.length * lineHeight;
+      const suggested = repaired.changed.has(e.id) ? undefined : result.edges.get(e.id)?.labels.get(id);
+      requests.push({ owner: e.id, lines: p.center.lines, widths: p.center.widths, request: { id, owner: e.id, width: w, height: h, route: routes.get(e.id)!, at: 'center', suggestion: suggested && { x: suggested.x + 2, y: suggested.y, width: w, height: h } } });
+    }
+    const labelledEnds = plans.flatMap(p => [...new Set(p.ends.map(l => l.end))].map(end => end === 'source' ? routes.get(p.spec.id)![0]! : routes.get(p.spec.id)!.at(-1)!));
+    const lineOwners = plans.map(p => ({ owner: p.spec.id, points: routes.get(p.spec.id)! }));
+    const placedRects: Rect[] = [];
+    const labels: SceneLabel[] = [];
+    for (const r of requests) {
+      const placed = placeLabels([r.request], { rects: [...baseRects, ...placedRects, ...foreign.get(r.owner)!], segments, ends: labelledEnds, lines: lineOwners }).get(r.request.id);
+      if (!placed) continue;
+      placedRects.push(placed);
+      labels.push({ owner: r.owner, rect: placed, lines: r.lines, widths: r.widths, ...(r.end ? { end: r.end, anchor: r.anchor! } : {}) });
+      // A center label that found no clean spot: its line gets spread from the others in a second pass.
+      if (!r.end && labelCost(placed, { rects: [...baseRects, ...placedRects.slice(0, -1), ...foreign.get(r.owner)!], segments, lines: lineOwners }, [], undefined, r.request) > 0) unplaced.add(r.owner);
+    }
+    return { repaired, routes, sceneEdges, baseRects, labels, unplaced };
+  };
+  let placement = routeAndLabel(new Set());
+  if (placement.unplaced.size) placement = routeAndLabel(placement.unplaced, placement.routes);
+  const { sceneEdges, baseRects, labels } = placement;
 
   // Translate so the drawing starts at the canvas margin (inside the frame, if any).
   const content = union([
@@ -495,7 +578,7 @@ export async function drawDiagram(scene: DiagramScene, metrics: FontMetrics): Pr
     const first = y + baselineOffset(metrics, LABEL.size, lh);
     canvas.labels.push(canvas.lines(label.lines.map(l => l.text), xs, first, lh, {
       ...LABEL, fill: theme.color.edgeText, role: 'label', owner: label.owner, halo: true,
-      data: label.end ? { 'data-uml-end': label.end, 'data-uml-anchor': `${num(label.anchor!.x)},${num(label.anchor!.y)}` } : {},
+      data: label.end ? { 'data-uml-end': label.end, 'data-uml-anchor': `${num(label.anchor!.x)},${num(label.anchor!.y)}` } : startsData(label.lines.flatMap((l, i) => l.start ? [i] : [])),
     }));
     label.lines.forEach((line, i) => {
       if (!line.underline) return;

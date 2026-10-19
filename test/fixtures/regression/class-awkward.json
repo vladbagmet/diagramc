@@ -1,0 +1,495 @@
+{
+ "kind": "class",
+ "title": "Awkward but valid input with a rather long diagram title that keeps going",
+ "elements": [
+  {
+   "id": "big",
+   "type": "class",
+   "name": "AbstractEnterpriseCustomerRelationshipManagementServiceFacadeImplementation",
+   "abstract": true,
+   "stereotypes": [
+    "service",
+    "transactional",
+    "deprecated"
+   ],
+   "attributes": [
+    {
+     "name": "field0WithAQuiteDescriptiveName",
+     "type": "Map<String, List<Optional<BigDecimal>>>",
+     "visibility": "public",
+     "multiplicity": "0..*"
+    },
+    {
+     "name": "field1WithAQuiteDescriptiveName",
+     "type": "String",
+     "visibility": "private"
+    },
+    {
+     "name": "field2WithAQuiteDescriptiveName",
+     "type": "String",
+     "visibility": "protected"
+    },
+    {
+     "name": "field3WithAQuiteDescriptiveName",
+     "type": "Map<String, List<Optional<BigDecimal>>>",
+     "visibility": "package"
+    },
+    {
+     "name": "field4WithAQuiteDescriptiveName",
+     "type": "String",
+     "visibility": "public"
+    },
+    {
+     "name": "field5WithAQuiteDescriptiveName",
+     "type": "String",
+     "visibility": "private",
+     "multiplicity": "0..*"
+    },
+    {
+     "name": "field6WithAQuiteDescriptiveName",
+     "type": "Map<String, List<Optional<BigDecimal>>>",
+     "visibility": "protected"
+    },
+    {
+     "name": "field7WithAQuiteDescriptiveName",
+     "type": "String",
+     "visibility": "package"
+    },
+    {
+     "name": "field8WithAQuiteDescriptiveName",
+     "type": "String",
+     "visibility": "public"
+    },
+    {
+     "name": "field9WithAQuiteDescriptiveName",
+     "type": "Map<String, List<Optional<BigDecimal>>>",
+     "visibility": "private"
+    },
+    {
+     "name": "field10WithAQuiteDescriptiveName",
+     "type": "String",
+     "visibility": "protected",
+     "multiplicity": "0..*"
+    },
+    {
+     "name": "field11WithAQuiteDescriptiveName",
+     "type": "String",
+     "visibility": "package"
+    },
+    {
+     "name": "field12WithAQuiteDescriptiveName",
+     "type": "Map<String, List<Optional<BigDecimal>>>",
+     "visibility": "public"
+    },
+    {
+     "name": "field13WithAQuiteDescriptiveName",
+     "type": "String",
+     "visibility": "private"
+    },
+    {
+     "name": "field14WithAQuiteDescriptiveName",
+     "type": "String",
+     "visibility": "protected"
+    },
+    {
+     "name": "field15WithAQuiteDescriptiveName",
+     "type": "Map<String, List<Optional<BigDecimal>>>",
+     "visibility": "package",
+     "multiplicity": "0..*"
+    },
+    {
+     "name": "field16WithAQuiteDescriptiveName",
+     "type": "String",
+     "visibility": "public"
+    },
+    {
+     "name": "field17WithAQuiteDescriptiveName",
+     "type": "String",
+     "visibility": "private"
+    }
+   ],
+   "operations": [
+    {
+     "name": "operation0",
+     "visibility": "public",
+     "parameters": [
+      {
+       "name": "firstArgument",
+       "type": "CustomerAccountIdentifier"
+      },
+      {
+       "name": "second",
+       "type": "Integer",
+       "direction": "inout"
+      }
+     ],
+     "returnType": "CompletableFuture<Result<Void, DomainError>>"
+    },
+    {
+     "name": "operation1",
+     "visibility": "public",
+     "parameters": [
+      {
+       "name": "firstArgument",
+       "type": "CustomerAccountIdentifier"
+      },
+      {
+       "name": "second",
+       "type": "Integer",
+       "direction": "inout"
+      }
+     ],
+     "returnType": "CompletableFuture<Result<Void, DomainError>>"
+    },
+    {
+     "name": "operation2",
+     "visibility": "public",
+     "parameters": [
+      {
+       "name": "firstArgument",
+       "type": "CustomerAccountIdentifier"
+      },
+      {
+       "name": "second",
+       "type": "Integer",
+       "direction": "inout"
+      }
+     ],
+     "returnType": "CompletableFuture<Result<Void, DomainError>>"
+    },
+    {
+     "name": "operation3",
+     "visibility": "public",
+     "parameters": [
+      {
+       "name": "firstArgument",
+       "type": "CustomerAccountIdentifier"
+      },
+      {
+       "name": "second",
+       "type": "Integer",
+       "direction": "inout"
+      }
+     ],
+     "returnType": "CompletableFuture<Result<Void, DomainError>>"
+    },
+    {
+     "name": "operation4",
+     "visibility": "public",
+     "parameters": [
+      {
+       "name": "firstArgument",
+       "type": "CustomerAccountIdentifier"
+      },
+      {
+       "name": "second",
+       "type": "Integer",
+       "direction": "inout"
+      }
+     ],
+     "returnType": "CompletableFuture<Result<Void, DomainError>>"
+    },
+    {
+     "name": "operation5",
+     "visibility": "public",
+     "parameters": [
+      {
+       "name": "firstArgument",
+       "type": "CustomerAccountIdentifier"
+      },
+      {
+       "name": "second",
+       "type": "Integer",
+       "direction": "inout"
+      }
+     ],
+     "returnType": "CompletableFuture<Result<Void, DomainError>>"
+    },
+    {
+     "name": "operation6",
+     "visibility": "public",
+     "parameters": [
+      {
+       "name": "firstArgument",
+       "type": "CustomerAccountIdentifier"
+      },
+      {
+       "name": "second",
+       "type": "Integer",
+       "direction": "inout"
+      }
+     ],
+     "returnType": "CompletableFuture<Result<Void, DomainError>>"
+    },
+    {
+     "name": "operation7",
+     "visibility": "public",
+     "parameters": [
+      {
+       "name": "firstArgument",
+       "type": "CustomerAccountIdentifier"
+      },
+      {
+       "name": "second",
+       "type": "Integer",
+       "direction": "inout"
+      }
+     ],
+     "returnType": "CompletableFuture<Result<Void, DomainError>>"
+    }
+   ]
+  },
+  {
+   "id": "emp",
+   "type": "class",
+   "name": "Employee",
+   "attributes": [
+    {
+     "name": "name",
+     "type": "String"
+    }
+   ]
+  },
+  {
+   "id": "a",
+   "type": "class",
+   "name": "Account"
+  },
+  {
+   "id": "b",
+   "type": "class",
+   "name": "Transaction"
+  },
+  {
+   "id": "node",
+   "type": "class",
+   "name": "TreeNode"
+  },
+  {
+   "id": "inner1",
+   "type": "class",
+   "name": "Inner"
+  },
+  {
+   "id": "inner2",
+   "type": "class",
+   "name": "InnerInner"
+  },
+  {
+   "id": "inner3",
+   "type": "class",
+   "name": "InnerInnerInner"
+  },
+  {
+   "id": "e",
+   "type": "enumeration",
+   "name": "Very long enumeration name for status codes",
+   "literals": [
+    "STATUS_CODE_NUMBER_0",
+    "STATUS_CODE_NUMBER_1",
+    "STATUS_CODE_NUMBER_2",
+    "STATUS_CODE_NUMBER_3",
+    "STATUS_CODE_NUMBER_4",
+    "STATUS_CODE_NUMBER_5",
+    "STATUS_CODE_NUMBER_6",
+    "STATUS_CODE_NUMBER_7",
+    "STATUS_CODE_NUMBER_8",
+    "STATUS_CODE_NUMBER_9",
+    "STATUS_CODE_NUMBER_10",
+    "STATUS_CODE_NUMBER_11",
+    "STATUS_CODE_NUMBER_12",
+    "STATUS_CODE_NUMBER_13",
+    "STATUS_CODE_NUMBER_14"
+   ]
+  },
+  {
+   "id": "n1",
+   "type": "note",
+   "text": "This facade is far too big; it is here to stress wrapping of very long member lines and many compartments. This facade is far too big; it is here to stress wrapping of very long member lines and many compartments. This facade is far too big; it is here to stress wrapping of very long member lines and many compartments. ",
+   "attachedTo": [
+    "big"
+   ]
+  },
+  {
+   "id": "n2",
+   "type": "note",
+   "text": "Self-associations: manager and mentor.",
+   "attachedTo": [
+    "emp"
+   ]
+  },
+  {
+   "id": "n3",
+   "type": "note",
+   "text": "Four associations between Account and Transaction.",
+   "attachedTo": [
+    "a",
+    "b"
+   ]
+  },
+  {
+   "id": "n4",
+   "type": "note",
+   "text": "Recursive tree.",
+   "attachedTo": [
+    "node"
+   ]
+  },
+  {
+   "id": "n5",
+   "type": "note",
+   "text": "Nested classifiers.",
+   "attachedTo": [
+    "inner1",
+    "inner2",
+    "inner3"
+   ]
+  }
+ ],
+ "relationships": [
+  {
+   "type": "association",
+   "from": "emp",
+   "to": "emp",
+   "name": "manages",
+   "fromEnd": {
+    "role": "manager",
+    "multiplicity": "0..1"
+   },
+   "toEnd": {
+    "role": "reports",
+    "multiplicity": "*"
+   }
+  },
+  {
+   "type": "association",
+   "from": "emp",
+   "to": "emp",
+   "name": "mentors",
+   "fromEnd": {
+    "role": "mentor",
+    "multiplicity": "0..1"
+   },
+   "toEnd": {
+    "role": "mentee",
+    "multiplicity": "0..3"
+   }
+  },
+  {
+   "type": "aggregation",
+   "from": "emp",
+   "to": "emp",
+   "toEnd": {
+    "role": "team",
+    "multiplicity": "*"
+   }
+  },
+  {
+   "type": "composition",
+   "from": "node",
+   "to": "node",
+   "fromEnd": {
+    "role": "parent",
+    "multiplicity": "0..1"
+   },
+   "toEnd": {
+    "role": "children",
+    "multiplicity": "*"
+   }
+  },
+  {
+   "type": "association",
+   "from": "a",
+   "to": "b",
+   "name": "debits",
+   "fromEnd": {
+    "role": "source",
+    "multiplicity": "1"
+   },
+   "toEnd": {
+    "role": "outgoing",
+    "multiplicity": "*",
+    "navigable": true
+   }
+  },
+  {
+   "type": "association",
+   "from": "a",
+   "to": "b",
+   "name": "credits",
+   "fromEnd": {
+    "role": "target",
+    "multiplicity": "1"
+   },
+   "toEnd": {
+    "role": "incoming",
+    "multiplicity": "*",
+    "navigable": true
+   }
+  },
+  {
+   "type": "association",
+   "from": "b",
+   "to": "a",
+   "name": "fee charged to",
+   "fromEnd": {
+    "role": "fees",
+    "multiplicity": "0..*"
+   },
+   "toEnd": {
+    "role": "feeAccount",
+    "multiplicity": "0..1"
+   }
+  },
+  {
+   "type": "dependency",
+   "from": "b",
+   "to": "a",
+   "keyword": "audit"
+  },
+  {
+   "type": "containment",
+   "from": "big",
+   "to": "inner1"
+  },
+  {
+   "type": "containment",
+   "from": "inner1",
+   "to": "inner2"
+  },
+  {
+   "type": "containment",
+   "from": "inner2",
+   "to": "inner3"
+  },
+  {
+   "type": "association",
+   "from": "big",
+   "to": "a",
+   "name": "manages the lifecycle of all customer accounts in every region",
+   "fromEnd": {
+    "role": "responsibleFacadeInstance",
+    "multiplicity": "1"
+   },
+   "toEnd": {
+    "role": "managedCustomerAccounts",
+    "multiplicity": "0..*"
+   }
+  },
+  {
+   "type": "dependency",
+   "from": "big",
+   "to": "e",
+   "keyword": "use"
+  },
+  {
+   "type": "association",
+   "from": "big",
+   "to": "emp",
+   "toEnd": {
+    "role": "operators",
+    "multiplicity": "1..*"
+   }
+  }
+ ]
+}

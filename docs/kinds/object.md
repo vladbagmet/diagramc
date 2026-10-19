@@ -20,9 +20,9 @@ Tests referenced below: `object` = `test/object.test.mjs`, `engine` =
 | Link name | `name`, `association` | `name : association` underlined near the middle; `: association` or `name` alone (9.8.4) | object: same test, `l1 : owns`, `l2` underlined |
 | Role names | `fromEnd.role`, `toEnd.role` | Near their end, on either side of the line (9.8.4, 11.5.4) | object: same test (`data-uml-end`); gate `label-proximity` on every fixture and example |
 | Navigability | `fromEnd.navigable`, `toEnd.navigable` | Open arrowhead (true) or small cross (false) at that end; omitted = unspecified (11.5.4) | object: same test, `cross` at source, `open-arrow` at target |
-| Self link | `from` = `to` | Rectangular loop on the right side, role names inside the loop | object: "notes attach... self links loop on the right"; fixture "self links" |
+| Self link | `from` = `to` | Loop on the node's top-right corner (then bottom-right, then nested on the right side), role names inside the loop | object: "notes attach... a self link loops on the top-right corner"; fixture "self links" |
 | Parallel links | several links between one pair | Separate lines, each with its own labels | fixture "parallel links between the same instances" |
-| Note (comment) | `type: "note"`, `attachedTo` | Rectangle with folded corner, dashed line to each annotated element (7.2.4) | object: dashed anchors; example `notation` |
+| Note (comment) | `type: "note"`, `attachedTo` | Rectangle with folded corner, thin dotted anchor line to each annotated element (7.2.4) | object: dotted anchors; example `notation` |
 | Diagram frame | `title` | Frame with pentagon heading `object <title>` (Annex A) | object: frame heading check |
 | Classifier declarations | `classifiers[]`: `name`, `attributes` | Not drawn; when present, instance classifiers and slot features are checked | fixtures `UNKNOWN_CLASSIFIER`, `UNKNOWN_FEATURE` |
 
@@ -60,7 +60,7 @@ to bottom. Markers and role names stay at the ends the document gives them.
 
 - The frame keyword `object` is not in Annex A's (non-exhaustive) list of frame
   kinds; it is used so the heading names the diagram kind.
-- Layout tries top-down and left-to-right and keeps the one closest to a landscape
-  page. Dense, cyclic link graphs (the stress example) stay readable but wide, with
-  long orthogonal routes.
-- The PNG shows emoji as "□" (resvg limitation, see README); the SVG keeps them.
+- Layout tries top-down, left-to-right, narrower layering and graph wrapping and
+  keeps the most readable result (`chooseLayout`). Dense, cyclic link graphs (the
+  stress example) stay readable, with long orthogonal routes.
+- The PNG shows emoji as "□" (decision 0003); the SVG keeps them.

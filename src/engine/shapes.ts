@@ -38,9 +38,12 @@ const EMPTY_COMPARTMENT = 10;
 export function measureBox(metrics: FontMetrics, compartments: readonly Compartment[], minWidth: number = theme.size.minNodeWidth): MeasuredBox {
   const { padX, padY, headerPadY } = theme.spacing;
   let width = minWidth;
+  // Lines that are never wrapped (members) set the box width first; wrapped lines
+  // (names) then use all of it, so a name only wraps when the box is narrower.
+  for (const c of compartments) for (const line of c.lines) if (!line.wrap) width = Math.max(width, Math.ceil(metrics.measure(line.text, line.style) + 2 * padX));
   const measured = compartments.map(c => {
     const lines = c.lines.map((line): MeasuredLine => {
-      const rows = line.wrap ? wrapText(metrics, line.text, line.style, line.wrap) : [line.text];
+      const rows = line.wrap ? wrapText(metrics, line.text, line.style, Math.max(line.wrap, width - 2 * padX)) : [line.text];
       const widths = rows.map(r => metrics.measure(r.trimEnd(), line.style));
       for (const w of widths) width = Math.max(width, Math.ceil(w + 2 * padX));
       return { ...line, rows, widths, lineHeight: metrics.lineHeight(line.style.size) };
@@ -50,6 +53,15 @@ export function measureBox(metrics: FontMetrics, compartments: readonly Compartm
     return { header: !!c.header, lines, height: lines.length ? content + 2 * pad : EMPTY_COMPARTMENT };
   });
   return { width, height: measured.reduce((sum, c) => sum + c.height, 0), compartments: measured };
+}
+
+/**
+ * `data-uml-starts`: for one <text> holding several logical lines (a keyword and a
+ * name, a condition and an extension point), the indices of the rows that begin a
+ * logical line. The QA wrap check then judges only the breaks inside a logical line.
+ */
+export function startsData(starts: readonly number[] | undefined): Record<string, string> {
+  return starts && starts.length > 1 ? { 'data-uml-starts': starts.join(' ') } : {};
 }
 
 /** Baseline offset of a text row inside a line box of `lineHeight`. */
@@ -146,7 +158,7 @@ export function measureNote(metrics: FontMetrics, text: string): { width: number
 }
 
 /** A UML note: rectangle with a folded top-right corner, left-aligned wrapped text. */
-export function drawNote(canvas: Canvas, rows: readonly string[], bounds: Rect, data: NodeData): string {
+export function drawNote(canvas: Canvas, rows: readonly string[], bounds: Rect, data: NodeData, starts?: readonly number[]): string {
   const { x, y, width: w, height: h } = bounds;
   const f = theme.size.noteFold, size = theme.font.size.body, lh = canvas.metrics.lineHeight(size);
   const outline = `M${num(x)},${num(y)} H${num(x + w - f)} L${num(x + w)},${num(y + f)} V${num(y + h)} H${num(x)} Z`;
@@ -155,7 +167,7 @@ export function drawNote(canvas: Canvas, rows: readonly string[], bounds: Rect, 
   return el('g', nodeAttributes(data, bounds), [
     el('path', { d: outline, fill: theme.color.noteFill, stroke: theme.color.noteStroke, 'stroke-width': theme.stroke.note, 'stroke-linejoin': 'round' }),
     el('path', { d: fold, fill: 'none', stroke: theme.color.noteStroke, 'stroke-width': theme.stroke.note, 'stroke-linejoin': 'round' }),
-    canvas.lines(rows, rows.map(() => x + 10), first, lh, { size, role: 'text', owner: data.id }),
+    canvas.lines(rows, rows.map(() => x + 10), first, lh, { size, role: 'text', owner: data.id, data: startsData(starts) }),
   ]);
 }
 

@@ -1,4 +1,4 @@
-import { direction, distance, distanceToRect, inflate, overlapArea, segmentIntersectsRect, union, type Point, type Rect } from './geometry.js';
+import { direction, distance, distanceToRect, inflate, overlapArea, segmentDistance, segmentIntersectsRect, union, type Point, type Rect } from './geometry.js';
 
 /**
  * Edge label placement with collision avoidance. End labels (role names,
@@ -30,6 +30,12 @@ export interface LabelRequest {
    * `at` then only matter for the anchor check of end labels.
    */
   candidates?: readonly Rect[];
+  /**
+   * Center labels: the edge the label names. With `Obstacles.lines`, a spot that is
+   * as near to another line as to this one is avoided (the reader could not tell
+   * which line the label names), and so is a spot far from this line.
+   */
+  owner?: string;
 }
 
 export interface Obstacles {
@@ -37,6 +43,46 @@ export interface Obstacles {
   segments: [Point, Point][];
   /** Edge ends that carry end labels; an end label must be nearer its own end than any of these. */
   ends?: Point[];
+  /** Every line by owner, for the ambiguity check of center labels (see LabelRequest.owner). */
+  lines?: readonly { owner: string; points: readonly Point[] }[];
+}
+
+/** Gap kept between a label and any node or marker (the QA gate's clearance). */
+export const LABEL_CLEARANCE = 3;
+/** A center label farther than this from its line starts to read as loose. */
+const CENTER_NEAR = 10;
+
+/** Distance between a rectangle and a segment (0 when they touch). */
+export function rectSegmentDistance(r: Rect, a: Point, b: Point): number {
+  if (segmentIntersectsRect(a, b, r)) return 0;
+  const corners = [{ x: r.x, y: r.y }, { x: r.x + r.width, y: r.y }, { x: r.x + r.width, y: r.y + r.height }, { x: r.x, y: r.y + r.height }];
+  return Math.min(distanceToRect(a, r), distanceToRect(b, r), ...corners.map((c, k) => segmentDistance(a, b, c, corners[(k + 1) % 4]!)));
+}
+
+/** True when segments a-b and c-d lie on one line and overlap. */
+export function collinearOverlap(a: Point, b: Point, c: Point, d: Point): boolean {
+  const horizontal = (p: Point, q: Point) => Math.abs(p.y - q.y) < 0.5, vertical = (p: Point, q: Point) => Math.abs(p.x - q.x) < 0.5;
+  const overlap = (p0: number, p1: number, q0: number, q1: number) => Math.min(Math.max(p0, p1), Math.max(q0, q1)) - Math.max(Math.min(p0, p1), Math.min(q0, q1)) > 0.5;
+  if (horizontal(a, b) && horizontal(c, d) && Math.abs(a.y - c.y) < 0.5) return overlap(a.x, b.x, c.x, d.x);
+  if (vertical(a, b) && vertical(c, d) && Math.abs(a.x - c.x) < 0.5) return overlap(a.y, b.y, c.y, d.y);
+  return false;
+}
+
+const segmentsOf = (points: readonly Point[]): [Point, Point][] => points.slice(1).map((q, k) => [points[k]!, q]);
+
+/**
+ * Distance from a label box to its own line and to the nearest other line
+ * (ignoring segments shared with its own line, and lines ending on it).
+ */
+export function labelLineDistances(rect: Rect, own: readonly Point[], others: readonly (readonly Point[])[]): { own: number; other: number } {
+  const ownSegments = segmentsOf(own);
+  const near = Math.min(...ownSegments.map(([a, b]) => rectSegmentDistance(rect, a, b)));
+  let other = Infinity;
+  for (const line of others) for (const [a, b] of segmentsOf(line)) {
+    if (ownSegments.some(([c, d]) => collinearOverlap(a, b, c, d))) continue;
+    other = Math.min(other, rectSegmentDistance(rect, a, b));
+  }
+  return { own: near, other };
 }
 
 const GAP = 4;
@@ -62,7 +108,7 @@ function endCandidates(request: LabelRequest): Rect[] {
   // A grid of boxes beside the end segment, nearest to the end point first. Steps
   // move by a label height along vertical lines and by a short hop across them,
   // so crowded ends still keep their labels close.
-  const stepAlong = vertical ? h + 2 : 10, stepAcross = vertical ? 10 : h + 2;
+  const stepAlong = vertical ? h + LABEL_CLEARANCE + 1 : 10, stepAcross = vertical ? 10 : h + LABEL_CLEARANCE + 1;
   const candidates: { rect: Rect; score: number }[] = [];
   for (let j = 0; j < 6; j++) {
     const t = GAP - 1 + j * stepAlong;
@@ -92,7 +138,7 @@ function centerCandidates(request: LabelRequest): Rect[] {
   for (const { a, b, length } of segments) {
     const vertical = Math.abs(b.x - a.x) < Math.abs(b.y - a.y);
     const diagonal = Math.abs(b.x - a.x) > 1 && Math.abs(b.y - a.y) > 1;
-    for (const f of [0.5, 0.3, 0.7, 0.15, 0.85]) {
+    for (const f of [0.5, 0.3, 0.7, 0.15, 0.85, 0.4, 0.6, 0.05, 0.95]) {
       const m = { x: a.x + (b.x - a.x) * f, y: a.y + (b.y - a.y) * f };
       if (length < 2 && f !== 0.5) continue;
       if (diagonal) {
@@ -113,18 +159,32 @@ function centerCandidates(request: LabelRequest): Rect[] {
   return out;
 }
 
-function cost(rect: Rect, obstacles: Obstacles, placed: readonly Rect[], anchor?: Point): number {
+/** Cost of a label box: 0 when it touches nothing and names its line unambiguously. */
+export function labelCost(rect: Rect, obstacles: Obstacles, placed: readonly Rect[], anchor: Point | undefined, request: LabelRequest): number {
   let total = 0;
   if (anchor && obstacles.ends) {
     const own = distanceToRect(anchor, rect);
     for (const end of obstacles.ends) if (distance(end, anchor) > 1 && distanceToRect(end, rect) < own - 2) total += 300;
   }
-  const padded = inflate(rect, 2);
+  if (request.at === 'center' && request.owner !== undefined && obstacles.lines && !request.candidates) {
+    const others = obstacles.lines.filter(l => l.owner !== request.owner).map(l => l.points);
+    const d = labelLineDistances(rect, request.route, others);
+    if (d.own > CENTER_NEAR) total += (d.own - CENTER_NEAR) * 20;
+    if (d.other < d.own + 4) total += 250;
+  }
+  const padded = inflate(rect, LABEL_CLEARANCE);
   for (const r of obstacles.rects) total += overlapArea(padded, r) * 10;
   for (const r of placed) total += overlapArea(padded, r) * 10;
   const thin = inflate(rect, 1);
   for (const [a, b] of obstacles.segments) if (segmentIntersectsRect(a, b, thin)) total += 400;
   return total;
+}
+
+/** True when the label has a spot that touches nothing and names its line unambiguously. */
+export function labelFits(request: LabelRequest, obstacles: Obstacles): boolean {
+  const candidates = request.candidates ?? (request.at === 'center' ? centerCandidates(request) : endCandidates(request));
+  const anchor = request.at === 'source' ? request.route[0] : request.at === 'target' ? request.route.at(-1) : undefined;
+  return candidates.some(c => labelCost(c, obstacles, [], anchor, request) === 0);
 }
 
 /** Places labels in order; earlier labels get the better spots. */
@@ -136,7 +196,7 @@ export function placeLabels(requests: readonly LabelRequest[], obstacles: Obstac
     candidates.forEach((candidate, index) => {
       if (bestCost === 0) return;
       const anchor = request.at === 'source' ? request.route[0] : request.at === 'target' ? request.route.at(-1) : undefined;
-      const base = cost(candidate, obstacles, [...placed.values()], anchor);
+      const base = labelCost(candidate, obstacles, [...placed.values()], anchor, request);
       const c = base ? base + index * 0.01 : 0;
       if (c < bestCost) { best = candidate; bestCost = c; }
     });

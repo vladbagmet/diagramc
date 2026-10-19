@@ -33,6 +33,6 @@ export function packageDiagramSpec(model: PackageDiagram): DiagramSpec {
     kind: 'package', frameKeyword: 'package', title: model.title,
     nodes: nestElements(model.elements, e => isPackage(e) ? e.members : undefined, node),
     edges,
-    directions: ['DOWN', 'RIGHT'],
+    directions: ['DOWN', 'RIGHT'], wrap: true,
   };
 }

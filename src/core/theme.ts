@@ -39,6 +39,8 @@ export const theme = {
     frameHeadingFill: '#F1F5F9',
     /** Top and side faces of a deployment node's 3D box. */
     nodeDepthFill: '#DCE5EF',
+    /** Note anchors: lighter than relationship lines, so they never read as dependencies. */
+    anchor: '#64748B',
     /** Halo painted behind edge labels so crossing lines never obscure them. */
     labelHalo: '#FFFFFF',
   },
@@ -48,8 +50,11 @@ export const theme = {
     edge: 1.25,
     frame: 1,
     note: 1,
-    /** Dash pattern for dashed UML lines (dependency, realization, note anchors). */
+    /** Dash pattern for dashed UML lines (dependency, realization). */
     dash: '7 4',
+    /** Note anchor lines (UML 7.2.4): thin and dotted, distinct from dashed dependencies. */
+    anchor: 1,
+    anchorDash: '1.5 3',
     /** Dash pattern for short dashed lines (reply message arrows, small fragments). */
     shortDash: '4 3',
   },
@@ -68,6 +73,8 @@ export const theme = {
     layer: 64,
     /** Gap between parallel edge segments. */
     edgeEdge: 14,
+    /** Distance the route repair keeps between two line ends on one side of a node (more with arrowheads); the QA gate requires at least edgeEdge. */
+    endEnd: 20,
     /** Distance between an edge and its labels. */
     edgeLabel: 4,
     /** Bend radius of orthogonal edges. */
@@ -78,9 +85,16 @@ export const theme = {
   size: {
     minNodeWidth: 96,
     maxNameWidth: 260,
+    /**
+     * A single word (no spaces) up to this wide stays whole on one line, widening
+     * its box beyond maxNameWidth; longer words break at camelCase and punctuation.
+     */
+    maxTokenWidth: 420,
     maxNoteWidth: 220,
     /** Arrowhead dimensions (length along the line, half of the width across it). */
     triangle: { length: 14, halfWidth: 8 },
+    /** Filled arrowhead of a message arrow beside a line (communication, inline interaction fragments). */
+    messageTriangle: { length: 10, halfWidth: 4.5 },
     arrow: { length: 11, halfWidth: 6 },
     diamond: { length: 18, halfWidth: 7 },
     cross: { offset: 12, half: 5 },

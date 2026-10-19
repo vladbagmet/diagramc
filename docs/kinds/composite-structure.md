@@ -64,7 +64,13 @@ gates, including the `ports` gate.
 
 ## Known limitations
 
+- Layout: left to right or top to bottom, whichever is more readable
+  (`StructGraph.directions`, `chooseLayout`); top to bottom, ports with lines into
+  the owner sit on its top border and are moved beside the centered name.
 - A collaboration's ellipse is sized to circumscribe its roles' layout, so wide
-  role layouts give flat, wide ellipses.
-- All role bindings of one collaboration use leave from the middle of its right
-  side and fan out from there.
+  role layouts give flat, wide ellipses and tall ones (top to bottom) tall ellipses.
+- All role bindings of one collaboration use leave from the middle of one side of
+  its ellipse and fan out from there. Role names on bindings are italic and muted,
+  so they do not read as connector end labels.
+- When ELK cannot lay out a role binding or note anchor into a nested part, the
+  layout runs without it and the router draws it; such lines can be long.

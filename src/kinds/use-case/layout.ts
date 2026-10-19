@@ -1,5 +1,6 @@
 import { theme } from '../../core/theme.js';
-import { clipRoute, type NodeShape } from '../../engine/clip.js';
+import { clipRoute, spreadEllipseEnds, type NodeShape } from '../../engine/clip.js';
+import { markerHalf, markerLength } from '../../engine/edges.js';
 import type { Marker, LineStyle } from '../../engine/edges.js';
 import { layout, type LayoutEdge, type LayoutLabel, type LayoutNode } from '../../engine/elk.js';
 import type { FontMetrics, TextStyle } from '../../engine/fonts.js';
@@ -21,7 +22,7 @@ export interface UseCaseScene {
   subjects: { subject: Subject; bounds: Rect; rows: TextRow[] }[];
   actors: { actor: Actor; bounds: Rect; caption: { rect: Rect; rows: TextRow[] } }[];
   useCases: { useCase: UseCase; bounds: Rect; measured: MeasuredUseCase; parent?: string | undefined }[];
-  notes: { id: string; bounds: Rect; rows: string[]; parent?: string | undefined }[];
+  notes: { id: string; bounds: Rect; rows: string[]; parent?: string | undefined; starts?: number[] }[];
   edges: { id: string; type: string; source: string; target: string; points: Point[]; style: LineStyle; sourceMarker: Marker; targetMarker: Marker }[];
   labels: { id: string; owner: string; rect: Rect; lines: string[]; widths: number[]; end?: 'source' | 'target'; anchor?: Point }[];
 }
@@ -56,6 +57,8 @@ function conditionRows(metrics: FontMetrics, r: Extend): string[] {
   const style = { size: theme.font.size.body }, width = theme.size.maxNoteWidth;
   return [...wrapText(metrics, `Condition: {${r.condition}}`, style, width), ...wrapText(metrics, `extension point: ${r.extensionPoint}`, style, width)];
 }
+/** Index of the first row of the extension point line in conditionRows. */
+const conditionSplit = (metrics: FontMetrics, r: Extend): number => wrapText(metrics, `Condition: {${r.condition}}`, { size: theme.font.size.body }, theme.size.maxNoteWidth).length;
 
 export async function layoutUseCaseDiagram(model: UseCaseDiagram, metrics: FontMetrics): Promise<UseCaseScene> {
   const lineHeight = metrics.lineHeight(LABEL.size);
@@ -116,6 +119,7 @@ export async function layoutUseCaseDiagram(model: UseCaseDiagram, metrics: FontM
   }
   // Condition notes of «extend», beside the extending use case.
   const conditions = new Map<string, { noteId: string; rows: string[] }>();
+  const noteStarts = new Map<string, number[]>();
   for (const { r, key } of relationships) {
     if (r.type !== 'extend' || r.condition === undefined) continue;
     const rows = conditionRows(metrics, r);
@@ -125,6 +129,7 @@ export async function layoutUseCaseDiagram(model: UseCaseDiagram, metrics: FontM
     const noteId = `${key}::condition`;
     conditions.set(key, { noteId, rows });
     noteRows.set(noteId, rows);
+    noteStarts.set(noteId, [0, conditionSplit(metrics, r)]);
     const parent = subjectOf(r.from) !== undefined && subjectOf(r.from) === subjectOf(r.to) ? subjectOf(r.from) : undefined;
     noteParent.set(noteId, parent);
     (parent ? subjects.get(parent)!.children! : roots).push({ id: noteId, width, height });
@@ -185,13 +190,44 @@ export async function layoutUseCaseDiagram(model: UseCaseDiagram, metrics: FontM
     if (p.reversed) route = [...route].reverse();
     route = clipRoute(route, 'source', rect(p.r.from), shapeOf(p.r.from));
     route = clipRoute(route, 'target', rect(p.r.to), shapeOf(p.r.to));
+    // Lines meet an actor at one point per side (the middle of the side facing them)
+    // instead of a comb of nearly coinciding ends.
+    for (const end of ['source', 'target'] as const) {
+      const id = end === 'source' ? p.r.from : p.r.to;
+      if (byId.get(id)?.type !== 'actor' || route.length < 2) continue;
+      const q = end === 'source' ? route[1]! : route.at(-2)!;
+      const r = rect(id), center = sideCenter(r, q);
+      // A generalization's arrowhead sits beside the point where the associations meet,
+      // never on it (a side point shifted along the side).
+      const side = Math.abs(center.y - (r.y + r.height / 2)) < 0.5;
+      const own = end === 'source' ? route[0]! : route.at(-1)!;
+      const apart = 2 * theme.size.triangle.halfWidth + 6;
+      if (p.r.type === 'generalization' && distance(own, center) >= apart) continue;
+      // Shifted away from where the line comes from, so it stays clear of the caption below.
+      const at = p.r.type === 'generalization' && side ? { x: center.x, y: q.y > center.y ? Math.max(r.y + 2, center.y - apart) : Math.min(r.y + r.height - 2, center.y + apart) } : center;
+      route = end === 'source' ? [at, ...route.slice(1)] : [...route.slice(0, -1), at];
+      // An arrowhead needs a straight end segment: drop a bend too close to the new end.
+      const marker = end === 'source' ? 'none' : p.target;
+      if (route.length > 2 && distance(q, at) < markerLength(marker) + theme.spacing.bendRadius + 1) route = end === 'source' ? [at, ...route.slice(2)] : [...route.slice(0, -2), at];
+    }
     routes.set(p.key, route);
     sceneEdges.push({ id: p.key, type: p.r.type, source: p.r.from, target: p.r.to, points: route, style: p.style, sourceMarker: 'none', targetMarker: p.target });
+  }
+  // Ends on one use case keep apart around its ellipse (no overlapping arrowheads).
+  for (const e of model.elements) {
+    if (e.type !== 'useCase') continue;
+    const ends = sceneEdges.flatMap(s => (['source', 'target'] as const).filter(end => (end === 'source' ? s.source : s.target) === e.id && s.source !== s.target)
+      .map(end => ({ edge: s.id, end, min: Math.max(theme.spacing.edgeEdge, 2 * markerHalf(end === 'source' ? s.sourceMarker : s.targetMarker) + 6) })));
+    spreadEllipseEnds(routes, rect(e.id), ends);
   }
   for (const a of anchors) {
     // Laid out from the target to the note; drawn from the note to the target.
     let route = [...result.edges.get(a.id)!.points].reverse();
     route = clipRoute(route, 'target', rect(a.target), shapeOf(a.target));
+    // Anchors from one note leave from the middle of the side facing them, and meet an
+    // actor where its associations do, so their ends never form a comb.
+    if (route.length >= 2) route[0] = sideCenter(rect(a.note), route[1]!);
+    if (route.length >= 2 && byId.get(a.target)?.type === 'actor') route[route.length - 1] = sideCenter(rect(a.target), route.at(-2)!);
     sceneEdges.push({ id: a.id, type: 'note-anchor', source: a.note, target: a.target, points: route, style: 'dashed', sourceMarker: 'none', targetMarker: 'none' });
   }
   for (const [key, c] of conditions) {
@@ -270,7 +306,7 @@ export async function layoutUseCaseDiagram(model: UseCaseDiagram, metrics: FontM
     subjects: model.elements.filter((e): e is Subject => e.type === 'subject').map(s => ({ subject: s, bounds: move(rect(s.id)), rows: subjectRows.get(s.id)! })),
     actors: actors.map(a => ({ ...a, bounds: move(a.bounds), caption: { ...a.caption, rect: move(a.caption.rect) } })),
     useCases: model.elements.filter((e): e is UseCase => e.type === 'useCase').map(u => ({ useCase: u, bounds: move(rect(u.id)), measured: useCases.get(u.id)!, parent: u.subject })),
-    notes: [...model.elements.filter(e => e.type === 'note').map(e => e.id), ...[...conditions.values()].map(c => c.noteId)].map(id => ({ id, bounds: move(rect(id)), rows: noteRows.get(id)!, parent: noteParent.get(id) })),
+    notes: [...model.elements.filter(e => e.type === 'note').map(e => e.id), ...[...conditions.values()].map(c => c.noteId)].map(id => ({ id, bounds: move(rect(id)), rows: noteRows.get(id)!, parent: noteParent.get(id), ...(noteStarts.has(id) ? { starts: noteStarts.get(id)! } : {}) })),
     edges: sceneEdges.map(e => ({ ...e, points: e.points.map(movePoint) })),
     labels: labels.map(l => ({ ...l, rect: move(l.rect), ...(l.anchor ? { anchor: movePoint(l.anchor) } : {}) })),
   };
@@ -333,4 +369,12 @@ function rectHit(from: Point, r: Rect): Point {
     }
   }
   return { x: from.x + t * dx, y: from.y + t * dy };
+}
+
+/** The middle of the side of `r` that faces point `q`. */
+function sideCenter(r: Rect, q: Point): Point {
+  const c = { x: r.x + r.width / 2, y: r.y + r.height / 2 };
+  return Math.abs(q.x - c.x) * r.height >= Math.abs(q.y - c.y) * r.width
+    ? { x: q.x < c.x ? r.x : r.x + r.width, y: c.y }
+    : { x: c.x, y: q.y < c.y ? r.y : r.y + r.height };
 }

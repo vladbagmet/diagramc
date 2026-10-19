@@ -451,7 +451,8 @@ rule codes (see `docs/kinds/<kind>.md`), `UNSUPPORTED_BACKEND`,
   SVG embeds the subset it uses, so it looks the same everywhere (within 0.2 % of
   Chrome's own measurement). See [`docs/decisions/0001-fonts.md`](docs/decisions/0001-fonts.md).
   Glyphs Inter lacks (CJK, emoji) come from the viewer's fonts. PNG export uses
-  resvg; it shows emoji as "□".
+  resvg; it keeps Inter and bold for the Latin part of mixed-script lines and shows
+  emoji as "□" (no emoji font is bundled, see [`docs/decisions/0003-png-text.md`](docs/decisions/0003-png-text.md)).
 - **Deterministic.** Repeated renders are byte-identical in the same environment.
 - **Budgets.** A 50-class, 80-relationship diagram renders in well under 2 s.
 

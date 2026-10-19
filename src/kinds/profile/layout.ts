@@ -57,6 +57,6 @@ export function profileDiagramSpec(model: ProfileDiagram): DiagramSpec {
     nodes: nestElements(model.elements, e => isContainer(e) ? e.members : undefined, node),
     edges,
     // Metaclasses and general stereotypes above, as in UML 2.5.1 figures.
-    directions: ['DOWN'],
+    directions: ['DOWN'], wrap: true,
   };
 }

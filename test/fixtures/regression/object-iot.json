@@ -1,0 +1,35 @@
+{
+  "kind": "object",
+  "title": "Greenhouse at 06:00",
+  "classifiers": [
+    { "name": "Gateway", "attributes": ["serial", "firmware"] },
+    { "name": "Sensor", "attributes": ["kind", "reading", "unit"] },
+    { "name": "Actuator", "attributes": ["kind", "state"] },
+    { "name": "Zone", "attributes": ["name", "targetTemp"] },
+    { "name": "Rule", "attributes": ["expression"] }
+  ],
+  "elements": [
+    { "id": "gw", "type": "instance", "name": "gw1", "classifier": "Gateway", "slots": [{ "feature": "serial", "value": "\"GW-0042\"" }, { "feature": "firmware", "type": "String", "value": "\"2.4.1\"" }] },
+    { "id": "z1", "type": "instance", "name": "north", "classifier": "Zone", "slots": [{ "feature": "name", "value": "\"North bed\"" }, { "feature": "targetTemp", "value": "21.5" }] },
+    { "id": "z2", "type": "instance", "name": "south", "classifier": "Zone", "slots": [{ "feature": "name", "value": "\"South bed\"" }, { "feature": "targetTemp", "value": "19.0" }] },
+    { "id": "t1", "type": "instance", "name": "t1", "classifier": "Sensor", "slots": [{ "feature": "kind", "value": "TEMP" }, { "feature": "reading", "value": "18.2" }, { "feature": "unit", "value": "\"°C\"" }] },
+    { "id": "h1", "type": "instance", "name": "h1", "classifier": "Sensor", "slots": [{ "feature": "kind", "value": "HUMIDITY" }, { "feature": "reading", "value": "64" }, { "feature": "unit", "value": "\"%\"" }] },
+    { "id": "t2", "type": "instance", "name": "t2", "classifier": "Sensor", "slots": [{ "feature": "kind", "value": "TEMP" }, { "feature": "reading", "value": "20.9" }] },
+    { "id": "heater", "type": "instance", "classifier": "Actuator", "slots": [{ "feature": "kind", "value": "HEATER" }, { "feature": "state", "value": "ON" }] },
+    { "id": "vent", "type": "instance", "classifier": "Actuator", "slots": [{ "feature": "kind", "value": "VENT" }, { "feature": "state", "value": "CLOSED" }] },
+    { "id": "r1", "type": "instance", "name": "heatRule", "classifier": "Rule", "slots": [{ "feature": "expression", "value": "\"temp < target - 2 → heater on\"" }] },
+    { "id": "n1", "type": "note", "text": "t1 is below target, so heatRule switched the heater on.", "attachedTo": ["t1", "heater"] }
+  ],
+  "relationships": [
+    { "type": "link", "from": "gw", "to": "z1", "association": "serves", "toEnd": { "role": "zones" } },
+    { "type": "link", "from": "gw", "to": "z2", "association": "serves", "toEnd": { "role": "zones" } },
+    { "type": "link", "from": "z1", "to": "t1", "association": "monitoredBy", "toEnd": { "role": "sensors", "navigable": true } },
+    { "type": "link", "from": "z1", "to": "h1", "association": "monitoredBy", "toEnd": { "role": "sensors", "navigable": true } },
+    { "type": "link", "from": "z2", "to": "t2", "association": "monitoredBy", "toEnd": { "role": "sensors", "navigable": true } },
+    { "type": "link", "from": "z1", "to": "heater", "association": "controls", "toEnd": { "role": "actuators" } },
+    { "type": "link", "from": "z2", "to": "vent", "association": "controls", "toEnd": { "role": "actuators" } },
+    { "type": "link", "from": "r1", "to": "t1", "association": "watches", "toEnd": { "role": "input", "navigable": true } },
+    { "type": "link", "from": "r1", "to": "heater", "association": "drives", "toEnd": { "role": "output", "navigable": true } },
+    { "type": "link", "from": "z1", "to": "r1", "fromEnd": { "role": "zone" }, "toEnd": { "role": "rules" } }
+  ]
+}

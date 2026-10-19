@@ -42,6 +42,8 @@ export interface FontMetrics {
   descent(size: number): number;
   /** Line advance for multi-line text (px). */
   lineHeight(size: number): number;
+  /** The text split into runs the pinned font draws (covered) and runs it lacks (CJK, emoji). */
+  runs(text: string, style: TextStyle): { text: string; covered: boolean }[];
 }
 
 let loading: Promise<FontMetrics> | undefined;
@@ -90,6 +92,16 @@ export function loadFonts(): Promise<FontMetrics> {
       ascent: size => size * regular.ascender / regular.upem,
       descent: size => size * regular.descender / regular.upem,
       lineHeight: size => Math.round(size * theme.font.lineHeight),
+      runs(text, style) {
+        const face = faces[styleKey(style)];
+        const out: { text: string; covered: boolean }[] = [];
+        for (const { segment } of graphemes.segment(text)) {
+          const covered = [...segment].every(c => face.coverage.has(c.codePointAt(0)!) || DEFAULT_IGNORABLE.test(c));
+          const last = out.at(-1);
+          if (last && last.covered === covered) last.text += segment; else out.push({ text: segment, covered });
+        }
+        return out;
+      },
     };
   })();
   return loading;

@@ -85,6 +85,12 @@ export interface StructGraph {
   assemblies: StructAssembly[];
   /** Notes' anchors: note ID to annotated node IDs. */
   anchors: { note: string; target: string }[];
+  /**
+   * Layout directions to try, the conventional one first (default: RIGHT only);
+   * the most readable result wins (src/engine/aspect.ts). Left to right, provided
+   * interfaces face left and required ones right; top to bottom, up and down.
+   */
+  directions?: ('RIGHT' | 'DOWN')[];
 }
 
 export const KEYWORD_STYLE = { size: theme.font.size.label };

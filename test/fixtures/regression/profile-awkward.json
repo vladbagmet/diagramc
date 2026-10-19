@@ -1,0 +1,299 @@
+{
+ "kind": "profile",
+ "title": "Awkward profile",
+ "elements": [
+  {
+   "id": "outer",
+   "type": "package",
+   "name": "CorporateModelingStandards",
+   "members": [
+    "prof"
+   ]
+  },
+  {
+   "id": "prof",
+   "type": "profile",
+   "name": "EnterpriseArchitectureGovernanceAndComplianceProfile",
+   "members": [
+    "inner",
+    "s0",
+    "s1",
+    "s2",
+    "s3",
+    "s4",
+    "s5",
+    "big"
+   ]
+  },
+  {
+   "id": "inner",
+   "type": "profile",
+   "name": "Sub",
+   "members": [
+    "subS"
+   ]
+  },
+  {
+   "id": "subS",
+   "type": "stereotype",
+   "name": "SubStereo"
+  },
+  {
+   "id": "big",
+   "type": "stereotype",
+   "name": "ExtremelyVerboseStereotypeNameForRegulatoryTraceability",
+   "attributes": [
+    {
+     "name": "tagNumber0",
+     "type": "Integer",
+     "multiplicity": "0..*",
+     "default": "0"
+    },
+    {
+     "name": "tagNumber1",
+     "type": "String"
+    },
+    {
+     "name": "tagNumber2",
+     "type": "Integer",
+     "default": "2"
+    },
+    {
+     "name": "tagNumber3",
+     "type": "String",
+     "multiplicity": "0..*"
+    },
+    {
+     "name": "tagNumber4",
+     "type": "Integer",
+     "default": "4"
+    },
+    {
+     "name": "tagNumber5",
+     "type": "String"
+    },
+    {
+     "name": "tagNumber6",
+     "type": "Integer",
+     "multiplicity": "0..*",
+     "default": "6"
+    },
+    {
+     "name": "tagNumber7",
+     "type": "String"
+    },
+    {
+     "name": "tagNumber8",
+     "type": "Integer",
+     "default": "8"
+    },
+    {
+     "name": "tagNumber9",
+     "type": "String",
+     "multiplicity": "0..*"
+    },
+    {
+     "name": "tagNumber10",
+     "type": "Integer",
+     "default": "10"
+    },
+    {
+     "name": "tagNumber11",
+     "type": "String"
+    }
+   ]
+  },
+  {
+   "id": "mc",
+   "type": "metaclass",
+   "name": "Class"
+  },
+  {
+   "id": "mc2",
+   "type": "metaclass",
+   "name": "Element"
+  },
+  {
+   "id": "user",
+   "type": "class",
+   "name": "Invoice",
+   "stereotypes": [
+    "Audited",
+    "Versioned",
+    "Encrypted"
+   ]
+  },
+  {
+   "id": "top",
+   "type": "stereotype",
+   "name": "TopLevelStereo"
+  },
+  {
+   "id": "n1",
+   "type": "note",
+   "text": "Note on metaclass",
+   "attachedTo": [
+    "mc"
+   ]
+  },
+  {
+   "id": "n2",
+   "type": "note",
+   "text": "Note on the nested profile",
+   "attachedTo": [
+    "inner"
+   ]
+  },
+  {
+   "id": "n3",
+   "type": "note",
+   "text": "Note on all stereotypes",
+   "attachedTo": [
+    "s0",
+    "s1",
+    "s2",
+    "s3",
+    "s4",
+    "s5"
+   ]
+  },
+  {
+   "id": "s0",
+   "type": "stereotype",
+   "name": "Stereo0",
+   "abstract": true
+  },
+  {
+   "id": "s1",
+   "type": "stereotype",
+   "name": "Stereo1",
+   "abstract": false
+  },
+  {
+   "id": "s2",
+   "type": "stereotype",
+   "name": "Stereo2",
+   "abstract": false
+  },
+  {
+   "id": "s3",
+   "type": "stereotype",
+   "name": "Stereo3",
+   "abstract": false
+  },
+  {
+   "id": "s4",
+   "type": "stereotype",
+   "name": "Stereo4",
+   "abstract": false
+  },
+  {
+   "id": "s5",
+   "type": "stereotype",
+   "name": "Stereo5",
+   "abstract": false
+  },
+  {
+   "id": "app",
+   "type": "package",
+   "name": "Billing",
+   "members": [
+    "user"
+   ]
+  }
+ ],
+ "relationships": [
+  {
+   "type": "extension",
+   "from": "s0",
+   "to": "mc",
+   "required": true
+  },
+  {
+   "type": "extension",
+   "from": "s1",
+   "to": "mc",
+   "required": false
+  },
+  {
+   "type": "extension",
+   "from": "s2",
+   "to": "mc",
+   "required": true
+  },
+  {
+   "type": "extension",
+   "from": "s3",
+   "to": "mc",
+   "required": false
+  },
+  {
+   "type": "extension",
+   "from": "s4",
+   "to": "mc",
+   "required": true
+  },
+  {
+   "type": "extension",
+   "from": "s5",
+   "to": "mc",
+   "required": false
+  },
+  {
+   "type": "extension",
+   "from": "big",
+   "to": "mc",
+   "required": true
+  },
+  {
+   "type": "extension",
+   "from": "big",
+   "to": "mc2"
+  },
+  {
+   "type": "extension",
+   "from": "subS",
+   "to": "mc2"
+  },
+  {
+   "type": "extension",
+   "from": "top",
+   "to": "mc"
+  },
+  {
+   "type": "generalization",
+   "from": "s1",
+   "to": "s0"
+  },
+  {
+   "type": "generalization",
+   "from": "s2",
+   "to": "s0"
+  },
+  {
+   "type": "generalization",
+   "from": "s3",
+   "to": "s0"
+  },
+  {
+   "type": "generalization",
+   "from": "s5",
+   "to": "s4"
+  },
+  {
+   "type": "apply",
+   "from": "app",
+   "to": "prof"
+  },
+  {
+   "type": "reference",
+   "from": "prof",
+   "to": "mc"
+  },
+  {
+   "type": "apply",
+   "from": "app",
+   "to": "inner"
+  }
+ ]
+}
