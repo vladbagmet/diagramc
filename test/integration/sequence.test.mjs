@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile, readdir } from 'node:fs/promises';
+import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { parseDocument } from '../../dist/model/parse.js';
 import { renderToSvg } from '../../dist/render.js';
@@ -163,3 +164,12 @@ test('CLI renders sequence diagrams to SVG and PNG', async t => {
     else assert.match(bytes.toString(), /data-diagram-type="SEQUENCE"/);
   }
 });
+
+test('review models (sequence) render and pass every QA gate', async () => {
+  for (const name of ['seq-awkward.json', 'seq-oauth.json']) {
+    await assertGates(await readFile(join(root, 'test/fixtures/review', name), 'utf8'));
+  }
+  // C-23: the reviewer's guard "[ok]" used to be drawn [[ok]]; it is now rejected with the corrected text.
+  assert.throws(() => parseDocument(reviewText('seq-llm2.json')), e => e.diagnostics.some(d => d.path === '/items/3/operands/0/guard' && d.details.suggestion === 'ok'));
+});
+const reviewText = name => readFileSync(join(root, 'test/fixtures/review', name), 'utf8');
