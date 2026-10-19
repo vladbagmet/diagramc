@@ -180,7 +180,7 @@ export function runGates(scene: Scene, expectedTexts: readonly string[] = []): Q
 
 /**
  * Ports and interface symbols (component, composite structure and similar kinds):
- * port squares are centered on their owner's border; lollipop balls and sockets
+ * port squares are centered on their owner's border, their names next to them; lollipop balls and sockets
  * sit at the end of their stem, outside their owner, facing outward; in an
  * assembly the ball sits concentrically in the socket, the requiring line meets
  * the socket's back and the providing line enters through its opening, on one
@@ -195,6 +195,10 @@ function checkPorts(scene: Scene, labels: readonly Scene['texts'][number][], fai
     const c = center(port.bounds);
     const d = distanceToBorder(c, owner.bounds);
     if (d > 0.5) fail(`port ${port.id} center ${at(c)} is ${d.toFixed(2)}px off the border of ${owner.id}`);
+    for (const label of labels.filter(l => l.owner === port.id)) {
+      const gap = distanceToRect(c, label.bounds) - port.bounds.width / 2;
+      if (gap > 16) fail(`port name ${snippet(label.content)} is ${gap.toFixed(1)}px away from port ${port.id}`);
+    }
   }
   // Each route end touching a symbol, with the direction of its last segment (into the symbol).
   const ends = (id: string) => scene.edges.flatMap(e => {

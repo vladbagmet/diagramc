@@ -657,9 +657,11 @@ export async function layoutStructure(graph: StructGraph, metrics: FontMetrics):
     const out = Math.abs(c.x - owner.x) < Math.abs(c.x - (owner.x + owner.width)) ? -1 : 1;
     const g = portSize / 2 + LABEL_GAP;
     const candidates: Rect[] = [];
+    // The room ELK reserved at the port end of a line, if it is right next to the port.
     const reserved = suggestions.get(`${s.id}::label`);
-    if (reserved) candidates.push({ x: reserved.x + 2, y: reserved.y, width, height: lh });
-    for (const shift of [0, 8, 16, 28]) {
+    const near = (r: Rect): boolean => Math.hypot(Math.max(r.x - c.x, 0, c.x - (r.x + r.width)), Math.max(r.y - c.y, 0, c.y - (r.y + r.height))) - portSize / 2 <= 12;
+    if (reserved && near({ x: reserved.x + 2, y: reserved.y, width, height: lh })) candidates.push({ x: reserved.x + 2, y: reserved.y, width, height: lh });
+    for (const shift of [0, 6, 12]) {
       for (const dir of [out, -out]) {
         const x = dir < 0 ? c.x - g - width - shift : c.x + g + shift;
         candidates.push({ x, y: c.y - LABEL_GAP - lh, width, height: lh }, { x, y: c.y + LABEL_GAP, width, height: lh });

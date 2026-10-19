@@ -54,6 +54,9 @@ test('QA ports gate: ports on borders, lollipops and sockets facing outward, ali
   // A port straddles its owner's border: no overlap failure, centered exactly on the border.
   assert.deepEqual(failed(await checkSvg(doc(comp + port(100, 90)))), []);
   assert.deepEqual(failed(await checkSvg(doc(comp + port(104, 90)))), ['ports']);
+  const portName = (x, y) => `<text x="${x}" y="${y}" font-size="12" data-uml-role="label" data-uml-owner="p">in</text>`;
+  assert.deepEqual(failed(await checkSvg(doc(comp + port(100, 90) + portName(80, 84)))), [], 'port name next to its port');
+  assert.deepEqual(failed(await checkSvg(doc(comp + port(100, 90) + portName(20, 30)))), ['ports'], 'port name far from its port');
   // Lollipop: stem from the port to the ball, ball outside the component.
   const ball = (cx, cy) => typed('b', 'provided-interface', cx - 6, cy - 6, 12, 12, ` data-uml-ball="${cx},${cy},6"`);
   assert.deepEqual(failed(await checkSvg(doc(comp + port(100, 90) + ball(50, 90) + line('s', 'p', 'b', [{ x: 94, y: 90 }, { x: 56, y: 90 }])))), []);
