@@ -1,20 +1,40 @@
 {
   "name": "agent-uml-cli",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
-  "description": "A small, validated JSON-to-SVG class diagram CLI",
+  "description": "Agent-first CLI: validated JSON UML models to SVG/PNG, offline",
   "type": "module",
-  "bin": { "uml": "dist/cli.js" },
-  "files": ["dist/", "schema/", "scripts/setup-renderer.mjs", "examples/"],
-  "engines": { "node": ">=22" },
+  "bin": {
+    "uml": "dist/cli.js"
+  },
+  "files": [
+    "dist/",
+    "schema/",
+    "assets/",
+    "scripts/setup-renderer.mjs",
+    "examples/"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "build": "tsc && node scripts/finish-build.mjs",
     "prepack": "npm run build",
     "setup:renderer": "node scripts/setup-renderer.mjs",
-    "test": "npm run build && node --test test/unit.test.mjs test/setup.test.mjs test/package.test.mjs",
-    "test:integration": "npm run build && node --test test/integration.test.mjs",
-    "render:example": "node dist/cli.js render examples/order-system.json -o artifacts/review.svg"
+    "test": "npm run build && node --test \"test/*.test.mjs\"",
+    "test:integration": "npm run build && node --test \"test/integration/*.test.mjs\"",
+    "gallery": "npm run build && node scripts/gallery.mjs",
+    "render:example": "node dist/cli.js render examples/class/ordering.json -o artifacts/gallery/example.svg"
   },
-  "dependencies": { "ajv": "8.20.0" },
-  "devDependencies": { "@types/node": "22.15.30", "typescript": "5.8.3" }
+  "dependencies": {
+    "@resvg/resvg-js": "2.6.2",
+    "ajv": "8.20.0",
+    "elkjs": "0.11.1",
+    "harfbuzzjs": "1.6.2",
+    "subset-font": "2.9.0"
+  },
+  "devDependencies": {
+    "@types/node": "22.15.30",
+    "typescript": "5.8.3"
+  }
 }

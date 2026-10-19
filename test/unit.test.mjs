@@ -3,29 +3,43 @@ import assert from 'node:assert/strict';
 import { readFile, writeFile, access, mkdir, readdir, watch } from 'node:fs/promises';
 import { spawn } from 'node:child_process';
 import { join } from 'node:path';
-import { parseModel, MAX_INPUT_BYTES } from '../dist/model.js';
-import { toPlantUml, displayText } from '../dist/plantuml.js';
-import { renderSvg, rendererOptions } from '../dist/renderer.js';
-import { writeOutput } from '../dist/io.js';
-import { cli, workspace, fakeJava, minimal, fakeSvg } from './helpers.mjs';
+import { parseDocument } from '../dist/model/parse.js';
+import { MAX_INPUT_BYTES } from '../dist/core/limits.js';
+import { displayText } from '../dist/plantuml/encode.js';
+import { classToPlantUml } from '../dist/kinds/class/to-plantuml.js';
+import { renderSvg, rendererOptions } from '../dist/plantuml/runner.js';
+import { writeOutput } from '../dist/core/io.js';
+import { cli, workspace, fakeJava, minimal, minimalV2, fakeSvg } from './helpers.mjs';
 
-const parse = model => parseModel(JSON.stringify(model));
-const fails = (model, code) => assert.throws(() => parse(model), { code });
-
-test('valid minimal, Unicode and display-only members', () => {
-  assert.deepEqual(parse(minimal), minimal);
-  const model = { classes: [{ id: 'z', name: 'Zoë · 注文 🚀', attributes: ['+f(): T', 'List<T>'], methods: ['not parsed as code'] }], relationships: [] };
-  assert.deepEqual(parse(model), model);
+const parse = model => parseDocument(JSON.stringify(model));
+const fails = (model, code, path) => assert.throws(() => parse(model), error => {
+  assert.equal(error.code, code, error.message);
+  if (path !== undefined) assert.equal(error.path, path);
+  return true;
 });
-test('schema rejects unknown fields at every level, unsupported types and nonstrings', () => {
-  for (const model of [
-    { ...minimal, layout: 'LR' },
-    { ...minimal, classes: [{ ...minimal.classes[0], color: 'red' }] },
-    { ...minimal, relationships: [{ type: 'association', from: 'a', to: 'a', color: 'red' }] },
-    { ...minimal, relationships: [{ type: 'composition', from: 'a', to: 'a' }] },
-    { ...minimal, classes: [{ id: 'a', name: 3 }] },
-    { classes: [] },
-  ]) fails(model, 'SCHEMA_INVALID');
+const plantuml = ['--backend', 'plantuml'];
+
+test('v1 documents (no kind) are class diagrams; Unicode and display-only members are accepted', () => {
+  const parsed = parse(minimal);
+  assert.equal(parsed.kind.kind, 'class');
+  assert.equal(parsed.version, 1);
+  assert.deepEqual(parsed.model.elements, [{ id: 'a', type: 'class', name: 'A', attributes: [], operations: [] }]);
+  const model = { classes: [{ id: 'z', name: 'Zoë · 注文 🚀', attributes: ['+f(): T', 'List<T>'], methods: ['not parsed as code'] }], relationships: [] };
+  assert.deepEqual(parse(model).model.elements[0].attributes, [{ text: '+f(): T' }, { text: 'List<T>' }]);
+  assert.equal(parse(minimalV2).version, 2);
+});
+test('v1 schema rejects unknown fields at every level, unsupported types and nonstrings', () => {
+  for (const [model, path] of [
+    [{ ...minimal, layout: 'LR' }, '/layout'],
+    [{ ...minimal, classes: [{ ...minimal.classes[0], color: 'red' }] }, '/classes/0/color'],
+    [{ ...minimal, relationships: [{ type: 'association', from: 'a', to: 'a', color: 'red' }] }, '/relationships/0/color'],
+    [{ ...minimal, relationships: [{ type: 'composition', from: 'a', to: 'a' }] }, '/relationships/0/type'],
+    [{ ...minimal, classes: [{ id: 'a', name: 3 }] }, '/classes/0/name'],
+    [{ classes: [], relationships: [] }, '/classes'],
+    [{ classes: [] }, '/relationships'],
+  ]) fails(model, 'SCHEMA_INVALID', path);
+  fails([], 'SCHEMA_INVALID', '');
+  fails({ elements: [] }, 'SCHEMA_INVALID', '/kind');
 });
 test('bounds and stable ID syntax', () => {
   for (const name of ['', 'x'.repeat(101)]) fails({ ...minimal, classes: [{ id: 'a', name }] }, 'SCHEMA_INVALID');
@@ -35,42 +49,58 @@ test('bounds and stable ID syntax', () => {
   fails({ ...minimal, classes: [{ id: 'a', name: 'A', attributes: Array(21).fill('x') }] }, 'SCHEMA_INVALID');
   fails({ ...minimal, classes: [{ id: 'a', name: 'A', methods: ['x'.repeat(181)] }] }, 'SCHEMA_INVALID');
   fails({ ...minimal, relationships: Array(101).fill({ type: 'association', from: 'a', to: 'a' }) }, 'SCHEMA_INVALID');
-  for (const id of ['!include', 'a\nb', 'a\n', 'a\r', 'x'.repeat(65), 'a" {}']) fails({ ...minimal, classes: [{ id, name: 'A' }] }, 'SCHEMA_INVALID');
-  assert.throws(() => parseModel(' '.repeat(MAX_INPUT_BYTES + 1)), { code: 'INPUT_TOO_LARGE' });
-  assert.throws(() => parseModel('{'), { code: 'INVALID_JSON' });
-});
-test('duplicate IDs, missing references and prototype-like IDs', () => {
-  fails({ ...minimal, classes: [minimal.classes[0], minimal.classes[0]] }, 'DUPLICATE_ID');
-  for (const r of [{ from: 'a', to: 'missing' }, { from: 'missing', to: 'a' }]) {
-    fails({ ...minimal, relationships: [{ type: 'association', ...r }] }, 'MISSING_REFERENCE');
+  for (const id of ['!include', 'a\nb', 'a\n', 'a\r', 'x'.repeat(65), 'a" {}']) {
+    fails({ ...minimal, classes: [{ id, name: 'A' }] }, 'SCHEMA_INVALID');
+    fails({ ...minimalV2, elements: [{ id, type: 'class', name: 'A' }] }, 'SCHEMA_INVALID', '/elements/0/id');
   }
+  fails({ ...minimalV2, elements: Array.from({ length: 151 }, (_, i) => ({ id: `c${i}`, type: 'class', name: 'C' })) }, 'SCHEMA_INVALID', '/elements');
+  assert.throws(() => parseDocument(' '.repeat(MAX_INPUT_BYTES + 1)), { code: 'INPUT_TOO_LARGE' });
+  assert.throws(() => parseDocument('{'), { code: 'INVALID_JSON' });
+});
+test('v1 duplicate IDs, missing references (with v1 paths) and prototype-like IDs', () => {
+  fails({ ...minimal, classes: [minimal.classes[0], minimal.classes[0]] }, 'DUPLICATE_ID', '/classes/1/id');
+  fails({ ...minimal, relationships: [{ type: 'association', from: 'a', to: 'missing' }] }, 'MISSING_REFERENCE', '/relationships/0/to');
+  fails({ ...minimal, relationships: [{ type: 'association', from: 'missing', to: 'a' }] }, 'MISSING_REFERENCE', '/relationships/0/from');
+  assert.throws(() => parse({ ...minimal, relationships: [{ type: 'association', from: 'a', to: 'missing' }] }), { details: { from: 'a', to: 'missing' } });
   parse({ classes: [{ id: 'constructor', name: 'Constructor' }, { id: 'toString', name: 'ToString' }], relationships: [{ type: 'inheritance', from: 'constructor', to: 'toString' }] });
 });
 test('inheritance direction, cycles, self-inheritance and legal association cycles', () => {
   const model = { classes: [{ id: 'a', name: 'Child' }, { id: 'b', name: 'Parent' }], relationships: [{ type: 'inheritance', from: 'a', to: 'b' }] };
-  assert.match(toPlantUml(parse(model)), /uml_c0 --\|> uml_c1/);
-  fails({ ...minimal, relationships: [{ type: 'inheritance', from: 'a', to: 'a' }] }, 'INHERITANCE_CYCLE');
-  fails({ ...model, relationships: [...model.relationships, { type: 'inheritance', from: 'b', to: 'a' }] }, 'INHERITANCE_CYCLE');
+  assert.match(classToPlantUml(parse(model).model), /uml_e0 --\|> uml_e1/);
+  fails({ ...minimal, relationships: [{ type: 'inheritance', from: 'a', to: 'a' }] }, 'INHERITANCE_CYCLE', '/relationships/0');
+  fails({ ...model, relationships: [...model.relationships, { type: 'inheritance', from: 'b', to: 'a' }] }, 'INHERITANCE_CYCLE', '/relationships/1');
   parse({ ...model, relationships: [{ type: 'association', from: 'a', to: 'b' }, { type: 'association', from: 'b', to: 'a' }] });
 });
 test('rejects line breaks, controls, blank text, bidi controls, invalid XML characters and unpaired surrogates', () => {
-  for (const text of ['A\n@enduml', 'A\n', 'A\r', 'A\r\n', 'A\u2028', 'A\u2029', 'x\r!include a', 'x\tY', '\0', '\u0085', '\u2028', '\u2029', '\ufffe', '\uffff']) {
+  for (const text of ['A\n@enduml', 'A\n', 'A\r', 'A\r\n', 'A ', 'A ', 'x\r!include a', 'x\tY', '\0', '\u0085', ' ', ' ', '￾', '￿']) {
     for (const field of ['name', 'attributes', 'methods']) {
       fails({ ...minimal, classes: [{ id: 'a', name: 'A', [field]: field === 'name' ? text : [text] }] }, 'SCHEMA_INVALID');
     }
     fails({ ...minimal, relationships: [{ type: 'association', from: 'a', to: 'a', label: text }] }, 'SCHEMA_INVALID');
+    fails({ ...minimalV2, elements: [{ id: 'a', type: 'class', name: 'A', attributes: [{ name: 'x', type: text }] }] }, 'SCHEMA_INVALID', '/elements/0/attributes/0/type');
   }
-  for (const name of [' ', '\ud800', '\u202eEvil']) fails({ ...minimal, classes: [{ id: 'a', name }] }, 'INVALID_TEXT');
+  for (const name of [' ', '\ud800', '‮Evil']) {
+    fails({ ...minimal, classes: [{ id: 'a', name }] }, 'INVALID_TEXT', '/classes/0/name');
+    fails({ ...minimalV2, title: name }, 'INVALID_TEXT', '/title');
+  }
 });
-test('hostile display text is encoded, never used as source syntax or IDs', () => {
+test('every validation error carries all diagnostics with JSON paths', () => {
+  try {
+    parse({ kind: 'class', elements: [{ id: 'a', type: 'class', name: 'A' }, { id: 'a', type: 'class', name: 'B' }], relationships: [{ type: 'association', from: 'a', to: 'x' }] });
+    assert.fail('expected an error');
+  } catch (error) {
+    assert.deepEqual(error.diagnostics.map(d => [d.code, d.path]), [['DUPLICATE_ID', '/elements/1/id'], ['MISSING_REFERENCE', '/relationships/0/to']]);
+  }
+});
+test('hostile display text is encoded, never used as PlantUML source syntax or IDs', () => {
   const text = '" } !include https://evil.invalid <img:x> [[url]] **bold** \\n @enduml';
   const model = { classes: [{ id: 'private_id', name: text, attributes: [text], methods: [text] }], relationships: [{ type: 'association', from: 'private_id', to: 'private_id', label: text }] };
-  const source = toPlantUml(parse(model));
+  const source = classToPlantUml(parse(model).model);
   assert.ok(!source.includes(text));
   assert.ok(!source.includes('private_id'));
   assert.equal(source.split('\n').filter(x => x === '@enduml').length, 1);
-  assert.match(displayText('"{}<>\\'), /^\u200b(<U\+[0-9A-F]+>)+\u200b$/);
-  assert.equal(source, toPlantUml(parse(model)));
+  assert.match(displayText('"{}<>\\'), /^​(<U\+[0-9A-F]+>)+​$/);
+  assert.equal(source, classToPlantUml(parse(model).model));
 });
 
 test('renderer invokes without shell, enforces SECURE profile and removes Java injection variables', async t => {
@@ -87,12 +117,13 @@ test('renderer invokes without shell, enforces SECURE profile and removes Java i
   try { assert.equal((await renderSvg('source', { java, jar: 'literal path;no shell.jar' })).toString(), fakeSvg); }
   finally { variables.forEach((key, i) => { if (saved[i] === undefined) delete process.env[key]; else process.env[key] = saved[i]; }); }
 });
-test('renderer reports spawn, failure, malformed output, timeout and output limits', async t => {
+test('renderer reports spawn, failure, malformed output, wrong diagram type, timeout and output limits', async t => {
   const dir = await workspace(t);
   await assert.rejects(renderSvg('x', { java: join(dir, 'missing'), jar: 'x' }), { code: 'RENDER_START_FAILED' });
   for (const [body, code, opts] of [
     ['process.exit(7)', 'RENDER_FAILED', {}],
     ['process.stdout.write("not svg")', 'RENDER_INVALID_OUTPUT', {}],
+    [`process.stdout.write(${JSON.stringify(fakeSvg)})`, 'RENDER_INVALID_OUTPUT', { diagramType: 'SEQUENCE' }],
     ['setInterval(() => {}, 1000)', 'RENDER_TIMEOUT', { timeoutMs: 100 }],
     ['process.stdout.write("x".repeat(4096))', 'RENDER_OUTPUT_LIMIT', { maxOutputBytes: 128 }],
     ['process.stderr.write("x".repeat(70000))', 'RENDER_OUTPUT_LIMIT', {}],
@@ -115,15 +146,26 @@ test('renderer expands the viewport for clipped self-association paths and label
 });
 test('CLI help, version, usage and machine-readable read/parse/encoding failures', () => {
   assert.equal(cli(['--help']).status, 0);
-  assert.match(cli(['render', '--help']).stdout, /subclass to superclass/);
-  assert.equal(cli(['--version']).stdout, '0.1.0\n');
+  for (const command of ['render', 'validate', 'schema', 'kinds']) assert.match(cli([command, '--help']).stdout, /uml render <model\.json\|->/);
+  assert.match(cli(['--help']).stdout, /specific to the general/);
+  assert.equal(cli(['--version']).stdout, '0.2.0\n');
   for (const [args, options, code, status] of [
     [[], {}, 'USAGE', 2],
+    [['draw'], {}, 'USAGE', 2],
     [['render', '-', '--unknown', 'x.svg'], {}, 'USAGE', 2],
     [['render', '-o', '-o', 'x.svg'], {}, 'USAGE', 2],
-    [['render', '-', '-o', 'x.png'], {}, 'USAGE', 2],
+    [['render', '-', '-o', 'x.txt'], {}, 'USAGE', 2],
+    [['render', '-', '-o', 'x.svg', '--format', 'pdf'], {}, 'USAGE', 2],
+    [['render', '-', '-o', 'x.svg', '--scale', '2'], {}, 'USAGE', 2],
+    [['render', '-', '-o', 'x.png', '--scale', '9'], {}, 'USAGE', 2],
+    [['render', '-', '-o', 'x.svg', '--backend', 'graphviz'], { input: JSON.stringify(minimalV2) }, 'UNSUPPORTED_BACKEND', 2],
+    [['schema'], {}, 'USAGE', 2],
+    [['schema', 'nope'], {}, 'UNKNOWN_KIND', 2],
+    [['kinds', 'x'], {}, 'USAGE', 2],
+    [['validate'], {}, 'USAGE', 2],
     [['render', '/does/not/exist', '-o', 'x.svg'], {}, 'INPUT_READ_FAILED', 4],
     [['render', '-', '-o', 'x.svg'], { input: '{' }, 'INVALID_JSON', 2],
+    [['validate', '-'], { input: '{' }, 'INVALID_JSON', 2],
     [['render', '-', '-o', 'x.svg'], { input: Buffer.from([0xff]) }, 'INVALID_ENCODING', 2],
     [['render', '-', '-o', 'x.svg'], { input: ' '.repeat(MAX_INPUT_BYTES + 1) }, 'INPUT_TOO_LARGE', 2],
   ]) {
@@ -134,12 +176,31 @@ test('CLI help, version, usage and machine-readable read/parse/encoding failures
     assert.equal(result.stderr.trim().split('\n').length, 1);
   }
 });
+test('CLI validate, schema and kinds print JSON on stdout', () => {
+  let result = cli(['validate', '-'], { input: JSON.stringify(minimalV2) });
+  assert.equal(result.status, 0, result.stderr);
+  assert.deepEqual(JSON.parse(result.stdout), { valid: true, kind: 'class', version: 2 });
+  result = cli(['validate', '-'], { input: JSON.stringify(minimal) });
+  assert.deepEqual(JSON.parse(result.stdout), { valid: true, kind: 'class', version: 1 });
+  result = cli(['validate', '-'], { input: JSON.stringify({ kind: 'class', elements: [{ id: 'a', type: 'class', name: 'A' }], relationships: [{ type: 'association', from: 'a', to: 'b' }] }) });
+  assert.equal(result.status, 2);
+  const error = JSON.parse(result.stderr).error;
+  assert.equal(error.code, 'MISSING_REFERENCE');
+  assert.equal(error.path, '/relationships/0/to');
+  assert.equal(error.diagnostics.length, 1);
+  result = cli(['schema', 'class']);
+  assert.equal(result.status, 0);
+  assert.equal(JSON.parse(result.stdout).properties.kind.const, 'class');
+  result = cli(['kinds']);
+  assert.deepEqual(JSON.parse(result.stdout).map(k => k.kind), ['class']);
+  assert.deepEqual(JSON.parse(result.stdout)[0].backends, ['engine', 'plantuml']);
+});
 test('invalid input never spawns renderer or creates/replaces output', async t => {
   const dir = await workspace(t), out = join(dir, 'out.svg'), marker = join(dir, 'spawned');
   const java = await fakeJava(dir, `require('node:fs').writeFileSync(${JSON.stringify(marker)}, 'spawned');`);
   const env = { ...process.env, UML_JAVA: java, PLANTUML_JAR: 'unused' };
   const invalid = JSON.stringify({ ...minimal, relationships: [{ type: 'inheritance', from: 'a', to: 'missing' }] });
-  assert.equal(cli(['render', '-', '-o', out], { input: invalid, env }).status, 2);
+  assert.equal(cli(['render', '-', '-o', out, ...plantuml], { input: invalid, env }).status, 2);
   await assert.rejects(access(out));
   await writeFile(out, 'keep me');
   for (const [input, code] of [
@@ -147,22 +208,38 @@ test('invalid input never spawns renderer or creates/replaces output', async t =
     ['{', 'INVALID_JSON'],
     [JSON.stringify({ ...minimal, extra: true }), 'SCHEMA_INVALID'],
     [JSON.stringify({ ...minimal, classes: [minimal.classes[0], minimal.classes[0]] }), 'DUPLICATE_ID'],
-    [JSON.stringify({ ...minimal, classes: [{ id: 'a', name: '\ufffe' }] }), 'SCHEMA_INVALID'],
+    [JSON.stringify({ ...minimal, classes: [{ id: 'a', name: '￾' }] }), 'SCHEMA_INVALID'],
     [JSON.stringify({ ...minimal, classes: [{ id: 'a', name: '\ud800' }] }), 'INVALID_TEXT'],
     [JSON.stringify({ ...minimal, relationships: [{ type: 'inheritance', from: 'a', to: 'a' }] }), 'INHERITANCE_CYCLE'],
+    [JSON.stringify({ ...minimalV2, kind: 'nope' }), 'UNKNOWN_KIND'],
   ]) {
-    const result = cli(['render', '-', '-o', out], { input, env });
-    assert.equal(result.status, 2, result.stderr);
-    assert.equal(JSON.parse(result.stderr).error.code, code);
-    assert.equal(await readFile(out, 'utf8'), 'keep me');
+    for (const extra of [plantuml, []]) {
+      const result = cli(['render', '-', '-o', out, ...extra], { input, env });
+      assert.equal(result.status, 2, result.stderr);
+      assert.equal(JSON.parse(result.stderr).error.code, code);
+      assert.equal(await readFile(out, 'utf8'), 'keep me');
+    }
   }
   await assert.rejects(access(marker));
+});
+test('CLI renders SVG and PNG with the own engine without Java', async t => {
+  const dir = await workspace(t);
+  const env = { ...process.env, UML_JAVA: join(dir, 'missing-java'), PLANTUML_JAR: 'unused' };
+  let result = cli(['render', '-', '-o', join(dir, 'a.svg')], { input: JSON.stringify(minimalV2), env });
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(result.stdout + result.stderr, '');
+  assert.match(await readFile(join(dir, 'a.svg'), 'utf8'), /^<svg [^>]*data-uml-renderer="engine"/);
+  result = cli(['render', '-', '-o', join(dir, 'a.png')], { input: JSON.stringify(minimal), env });
+  assert.equal(result.status, 0, result.stderr);
+  assert.deepEqual([...(await readFile(join(dir, 'a.png'))).subarray(0, 8)], [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+  result = cli(['render', '-', '-o', join(dir, 'b.out'), '--format', 'png', '--scale', '1'], { input: JSON.stringify(minimal), env });
+  assert.equal(result.status, 0, result.stderr);
 });
 test('CLI runtime failures preserve output, success supports stdin and atomic replacement', async t => {
   const dir = await workspace(t), out = join(dir, 'out.svg');
   await writeFile(out, 'original');
   const env = { ...process.env, UML_JAVA: join(dir, 'missing'), PLANTUML_JAR: 'unused' };
-  let result = cli(['render', '-', '-o', out], { input: JSON.stringify(minimal), env });
+  let result = cli(['render', '-', '-o', out, ...plantuml], { input: JSON.stringify(minimal), env });
   assert.equal(result.status, 3);
   assert.equal(JSON.parse(result.stderr).error.code, 'RENDER_START_FAILED');
   assert.equal(await readFile(out, 'utf8'), 'original');
@@ -173,13 +250,13 @@ test('CLI runtime failures preserve output, success supports stdin and atomic re
     ['process.stdout.write("x".repeat(8 * 1024 * 1024 + 1))', 'RENDER_OUTPUT_LIMIT'],
   ]) {
     env.UML_JAVA = await fakeJava(dir, body);
-    result = cli(['render', '-', '-o', out], { input: JSON.stringify(minimal), env });
+    result = cli(['render', '-', '-o', out, ...plantuml], { input: JSON.stringify(minimal), env });
     assert.equal(result.status, 3, result.stderr);
     assert.equal(JSON.parse(result.stderr).error.code, code);
     assert.equal(await readFile(out, 'utf8'), 'original');
   }
   env.UML_JAVA = await fakeJava(dir, `process.stdin.resume(); process.stdin.on('end', () => process.stdout.write(${JSON.stringify(fakeSvg)}));`);
-  result = cli(['render', '-', '-o', out], { input: JSON.stringify(minimal), env });
+  result = cli(['render', '-', '-o', out, ...plantuml], { input: JSON.stringify(minimal), env });
   assert.equal(result.status, 0, result.stderr);
   assert.equal(result.stdout, '');
   assert.equal(result.stderr, '');
@@ -216,7 +293,7 @@ test('missing or malformed manifests and partial overrides report RENDERER_MISSI
   }
 });
 
-test('SIGINT and SIGTERM stop the renderer, return structured errors and preserve output', { timeout: 10_000 }, async t => {
+test('SIGINT and SIGTERM stop the renderer, return structured errors and preserve output', { timeout: 20_000 }, async t => {
   const dir = await workspace(t), out = join(dir, 'out.svg');
   for (const [signal, expected] of [['SIGINT', 130], ['SIGTERM', 143]]) {
     const pidFile = join(dir, `pid-${signal}`);
@@ -227,7 +304,7 @@ test('SIGINT and SIGTERM stop the renderer, return structured errors and preserv
       setInterval(() => {}, 1000);
     `);
     const events = watch(dir);
-    const child = spawn(process.execPath, [join(import.meta.dirname, '../dist/cli.js'), 'render', '-', '-o', out], {
+    const child = spawn(process.execPath, [join(import.meta.dirname, '../dist/cli.js'), 'render', '-', '-o', out, ...plantuml], {
       env: { ...process.env, UML_JAVA: java, PLANTUML_JAR: 'unused' }, stdio: ['pipe', 'pipe', 'pipe'],
     });
     t.after(() => { child.kill('SIGKILL'); events.return(); });

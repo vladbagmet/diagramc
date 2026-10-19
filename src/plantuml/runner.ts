@@ -2,15 +2,20 @@ import { spawn } from 'node:child_process';
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { resolve } from 'node:path';
-import { UmlError } from './errors.js';
+import { UmlError } from '../core/errors.js';
+import { MAX_OUTPUT_BYTES } from '../core/limits.js';
 
 export interface RendererOptions {
   java: string;
   jar: string;
   timeoutMs?: number;
   maxOutputBytes?: number;
+  /** Expected `data-diagram-type` of the root element, e.g. "CLASS". Any type when omitted. */
+  diagramType?: string;
 }
-export async function rendererOptions(tools = fileURLToPath(new URL('../.tools/', import.meta.url))): Promise<RendererOptions> {
+
+/** Locates the pinned local Java and PlantUML jar, or trusted UML_JAVA/PLANTUML_JAR overrides. */
+export async function rendererOptions(tools = fileURLToPath(new URL('../../.tools/', import.meta.url))): Promise<RendererOptions> {
   const missing = () => new UmlError('RENDERER_MISSING', 'Run npm run setup:renderer, or set both UML_JAVA and PLANTUML_JAR', 3);
   if (process.env.UML_JAVA || process.env.PLANTUML_JAR) {
     if (!process.env.UML_JAVA || !process.env.PLANTUML_JAR) throw missing();
@@ -25,6 +30,10 @@ export async function rendererOptions(tools = fileURLToPath(new URL('../.tools/'
   } catch { throw missing(); }
 }
 
+/**
+ * Runs PlantUML once on `source` and returns its SVG. No shell, SECURE profile,
+ * bounded heap, time, output and diagnostics. Signals stop Java and reject.
+ */
 export function renderSvg(source: string, options: RendererOptions): Promise<Buffer> {
   return new Promise((accept, reject) => {
     const env = { ...process.env, PLANTUML_SECURITY_PROFILE: 'SECURE', PLANTUML_LIMIT_SIZE: '8192' };
@@ -48,7 +57,7 @@ export function renderSvg(source: string, options: RendererOptions): Promise<Buf
     };
     child.stdout.on('data', (chunk: Buffer) => {
       size += chunk.length;
-      if (size > (options.maxOutputBytes ?? 8 * 1024 * 1024)) {
+      if (size > (options.maxOutputBytes ?? MAX_OUTPUT_BYTES)) {
         stop(new UmlError('RENDER_OUTPUT_LIMIT', 'Renderer output exceeded byte limit', 3));
       } else chunks.push(chunk);
     });
@@ -66,8 +75,9 @@ export function renderSvg(source: string, options: RendererOptions): Promise<Buf
       if (code !== 0) return reject(new UmlError('RENDER_FAILED', 'PlantUML renderer failed', 3, { exitCode: code, signal }));
       const svg = Buffer.concat(chunks);
       const text = svg.toString('utf8');
-      if (!/^\s*(?:<\?xml[^>]*>\s*)?<svg\s[^>]*data-diagram-type="CLASS"/u.test(text) || !text.trimEnd().endsWith('</svg>')) {
-        return reject(new UmlError('RENDER_INVALID_OUTPUT', 'Renderer did not return a complete class-diagram SVG', 3));
+      const type = options.diagramType && /^[A-Z_]+$/u.test(options.diagramType) ? options.diagramType : '[A-Z_]+';
+      if (!new RegExp(`^\\s*(?:<\\?xml[^>]*>\\s*)?<svg\\s[^>]*data-diagram-type="${type}"`, 'u').test(text) || !text.trimEnd().endsWith('</svg>')) {
+        return reject(new UmlError('RENDER_INVALID_OUTPUT', 'Renderer did not return a complete SVG of the expected diagram type', 3));
       }
       // Preserve spaces in both legacy SVG viewers and SVG2 browsers, whose text
       // defaults can override inherited xml:space. Only fixed CSS is introduced.
@@ -77,7 +87,7 @@ export function renderSvg(source: string, options: RendererOptions): Promise<Buf
         .replace(/<text\b[^>]*>/gu, tag => tag.includes(' style="')
           ? tag.replace(/ style="([^"]*)"/u, (_, style: string) => ` style="${style};white-space:pre"`)
           : tag.replace(/^<text/u, '<text style="white-space:pre"')), 'utf8');
-      if (output.length > (options.maxOutputBytes ?? 8 * 1024 * 1024)) {
+      if (output.length > (options.maxOutputBytes ?? MAX_OUTPUT_BYTES)) {
         return reject(new UmlError('RENDER_OUTPUT_LIMIT', 'Renderer output exceeded byte limit', 3));
       }
       accept(output);

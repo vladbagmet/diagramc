@@ -9,7 +9,7 @@ test('packing a clean source tree builds its executable and includes the runtime
   const directory = await workspace(t), source = join(directory, 'source'), extracted = join(directory, 'unpacked');
   await mkdir(source);
   await mkdir(extracted);
-  for (const name of ['src', 'schema', 'scripts', 'examples', 'package.json', 'tsconfig.json', 'README.md']) {
+  for (const name of ['src', 'schema', 'assets', 'scripts', 'examples', 'package.json', 'tsconfig.json', 'README.md']) {
     await cp(join(root, name), join(source, name), { recursive: true });
   }
   await symlink(join(root, 'node_modules'), join(source, 'node_modules'), 'dir');
@@ -18,7 +18,7 @@ test('packing a clean source tree builds its executable and includes the runtime
   });
   assert.equal(packed.status, 0, packed.stderr);
   const [metadata] = JSON.parse(packed.stdout), files = metadata.files.map(file => file.path);
-  for (const path of ['dist/cli.js', 'dist/model.js', 'schema/model-v1.schema.json', 'scripts/setup-renderer.mjs']) {
+  for (const path of ['dist/cli.js', 'dist/model/parse.js', 'dist/kinds/class/index.js', 'schema/model-v1.schema.json', 'scripts/setup-renderer.mjs', 'assets/fonts/Inter-Regular.ttf', 'assets/fonts/OFL.txt']) {
     assert.ok(files.includes(path), `missing packaged ${path}`);
   }
   assert.ok(!files.some(path => /^(?:\.tools|node_modules|docs|artifacts|src|test)\//.test(path)));
@@ -29,5 +29,9 @@ test('packing a clean source tree builds its executable and includes the runtime
     cwd: directory, encoding: 'utf8', timeout: 10_000,
   });
   assert.equal(help.status, 0, help.stderr);
-  assert.match(help.stdout, /validated JSON class models to SVG/);
+  assert.match(help.stdout, /validated JSON UML models to SVG or PNG/);
+  const rendered = spawnSync(join(extracted, 'package', 'dist/cli.js'), ['render', join(extracted, 'package', 'examples/class/minimal.json'), '-o', join(directory, 'out.svg')], {
+    cwd: directory, encoding: 'utf8', timeout: 30_000,
+  });
+  assert.equal(rendered.status, 0, rendered.stderr);
 });

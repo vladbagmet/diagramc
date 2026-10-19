@@ -1,0 +1,61 @@
+{
+  "kind": "class",
+  "title": "Ordering",
+  "elements": [
+    { "id": "account", "type": "class", "name": "Account", "abstract": true,
+      "attributes": [
+        { "name": "id", "type": "UUID", "visibility": "private", "readOnly": true },
+        { "name": "email", "type": "String", "visibility": "private" }
+      ],
+      "operations": [
+        { "name": "authenticate", "visibility": "public", "parameters": [{ "name": "password", "type": "String" }], "returnType": "Boolean", "abstract": true }
+      ] },
+    { "id": "customer", "type": "class", "name": "Customer", "stereotypes": ["entity"],
+      "attributes": [
+        { "name": "name", "type": "String", "visibility": "private" },
+        { "name": "shippingAddress", "type": "Address", "visibility": "private", "multiplicity": "0..1" }
+      ],
+      "operations": [
+        { "name": "placeOrder", "visibility": "public", "parameters": [{ "name": "cart", "type": "Cart" }], "returnType": "Order" },
+        { "name": "authenticate", "visibility": "public", "parameters": [{ "name": "password", "type": "String" }], "returnType": "Boolean" }
+      ] },
+    { "id": "order", "type": "class", "name": "Order", "stereotypes": ["entity"],
+      "attributes": [
+        { "name": "number", "type": "String", "visibility": "private", "readOnly": true },
+        { "name": "status", "type": "OrderStatus", "visibility": "private", "default": "NEW" },
+        { "name": "createdAt", "type": "DateTime", "visibility": "private" },
+        { "name": "total", "type": "Money", "visibility": "public", "derived": true }
+      ],
+      "operations": [
+        { "name": "confirm", "visibility": "public" },
+        { "name": "nextNumber", "visibility": "public", "static": true, "returnType": "String" }
+      ] },
+    { "id": "line", "type": "class", "name": "OrderLine",
+      "attributes": [
+        { "name": "quantity", "type": "Integer", "visibility": "private" },
+        { "name": "unitPrice", "type": "Money", "visibility": "private" }
+      ],
+      "operations": [{ "name": "subtotal", "visibility": "public", "returnType": "Money", "query": true }] },
+    { "id": "product", "type": "class", "name": "Product",
+      "attributes": [
+        { "name": "sku", "type": "String", "visibility": "private" },
+        { "name": "price", "type": "Money", "visibility": "private" }
+      ] },
+    { "id": "status", "type": "enumeration", "name": "OrderStatus", "literals": ["NEW", "CONFIRMED", "SHIPPED", "CANCELLED"] },
+    { "id": "payable", "type": "interface", "name": "Payable",
+      "operations": [{ "name": "pay", "visibility": "public", "parameters": [{ "name": "amount", "type": "Money" }], "returnType": "Receipt" }] },
+    { "id": "gateway", "type": "class", "name": "PaymentGateway",
+      "operations": [{ "name": "charge", "visibility": "public", "parameters": [{ "name": "amount", "type": "Money" }], "returnType": "Receipt" }] },
+    { "id": "note1", "type": "note", "text": "Totals are derived from the order lines.", "attachedTo": ["order"] }
+  ],
+  "relationships": [
+    { "type": "generalization", "from": "customer", "to": "account" },
+    { "type": "association", "from": "customer", "to": "order", "name": "places",
+      "fromEnd": { "multiplicity": "1" }, "toEnd": { "role": "orders", "multiplicity": "0..*", "navigable": true } },
+    { "type": "composition", "from": "order", "to": "line", "fromEnd": { "multiplicity": "1" }, "toEnd": { "role": "lines", "multiplicity": "1..*" } },
+    { "type": "association", "from": "line", "to": "product", "toEnd": { "multiplicity": "1", "navigable": true }, "fromEnd": { "navigable": false } },
+    { "type": "association", "from": "order", "to": "status", "toEnd": { "role": "status", "multiplicity": "1", "navigable": true } },
+    { "type": "realization", "from": "order", "to": "payable" },
+    { "type": "dependency", "from": "order", "to": "gateway", "keyword": "use" }
+  ]
+}

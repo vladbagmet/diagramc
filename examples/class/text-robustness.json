@@ -1,0 +1,24 @@
+{
+  "kind": "class",
+  "title": "Text <robustness> & \"quotes\"",
+  "elements": [
+    { "id": "kunde", "type": "class", "name": "Kundin · Zoë 注文 🚀",
+      "attributes": [{ "name": "prénom", "type": "Texte" }, { "name": "Straße", "type": "Adresse", "multiplicity": "0..1" }, { "name": "合計", "type": "金額" }],
+      "operations": [{ "name": "bestellen", "returnType": "Bestellung" }] },
+    { "id": "hostile", "type": "class", "name": "<script>alert(1)</script>",
+      "attributes": [
+        { "name": "\" } !include https://evil.invalid", "type": "[[url]] **bold**" },
+        { "name": "<svg onload=\"x\">", "type": "&amp; \\n @enduml" },
+        { "name": "  spaced  ", "type": "List<Map<K, V>>" }
+      ] },
+    { "id": "long", "type": "class", "name": "International cross-border fulfillment request with a deliberately very long class name",
+      "attributes": [{ "name": "externalReference", "type": "Human-readable partner reference" }] },
+    { "id": "policy", "type": "class", "name": "Cross-border shipping policy" }
+  ],
+  "relationships": [
+    { "type": "association", "from": "long", "to": "policy", "name": "evaluated against the destination-specific shipping policy before dispatch",
+      "fromEnd": { "role": "requests", "multiplicity": "0..*" }, "toEnd": { "role": "applicable policy", "multiplicity": "1" } },
+    { "type": "association", "from": "kunde", "to": "long", "name": "crée · erstellt", "toEnd": { "multiplicity": "*", "navigable": true } },
+    { "type": "dependency", "from": "hostile", "to": "kunde", "keyword": "<<call>>" }
+  ]
+}

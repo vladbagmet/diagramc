@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from 'node:crypto';
-import { createReadStream, constants } from 'node:fs';
-import { access, mkdir, mkdtemp, open, readFile, writeFile, rename, rm, unlink } from 'node:fs/promises';
+import { constants } from 'node:fs';
+import { access, copyFile, mkdir, mkdtemp, open, readFile, writeFile, rename, rm, unlink } from 'node:fs/promises';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
@@ -19,14 +19,20 @@ const maxDownloadBytes = 128 * 1024 * 1024;
 async function checksum(path) {
   const hash = createHash('sha256');
   let size = 0;
+  let file;
   try {
-    for await (const chunk of createReadStream(path)) {
-      size += chunk.length;
+    file = await open(path, 'r');
+    const buffer = Buffer.alloc(64 * 1024);
+    while (true) {
+      const { bytesRead } = await file.read(buffer, 0, buffer.length, null);
+      if (!bytesRead) break;
+      size += bytesRead;
       if (size > maxDownloadBytes) return undefined;
-      hash.update(chunk);
+      hash.update(buffer.subarray(0, bytesRead));
     }
     return hash.digest('hex');
   } catch (error) { if (error.code !== 'ENOENT') throw error; }
+  finally { await file?.close(); }
 }
 
 export async function downloadVerified(root, url, name, expected, { fetchImpl = fetch, log = console.log } = {}) {
@@ -34,7 +40,10 @@ export async function downloadVerified(root, url, name, expected, { fetchImpl = 
   if (await checksum(path) === expected) return path;
   log(`Downloading ${name}`);
   const response = await fetchImpl(url, { signal: AbortSignal.timeout(180_000) });
-  if (!response.ok || !response.body) throw new Error(`Download failed: HTTP ${response.status}: ${url}`);
+  if (!response.ok || !response.body) {
+    await response.body?.cancel().catch(() => {});
+    throw new Error(`Download failed: HTTP ${response.status}: ${url}`);
+  }
   const temporary = `${path}.${randomUUID()}.tmp`;
   let file;
   try {
@@ -58,8 +67,31 @@ export async function downloadVerified(root, url, name, expected, { fetchImpl = 
   }
 }
 
+// The pinned Inter faces (SIL OFL 1.1, assets/fonts) are installed into the local
+// Java runtime's font directory, so PlantUML measures text with the same font the
+// own engine embeds in every SVG. The repository copy is the single source.
+const fontSource = fileURLToPath(new URL('../assets/fonts/', import.meta.url));
+const fontNames = ['Inter-Regular.ttf', 'Inter-Italic.ttf', 'Inter-Bold.ttf', 'Inter-BoldItalic.ttf'];
+
+const runtimeHome = (directory, platform) => join(directory, 'jdk-21.0.11+10-jre', ...(platform === 'darwin' ? ['Contents', 'Home'] : []));
+
+export async function installFonts(home) {
+  const target = join(home, 'lib', 'fonts');
+  await mkdir(target, { recursive: true });
+  for (const name of fontNames) {
+    const expected = await checksum(join(fontSource, name));
+    if (!expected) throw new Error(`Missing bundled font ${name}`);
+    if (await checksum(join(target, name)) === expected) continue;
+    const temporary = join(target, `.${name}.${randomUUID()}.tmp`);
+    try {
+      await copyFile(join(fontSource, name), temporary);
+      await rename(temporary, join(target, name));
+    } finally { await unlink(temporary).catch(() => {}); }
+  }
+}
+
 async function checkRuntime(directory, platform, run) {
-  const home = join(directory, 'jdk-21.0.11+10-jre', ...(platform === 'darwin' ? ['Contents', 'Home'] : []));
+  const home = runtimeHome(directory, platform);
   const release = await readFile(join(home, 'release'), 'utf8');
   if (!release.includes('IMPLEMENTOR_VERSION="Temurin-21.0.11+10"') || !release.includes('JAVA_VERSION="21.0.11"')) {
     throw new Error('Extracted runtime has an unexpected version');
@@ -116,10 +148,11 @@ export async function setupRenderer({ root = defaultRoot, platform = process.pla
       if (backup && installed) await rm(backup, { recursive: true, force: true });
     }
   }
+  await installFonts(runtimeHome(unpack, platform));
   const java = join('runtime', 'jdk-21.0.11+10-jre', platform === 'darwin' ? 'Contents/Home/bin/java' : 'bin/java');
   const temporary = join(root, `renderer.${randomUUID()}.tmp`);
   try {
-    await writeFile(temporary, JSON.stringify({ jar, java, plantuml: '1.2025.10', temurin: '21.0.11+10' }, null, 2) + '\n', { flag: 'wx' });
+    await writeFile(temporary, JSON.stringify({ jar, java, plantuml: '1.2025.10', temurin: '21.0.11+10', fonts: 'Inter 4.1' }, null, 2) + '\n', { flag: 'wx' });
     await rename(temporary, join(root, 'renderer.json'));
   } finally { await unlink(temporary).catch(() => {}); }
   log(version);
