@@ -96,6 +96,36 @@ test('use case: UML 2.5.1 notation of actors, use cases, subjects and relationsh
   assert.deepEqual(scene.texts.filter(t => t.role === 'frame-label').map(t => [t.content, t.bold]), [['uc ', true], ['Library', false]]);
 });
 
+test('use case: actors stand in the outer columns, lines are straight unless something is in the way', async () => {
+  const svg = await svgOf(await readFile(join(root, 'examples/use-case/notation.json'), 'utf8'));
+  const scene = await inspectSvg(svg);
+  const node = id => scene.nodes.find(n => n.id === id).bounds;
+  const cx = id => node(id).x + node(id).width / 2;
+  // A specialised actor stands in the column of its general actor (left), a secondary actor right of the use cases.
+  assert.ok(Math.abs(cx('student') - cx('user')) < 1, 'Student under Library user');
+  assert.ok(cx('librarian') === cx('user'), 'primary actors in one column');
+  for (const id of ['borrow', 'reserve', 'identify', 'search']) assert.ok(cx('catalog') > cx(id), `secondary actor right of ${id}`);
+  // An actor's associations meet at one point per side; an association to a use case is a straight line.
+  const association = scene.edges.find(e => e.type === 'association' && e.source === 'user');
+  assert.equal(association.points.length, 2);
+  // Ends with multiplicities meet the ellipse near its left or right vertex, so the label sits next to them.
+  const end = association.points.at(-1), b = node(association.target);
+  assert.ok(Math.abs(end.y - (b.y + b.height / 2)) <= 0.3 * b.height / 2 + 0.5);
+});
+
+test('use case: notes and lines never cross notes, captions or other elements; arrowheads at a hub keep apart', async () => {
+  // Reviewer models: a condition anchor ran through a note, «include» lines through notes, a comb of
+  // arrowheads at the hub use case (see test/fixtures/regression/use-case-*.json for the gates).
+  for (const name of ['use-case-u1-atm.json', 'use-case-u2-awkward.json']) {
+    const { svg } = await assertGates(await readFile(join(root, 'test/fixtures/regression', name), 'utf8'));
+    const scene = await inspectSvg(svg);
+    const hub = name.includes('u1') ? 'auth' : 'hub';
+    const tips = scene.markers.filter(m => scene.edges.some(e => e.target === hub && Math.hypot(e.points.at(-1).x - m.tip.x, e.points.at(-1).y - m.tip.y) < 0.5)).map(m => m.tip);
+    assert.ok(tips.length >= 4, `${name}: arrowheads at the hub`);
+    for (const [i, a] of tips.entries()) for (const c of tips.slice(i + 1)) assert.ok(Math.hypot(a.x - c.x, a.y - c.y) >= 14, `${name}: arrowheads apart`);
+  }
+});
+
 test('use case: hostile text stays literal in every slot and creates no active SVG', async () => {
   for (const text of ['<script>alert(1)</script>', '" onload="x', '  spaced  ', '&amp; ]]> <![CDATA[', 'Unicode: 🚀 注文']) {
     const doc = {

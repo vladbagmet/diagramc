@@ -24,11 +24,23 @@ example passes every QA gate.
 | Note | `type: "note"`, `attachedTo` | Folded-corner rectangle with dashed lines | fixture "notes attached to an actor and a use case" |
 | Diagram frame | `title` | Pentagon heading **uc** name (Annex A) | uc: frame label |
 
-Lines end on the ellipse outline (`src/engine/clip.ts`), use polyline routing
-(slanted segments, as use case diagrams are usually drawn) with small jogs removed,
-and labels on slanted segments are pushed off the line along its normal
-(`src/engine/labels.ts`). Actor names are captions under the figure (QA role
-`label`, owned by the actor) for which ELK keeps room (`labelBelow`).
+ELK places the elements (layered, left to right); primary actors stand in the
+first column, secondary actors (only ever the `to` end of associations) in the
+last, and a specialised actor in the column of its general actor. Lines are
+drawn by `src/kinds/use-case/route.ts`: straight, as use case diagrams are usually
+drawn, and bent around any element, note, actor name or subject name in the way
+(shortest path over the corners of the obstacles, with costs for bends, crossings
+and running along another line). An actor's lines fan out from one point per side
+of the figure (never its bottom, where the name is); lines meet a use case aiming
+at its center, and ends with a multiplicity near the ellipse's left or right
+vertex so the label sits next to them. Ends on one ellipse keep apart
+(`spreadEllipseEnds`), so arrowheads at a much-included use case never overlap.
+Note anchors are routed the same way; a condition note is anchored to the nearest
+clear point of its «extend» line. Lines between use cases of two subjects are left
+out of the layering when both subjects are used by actors, so the subjects can
+stand above each other; both layouts are made and `layoutScore` picks the more
+readable one. Actor names are captions under the figure (QA role `label`, owned
+by the actor) for which ELK keeps room (`labelBelow`).
 
 ## Semantic rules
 
@@ -62,6 +74,9 @@ and labels on slanted segments are pushed off the line along its normal
 
 - The layout reads left to right: an association's `from` end is placed left of its
   `to` end. Actors that are only `to` ends become secondary actors on the right.
-- Many associations of one actor fan out from the figure's side close together.
+- Many associations of one actor fan out from one point on the figure's side; at
+  small angles the first few pixels of those lines lie close together.
+- Use cases keep the input order within the group of each actor, not globally:
+  ELK's crossing minimisation reorders them where that saves crossings.
 - Notes are laid out after the element they annotate, which can put them a layer
   width away in large diagrams.

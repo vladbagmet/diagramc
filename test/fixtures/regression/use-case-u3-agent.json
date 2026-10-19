@@ -1,0 +1,98 @@
+{
+ "kind": "use-case",
+ "title": "Ride sharing",
+ "elements": [
+  {
+   "id": "rider",
+   "type": "actor",
+   "name": "Rider"
+  },
+  {
+   "id": "driver",
+   "type": "actor",
+   "name": "Driver"
+  },
+  {
+   "id": "pay",
+   "type": "actor",
+   "name": "Payment Gateway"
+  },
+  {
+   "id": "app",
+   "type": "subject",
+   "name": "RideApp"
+  },
+  {
+   "id": "book",
+   "type": "useCase",
+   "name": "Book ride",
+   "subject": "app",
+   "extensionPoints": [
+    "high demand"
+   ]
+  },
+  {
+   "id": "cancel",
+   "type": "useCase",
+   "name": "Cancel ride",
+   "subject": "app"
+  },
+  {
+   "id": "rate",
+   "type": "useCase",
+   "name": "Rate driver",
+   "subject": "app"
+  },
+  {
+   "id": "pay1",
+   "type": "useCase",
+   "name": "Pay for ride",
+   "subject": "app"
+  },
+  {
+   "id": "surge",
+   "type": "useCase",
+   "name": "Apply surge pricing",
+   "subject": "app"
+  }
+ ],
+ "relationships": [
+  {
+   "type": "association",
+   "from": "rider",
+   "to": "book"
+  },
+  {
+   "type": "association",
+   "from": "rider",
+   "to": "cancel"
+  },
+  {
+   "type": "association",
+   "from": "rider",
+   "to": "rate"
+  },
+  {
+   "type": "association",
+   "from": "driver",
+   "to": "book"
+  },
+  {
+   "type": "include",
+   "from": "book",
+   "to": "pay1"
+  },
+  {
+   "type": "extend",
+   "from": "surge",
+   "to": "book",
+   "extensionPoint": "high demand",
+   "condition": "demand exceeds supply"
+  },
+  {
+   "type": "association",
+   "from": "pay1",
+   "to": "pay"
+  }
+ ]
+}

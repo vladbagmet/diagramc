@@ -13,6 +13,7 @@ import { splitFallbackRuns } from '../dist/engine/png.js';
 import { routeOrthogonal } from '../dist/engine/router.js';
 import { repairRoutes } from '../dist/engine/repair.js';
 import { aspectPenalty, chooseLayout, layoutScore } from '../dist/engine/aspect.js';
+import { placeLabels } from '../dist/engine/labels.js';
 
 const options = { direction: 'DOWN' };
 
@@ -189,6 +190,15 @@ test('stress placement: deterministic, linked nodes about the desired distance a
     const d = Math.hypot(p.x - q.x, p.y - q.y);
     assert.ok(d > 120 && d < 300, `${source}-${target} ${d}`);
   }
+});
+
+test('labels: an end label on a slanted line is a full-size box beside the line, near its end', () => {
+  const route = [{ x: 0, y: 200 }, { x: 300, y: 80 }];
+  const placed = placeLabels([{ id: 'm', width: 26, height: 15, route, at: 'target', side: 1, clearance: 4 }], { rects: [], segments: [[route[0], route[1]]] });
+  const r = placed.get('m');
+  assert.deepEqual([r.width, r.height], [26, 15]);
+  assert.ok(!segmentIntersectsRect(route[0], route[1], r), 'clear of the line');
+  assert.ok(Math.hypot(Math.max(r.x - 300, 0, 300 - r.x - r.width), Math.max(r.y - 80, 0, 80 - r.y - r.height)) < 20, 'next to the end');
 });
 
 test('geometry: segment distances', () => {
