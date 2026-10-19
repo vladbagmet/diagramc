@@ -77,6 +77,8 @@ export interface LayoutNode {
    * (ELK creates hidden ports there), so arrowheads ending on it do not touch.
    */
   portSpacing?: number;
+  /** Extra ELK layout options of this node (e.g. a layer constraint). */
+  elk?: Record<string, string>;
 }
 export interface LayoutLabel { id: string; width: number; height: number; placement: 'center' | 'head' | 'tail' }
 export interface LayoutEdge {
@@ -168,6 +170,7 @@ export async function layout(nodes: readonly LayoutNode[], edges: readonly Layou
       ...(node.portSpacing ? { 'elk.spacing.portPort': String(node.portSpacing) } : {}),
       ...(node.padding ? { 'elk.padding': `[top=${node.padding.top},left=${node.padding.left},bottom=${node.padding.bottom},right=${node.padding.right}]` } : {}),
       'elk.spacing.labelNode': '0',
+      ...node.elk,
     },
   });
   const graph: ElkNode = {
