@@ -114,7 +114,7 @@ export function validateProfileDiagram(model: ProfileDiagram): Diagnostic[] {
       (element.stereotypes ?? []).forEach((name, j) => {
         if (defined.includes(name)) return;
         const nearest = suggest(name, defined, 'id');
-        diagnostics.push({ code: 'UNKNOWN_STEREOTYPE', path: pointer('', 'elements', i, 'stereotypes', j), message: `Applied stereotype "${name}" is not defined in this diagram${nearest ? `; did you mean "${nearest}"?` : ''} Defined stereotypes: ${defined.map(d => `"${d}"`).join(', ')}`, details: { defined, ...(nearest ? { suggestion: nearest } : {}) } });
+        diagnostics.push({ code: 'UNKNOWN_STEREOTYPE', path: pointer('', 'elements', i, 'stereotypes', j), message: `Applied stereotype "${name}" is not defined in this diagram${nearest ? `; did you mean "${nearest}"?` : '.'} Defined stereotypes: ${defined.map(d => `"${d}"`).join(', ')}`, details: { defined, ...(nearest ? { suggestion: nearest } : {}) } });
       });
     });
   }

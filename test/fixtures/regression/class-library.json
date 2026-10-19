@@ -37,7 +37,7 @@
       "attributes": [
         { "name": "due", "type": "Date", "visibility": "private" },
         { "name": "returned", "type": "Date", "visibility": "private", "multiplicity": "0..1" },
-        { "name": "/overdue", "type": "Boolean", "visibility": "public" }
+        { "name": "overdue", "derived": true, "type": "Boolean", "visibility": "public" }
       ],
       "operations": [
         { "name": "close", "visibility": "public" },

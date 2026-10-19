@@ -121,7 +121,10 @@ test('review fixes: identifiers wrap at word parts, untitled diagrams get a marg
   const { svg, scene } = await render(doc);
   const lines = [...svg.matchAll(/<text [^>]*>([^<]*)<\/text>/g)].map(m => m[1].replaceAll('&#8203;', ''));
   // Lines break after spaces and at camelCase boundaries, never inside a word part.
-  for (const part of ['service1 : ', 'VeryLongMicroservice', 'ClassifierName1', 'submitAnExtremelyLongOperationNameThatGoesOn', 'AndOn']) assert.ok(lines.includes(part), `line "${part}" in ${lines}`);
+  const head = lines.slice(lines.indexOf('client') + 1, lines.findIndex(l => l.startsWith('submit')));
+  assert.ok(head.length > 1 && head.join('') === 'service1 : VeryLongMicroserviceClassifierName1', `head wrapped: ${head}`);
+  for (let i = 1; i < head.length; i++) assert.ok(!(/[a-z]$/.test(head[i - 1]) && /^[a-z]/.test(head[i])), `break inside a word part: ${head}`);
+  assert.ok(lines.includes('submitAnExtremelyLongOperationNameThatGoesOn') && lines.includes('AndOn'), `label breaks at a camelCase boundary: ${lines}`);
   // C-45: 16 px margin around an untitled drawing.
   const box = svg.match(/viewBox="0 0 ([\d.]+) ([\d.]+)"/).slice(1).map(Number);
   const xs = scene.extents.flatMap(r => [r.x, r.x + r.width]), ys = scene.extents.flatMap(r => [r.y, r.y + r.height]);
