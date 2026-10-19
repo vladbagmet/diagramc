@@ -29,7 +29,7 @@ export async function drawStructure(scene: StructScene, metrics: FontMetrics): P
     const layer = n.container ? canvas.frame : canvas.nodes;
     switch (n.node.shape) {
       case 'note': layer.push(drawNote(canvas, n.noteRows ?? [], n.bounds, data)); break;
-      case 'node3d': layer.push(drawNode3d(canvas, n.box!, n.bounds, data, { decorations: icon(n) })); break;
+      case 'node3d': layer.push(drawNode3d(canvas, n.box!, n.bounds, data, { decorations: icon(n), middle: !n.container })); break;
       case 'ellipse': layer.push(drawEllipse(canvas, n.box!, n.bounds, data, { textTop: n.ellipse!.textTop, ...(n.ellipse!.separatorY !== undefined ? { separatorY: n.ellipse!.separatorY } : {}), dashed: n.node.dashed !== false })); break;
       default: layer.push(drawBox(canvas, n.box!, n.bounds, data, { dashed: !!n.node.dashed, decorations: icon(n), middle: !n.container }));
     }

@@ -132,7 +132,7 @@ export function drawCompartmentText(canvas: Canvas, compartments: MeasuredBox['c
  * header (keyword, name) is drawn at the top of the front face, the remaining
  * compartments (if any) below it, separated by lines.
  */
-export function drawNode3d(canvas: Canvas, box: MeasuredBox, bounds: Rect, data: NodeData, options: { decorations?: readonly string[] } = {}): string {
+export function drawNode3d(canvas: Canvas, box: MeasuredBox, bounds: Rect, data: NodeData, options: { decorations?: readonly string[]; middle?: boolean } = {}): string {
   const d = theme.size.nodeDepth;
   const { x, y, width: w, height: h } = bounds;
   const front = { x, y: y + d, width: w - d, height: h - d };
@@ -146,7 +146,9 @@ export function drawNode3d(canvas: Canvas, box: MeasuredBox, bounds: Rect, data:
     if (i > 0) parts.push(el('line', { x1: front.x, y1: cy, x2: front.x + front.width, y2: cy, stroke: theme.color.nodeStroke, 'stroke-width': theme.stroke.compartment }));
     cy += c.height;
   });
-  parts.push(...drawCompartmentText(canvas, box.compartments, front, data.id), ...options.decorations ?? []);
+  // `middle`: a node that only shows its name centers it vertically on the front face.
+  const slack = options.middle && box.compartments.length === 1 ? Math.max(0, (front.height - box.height) / 2) : 0;
+  parts.push(...drawCompartmentText(canvas, box.compartments, { ...front, y: front.y + slack }, data.id), ...options.decorations ?? []);
   return el('g', nodeAttributes(data, bounds), parts);
 }
 

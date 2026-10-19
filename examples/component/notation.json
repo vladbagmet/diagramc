@@ -1,0 +1,42 @@
+{
+  "kind": "component",
+  "title": "Component notation",
+  "elements": [
+    { "id": "app", "type": "component", "name": "Mobile App", "stereotypes": ["subsystem"],
+      "ports": [{ "id": "appApi", "name": "api", "type": "HttpClient", "requires": ["iCatalog", "iAuth"] }] },
+    { "id": "backend", "type": "component", "name": "Backend",
+      "ports": [
+        { "id": "beCatalog", "name": "catalog", "provides": ["iCatalog"] },
+        { "id": "beAuth", "name": "auth", "provides": ["iAuth"] },
+        { "id": "beEvents", "name": "events", "provides": ["iHealth"], "requires": ["iEvents"] }
+      ],
+      "elements": [
+        { "id": "catalog", "type": "component", "name": "Catalog",
+          "ports": [{ "id": "cIn", "provides": ["iCatalog"] }], "requires": ["iSearch"] },
+        { "id": "search", "type": "component", "name": "Search Index", "provides": ["iSearch"] },
+        { "id": "auth", "type": "class", "name": "TokenService", "provides": ["iAuth"] }
+      ] },
+    { "id": "bus", "type": "component", "name": "Event Bus", "provides": ["iEvents"] },
+    { "id": "iCatalog", "type": "interface", "name": "ICatalog" },
+    { "id": "iAuth", "type": "interface", "name": "IAuth" },
+    { "id": "iSearch", "type": "interface", "name": "ISearch" },
+    { "id": "iEvents", "type": "interface", "name": "IEvents" },
+    { "id": "iHealth", "type": "interface", "name": "IHealth" },
+    { "id": "iAudit", "type": "interface", "name": "IAudit",
+      "operations": [{ "name": "record", "parameters": [{ "name": "event", "type": "Event" }], "returnType": "Boolean" }] },
+    { "id": "audit", "type": "component", "name": "Audit Log" },
+    { "id": "war", "type": "artifact", "name": "backend.war" }
+  ],
+  "relationships": [
+    { "type": "assembly", "from": "appApi", "to": "beCatalog", "interface": "iCatalog" },
+    { "type": "assembly", "from": "appApi", "to": "beAuth", "interface": "iAuth" },
+    { "type": "assembly", "from": "beEvents", "to": "bus", "interface": "iEvents" },
+    { "type": "assembly", "from": "catalog", "to": "search", "interface": "iSearch" },
+    { "type": "delegation", "from": "beCatalog", "to": "cIn" },
+    { "type": "delegation", "from": "beAuth", "to": "auth" },
+    { "type": "realization", "from": "audit", "to": "iAudit" },
+    { "type": "usage", "from": "bus", "to": "iAudit" },
+    { "type": "dependency", "from": "app", "to": "bus", "keyword": "trace", "name": "telemetry" },
+    { "type": "manifest", "from": "war", "to": "backend" }
+  ]
+}

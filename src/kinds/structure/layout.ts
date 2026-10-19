@@ -198,15 +198,16 @@ export async function layoutStructure(graph: StructGraph, metrics: FontMetrics):
 
   // ---- Port sides: provided faces left, required right; connectors vote ----
   const votes = new Map<string, number>();
-  const vote = (endpoint: string, side: -1 | 1): void => { votes.set(endpoint, (votes.get(endpoint) ?? 0) + side); };
+  const vote = (endpoint: string, side: number): void => { votes.set(endpoint, (votes.get(endpoint) ?? 0) + side); };
   for (const p of plans) {
     for (const [self, other, isSource] of [[p.source, p.target, true], [p.target, p.source, false]] as const) {
       if (!portOwner.has(self)) continue;
       const inward = inside(ownerNode(other), portOwner.get(self)!);
-      vote(self, (isSource !== inward) ? 1 : -1);
+      vote(self, (isSource !== inward) ? 2 : -2);
     }
   }
-  for (const a of graph.assemblies) { vote(a.requirer, 1); vote(a.provider, -1); }
+  // Connectors outweigh unconnected lollipops and sockets, which can sit on either side.
+  for (const a of graph.assemblies) { vote(a.requirer, 2); vote(a.provider, -2); }
   for (const [, { owner, stub, port }] of stubOwner) if (port) vote(owner, stub.kind === 'required' ? 1 : -1);
   const portSide = (port: string): Side => (votes.get(port) ?? 0) > 0 ? 'EAST' : 'WEST';
   /** Side of the border a stub's stem leaves from. */
@@ -251,6 +252,41 @@ export async function layoutStructure(graph: StructGraph, metrics: FontMetrics):
     anchorOf.set(plan, id);
   };
   for (const [id, { owner, stub, port }] of stubOwner) if (!port) addAnchor(`${id}::stem`, owner, stub.kind === 'required' ? 'EAST' : 'WEST');
+  // Ends with a marker or labels at a node (not a port) get a side-fixed port as wide as
+  // what is drawn beside the line there, so ELK keeps neighbouring ends far enough apart.
+  const endPorts = new Map<string, string>();
+  // Lines meet an ellipse where it touches its bounding box: the middle of its left or right side.
+  const ellipsePorts = new Set<string>();
+  for (const p of plans) {
+    if (p.symbol !== undefined) continue;
+    for (const end of ['source', 'target'] as const) {
+      const endpoint = end === 'source' ? p.source : p.target;
+      if (info.get(endpoint)?.node.shape !== 'ellipse') continue;
+      const elkSource = (end === 'source') !== (p.type === 'note-anchor');
+      const side: Side = elkSource ? 'EAST' : 'WEST';
+      const id = `${endpoint}::${side.toLowerCase()}`;
+      if (!ellipsePorts.has(id)) {
+        ellipsePorts.add(id);
+        anchors.set(endpoint, [...(anchors.get(endpoint) ?? []), { id, side, width: 0 }]);
+      }
+      endPorts.set(`${p.id}\u0000${end}`, id);
+    }
+  }
+  for (const p of plans) {
+    if (p.symbol !== undefined || p.type === 'note-anchor') continue;
+    if (inside(ownerNode(p.source), ownerNode(p.target)) || inside(ownerNode(p.target), ownerNode(p.source))) continue;
+    for (const end of ['source', 'target'] as const) {
+      const endpoint = end === 'source' ? p.source : p.target;
+      if (portOwner.has(endpoint) || info.get(endpoint)?.isolatedRoot !== undefined || endPorts.has(`${p.id}\u0000${end}`)) continue;
+      const marker = markerExtent(end === 'source' ? p.sourceMarker : p.targetMarker);
+      const labelled = p.ends.some(e => e.end === end);
+      if (!marker.length && !labelled) continue;
+      const id = `${p.id}::${end}-end`;
+      const width = labelled ? 2 * (lh + Math.max(marker.half, 4) + 2) : 2 * (marker.half + 5);
+      anchors.set(endpoint, [...(anchors.get(endpoint) ?? []), { id, side: end === 'source' ? 'EAST' : 'WEST', width }]);
+      endPorts.set(`${p.id}\u0000${end}`, id);
+    }
+  }
   for (const a of graph.assemblies) {
     if (!portOwner.has(a.requirer)) addAnchor(`${a.id}::required`, a.requirer, 'EAST');
     if (!portOwner.has(a.provider)) addAnchor(`${a.id}::provided`, a.provider, 'WEST');
@@ -365,25 +401,44 @@ export async function layoutStructure(graph: StructGraph, metrics: FontMetrics):
     const elkEdges: LayoutEdge[] = [];
     // ELK edge orientation follows the left-to-right convention; routes are flipped back afterwards.
     const reversed = new Set<string>();
+    // A port's name gets room reserved at the port end of its first outward line.
+    const reservedPorts = new Set<string>();
+    const portLabelFor = (endpoint: string, other: string, elkSource: boolean): LayoutLabel[] => {
+      const text = portLabel.get(endpoint);
+      if (text === undefined || reservedPorts.has(endpoint) || inside(ownerNode(other), portOwner.get(endpoint)!)) return [];
+      reservedPorts.add(endpoint);
+      return [{ id: `${endpoint}::label`, width: labelWidth(text) + 4, height: lh, placement: elkSource ? 'tail' : 'head' }];
+    };
     for (const p of levelPlans) {
       const source = lift(p.source), target = lift(p.target);
       const symbol = p.symbol === undefined ? undefined : symbolById.get(p.symbol);
       if (symbol) {
         // Owner side: the UML port, or the anchor port on a node without one.
         const owner = anchorOf.get(p.id) ?? source;
-        if (symbol.kind === 'joint') {
-          if (p.id.endsWith('::required')) elkEdges.push({ id: p.id, source: owner, target: `${symbol.id}::in` });
-          else { elkEdges.push({ id: p.id, source: `${symbol.id}::out`, target: owner }); reversed.add(p.id); }
-        } else if (symbol.side === 'WEST') { elkEdges.push({ id: p.id, source: `${symbol.id}::port`, target: owner }); reversed.add(p.id); }
-        else elkEdges.push({ id: p.id, source: owner, target: `${symbol.id}::port` });
+        const ownerIsSource = symbol.kind === 'joint' ? p.id.endsWith('::required') : symbol.side !== 'WEST';
+        const labels = portLabelFor(source, symbol.id, ownerIsSource);
+        const far = symbol.kind === 'joint' ? `${symbol.id}::${ownerIsSource ? 'in' : 'out'}` : `${symbol.id}::port`;
+        if (ownerIsSource) elkEdges.push({ id: p.id, source: owner, target: far, labels });
+        else { elkEdges.push({ id: p.id, source: far, target: owner, labels }); reversed.add(p.id); }
         continue;
       }
       const labels: LayoutLabel[] = [];
       if (p.center) labels.push({ id: `${p.id}::center`, width: Math.max(...p.center.widths) + 4, height: p.center.lines.length * lh, placement: 'center' });
       p.ends.forEach((e, k) => labels.push({ id: `${p.id}::end${k}`, width: e.width + 4, height: lh, placement: e.end === 'source' ? 'tail' : 'head' }));
       // Notes follow what they annotate, so they never push a connector chain apart.
-      if (p.type === 'note-anchor') { elkEdges.push({ id: p.id, source: target, target: source }); reversed.add(p.id); continue; }
-      elkEdges.push({ id: p.id, source, target, labels });
+      if (p.type === 'note-anchor') {
+        elkEdges.push({ id: p.id, source: target === p.target ? endPorts.get(`${p.id}\u0000target`) ?? target : target, target: source });
+        reversed.add(p.id);
+        continue;
+      }
+      if (portOwner.has(source)) labels.push(...portLabelFor(source, target, true));
+      if (portOwner.has(target)) labels.push(...portLabelFor(target, source, false));
+      const lifted = source !== p.source || target !== p.target;
+      elkEdges.push({
+        id: p.id, labels,
+        source: lifted ? source : endPorts.get(`${p.id}\u0000source`) ?? source,
+        target: lifted ? target : endPorts.get(`${p.id}\u0000target`) ?? target,
+      });
     }
 
     const result = await layout(elkNodes, elkEdges, { direction: 'RIGHT', nodeSpacing: NODE_SPACING, layerSpacing: LAYER_SPACING });
@@ -601,6 +656,8 @@ export async function layoutStructure(graph: StructGraph, metrics: FontMetrics):
     const out = Math.abs(c.x - owner.x) < Math.abs(c.x - (owner.x + owner.width)) ? -1 : 1;
     const g = portSize / 2 + LABEL_GAP;
     const candidates: Rect[] = [];
+    const reserved = suggestions.get(`${s.id}::label`);
+    if (reserved) candidates.push({ x: reserved.x + 2, y: reserved.y, width, height: lh });
     for (const shift of [0, 8, 16, 28]) {
       for (const dir of [out, -out]) {
         const x = dir < 0 ? c.x - g - width - shift : c.x + g + shift;

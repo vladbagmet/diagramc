@@ -1,6 +1,8 @@
 import type { KindDefinition } from './kind.js';
 import { classKind } from '../kinds/class/index.js';
 import { componentKind } from '../kinds/component/index.js';
+import { deploymentKind } from '../kinds/deployment/index.js';
+import { compositeStructureKind } from '../kinds/composite-structure/index.js';
 
 /**
  * Every diagram kind the CLI knows, in `uml kinds` order. To add a kind, create
@@ -10,6 +12,8 @@ import { componentKind } from '../kinds/component/index.js';
 export const kinds: readonly KindDefinition[] = [
   classKind,
   componentKind,
+  deploymentKind,
+  compositeStructureKind,
 ];
 
 export function findKind(name: string): KindDefinition | undefined {
