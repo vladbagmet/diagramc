@@ -1,0 +1,569 @@
+{
+ "kind": "deployment",
+ "title": "Multi-region SaaS",
+ "elements": [
+  {
+   "id": "browser",
+   "type": "device",
+   "name": "Browser",
+   "stereotypes": [
+    "client"
+   ]
+  },
+  {
+   "id": "mobile",
+   "type": "device",
+   "name": "Mobile App",
+   "stereotypes": [
+    "client"
+   ]
+  },
+  {
+   "id": "cdn",
+   "type": "node",
+   "name": "CDN Edge",
+   "elements": [
+    {
+     "id": "assets",
+     "type": "artifact",
+     "name": "static-assets.zip"
+    }
+   ]
+  },
+  {
+   "id": "euregion",
+   "type": "node",
+   "name": "Region eu-west-1",
+   "stereotypes": [
+    "cloud region"
+   ],
+   "elements": [
+    {
+     "id": "eulb",
+     "type": "device",
+     "name": "Load balancer eu-west-1"
+    },
+    {
+     "id": "euapi",
+     "type": "device",
+     "name": "API host 1.1",
+     "elements": [
+      {
+       "id": "euapiRt",
+       "type": "executionEnvironment",
+       "name": "Container runtime",
+       "elements": [
+        {
+         "id": "euapiImg",
+         "type": "artifact",
+         "name": "api-image:3.0"
+        },
+        {
+         "id": "euapiCfg",
+         "type": "deploymentSpecification",
+         "name": "api.env",
+         "properties": [
+          {
+           "name": "replicas",
+           "type": "Integer",
+           "value": "2"
+          }
+         ]
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "euworker",
+     "type": "device",
+     "name": "Worker host 1.2",
+     "elements": [
+      {
+       "id": "euworkerRt",
+       "type": "executionEnvironment",
+       "name": "Container runtime",
+       "elements": [
+        {
+         "id": "euworkerImg",
+         "type": "artifact",
+         "name": "worker-image:3.1"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "eusearch",
+     "type": "device",
+     "name": "Search host 1.3",
+     "elements": [
+      {
+       "id": "eusearchRt",
+       "type": "executionEnvironment",
+       "name": "OpenSearch 2",
+       "elements": [
+        {
+         "id": "eusearchImg",
+         "type": "artifact",
+         "name": "search-image:3.2"
+        },
+        {
+         "id": "eusearchCfg",
+         "type": "deploymentSpecification",
+         "name": "search.env",
+         "properties": [
+          {
+           "name": "replicas",
+           "type": "Integer",
+           "value": "4"
+          }
+         ]
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "euauth",
+     "type": "device",
+     "name": "Auth host 1.4",
+     "elements": [
+      {
+       "id": "euauthRt",
+       "type": "executionEnvironment",
+       "name": "Container runtime",
+       "elements": [
+        {
+         "id": "euauthImg",
+         "type": "artifact",
+         "name": "auth-image:3.3"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "eudb",
+     "type": "node",
+     "name": "Database eu-west-1",
+     "stereotypes": [
+      "managed"
+     ],
+     "elements": [
+      {
+       "id": "eupg",
+       "type": "executionEnvironment",
+       "name": "PostgreSQL 16",
+       "elements": [
+        {
+         "id": "euschema",
+         "type": "artifact",
+         "name": "schema-v42.sql"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "eumq",
+     "type": "node",
+     "name": "Queue eu-west-1",
+     "elements": [
+      {
+       "id": "eubroker",
+       "type": "executionEnvironment",
+       "name": "RabbitMQ"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "usregion",
+   "type": "node",
+   "name": "Region us-east-1",
+   "stereotypes": [
+    "cloud region"
+   ],
+   "elements": [
+    {
+     "id": "uslb",
+     "type": "device",
+     "name": "Load balancer us-east-1"
+    },
+    {
+     "id": "usapi",
+     "type": "device",
+     "name": "API host 2.1",
+     "elements": [
+      {
+       "id": "usapiRt",
+       "type": "executionEnvironment",
+       "name": "Container runtime",
+       "elements": [
+        {
+         "id": "usapiImg",
+         "type": "artifact",
+         "name": "api-image:3.0"
+        },
+        {
+         "id": "usapiCfg",
+         "type": "deploymentSpecification",
+         "name": "api.env",
+         "properties": [
+          {
+           "name": "replicas",
+           "type": "Integer",
+           "value": "2"
+          }
+         ]
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "usworker",
+     "type": "device",
+     "name": "Worker host 2.2",
+     "elements": [
+      {
+       "id": "usworkerRt",
+       "type": "executionEnvironment",
+       "name": "Container runtime",
+       "elements": [
+        {
+         "id": "usworkerImg",
+         "type": "artifact",
+         "name": "worker-image:3.1"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "ussearch",
+     "type": "device",
+     "name": "Search host 2.3",
+     "elements": [
+      {
+       "id": "ussearchRt",
+       "type": "executionEnvironment",
+       "name": "OpenSearch 2",
+       "elements": [
+        {
+         "id": "ussearchImg",
+         "type": "artifact",
+         "name": "search-image:3.2"
+        },
+        {
+         "id": "ussearchCfg",
+         "type": "deploymentSpecification",
+         "name": "search.env",
+         "properties": [
+          {
+           "name": "replicas",
+           "type": "Integer",
+           "value": "4"
+          }
+         ]
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "usauth",
+     "type": "device",
+     "name": "Auth host 2.4",
+     "elements": [
+      {
+       "id": "usauthRt",
+       "type": "executionEnvironment",
+       "name": "Container runtime",
+       "elements": [
+        {
+         "id": "usauthImg",
+         "type": "artifact",
+         "name": "auth-image:3.3"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "usdb",
+     "type": "node",
+     "name": "Database us-east-1",
+     "stereotypes": [
+      "managed"
+     ],
+     "elements": [
+      {
+       "id": "uspg",
+       "type": "executionEnvironment",
+       "name": "PostgreSQL 16",
+       "elements": [
+        {
+         "id": "usschema",
+         "type": "artifact",
+         "name": "schema-v42.sql"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "usmq",
+     "type": "node",
+     "name": "Queue us-east-1",
+     "elements": [
+      {
+       "id": "usbroker",
+       "type": "executionEnvironment",
+       "name": "RabbitMQ"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "apiComp",
+   "type": "component",
+   "name": "Public API"
+  },
+  {
+   "id": "migrations",
+   "type": "artifact",
+   "name": "migrations.tar"
+  },
+  {
+   "id": "note",
+   "type": "note",
+   "text": "Both regions are active; writes go to the primary region of each tenant.",
+   "attachedTo": [
+    "euregion",
+    "usregion"
+   ]
+  }
+ ],
+ "relationships": [
+  {
+   "type": "communicationPath",
+   "from": "browser",
+   "to": "cdn",
+   "protocol": "HTTPS",
+   "fromEnd": {
+    "multiplicity": "*"
+   },
+   "toEnd": {
+    "multiplicity": "1..*"
+   }
+  },
+  {
+   "type": "communicationPath",
+   "from": "browser",
+   "to": "eulb",
+   "protocol": "HTTPS",
+   "fromEnd": {
+    "multiplicity": "*"
+   },
+   "toEnd": {
+    "multiplicity": "1"
+   }
+  },
+  {
+   "type": "communicationPath",
+   "from": "mobile",
+   "to": "eulb",
+   "protocol": "HTTPS",
+   "fromEnd": {
+    "multiplicity": "*"
+   },
+   "toEnd": {
+    "multiplicity": "1"
+   }
+  },
+  {
+   "type": "communicationPath",
+   "from": "eulb",
+   "to": "euapi",
+   "protocol": "HTTP",
+   "toEnd": {
+    "multiplicity": "2..*"
+   }
+  },
+  {
+   "type": "communicationPath",
+   "from": "eulb",
+   "to": "euauth",
+   "protocol": "HTTP"
+  },
+  {
+   "type": "communicationPath",
+   "from": "euapi",
+   "to": "eusearch",
+   "protocol": "HTTP"
+  },
+  {
+   "type": "communicationPath",
+   "from": "euapi",
+   "to": "eumq",
+   "protocol": "AMQP"
+  },
+  {
+   "type": "communicationPath",
+   "from": "euworker",
+   "to": "eumq",
+   "protocol": "AMQP"
+  },
+  {
+   "type": "communicationPath",
+   "from": "euapi",
+   "to": "eudb",
+   "protocol": "TCP",
+   "name": "primary"
+  },
+  {
+   "type": "communicationPath",
+   "from": "euworker",
+   "to": "eudb",
+   "protocol": "TCP"
+  },
+  {
+   "type": "communicationPath",
+   "from": "euauth",
+   "to": "eudb",
+   "protocol": "TCP"
+  },
+  {
+   "type": "dependency",
+   "from": "euapiCfg",
+   "to": "euapiImg",
+   "keyword": "configures"
+  },
+  {
+   "type": "dependency",
+   "from": "eusearchCfg",
+   "to": "eusearchImg",
+   "keyword": "configures"
+  },
+  {
+   "type": "communicationPath",
+   "from": "browser",
+   "to": "uslb",
+   "protocol": "HTTPS",
+   "fromEnd": {
+    "multiplicity": "*"
+   },
+   "toEnd": {
+    "multiplicity": "1"
+   }
+  },
+  {
+   "type": "communicationPath",
+   "from": "mobile",
+   "to": "uslb",
+   "protocol": "HTTPS",
+   "fromEnd": {
+    "multiplicity": "*"
+   },
+   "toEnd": {
+    "multiplicity": "1"
+   }
+  },
+  {
+   "type": "communicationPath",
+   "from": "uslb",
+   "to": "usapi",
+   "protocol": "HTTP",
+   "toEnd": {
+    "multiplicity": "2..*"
+   }
+  },
+  {
+   "type": "communicationPath",
+   "from": "uslb",
+   "to": "usauth",
+   "protocol": "HTTP"
+  },
+  {
+   "type": "communicationPath",
+   "from": "usapi",
+   "to": "ussearch",
+   "protocol": "HTTP"
+  },
+  {
+   "type": "communicationPath",
+   "from": "usapi",
+   "to": "usmq",
+   "protocol": "AMQP"
+  },
+  {
+   "type": "communicationPath",
+   "from": "usworker",
+   "to": "usmq",
+   "protocol": "AMQP"
+  },
+  {
+   "type": "communicationPath",
+   "from": "usapi",
+   "to": "usdb",
+   "protocol": "TCP",
+   "name": "primary"
+  },
+  {
+   "type": "communicationPath",
+   "from": "usworker",
+   "to": "usdb",
+   "protocol": "TCP"
+  },
+  {
+   "type": "communicationPath",
+   "from": "usauth",
+   "to": "usdb",
+   "protocol": "TCP"
+  },
+  {
+   "type": "dependency",
+   "from": "usapiCfg",
+   "to": "usapiImg",
+   "keyword": "configures"
+  },
+  {
+   "type": "dependency",
+   "from": "ussearchCfg",
+   "to": "ussearchImg",
+   "keyword": "configures"
+  },
+  {
+   "type": "communicationPath",
+   "from": "eudb",
+   "to": "usdb",
+   "protocol": "TCP",
+   "name": "replication",
+   "fromEnd": {
+    "multiplicity": "1"
+   },
+   "toEnd": {
+    "multiplicity": "1"
+   }
+  },
+  {
+   "type": "manifest",
+   "from": "euapiImg",
+   "to": "apiComp"
+  },
+  {
+   "type": "deploy",
+   "from": "migrations",
+   "to": "eupg"
+  },
+  {
+   "type": "deploy",
+   "from": "migrations",
+   "to": "uspg"
+  }
+ ]
+}

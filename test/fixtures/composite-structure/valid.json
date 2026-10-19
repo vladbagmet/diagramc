@@ -1,0 +1,41 @@
+[
+  { "name": "single note", "doc": { "kind": "composite-structure", "elements": [{ "id": "n", "type": "note", "text": "Only a note." }] } },
+  { "name": "class with only ports", "doc": { "kind": "composite-structure", "elements": [
+      { "id": "c", "type": "class", "name": "Gateway", "ports": [{ "id": "p1", "name": "north", "type": "Eth" }, { "id": "p2", "name": "south", "type": "Eth", "multiplicity": "2" }, { "id": "p3", "type": "Serial", "conjugated": true }] }] } },
+  { "name": "parts with every aggregation kind and multiplicity", "doc": { "kind": "composite-structure", "elements": [
+      { "id": "c", "type": "class", "name": "Library", "parts": [
+        { "id": "a", "name": "shelves", "type": "Shelf", "multiplicity": "1..*" },
+        { "id": "b", "name": "catalog", "type": "Catalog", "aggregation": "composite" },
+        { "id": "d", "name": "members", "type": "Person", "multiplicity": "*", "aggregation": "shared" },
+        { "id": "e", "name": "city", "type": "City", "aggregation": "none" },
+        { "id": "f", "name": "anonymous" }] }],
+    "relationships": [
+      { "type": "connector", "from": "b", "to": "a", "name": "indexes", "fromEnd": { "multiplicity": "1" }, "toEnd": { "role": "indexed", "multiplicity": "1..*" } },
+      { "type": "connector", "from": "d", "to": "b", "association": "Lookup" },
+      { "type": "connector", "from": "e", "to": "d", "name": "residents", "association": "Residence" }] } },
+  { "name": "connectors through ports of nested parts and the class", "doc": { "kind": "composite-structure", "elements": [
+      { "id": "c", "type": "class", "name": "Router", "ports": [{ "id": "wan", "name": "wan" }, { "id": "lan", "name": "lan", "multiplicity": "4" }], "parts": [
+        { "id": "fw", "name": "firewall", "type": "Filter", "ports": [{ "id": "fwIn", "name": "in" }, { "id": "fwOut", "name": "out" }] },
+        { "id": "sw", "name": "switch", "type": "Switch", "ports": [{ "id": "swUp", "name": "up" }, { "id": "swDown", "name": "down" }], "parts": [
+          { "id": "asic", "name": "asic", "type": "Asic" }, { "id": "cpu", "name": "cpu", "type": "Cpu" }] }] }],
+    "relationships": [
+      { "type": "connector", "from": "wan", "to": "fwIn" }, { "type": "connector", "from": "fwOut", "to": "swUp" },
+      { "type": "connector", "from": "swUp", "to": "cpu" }, { "type": "connector", "from": "cpu", "to": "asic", "name": "program" },
+      { "type": "connector", "from": "asic", "to": "swDown" }, { "type": "connector", "from": "swDown", "to": "lan", "toEnd": { "multiplicity": "4" } }] } },
+  { "name": "collaboration alone with a role connector cycle", "doc": { "kind": "composite-structure", "elements": [
+      { "id": "k", "type": "collaboration", "name": "Token Ring", "roles": [{ "id": "a", "name": "first", "type": "Station" }, { "id": "b", "name": "next", "type": "Station" }, { "id": "c", "name": "last", "type": "Station" }] }],
+    "relationships": [
+      { "type": "connector", "from": "a", "to": "b", "name": "token" }, { "type": "connector", "from": "b", "to": "c", "name": "token" }, { "type": "connector", "from": "c", "to": "a", "name": "token" }] } },
+  { "name": "two collaboration uses of one collaboration and a dependency", "doc": { "kind": "composite-structure", "elements": [
+      { "id": "c", "type": "class", "name": "Shop", "parts": [{ "id": "buyer", "name": "buyer", "type": "Customer" }, { "id": "seller", "name": "seller", "type": "Merchant" }, { "id": "bank", "name": "bank", "type": "Bank" }],
+        "collaborationUses": [
+          { "id": "u1", "name": "sale", "collaboration": "k", "bindings": [{ "role": "r1", "part": "buyer" }, { "role": "r2", "part": "seller" }] },
+          { "id": "u2", "name": "settlement", "collaboration": "k", "bindings": [{ "role": "r1", "part": "seller" }, { "role": "r2", "part": "bank" }] }] },
+      { "id": "k", "type": "collaboration", "name": "Exchange", "roles": [{ "id": "r1", "name": "payer" }, { "id": "r2", "name": "payee" }] },
+      { "id": "n", "type": "note", "text": "Each role binding is labelled with the role the part plays.", "attachedTo": ["c", "r1"] }],
+    "relationships": [{ "type": "dependency", "from": "c", "to": "k", "keyword": "occurrence" }] } },
+  { "name": "long and Unicode names", "doc": { "kind": "composite-structure", "title": "Größe 東京", "elements": [
+      { "id": "c", "type": "class", "name": "Ein sehr langer Klassenname für die Steuerung einer Produktionsanlage", "ports": [{ "id": "p", "name": "Anschluss", "type": "東京バス" }], "parts": [
+        { "id": "a", "name": "Steuerungseinheit", "type": "Speicherprogrammierbare Steuerung", "multiplicity": "1..2" }] }],
+    "relationships": [{ "type": "connector", "from": "p", "to": "a", "name": "Feldbusverbindung 🚀" }] } }
+]

@@ -196,7 +196,7 @@ test('CLI validate, schema and kinds print JSON on stdout', () => {
   assert.equal(listed[0].kind, 'class');
   assert.deepEqual(listed[0].backends, ['engine', 'plantuml']);
   for (const kind of ['object', 'package', 'profile']) assert.ok(listed.some(k => k.kind === kind), kind);
-  for (const kind of ['communication', 'interaction-overview']) {
+  for (const kind of ['communication', 'interaction-overview', 'component', 'deployment', 'composite-structure']) {
     assert.deepEqual(listed.find(k => k.kind === kind)?.backends, ['engine'], kind);
     assert.equal(JSON.parse(cli(['schema', kind]).stdout).properties.kind.const, kind);
   }

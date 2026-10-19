@@ -1,0 +1,855 @@
+{
+ "kind": "component",
+ "title": "Streaming platform",
+ "elements": [
+  {
+   "id": "ingest",
+   "type": "component",
+   "name": "Ingestion",
+   "ports": [
+    {
+     "id": "ingestIn",
+     "name": "in",
+     "provides": [
+      "iIngestion"
+     ]
+    },
+    {
+     "id": "ingestOut",
+     "name": "out",
+     "requires": [
+      "iMediaProcessing"
+     ]
+    }
+   ],
+   "elements": [
+    {
+     "id": "ingest0",
+     "type": "component",
+     "name": "Uploader",
+     "ports": [
+      {
+       "id": "ingest0in",
+       "provides": [
+        "iIngestion"
+       ]
+      }
+     ],
+     "requires": [
+      "iValidator",
+      "iChunker"
+     ]
+    },
+    {
+     "id": "ingest1",
+     "type": "component",
+     "name": "Validator",
+     "ports": [],
+     "provides": [
+      "iValidator"
+     ]
+    },
+    {
+     "id": "ingest2",
+     "type": "component",
+     "name": "Chunker",
+     "ports": [
+      {
+       "id": "ingest2out",
+       "requires": [
+        "iMediaProcessing"
+       ]
+      }
+     ],
+     "provides": [
+      "iChunker"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "media",
+   "type": "component",
+   "name": "Media Processing",
+   "ports": [
+    {
+     "id": "mediaIn",
+     "name": "in",
+     "provides": [
+      "iMediaProcessing"
+     ]
+    },
+    {
+     "id": "mediaOut",
+     "name": "out",
+     "requires": [
+      "iCatalog"
+     ]
+    }
+   ],
+   "elements": [
+    {
+     "id": "media0",
+     "type": "component",
+     "name": "Transcoder",
+     "ports": [
+      {
+       "id": "media0in",
+       "provides": [
+        "iMediaProcessing"
+       ]
+      }
+     ],
+     "requires": [
+      "iThumbnailer",
+      "iPackager"
+     ]
+    },
+    {
+     "id": "media1",
+     "type": "component",
+     "name": "Thumbnailer",
+     "ports": [],
+     "provides": [
+      "iThumbnailer"
+     ]
+    },
+    {
+     "id": "media2",
+     "type": "component",
+     "name": "Packager",
+     "ports": [
+      {
+       "id": "media2out",
+       "requires": [
+        "iCatalog"
+       ]
+      }
+     ],
+     "provides": [
+      "iPackager"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "catalog",
+   "type": "component",
+   "name": "Catalog",
+   "ports": [
+    {
+     "id": "catalogIn",
+     "name": "in",
+     "provides": [
+      "iCatalog"
+     ]
+    },
+    {
+     "id": "catalogOut",
+     "name": "out",
+     "requires": [
+      "iPlayback"
+     ]
+    }
+   ],
+   "elements": [
+    {
+     "id": "catalog0",
+     "type": "component",
+     "name": "Metadata Store",
+     "ports": [
+      {
+       "id": "catalog0in",
+       "provides": [
+        "iCatalog"
+       ]
+      }
+     ],
+     "requires": [
+      "iSearch",
+      "iRecommender"
+     ]
+    },
+    {
+     "id": "catalog1",
+     "type": "component",
+     "name": "Search",
+     "ports": [],
+     "provides": [
+      "iSearch"
+     ]
+    },
+    {
+     "id": "catalog2",
+     "type": "component",
+     "name": "Recommender",
+     "ports": [
+      {
+       "id": "catalog2out",
+       "requires": [
+        "iPlayback"
+       ]
+      }
+     ],
+     "provides": [
+      "iRecommender"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "playback",
+   "type": "component",
+   "name": "Playback",
+   "ports": [
+    {
+     "id": "playbackIn",
+     "name": "in",
+     "provides": [
+      "iPlayback"
+     ]
+    },
+    {
+     "id": "playbackOut",
+     "name": "out",
+     "requires": [
+      "iDelivery"
+     ]
+    }
+   ],
+   "elements": [
+    {
+     "id": "playback0",
+     "type": "component",
+     "name": "Session Manager",
+     "ports": [
+      {
+       "id": "playback0in",
+       "provides": [
+        "iPlayback"
+       ]
+      }
+     ],
+     "requires": [
+      "iLicenseServer",
+      "iEdgeSelector"
+     ]
+    },
+    {
+     "id": "playback1",
+     "type": "component",
+     "name": "License Server",
+     "ports": [],
+     "provides": [
+      "iLicenseServer"
+     ]
+    },
+    {
+     "id": "playback2",
+     "type": "component",
+     "name": "Edge Selector",
+     "ports": [
+      {
+       "id": "playback2out",
+       "requires": [
+        "iDelivery"
+       ]
+      }
+     ],
+     "provides": [
+      "iEdgeSelector"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "billing",
+   "type": "component",
+   "name": "Billing",
+   "ports": [
+    {
+     "id": "billingIn",
+     "name": "in",
+     "provides": [
+      "iBilling"
+     ]
+    },
+    {
+     "id": "billingOut",
+     "name": "out",
+     "requires": [
+      "iPlayback"
+     ]
+    }
+   ],
+   "elements": [
+    {
+     "id": "billing0",
+     "type": "component",
+     "name": "Subscriptions",
+     "ports": [
+      {
+       "id": "billing0in",
+       "provides": [
+        "iBilling"
+       ]
+      }
+     ],
+     "requires": [
+      "iInvoicing",
+      "iTaxEngine"
+     ]
+    },
+    {
+     "id": "billing1",
+     "type": "component",
+     "name": "Invoicing",
+     "ports": [],
+     "provides": [
+      "iInvoicing"
+     ]
+    },
+    {
+     "id": "billing2",
+     "type": "component",
+     "name": "Tax Engine",
+     "ports": [
+      {
+       "id": "billing2out",
+       "requires": [
+        "iPlayback"
+       ]
+      }
+     ],
+     "provides": [
+      "iTaxEngine"
+     ],
+     "requires": [
+      "iCharge"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "identity",
+   "type": "component",
+   "name": "Identity",
+   "ports": [
+    {
+     "id": "identityIn",
+     "name": "in",
+     "provides": [
+      "iIdentity"
+     ]
+    },
+    {
+     "id": "identityOut",
+     "name": "out",
+     "requires": [
+      "iBilling"
+     ]
+    }
+   ],
+   "elements": [
+    {
+     "id": "identity0",
+     "type": "component",
+     "name": "Accounts",
+     "ports": [
+      {
+       "id": "identity0in",
+       "provides": [
+        "iIdentity"
+       ]
+      }
+     ],
+     "requires": [
+      "iTokenService",
+      "iProfiles"
+     ]
+    },
+    {
+     "id": "identity1",
+     "type": "component",
+     "name": "Token Service",
+     "ports": [],
+     "provides": [
+      "iTokenService"
+     ]
+    },
+    {
+     "id": "identity2",
+     "type": "component",
+     "name": "Profiles",
+     "ports": [
+      {
+       "id": "identity2out",
+       "requires": [
+        "iBilling"
+       ]
+      }
+     ],
+     "provides": [
+      "iProfiles"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "studio",
+   "type": "component",
+   "name": "Studio Portal",
+   "stereotypes": [
+    "external"
+   ],
+   "requires": [
+    "iIngestion"
+   ]
+  },
+  {
+   "id": "player",
+   "type": "component",
+   "name": "Web Player",
+   "stereotypes": [
+    "external"
+   ],
+   "requires": [
+    "iIdentity"
+   ]
+  },
+  {
+   "id": "cdn",
+   "type": "component",
+   "name": "CDN",
+   "stereotypes": [
+    "external"
+   ],
+   "provides": [
+    "iDelivery"
+   ]
+  },
+  {
+   "id": "payments",
+   "type": "component",
+   "name": "Payment Provider",
+   "stereotypes": [
+    "external"
+   ],
+   "provides": [
+    "iCharge"
+   ]
+  },
+  {
+   "id": "mail",
+   "type": "component",
+   "name": "Mail Relay",
+   "stereotypes": [
+    "external"
+   ],
+   "provides": [
+    "iMail"
+   ]
+  },
+  {
+   "id": "analytics",
+   "type": "component",
+   "name": "Analytics",
+   "stereotypes": [
+    "external"
+   ],
+   "provides": [
+    "iEvents"
+   ]
+  },
+  {
+   "id": "ingestJar",
+   "type": "artifact",
+   "name": "ingest-service-1.0.jar"
+  },
+  {
+   "id": "mediaJar",
+   "type": "artifact",
+   "name": "media-service-2.0.jar"
+  },
+  {
+   "id": "catalogJar",
+   "type": "artifact",
+   "name": "catalog-service-3.0.jar"
+  },
+  {
+   "id": "playbackJar",
+   "type": "artifact",
+   "name": "playback-service-4.0.jar"
+  },
+  {
+   "id": "billingJar",
+   "type": "artifact",
+   "name": "billing-service-5.0.jar"
+  },
+  {
+   "id": "identityJar",
+   "type": "artifact",
+   "name": "identity-service-6.0.jar"
+  },
+  {
+   "id": "iIngestion",
+   "type": "interface",
+   "name": "IIngestion"
+  },
+  {
+   "id": "iValidator",
+   "type": "interface",
+   "name": "IValidator"
+  },
+  {
+   "id": "iChunker",
+   "type": "interface",
+   "name": "IChunker"
+  },
+  {
+   "id": "iMediaProcessing",
+   "type": "interface",
+   "name": "IMediaProcessing"
+  },
+  {
+   "id": "iThumbnailer",
+   "type": "interface",
+   "name": "IThumbnailer"
+  },
+  {
+   "id": "iPackager",
+   "type": "interface",
+   "name": "IPackager"
+  },
+  {
+   "id": "iCatalog",
+   "type": "interface",
+   "name": "ICatalog"
+  },
+  {
+   "id": "iSearch",
+   "type": "interface",
+   "name": "ISearch"
+  },
+  {
+   "id": "iRecommender",
+   "type": "interface",
+   "name": "IRecommender"
+  },
+  {
+   "id": "iPlayback",
+   "type": "interface",
+   "name": "IPlayback"
+  },
+  {
+   "id": "iLicenseServer",
+   "type": "interface",
+   "name": "ILicenseServer"
+  },
+  {
+   "id": "iEdgeSelector",
+   "type": "interface",
+   "name": "IEdgeSelector"
+  },
+  {
+   "id": "iBilling",
+   "type": "interface",
+   "name": "IBilling"
+  },
+  {
+   "id": "iInvoicing",
+   "type": "interface",
+   "name": "IInvoicing"
+  },
+  {
+   "id": "iTaxEngine",
+   "type": "interface",
+   "name": "ITaxEngine"
+  },
+  {
+   "id": "iIdentity",
+   "type": "interface",
+   "name": "IIdentity"
+  },
+  {
+   "id": "iTokenService",
+   "type": "interface",
+   "name": "ITokenService"
+  },
+  {
+   "id": "iProfiles",
+   "type": "interface",
+   "name": "IProfiles"
+  },
+  {
+   "id": "iDelivery",
+   "type": "interface",
+   "name": "IDelivery"
+  },
+  {
+   "id": "iCharge",
+   "type": "interface",
+   "name": "ICharge"
+  },
+  {
+   "id": "iMail",
+   "type": "interface",
+   "name": "IMail"
+  },
+  {
+   "id": "iEvents",
+   "type": "interface",
+   "name": "IEvents"
+  },
+  {
+   "id": "note",
+   "type": "note",
+   "text": "Two pipelines meet in Playback: content (ingest, media, catalog) and customers (identity, billing).",
+   "attachedTo": [
+    "playback"
+   ]
+  }
+ ],
+ "relationships": [
+  {
+   "type": "delegation",
+   "from": "ingestIn",
+   "to": "ingest0in"
+  },
+  {
+   "type": "delegation",
+   "from": "ingest2out",
+   "to": "ingestOut"
+  },
+  {
+   "type": "assembly",
+   "from": "ingest0",
+   "to": "ingest1",
+   "interface": "iValidator"
+  },
+  {
+   "type": "assembly",
+   "from": "ingest0",
+   "to": "ingest2",
+   "interface": "iChunker"
+  },
+  {
+   "type": "delegation",
+   "from": "mediaIn",
+   "to": "media0in"
+  },
+  {
+   "type": "delegation",
+   "from": "media2out",
+   "to": "mediaOut"
+  },
+  {
+   "type": "assembly",
+   "from": "media0",
+   "to": "media1",
+   "interface": "iThumbnailer"
+  },
+  {
+   "type": "assembly",
+   "from": "media0",
+   "to": "media2",
+   "interface": "iPackager"
+  },
+  {
+   "type": "delegation",
+   "from": "catalogIn",
+   "to": "catalog0in"
+  },
+  {
+   "type": "delegation",
+   "from": "catalog2out",
+   "to": "catalogOut"
+  },
+  {
+   "type": "assembly",
+   "from": "catalog0",
+   "to": "catalog1",
+   "interface": "iSearch"
+  },
+  {
+   "type": "assembly",
+   "from": "catalog0",
+   "to": "catalog2",
+   "interface": "iRecommender"
+  },
+  {
+   "type": "delegation",
+   "from": "playbackIn",
+   "to": "playback0in"
+  },
+  {
+   "type": "delegation",
+   "from": "playback2out",
+   "to": "playbackOut"
+  },
+  {
+   "type": "assembly",
+   "from": "playback0",
+   "to": "playback1",
+   "interface": "iLicenseServer"
+  },
+  {
+   "type": "assembly",
+   "from": "playback0",
+   "to": "playback2",
+   "interface": "iEdgeSelector"
+  },
+  {
+   "type": "delegation",
+   "from": "billingIn",
+   "to": "billing0in"
+  },
+  {
+   "type": "delegation",
+   "from": "billing2out",
+   "to": "billingOut"
+  },
+  {
+   "type": "assembly",
+   "from": "billing0",
+   "to": "billing1",
+   "interface": "iInvoicing"
+  },
+  {
+   "type": "assembly",
+   "from": "billing0",
+   "to": "billing2",
+   "interface": "iTaxEngine"
+  },
+  {
+   "type": "delegation",
+   "from": "identityIn",
+   "to": "identity0in"
+  },
+  {
+   "type": "delegation",
+   "from": "identity2out",
+   "to": "identityOut"
+  },
+  {
+   "type": "assembly",
+   "from": "identity0",
+   "to": "identity1",
+   "interface": "iTokenService"
+  },
+  {
+   "type": "assembly",
+   "from": "identity0",
+   "to": "identity2",
+   "interface": "iProfiles"
+  },
+  {
+   "type": "assembly",
+   "from": "ingestOut",
+   "to": "mediaIn",
+   "interface": "iMediaProcessing"
+  },
+  {
+   "type": "assembly",
+   "from": "mediaOut",
+   "to": "catalogIn",
+   "interface": "iCatalog"
+  },
+  {
+   "type": "assembly",
+   "from": "catalogOut",
+   "to": "playbackIn",
+   "interface": "iPlayback"
+  },
+  {
+   "type": "assembly",
+   "from": "billingOut",
+   "to": "playbackIn",
+   "interface": "iPlayback"
+  },
+  {
+   "type": "assembly",
+   "from": "identityOut",
+   "to": "billingIn",
+   "interface": "iBilling"
+  },
+  {
+   "type": "assembly",
+   "from": "studio",
+   "to": "ingestIn",
+   "interface": "iIngestion"
+  },
+  {
+   "type": "assembly",
+   "from": "player",
+   "to": "identityIn",
+   "interface": "iIdentity"
+  },
+  {
+   "type": "assembly",
+   "from": "playbackOut",
+   "to": "cdn",
+   "interface": "iDelivery"
+  },
+  {
+   "type": "dependency",
+   "from": "billing",
+   "to": "payments",
+   "keyword": "call"
+  },
+  {
+   "type": "dependency",
+   "from": "identity",
+   "to": "mail",
+   "keyword": "send"
+  },
+  {
+   "type": "dependency",
+   "from": "catalog",
+   "to": "analytics",
+   "keyword": "emit"
+  },
+  {
+   "type": "dependency",
+   "from": "playback",
+   "to": "analytics",
+   "keyword": "emit"
+  },
+  {
+   "type": "dependency",
+   "from": "billing",
+   "to": "analytics",
+   "keyword": "emit"
+  },
+  {
+   "type": "manifest",
+   "from": "ingestJar",
+   "to": "ingest"
+  },
+  {
+   "type": "manifest",
+   "from": "mediaJar",
+   "to": "media"
+  },
+  {
+   "type": "manifest",
+   "from": "catalogJar",
+   "to": "catalog"
+  },
+  {
+   "type": "manifest",
+   "from": "playbackJar",
+   "to": "playback"
+  },
+  {
+   "type": "manifest",
+   "from": "billingJar",
+   "to": "billing"
+  },
+  {
+   "type": "manifest",
+   "from": "identityJar",
+   "to": "identity"
+  }
+ ]
+}

@@ -37,6 +37,8 @@ export const theme = {
     noteStroke: '#9A7B1C',
     frameStroke: '#475569',
     frameHeadingFill: '#F1F5F9',
+    /** Top and side faces of a deployment node's 3D box. */
+    nodeDepthFill: '#DCE5EF',
     /** Halo painted behind edge labels so crossing lines never obscure them. */
     labelHalo: '#FFFFFF',
   },
@@ -85,6 +87,18 @@ export const theme = {
     circlePlus: { radius: 6.5 },
     noteFold: 10,
     packageTab: { minWidth: 48, height: 20 },
+    /** Side of a port square, centered on its owner's border. */
+    port: 12,
+    /** Provided interface ball (lollipop) radius. */
+    ball: 6,
+    /** Required interface socket radius; the gap to a ball inside it is socket - ball. */
+    socket: 10,
+    /** Depth of a deployment node's 3D box. */
+    nodeDepth: 10,
+    /** Component icon (top-right corner of a component). */
+    componentIcon: { width: 14, height: 16 },
+    /** Document icon of an artifact (folded corner). */
+    artifactIcon: { width: 12, height: 15 },
   },
 } as const;
 

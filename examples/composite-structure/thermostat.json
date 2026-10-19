@@ -1,0 +1,37 @@
+{
+  "kind": "composite-structure",
+  "title": "Smart thermostat",
+  "elements": [
+    { "id": "thermostat", "type": "class", "name": "Thermostat",
+      "ports": [
+        { "id": "pSensor", "name": "sensor", "type": "AnalogIn" },
+        { "id": "pRelay", "name": "relay", "type": "RelayOut" },
+        { "id": "pCloud", "name": "cloud", "type": "Mqtt", "conjugated": true }
+      ],
+      "parts": [
+        { "id": "adc", "name": "adc", "type": "Converter",
+          "ports": [{ "id": "adcIn", "name": "in" }, { "id": "adcOut", "name": "out" }] },
+        { "id": "ctrl", "name": "controller", "type": "PidController" },
+        { "id": "sched", "name": "schedule", "type": "Schedule", "multiplicity": "0..1" },
+        { "id": "driver", "name": "driver", "type": "RelayDriver" },
+        { "id": "net", "name": "uplink", "type": "Network", "aggregation": "shared" }
+      ],
+      "collaborationUses": [
+        { "id": "obs", "name": "readings", "collaboration": "observer",
+          "bindings": [{ "role": "subject", "part": "adc" }, { "role": "listener", "part": "ctrl" }] }
+      ] },
+    { "id": "observer", "type": "collaboration", "name": "Observer",
+      "roles": [{ "id": "subject", "name": "subject", "type": "Subject" }, { "id": "listener", "name": "listener", "type": "Listener", "multiplicity": "*" }] },
+    { "id": "n1", "type": "note", "text": "The uplink is shared with the display unit.", "attachedTo": ["net"] }
+  ],
+  "relationships": [
+    { "type": "connector", "from": "pSensor", "to": "adcIn" },
+    { "type": "connector", "from": "adcOut", "to": "ctrl", "name": "samples", "toEnd": { "multiplicity": "1" } },
+    { "type": "connector", "from": "sched", "to": "ctrl", "association": "Setpoints", "fromEnd": { "role": "plan", "multiplicity": "0..1" }, "toEnd": { "multiplicity": "1" } },
+    { "type": "connector", "from": "ctrl", "to": "driver" },
+    { "type": "connector", "from": "driver", "to": "pRelay" },
+    { "type": "connector", "from": "net", "to": "pCloud" },
+    { "type": "connector", "from": "ctrl", "to": "net", "name": "telemetry" },
+    { "type": "connector", "from": "subject", "to": "listener", "name": "notifies", "toEnd": { "multiplicity": "*" } }
+  ]
+}

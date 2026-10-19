@@ -44,6 +44,13 @@ export interface LayoutNode {
    * apply a minimum size to compound nodes; widen them through `padding`).
    */
   children?: LayoutNode[];
+  /**
+   * Compound nodes only: treat `width` and `height` as the minimum size (e.g. a
+   * name compartment wider than the children). Applied with ELK's MINIMUM_SIZE
+   * node size constraint, which ELK 0.11 does honor for compound nodes when it is
+   * set explicitly (test/engine-structure.test.mjs).
+   */
+  minimumSize?: boolean;
   /** Inner padding of a compound node (room for a package tab, a name compartment...). */
   padding?: { top: number; left: number; bottom: number; right: number };
   ports?: LayoutPort[];
@@ -121,6 +128,10 @@ export async function layout(nodes: readonly LayoutNode[], edges: readonly Layou
     ] } : {}),
     layoutOptions: {
       ...(node.children?.length ? spacing : {}),
+      ...(node.children?.length && node.minimumSize ? {
+        'elk.nodeSize.constraints': '[MINIMUM_SIZE]',
+        'elk.nodeSize.minimum': `(${node.width}, ${node.height})`,
+      } : {}),
       ...(node.ports?.length ? {
         'elk.portConstraints': node.ports.some(p => p.position) ? 'FIXED_POS' : 'FIXED_SIDE',
         // Grow the node if its ports need more room than its content.

@@ -1,5 +1,5 @@
 import { theme } from '../core/theme.js';
-import { boundsOfPoints, contains, direction, distance, distanceToBorder, distanceToRect, inflate, overlapArea, segmentDistance, segmentIntersectsRect, union, type Rect } from '../engine/geometry.js';
+import { boundsOfPoints, center, contains, direction, distance, distanceToBorder, distanceToEllipse, distanceToRect, inflate, overlapArea, segmentDistance, segmentIntersectsRect, union, type Point, type Rect } from '../engine/geometry.js';
 import { inspectSvg, type Scene } from './inspect.js';
 
 /**
@@ -12,7 +12,7 @@ export interface QaReport { ok: boolean; renderer: Scene['renderer']; gates: Gat
 
 export const GATES = [
   'safe-markup', 'inside-canvas', 'node-overlap', 'label-overlap', 'label-edge-crossing', 'label-proximity',
-  'edge-endpoints', 'markers', 'message-arrows', 'literal-text', 'min-font-size', 'text-fits',
+  'edge-endpoints', 'markers', 'message-arrows', 'literal-text', 'min-font-size', 'text-fits', 'ports',
 ] as const;
 
 const fmt = (r: Rect): string => `[${r.x.toFixed(1)},${r.y.toFixed(1)} ${r.width.toFixed(1)}x${r.height.toFixed(1)}]`;
@@ -64,6 +64,8 @@ export function runGates(scene: Scene, expectedTexts: readonly string[] = []): Q
       const a = scene.nodes[i]!, b = scene.nodes[j]!;
       if (overlapArea(a.bounds, b.bounds) <= 0.5) continue;
       if (contains(a.bounds, b.bounds) || contains(b.bounds, a.bounds)) continue;
+      // A port straddles the border of the node it belongs to.
+      if (a.parent === b.id || b.parent === a.id) continue;
       fail(`nodes ${a.id} ${fmt(a.bounds)} and ${b.id} ${fmt(b.bounds)} overlap`);
     }
   });
@@ -75,18 +77,26 @@ export function runGates(scene: Scene, expectedTexts: readonly string[] = []): Q
     return out;
   };
   const edgeById = new Map(scene.edges.map(e => [e.id, e]));
+  /** Containers around an edge end or a symbol: a port counts from its owner's containers, not the owner itself. */
+  const endAncestors = (id: string): Set<string> => {
+    const node = nodeById.get(id);
+    return node?.type === 'port' && node.parent ? ancestors(node.parent) : ancestors(id);
+  };
 
   gate('label-overlap', fail => {
     labels.forEach((label, i) => {
-      // A label may sit inside a container (package) that encloses an end of its
-      // own edge, as long as it keeps clear of the container's tab.
+      // A label may sit inside a container (package, component, node) that encloses an
+      // end of its own edge, or, for the name of a port or interface symbol, a container
+      // of the element it belongs to; never on its tab, on a leaf, or across a border.
       const edge = label.owner === undefined ? undefined : edgeById.get(label.owner);
-      const enclosing = edge ? new Set([...ancestors(edge.source), ...ancestors(edge.target)]) : new Set<string>();
+      const enclosing = edge ? new Set([...endAncestors(edge.source), ...endAncestors(edge.target)])
+        : label.owner !== undefined && nodeById.has(label.owner) ? endAncestors(label.owner) : new Set<string>();
       for (const n of scene.nodes) {
         if (overlapArea(label.bounds, n.bounds) <= 0.5) continue;
         if (enclosing.has(n.id) && contains(n.bounds, label.bounds) && !(n.tab && overlapArea(label.bounds, n.tab) > 0.5)) continue;
         fail(`label ${snippet(label.content)} overlaps node ${n.id}`);
       }
+      for (const t of scene.texts) if (t.role !== 'label' && overlapArea(label.bounds, t.bounds) > 0.5) fail(`label ${snippet(label.content)} overlaps text ${snippet(t.content)}`);
       for (const other of labels.slice(i + 1)) if (overlapArea(label.bounds, other.bounds) > 0.5) fail(`labels ${snippet(label.content)} and ${snippet(other.content)} overlap`);
       if (scene.frameHeading && overlapArea(label.bounds, scene.frameHeading) > 0.5) fail(`label ${snippet(label.content)} overlaps the frame heading`);
     });
@@ -127,10 +137,10 @@ export function runGates(scene: Scene, expectedTexts: readonly string[] = []): Q
       for (const [end, id, p] of [['source', e.source, e.points[0]!], ['target', e.target, e.points.at(-1)!]] as const) {
         const node = nodeById.get(id);
         if (!node) { fail(`edge ${e.id} ${end} ${id} is not a node`); continue; }
-        // A package's outline is its tab plus the body below the tab.
+        // A package's outline is its tab plus the body below the tab; an ellipse's is the ellipse.
         const d = node.tab
           ? Math.min(distanceToBorder(p, node.tab), distanceToBorder(p, { x: node.bounds.x, y: node.bounds.y + node.tab.height, width: node.bounds.width, height: node.bounds.height - node.tab.height }))
-          : distanceToBorder(p, node.bounds);
+          : node.shape === 'ellipse' ? distanceToEllipse(p, node.bounds) : distanceToBorder(p, node.bounds);
         if (d > 1) fail(`edge ${e.id} ${end} point (${p.x}, ${p.y}) is ${d.toFixed(2)}px off the border of ${id}`);
       }
       for (let k = 1; k < e.points.length; k++) {
@@ -235,7 +245,86 @@ export function runGates(scene: Scene, expectedTexts: readonly string[] = []): Q
     }
   });
 
+  gate('ports', fail => checkPorts(scene, labels, fail), !engine);
+
   return { ok: gates.every(g => g.ok), renderer: scene.renderer, gates };
+}
+
+/**
+ * Ports and interface symbols (component, composite structure and similar kinds):
+ * port squares are centered on their owner's border, their names next to them; lollipop balls and sockets
+ * sit at the end of their stem, outside their owner, facing outward; in an
+ * assembly the ball sits concentrically in the socket, the requiring line meets
+ * the socket's back and the providing line enters through its opening, on one
+ * straight axis; interface names stay next to their symbol.
+ */
+function checkPorts(scene: Scene, labels: readonly Scene['texts'][number][], fail: (message: string) => void): void {
+  const nodeById = new Map(scene.nodes.map(n => [n.id, n]));
+  const at = (p: Point): string => `(${p.x.toFixed(1)}, ${p.y.toFixed(1)})`;
+  for (const port of scene.nodes.filter(n => n.type === 'port')) {
+    const owner = port.parent === undefined ? undefined : nodeById.get(port.parent);
+    if (!owner) { fail(`port ${port.id} has no owner node`); continue; }
+    const c = center(port.bounds);
+    const d = distanceToBorder(c, owner.bounds);
+    if (d > 0.5) fail(`port ${port.id} center ${at(c)} is ${d.toFixed(2)}px off the border of ${owner.id}`);
+    for (const label of labels.filter(l => l.owner === port.id)) {
+      const gap = distanceToRect(c, label.bounds) - port.bounds.width / 2;
+      if (gap > 16) fail(`port name ${snippet(label.content)} is ${gap.toFixed(1)}px away from port ${port.id}`);
+    }
+  }
+  // Each route end touching a symbol, with the direction of its last segment (into the symbol).
+  const ends = (id: string) => scene.edges.flatMap(e => {
+    const out: { edge: string; type: string; other: string; p: Point; into: Point }[] = [];
+    if (e.target === id && e.points.length > 1) out.push({ edge: e.id, type: e.type, other: e.source, p: e.points.at(-1)!, into: direction(e.points.at(-2)!, e.points.at(-1)!) });
+    if (e.source === id && e.points.length > 1) out.push({ edge: e.id, type: e.type, other: e.target, p: e.points[0]!, into: direction(e.points[1]!, e.points[0]!) });
+    return out;
+  });
+  const dot = (a: Point, b: Point): number => a.x * b.x + a.y * b.y;
+  const offAxis = (p: Point, c: Point, u: Point): number => Math.abs((p.x - c.x) * u.y - (p.y - c.y) * u.x);
+  /** The node an interface faces away from: a port's owner, or the node itself. */
+  const body = (id: string) => { const n = nodeById.get(id); return n?.type === 'port' && n.parent ? nodeById.get(n.parent) : n; };
+  for (const node of scene.nodes) {
+    const { ball, socket } = node;
+    if (!ball && !socket) continue;
+    const touching = ends(node.id);
+    if (ball && socket) {
+      // Assembly: ball and socket concentric, requirer at the back, provider through the opening, aligned.
+      if (distance(ball, socket) > 0.5) fail(`assembly ${node.id}: ball and socket are not concentric`);
+      if (ball.r >= socket.r) fail(`assembly ${node.id}: ball does not fit inside the socket`);
+      const u = socket.u, c = { x: socket.x, y: socket.y };
+      // Lines declare their role in their type ("...required" / "...provided").
+      const back = touching.find(t => t.type.endsWith('required')), front = touching.find(t => t.type.endsWith('provided'));
+      if (!back) fail(`assembly ${node.id}: no requiring connector`);
+      else if (distance(back.p, { x: c.x - u.x * socket.r, y: c.y - u.y * socket.r }) > 0.75) fail(`assembly ${node.id}: requiring connector ${back.edge} does not meet the socket's back`);
+      else if (dot(back.into, u) < 0.99) fail(`assembly ${node.id}: requiring connector does not run into the socket's back`);
+      if (!front) fail(`assembly ${node.id}: no providing connector`);
+      else if (distance(front.p, { x: c.x + u.x * socket.r, y: c.y + u.y * socket.r }) > 0.75) fail(`assembly ${node.id}: providing connector ${front.edge} does not enter through the socket's opening`);
+      else if (dot(front.into, u) > -0.99) fail(`assembly ${node.id}: providing connector does not run into the opening toward the ball`);
+      for (const t of [back, front]) if (t && offAxis(t.p, c, u) > 0.5) fail(`assembly ${node.id}: connector ${t.edge} is not aligned with the ball and socket`);
+      if (touching.length !== 2) fail(`assembly ${node.id}: expected 2 connectors, found ${touching.length}`);
+    } else if (ball) {
+      if (!touching.length) fail(`provided interface ${node.id} has no stem`);
+      for (const t of touching) {
+        if (Math.abs(distance(t.p, ball) - ball.r) > 0.75) fail(`provided interface ${node.id}: stem ${t.edge} does not end on the ball ${at(t.p)}`);
+        if (offAxis(ball, t.p, t.into) > 0.5) fail(`provided interface ${node.id}: stem ${t.edge} does not point at the ball's center`);
+        const owner = body(t.other);
+        if (owner && contains(owner.bounds, { x: ball.x, y: ball.y, width: 0, height: 0 })) fail(`provided interface ${node.id} faces into its owner ${owner.id}`);
+      }
+    } else if (socket) {
+      if (!touching.length) fail(`required interface ${node.id} has no stem`);
+      const c = { x: socket.x, y: socket.y };
+      for (const t of touching) {
+        if (distance(t.p, { x: c.x - socket.u.x * socket.r, y: c.y - socket.u.y * socket.r }) > 0.75) fail(`required interface ${node.id}: stem ${t.edge} does not meet the socket's back ${at(t.p)}`);
+        if (dot(t.into, socket.u) < 0.99) fail(`required interface ${node.id}: socket does not open away from its stem ${t.edge}`);
+        const owner = body(t.other);
+        if (owner && contains(owner.bounds, { x: c.x, y: c.y, width: 0, height: 0 })) fail(`required interface ${node.id} faces into its owner ${owner.id}`);
+      }
+    }
+    for (const label of labels.filter(l => l.owner === node.id)) {
+      const gap = distanceToRect(center(node.bounds), label.bounds) - Math.max(node.bounds.width, node.bounds.height) / 2;
+      if (gap > 12) fail(`interface name ${snippet(label.content)} is ${gap.toFixed(1)}px away from its symbol ${node.id}`);
+    }
+  }
 }
 
 /** Inspects an SVG and runs every gate. `expectedTexts`: every display string of the input. */

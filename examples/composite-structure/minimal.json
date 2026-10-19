@@ -1,0 +1,13 @@
+{
+  "kind": "composite-structure",
+  "elements": [
+    { "id": "car", "type": "class", "name": "Car",
+      "parts": [
+        { "id": "engine", "name": "e", "type": "Engine" },
+        { "id": "wheels", "name": "rear", "type": "Wheel", "multiplicity": "2" }
+      ] }
+  ],
+  "relationships": [
+    { "type": "connector", "from": "engine", "to": "wheels", "name": "axle", "fromEnd": { "multiplicity": "1" }, "toEnd": { "multiplicity": "2" } }
+  ]
+}

@@ -7,8 +7,20 @@ import { parseXml, textContent, walk, type XmlElement } from './xml.js';
  * its data-uml-* attributes; PlantUML output is read best-effort from its
  * entity/link groups and drawing primitives.
  */
-/** `tab`: the tab of a package (data-uml-tab); the node's outline is then the tab plus the body below it. */
-export interface InspectedNode { id: string; type: string; bounds: Rect; parent?: string; tab?: Rect }
+export interface InspectedNode {
+  id: string;
+  type: string;
+  bounds: Rect;
+  parent?: string;
+  /** Outline when it is not the bounds rectangle (data-uml-shape), e.g. "ellipse". */
+  shape?: string;
+  /** Provided-interface ball (data-uml-ball="cx,cy,r"). */
+  ball?: { x: number; y: number; r: number };
+  /** Required-interface socket (data-uml-socket="cx,cy,r,ux,uy"); `u` points out of its opening. */
+  socket?: { x: number; y: number; r: number; u: Point };
+  /** The tab of a package (data-uml-tab); the node's outline is then the tab plus the body below it. */
+  tab?: Rect;
+}
 export interface InspectedEdge { id: string; type: string; source: string; target: string; points: Point[]; sourceMarker: string; targetMarker: string }
 export interface InspectedMarker { marker: string; end: string; tip: Point; direction: Point }
 /** A free-standing message arrow beside a link (communication diagrams). */
@@ -154,7 +166,15 @@ function readEngine(root: XmlElement, scene: Scene): void {
   for (const { element } of walk(root)) {
     const a = element.attrs;
     if (a['data-uml-role'] === 'node') {
-      scene.nodes.push({ id: a['data-uml-id'] ?? '', type: a['data-uml-type'] ?? '', bounds: rect4(a['data-uml-bounds'])!, ...(a['data-uml-parent'] ? { parent: a['data-uml-parent'] } : {}), ...(a['data-uml-tab'] ? { tab: rect4(a['data-uml-tab'])! } : {}) });
+      const ball = numbers(a['data-uml-ball']), socket = numbers(a['data-uml-socket']);
+      scene.nodes.push({
+        id: a['data-uml-id'] ?? '', type: a['data-uml-type'] ?? '', bounds: rect4(a['data-uml-bounds'])!,
+        ...(a['data-uml-parent'] ? { parent: a['data-uml-parent'] } : {}),
+        ...(a['data-uml-shape'] ? { shape: a['data-uml-shape'] } : {}),
+        ...(ball.length === 3 ? { ball: { x: ball[0]!, y: ball[1]!, r: ball[2]! } } : {}),
+        ...(a['data-uml-tab'] ? { tab: rect4(a['data-uml-tab'])! } : {}),
+        ...(socket.length === 5 ? { socket: { x: socket[0]!, y: socket[1]!, r: socket[2]!, u: { x: socket[3]!, y: socket[4]! } } } : {}),
+      });
     } else if (a['data-uml-role'] === 'edge') {
       scene.edges.push({
         id: a['data-uml-id'] ?? '', type: a['data-uml-type'] ?? '', source: a['data-uml-source'] ?? '', target: a['data-uml-target'] ?? '',

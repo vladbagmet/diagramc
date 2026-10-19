@@ -1,0 +1,11 @@
+{
+  "kind": "deployment",
+  "elements": [
+    { "id": "client", "type": "device", "name": "Laptop" },
+    { "id": "server", "type": "node", "name": "Web Server",
+      "elements": [{ "id": "site", "type": "artifact", "name": "site.war" }] }
+  ],
+  "relationships": [
+    { "type": "communicationPath", "from": "client", "to": "server", "protocol": "HTTPS" }
+  ]
+}
