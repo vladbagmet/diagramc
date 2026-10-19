@@ -1,150 +1,183 @@
 # Agent UML CLI
 
-A small agent-friendly CLI: validated JSON class models in, readable SVG out.
-No server, API key, Graphviz, or global tooling installation is required.
+An agent-first CLI: validated JSON UML models in, readable SVG or PNG out. No
+server, API key, browser, Graphviz or global installation. Rendering is offline.
 
-**Review artifact:** [`artifacts/review.svg`](artifacts/review.svg), generated from
-[`examples/order-system.json`](examples/order-system.json). It has six classes,
-member compartments, four associations, and one inheritance relationship.
+Status (0.2.0): the foundation for all 14 UML 2.5.1 diagram kinds (see
+[`docs/plans/full-uml-plan.md`](docs/plans/full-uml-plan.md)). **Class diagrams**
+are complete on the own layout engine; the other kinds plug in through
+[`docs/kinds/README.md`](docs/kinds/README.md).
 
-## Clean setup
+## Setup
 
-Requires Node.js 22+ and npm. Automatic renderer setup supports macOS and Linux
-on arm64 and x64. Linux requires glibc and the platform libraries/fonts used by
-Temurin, not a minimal musl-only environment. Setup requires HTTPS access to official
-GitHub releases and the standard `tar` command. Rendering afterwards is offline.
+Requires Node.js 22+ and npm.
 
 ```sh
 npm ci
-npm run setup:renderer
 npm run build
-npm test
-npm run test:integration
-npm run render:example
+npm test                    # unit tests, no Java needed
+```
+
+Own-engine kinds (class, and later object, package, component, ...) need nothing
+else. PlantUML kinds (sequence, timing, activity, state machine, use case, and the
+`--backend plantuml` class fallback) need the pinned local renderer:
+
+```sh
+npm run setup:renderer      # PlantUML 1.2025.10 + Temurin JRE 21.0.11+10 into ignored .tools/
+npm run test:integration    # real-renderer tests
+npm run gallery             # every example of every kind -> artifacts/gallery/index.html
 ```
 
 The setup script downloads SHA-256-verified, pinned official artifacts into
-ignored `.tools/`: PlantUML **1.2025.10** and Eclipse Temurin JRE **21.0.11+10**.
-It always provisions the local JRE, avoiding Java availability and version drift.
-There are no Homebrew, global npm, or system-wide changes.
-On macOS arm64, downloads total about **70 MiB** and `.tools/` uses about
-**221 MiB**, including the retained runtime archive. The extracted JRE is about
-151 MiB. Sizes differ by platform. Re-running setup verifies cached downloads.
-Extraction is staged and checked before replacing the local runtime. Rerun setup
-after an interrupted download/extraction or a broken local installation; it repairs
-the managed runtime without requiring manual deletion.
+`.tools/` (macOS and Linux, arm64 and x64; Linux needs glibc), installs the pinned
+Inter font into that runtime, and repairs interrupted or broken installs. About 70
+MiB of downloads; nothing system-wide changes. For separately managed, trusted tools
+set both `UML_JAVA` and `PLANTUML_JAR`.
 
 ## Use
 
-The package declares the `uml` executable. Run it locally, without installing
-anything globally:
-
 ```sh
-npm exec --offline -- uml render examples/simple.json -o diagram.svg
-cat examples/unicode.json | npm exec --offline -- uml render - -o unicode.svg
-npm exec --offline -- uml --help
+uml render model.json -o diagram.svg          # or .png (2x by default)
+cat model.json | uml render - -o diagram.png --scale 3
+uml render model.json -o diagram.svg --backend plantuml
+uml validate model.json                       # {"valid":true,"kind":"class","version":2}
+uml kinds                                     # supported kinds as JSON
+uml schema class                              # JSON Schema of a kind
+uml --help
 ```
 
-`npm pack` builds first and includes the executable, schema, examples and setup
-script, but not downloaded tools. Installing that tarball in another npm project
-exposes `uml` to npm scripts and `npm exec --offline -- uml`, not the global shell
-PATH. From that project, provision its local renderer with
-`node node_modules/agent-uml-cli/scripts/setup-renderer.mjs`, or use both trusted
-environment overrides below.
+Run it with `npm exec --offline -- uml ...` or `./dist/cli.js ...`. The output
+format follows the `-o` extension unless `--format svg|png` is given. Output is
+replaced atomically, only after a successful render; its parent must exist.
+Successful runs print nothing (except `validate`, `kinds`, `schema`).
 
-`./dist/cli.js` is also executable after building. The output parent directory
-must exist and the filename must end in `.svg`. Successful rendering is silent.
-Existing output is atomically replaced only after successful validation and rendering.
+## Model
 
-## Model v1
-
-The checked-in contract is [`schema/model-v1.schema.json`](schema/model-v1.schema.json).
-The version belongs to the schema filename, not an extra model field.
+Every document is a JSON object with a `kind`, an optional `title` (drawn as the
+UML frame heading, for example **class** Ordering) and the kind's vocabulary.
+`uml schema <kind>` prints the full contract with descriptions.
 
 ```json
 {
-  "classes": [
-    { "id": "account", "name": "Account", "attributes": ["id: UUID"] },
-    { "id": "customer", "name": "Customer", "methods": ["placeOrder(): Order"] }
+  "kind": "class",
+  "title": "Ordering",
+  "elements": [
+    { "id": "account", "type": "class", "name": "Account", "abstract": true,
+      "attributes": [{ "name": "email", "type": "String", "visibility": "private" }] },
+    { "id": "customer", "type": "class", "name": "Customer", "stereotypes": ["entity"],
+      "operations": [{ "name": "placeOrder", "visibility": "public",
+                       "parameters": [{ "name": "cart", "type": "Cart" }], "returnType": "Order" }] },
+    { "id": "order", "type": "class", "name": "Order" },
+    { "id": "n1", "type": "note", "text": "Orders are immutable once paid.", "attachedTo": ["order"] }
   ],
   "relationships": [
-    { "type": "inheritance", "from": "customer", "to": "account" }
+    { "type": "generalization", "from": "customer", "to": "account" },
+    { "type": "association", "from": "customer", "to": "order", "name": "places",
+      "fromEnd": { "multiplicity": "1" }, "toEnd": { "role": "orders", "multiplicity": "0..*", "navigable": true } }
   ]
 }
 ```
 
-- `inheritance`: **from subclass to superclass**, with the hollow triangle at the superclass.
-- `association`: undirected line, optionally with `label`. `from` and `to` identify endpoints.
-- IDs: unique ASCII identifiers, `[A-Za-z][A-Za-z0-9_-]{0,63}`. Relationships use IDs, never names.
-- Names and members are Unicode display text, not parsed code. Names have 1 to 100 code points;
-  members and labels have 1 to 180. Each attribute and method list has at most 20 entries.
-- Input is UTF-8 JSON, at most 256 KiB, with 1 to 50 classes and at most 100 relationships.
-- Text must be nonblank and single-line, without control characters, bidi overrides/isolates,
-  unpaired surrogates, or XML-forbidden U+FFFE/U+FFFF. Quotes, braces, HTML-like syntax,
-  backslashes and leading/repeated/trailing spaces display literally.
-- Unknown fields, unsupported relationship types, missing references, duplicate IDs and
-  inheritance cycles, including self-inheritance, are errors. Association cycles are legal.
+Rules shared by all kinds:
 
-See all five models in [`examples/`](examples/).
+- IDs: unique ASCII identifiers `[A-Za-z][A-Za-z0-9_-]{0,63}`, one namespace per
+  document. Relationships use IDs, never names. IDs are never drawn.
+- Display text is Unicode shown literally, never parsed as markup or code: single
+  line, no control characters, bidi overrides/isolates, unpaired surrogates or
+  U+FFFE/U+FFFF; nonblank. Names 1 to 100 code points, other text 1 to 180, notes
+  1 to 1000 (wrapped). Quotes, braces, HTML-like syntax and repeated spaces stay literal.
+- Input is UTF-8 JSON of at most 256 KiB. Unknown properties are errors.
 
-## Errors and safety
+### Class diagrams
 
-Errors are one JSON object on stderr. No SVG is written to stdout.
+Classes (abstract in italics), interfaces, enumerations, data types and primitives
+with keywords in guillemets, stereotypes, visibility, static (underlined) and
+abstract (italic) members, structured attributes `name : Type [mult] = default`
+and operations `name(p : T) : R`. Relationships: `generalization` (from the specific
+to the general classifier), `realization` (from the implementation to the
+interface), `association` (name, role names, multiplicities, navigability),
+`aggregation` and `composition` (from the whole to the part), `dependency` (from
+client to supplier, optional «keyword»), `containment` (from the owner); notes.
+Notation checklist, rules and limits: [`docs/kinds/class.md`](docs/kinds/class.md).
+Examples: [`examples/class/`](examples/class/).
+
+**v1 documents** (the MVP format: `classes` + `relationships`, no `kind`, see
+[`schema/model-v1.schema.json`](schema/model-v1.schema.json) and
+[`examples/v1/`](examples/v1/)) keep working as class diagrams; members are drawn
+verbatim and error paths refer to the v1 document.
+
+## Errors
+
+Errors are one JSON object on stderr; no output file is written or changed.
 
 ```json
-{"error":{"code":"MISSING_REFERENCE","message":"Relationship references an unknown class","details":{"from":"customer","to":"missing"}}}
+{"error":{"code":"MISSING_REFERENCE","message":"Reference to unknown element \"missing\"","path":"/relationships/0/to","details":{"from":"customer","to":"missing"},"diagnostics":[...]}}
 ```
 
-Exit codes: `0` success, `2` usage/input validation, `3` renderer, `4` file I/O.
-SIGINT/SIGTERM during rendering stop Java, preserve output and report
-`RENDER_INTERRUPTED` with exit `130`/`143`, respectively.
-Stable error codes also include `INVALID_JSON`, `SCHEMA_INVALID`, `DUPLICATE_ID`,
-`INHERITANCE_CYCLE`, `RENDER_TIMEOUT`, and `OUTPUT_WRITE_FAILED`.
-Schema errors include structured paths and validation keywords.
+`path` is a JSON Pointer into the input; `diagnostics` lists every problem found
+(fix them all in one pass). Exit codes: `0` success, `2` usage/input validation,
+`3` renderer, `4` file I/O, `130`/`143` interrupted by SIGINT/SIGTERM. Codes
+include `USAGE`, `INVALID_JSON`, `INVALID_ENCODING`, `INPUT_TOO_LARGE`,
+`SCHEMA_INVALID` (details: every schema error), `INVALID_TEXT`, `UNKNOWN_KIND`,
+`DUPLICATE_ID`, `MISSING_REFERENCE`, kind-specific rule codes (see
+`docs/kinds/<kind>.md`), `UNSUPPORTED_BACKEND`, `RENDERER_MISSING`,
+`RENDER_FAILED`, `RENDER_TIMEOUT`, `RENDER_OUTPUT_LIMIT`, `RENDER_INTERRUPTED`,
+`RASTERIZE_FAILED`, `OUTPUT_WRITE_FAILED`.
 
-Validation finishes before renderer discovery or execution. Generated source uses
-private aliases and UTF-16-unit-encoded display text. Fixed invisible boundaries
-preserve whitespace and prevent class names from becoming generic-type syntax. Input cannot
-introduce source lines, includes, links or markup. Java is spawned without a shell,
-with PlantUML's **SECURE** profile, a 256 MiB heap, 20-second timeout, 8 MiB SVG limit
-and 64 KiB diagnostic limit. Inherited Java option injection variables are removed.
+## Rendering and safety
 
-For separately managed, trusted tools, set both `UML_JAVA` (Java executable path)
-and `PLANTUML_JAR` (jar path). Overrides change the pinned environment and are
-not a way to provide untrusted executables or jars.
+- **Hybrid backends.** Own engine (elkjs 0.11.1 layout + hand-written SVG) for
+  class, object, package, profile, component, deployment, composite structure,
+  communication and interaction overview; PlantUML for sequence, timing, activity,
+  state machine and use case. Both share theme tokens (`src/core/theme.ts`).
+- **Validation first.** The whole document is validated before any renderer is
+  discovered or started.
+- **Own engine SVG** is written by an escaping writer that only knows presentation
+  elements: no scripts, links, `foreignObject`, images, event handlers or external
+  references. The only `url(...)` is the embedded font subset (`data:` URL).
+- **PlantUML** gets private aliases and UTF-16-unit-encoded display text, so input
+  cannot become source lines, includes, links or markup. Java runs without a shell,
+  with PlantUML's SECURE profile, 256 MiB heap, 20 s timeout, 8 MiB SVG and 64 KiB
+  diagnostics limits; Java option injection variables are removed.
+- **Fonts.** Text is measured with HarfBuzz using the pinned Inter font, and every
+  SVG embeds the subset it uses, so it looks the same everywhere (within 0.2 % of
+  Chrome's own measurement). See [`docs/decisions/0001-fonts.md`](docs/decisions/0001-fonts.md).
+  Glyphs Inter lacks (CJK, emoji) come from the viewer's fonts. PNG export uses
+  resvg; it shows emoji as "□".
+- **Deterministic.** Repeated renders are byte-identical in the same environment.
+- **Budgets.** A 50-class, 80-relationship diagram renders in well under 2 s.
 
-## Backend and limits
+## Quality assurance
 
-PlantUML runs in its JVM with the built-in **Smetana** structural layout engine.
-It needs no native Graphviz installation. The light theme and left-to-right layout
-are fixed. Smetana is not Graphviz-equivalent: routing can be less sophisticated on
-dense graphs, and large models or long unwrapped labels can produce wide diagrams.
-The SVG viewport is expanded when Smetana clips self-association curves/labels above it.
-Bounds protect resources, not aesthetic quality for every possible graph.
+`src/qa` inspects rendered SVGs and enforces hard gates on every fixture and
+example: markup safety, everything inside the canvas, no node overlap (containment
+allowed), no label overlapping a node, label or line, end labels near and
+unambiguous at their end, edges ending on node borders, arrowheads present at the
+right end and pointing inward, every input text drawn literally, minimum font size
+11 px, text inside its box. Own-engine SVGs carry `data-uml-*` attributes so gates
+are exact; PlantUML SVGs are checked best-effort. `npm run gallery` renders every
+example to SVG and PNG with an `index.html` overview.
 
-Only class diagrams and SVG are supported. There is no raw PlantUML input, code
-extraction, custom styling, other diagram type, PNG/PDF export, LLM, MCP or daemon.
-The PNG review preview is a browser QA artifact, not a CLI feature.
+## Repository layout
 
-Repeated renders are tested byte-for-byte in the same pinned environment. Java's
-logical SansSerif font uses locally available fonts, so glyph coverage, metrics and
-output can differ across machines. Unicode text is preserved, but installed fonts
-still determine whether every glyph displays correctly.
-
-`npm test` uses Node's test runner, fake subprocesses, isolated setup fixtures and
-an offline package smoke test; no Java or downloads are needed.
-`npm run test:integration` requires renderer setup and covers all five examples,
-literal hostile/Unicode/whitespace text, self-association bounds and determinism.
+```
+src/cli.ts         commands
+src/core/          errors, io, limits, text rules, theme tokens
+src/model/         kind interface, registry, schema envelope, shared rules, parsing
+src/kinds/<kind>/  one folder per diagram kind
+src/engine/        fonts, text, SVG writer, ELK adapter, shapes, edges, labels, PNG
+src/plantuml/      encoding, runner, skinparams, font embedding
+src/qa/            SVG inspection and gates
+docs/kinds/        recipe for new kinds and per-kind notation checklists
+```
 
 ## Third-party licenses
 
-The default PlantUML jar reports GPL v3 or later through `java -jar <jar> -license`.
-That command also explains that rendered images are not covered by PlantUML's GPL
-solely because it rendered them. Its jar retains bundled third-party notices.
-Temurin's `NOTICE` and `legal/` directory retain GPL v2 with Classpath Exception and
-component notices. These downloaded tools are not included in the npm tarball;
-redistributing them carries their upstream license obligations.
-
-Node dependencies keep their notices under `node_modules/`: Ajv and most runtime
-dependencies are MIT, `fast-uri` is BSD-3-Clause. Development dependencies include
-TypeScript (Apache-2.0) and Node type definitions (MIT).
+Runtime npm dependencies: elkjs (EPL-2.0), harfbuzzjs (MIT), subset-font and
+fontverter (BSD-3-Clause), wawoff2 (MIT), @resvg/resvg-js (MPL-2.0), Ajv (MIT;
+fast-uri BSD-3-Clause). Notices stay under `node_modules/`. The Inter font is
+under the SIL Open Font License 1.1 ([`assets/fonts/OFL.txt`](assets/fonts/OFL.txt)).
+The downloaded PlantUML jar reports GPL v3 or later (`java -jar <jar> -license`,
+which also states that generated images are not covered by its GPL); Temurin's
+`NOTICE` and `legal/` directory carry GPL v2 with Classpath Exception. Downloaded
+tools are not part of the npm package.

@@ -21,10 +21,10 @@
     "build": "tsc && node scripts/finish-build.mjs",
     "prepack": "npm run build",
     "setup:renderer": "node scripts/setup-renderer.mjs",
-    "test": "npm run build && node --test test/unit.test.mjs test/engine.test.mjs test/class.test.mjs test/setup.test.mjs test/package.test.mjs",
-    "test:integration": "npm run build && node --test test/integration.test.mjs",
+    "test": "npm run build && node --test \"test/*.test.mjs\"",
+    "test:integration": "npm run build && node --test \"test/integration/*.test.mjs\"",
     "gallery": "npm run build && node scripts/gallery.mjs",
-    "render:example": "node dist/cli.js render examples/class/ordering.json -o artifacts/review.svg"
+    "render:example": "node dist/cli.js render examples/class/ordering.json -o artifacts/gallery/example.svg"
   },
   "dependencies": {
     "@resvg/resvg-js": "2.6.2",

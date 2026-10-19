@@ -2,13 +2,13 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile, readdir } from 'node:fs/promises';
 import { join } from 'node:path';
-import { parseDocument } from '../dist/model/parse.js';
-import { classToPlantUml } from '../dist/kinds/class/to-plantuml.js';
-import { renderSvg, rendererOptions } from '../dist/plantuml/runner.js';
-import { renderToSvg } from '../dist/render.js';
-import { loadFonts } from '../dist/engine/fonts.js';
-import { checkSvg, formatReport, renderAndCheck } from '../dist/qa/index.js';
-import { cli, root, workspace } from './helpers.mjs';
+import { parseDocument } from '../../dist/model/parse.js';
+import { classToPlantUml } from '../../dist/kinds/class/to-plantuml.js';
+import { renderSvg, rendererOptions } from '../../dist/plantuml/runner.js';
+import { renderToSvg } from '../../dist/render.js';
+import { loadFonts } from '../../dist/engine/fonts.js';
+import { checkSvg, formatReport, renderAndCheck } from '../../dist/qa/index.js';
+import { cli, root, workspace } from '../helpers.mjs';
 
 // Real pinned PlantUML (npm run setup:renderer). Only the PlantUML backend needs Java.
 const plantuml = { backend: 'plantuml' };
