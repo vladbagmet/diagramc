@@ -19,7 +19,7 @@ Tests referenced below: `comm` = `test/communication.test.mjs`, `engine` =
 | Link (connector) | `links[]`, `from`/`to` (undirected) | Solid line between the lifeline rectangles, no arrowheads (17.9.3) | comm: links solid, markers `none` |
 | Self-link | link with `from` = `to` | Rectangular loop at a free corner of the lifeline | comm: self-link has 5 points from and to `session`; fixtures "self-link only", "hub with self-link and every side used" |
 | Message | `messages[]`, `from` = sender, `to` = receiver | Label beside the link with a short arrow parallel to the link pointing at the receiver (17.9.4) | comm: arrows source/target; engine: gate `message-arrows` |
-| Synchronous call | `sort: "synchronous"` (default) | Filled arrowhead, solid line (17.4.4) | comm: `filled-triangle`, not dashed |
+| Synchronous call | `sort: "synchronous"` (default) | Filled arrowhead (the smaller message head, `theme.size.messageTriangle`), solid line (17.4.4) | comm: `filled-triangle`, not dashed |
 | Asynchronous signal | `sort: "asynchronous"` | Open arrowhead, solid line (17.4.4) | comm: `open-arrow`, not dashed |
 | Reply | `sort: "reply"` | Open arrowhead, dashed line (17.4.4) | comm: `open-arrow`, dashed |
 | Grouping | automatic | One arrow per link, direction and sort; its messages stacked beside it in sequence order. Forward messages left of the link direction, backward ones right | comm: three arrows on `ui-session`, `1:` above `2:` |
@@ -32,10 +32,14 @@ Tests referenced below: `comm` = `test/communication.test.mjs`, `engine` =
 ## Layout
 
 ELK Stress places lifelines so linked ones are about one desired distance apart
-(cycles become polygons, stars become wheels), the centers are snapped to a grid
-and a local search on grid cells prefers short horizontal and vertical links,
-then 45 degree diagonals, no link through a lifeline, few crossings and a compact
-grid that is not much wider than tall. The grid is mirrored so that messages
+(cycles become polygons, stars become wheels) and the centers are snapped to a
+grid. A second grid is built greedily: the best connected lifeline first (a hub
+in the middle), then each next lifeline on the free cell that adds least cost.
+Both are improved by a local search on grid cells, and the cheaper one wins. The
+cost prefers short horizontal and vertical links, then 45 degree diagonals, no
+link through a lifeline, few crossings, no two links of one lifeline less than
+20 degrees apart (their message blocks would crowd), a free corner for a
+self-link, and a compact grid that is not much wider than tall. The grid is mirrored so that messages
 mostly flow left to right and top to bottom. Gaps grow until every link fits its
 message blocks, and again wherever a block touches a node, a line or another
 block, or comes within 12 px of a foreign link. A layered layout was rejected:
@@ -93,6 +97,6 @@ engine "QA gate message-arrows ...".
   above the middle of a side that also has a link.
 - Very dense graphs (complete graphs, the stress example) get long diagonal links;
   labels stay unambiguous but the drawing is wide (the stress example is about
-  2700 x 1150 px).
+  1980 x 830 px).
 - A link that would cross a lifeline is detoured orthogonally; crossings between
   links are minimized, not forbidden.
