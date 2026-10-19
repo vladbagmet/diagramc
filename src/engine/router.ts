@@ -10,7 +10,8 @@ import { distance, simplify, type Point, type Rect } from './geometry.js';
  * It searches a sparse grid (the lines along every obstacle's sides, offset by a
  * margin, plus candidate attachment points) with Dijkstra over (point, heading)
  * states. Cost: length, a penalty per bend, a penalty per crossing of an existing
- * line, and a heavy penalty for running along an existing line. Both ends leave
+ * line (much more near that line's end, where a crossing looks like a junction
+ * at the node), and a heavy penalty for running along an existing line. Both ends leave
  * their node perpendicular to its border with a straight stub at least `stub`
  * long, so an arrowhead never sits on a bend. Deterministic for equal input.
  */
@@ -44,6 +45,9 @@ export interface RouteRequest {
 
 const BEND = 24;
 const CROSS = 30;
+/** Crossing a line this close to where it ends at a node reads as joining that node: costs more. */
+const NEAR_END = 30;
+const CROSS_NEAR_END = 150;
 const ALONG = 6;
 const DIRS: Point[] = [{ x: 1, y: 0 }, { x: 0, y: 1 }, { x: -1, y: 0 }, { x: 0, y: -1 }];
 const dirIndex = (d: Point): number => DIRS.findIndex(e => Math.abs(e.x - d.x) < 1e-6 && Math.abs(e.y - d.y) < 1e-6);
@@ -187,12 +191,15 @@ export function routeOrthogonal(request: RouteRequest): Point[] | undefined {
   }
 
   // Existing lines, split into horizontal and vertical segments, indexed by grid row and column.
-  const horizontal: { y: number; x0: number; x1: number }[] = [], vertical: { x: number; y0: number; y1: number }[] = [];
+  // Each segment keeps its line's end points (where the line meets its nodes).
+  const horizontal: { y: number; x0: number; x1: number; ends: Point[] }[] = [], vertical: { x: number; y0: number; y1: number; ends: Point[] }[] = [];
   for (const line of request.lines) for (let k = 1; k < line.length; k++) {
-    const a = line[k - 1]!, b = line[k]!;
-    if (Math.abs(a.y - b.y) < 0.5) horizontal.push({ y: a.y, x0: Math.min(a.x, b.x), x1: Math.max(a.x, b.x) });
-    else if (Math.abs(a.x - b.x) < 0.5) vertical.push({ x: a.x, y0: Math.min(a.y, b.y), y1: Math.max(a.y, b.y) });
+    const a = line[k - 1]!, b = line[k]!, ends = [line[0]!, line.at(-1)!];
+    if (Math.abs(a.y - b.y) < 0.5) horizontal.push({ y: a.y, x0: Math.min(a.x, b.x), x1: Math.max(a.x, b.x), ends });
+    else if (Math.abs(a.x - b.x) < 0.5) vertical.push({ x: a.x, y0: Math.min(a.y, b.y), y1: Math.max(a.y, b.y), ends });
   }
+  /** Cost of crossing a line at point p. */
+  const crossCost = (p: Point, ends: readonly Point[]): number => CROSS + (ends.some(e => distance(e, p) < NEAR_END) ? CROSS_NEAR_END : 0);
   const near = request.spacing ?? theme.spacing.edgeEdge - 1;
   const rowNear = ys.map(y => horizontal.filter(s => Math.abs(s.y - y) < near));
   const rowCross = ys.map(y => vertical.filter(s => y > s.y0 && y < s.y1));
@@ -206,7 +213,7 @@ export function routeOrthogonal(request: RouteRequest): Point[] | undefined {
     const x0 = xs[i]!, x1 = xs[i + 1]!;
     let cost = 0;
     for (const s of rowNear[j]!) cost += Math.max(0, Math.min(x1, s.x1) - Math.max(x0, s.x0)) * ALONG;
-    for (const s of rowCross[j]!) if (s.x > x0 && s.x < x1) cost += CROSS;
+    for (const s of rowCross[j]!) if (s.x > x0 && s.x < x1) cost += crossCost({ x: s.x, y: ys[j]! }, s.ends);
     return (hCost[at] = cost);
   };
   const verticalCost = (i: number, j: number): number => {
@@ -215,7 +222,7 @@ export function routeOrthogonal(request: RouteRequest): Point[] | undefined {
     const y0 = ys[j]!, y1 = ys[j + 1]!;
     let cost = 0;
     for (const s of colNear[i]!) cost += Math.max(0, Math.min(y1, s.y1) - Math.max(y0, s.y0)) * ALONG;
-    for (const s of colCross[i]!) if (s.y > y0 && s.y < y1) cost += CROSS;
+    for (const s of colCross[i]!) if (s.y > y0 && s.y < y1) cost += crossCost({ x: xs[i]!, y: s.y }, s.ends);
     return (vCost[at] = cost);
   };
   /** Extra cost of a stub (not on the grid). */
@@ -224,11 +231,11 @@ export function routeOrthogonal(request: RouteRequest): Point[] | undefined {
     if (Math.abs(a.y - b.y) < 0.01) {
       const x0 = Math.min(a.x, b.x), x1 = Math.max(a.x, b.x);
       for (const s of horizontal) if (Math.abs(s.y - a.y) < near) cost += Math.max(0, Math.min(x1, s.x1) - Math.max(x0, s.x0)) * ALONG;
-      for (const s of vertical) if (s.x > x0 && s.x < x1 && a.y > s.y0 && a.y < s.y1) cost += CROSS;
+      for (const s of vertical) if (s.x > x0 && s.x < x1 && a.y > s.y0 && a.y < s.y1) cost += crossCost({ x: s.x, y: a.y }, s.ends);
     } else {
       const y0 = Math.min(a.y, b.y), y1 = Math.max(a.y, b.y);
       for (const s of vertical) if (Math.abs(s.x - a.x) < near) cost += Math.max(0, Math.min(y1, s.y1) - Math.max(y0, s.y0)) * ALONG;
-      for (const s of horizontal) if (s.y > y0 && s.y < y1 && a.x > s.x0 && a.x < s.x1) cost += CROSS;
+      for (const s of horizontal) if (s.y > y0 && s.y < y1 && a.x > s.x0 && a.x < s.x1) cost += crossCost({ x: a.x, y: s.y }, s.ends);
     }
     return cost;
   };
