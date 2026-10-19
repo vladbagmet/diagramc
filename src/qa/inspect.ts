@@ -8,7 +8,16 @@ import { readPlantUmlActivity } from './plantuml-activity.js';
  * its data-uml-* attributes; PlantUML output is read best-effort from its
  * entity/link groups and drawing primitives.
  */
-export interface InspectedNode { id: string; type: string; bounds: Rect; parent?: string }
+export interface InspectedNode {
+  id: string;
+  type: string;
+  bounds: Rect;
+  parent?: string;
+  /** Outline when it is not the bounding rectangle (data-uml-shape). */
+  shape?: 'ellipse' | 'diamond';
+  /** Node whose border this node sits on (data-uml-border-of); overlapping it is intended. */
+  borderOf?: string;
+}
 export interface InspectedEdge { id: string; type: string; source: string; target: string; points: Point[]; sourceMarker: string; targetMarker: string }
 export interface InspectedMarker { marker: string; end: string; tip: Point; direction: Point }
 export interface InspectedText {
@@ -151,7 +160,13 @@ function readEngine(root: XmlElement, scene: Scene): void {
   for (const { element } of walk(root)) {
     const a = element.attrs;
     if (a['data-uml-role'] === 'node') {
-      scene.nodes.push({ id: a['data-uml-id'] ?? '', type: a['data-uml-type'] ?? '', bounds: rect4(a['data-uml-bounds'])!, ...(a['data-uml-parent'] ? { parent: a['data-uml-parent'] } : {}) });
+      const shape = a['data-uml-shape'] === 'ellipse' || a['data-uml-shape'] === 'diamond' ? a['data-uml-shape'] : undefined;
+      scene.nodes.push({
+        id: a['data-uml-id'] ?? '', type: a['data-uml-type'] ?? '', bounds: rect4(a['data-uml-bounds'])!,
+        ...(a['data-uml-parent'] ? { parent: a['data-uml-parent'] } : {}),
+        ...(shape ? { shape } : {}),
+        ...(a['data-uml-border-of'] ? { borderOf: a['data-uml-border-of'] } : {}),
+      });
     } else if (a['data-uml-role'] === 'edge') {
       scene.edges.push({
         id: a['data-uml-id'] ?? '', type: a['data-uml-type'] ?? '', source: a['data-uml-source'] ?? '', target: a['data-uml-target'] ?? '',

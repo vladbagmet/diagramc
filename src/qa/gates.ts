@@ -1,5 +1,6 @@
 import { theme } from '../core/theme.js';
 import { contains, direction, distance, distanceToBorder, distanceToRect, inflate, overlapArea, segmentIntersectsRect, type Rect } from '../engine/geometry.js';
+import { distanceToOutline } from '../engine/clip.js';
 import { inspectSvg, type Scene } from './inspect.js';
 
 /**
@@ -14,6 +15,12 @@ export const GATES = [
   'safe-markup', 'inside-canvas', 'node-overlap', 'label-overlap', 'label-edge-crossing', 'label-proximity',
   'edge-endpoints', 'markers', 'literal-text', 'min-font-size', 'text-fits',
 ] as const;
+
+function distanceToSegment(p: { x: number; y: number }, a: { x: number; y: number }, b: { x: number; y: number }): number {
+  const dx = b.x - a.x, dy = b.y - a.y, len = dx * dx + dy * dy;
+  const t = len ? Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / len)) : 0;
+  return Math.hypot(p.x - a.x - t * dx, p.y - a.y - t * dy);
+}
 
 const fmt = (r: Rect): string => `[${r.x.toFixed(1)},${r.y.toFixed(1)} ${r.width.toFixed(1)}x${r.height.toFixed(1)}]`;
 const snippet = (s: string): string => JSON.stringify(s.length > 40 ? `${s.slice(0, 40)}…` : s);
@@ -59,13 +66,23 @@ export function runGates(scene: Scene, expectedTexts: readonly string[] = []): Q
       const a = scene.nodes[i]!, b = scene.nodes[j]!;
       if (overlapArea(a.bounds, b.bounds) <= 0.5) continue;
       if (contains(a.bounds, b.bounds) || contains(b.bounds, a.bounds)) continue;
+      if (a.borderOf === b.id || b.borderOf === a.id) continue;
       fail(`nodes ${a.id} ${fmt(a.bounds)} and ${b.id} ${fmt(b.bounds)} overlap`);
     }
   });
 
   gate('label-overlap', fail => {
+    // A label may lie inside a container node (composite state, subject, package
+    // with nested nodes), but never on that container's own texts.
+    const containers = new Set(scene.nodes.flatMap(n => n.parent === undefined ? [] : [n.parent]));
+    const nodeTexts = scene.texts.filter(t => t.role === 'text');
     labels.forEach((label, i) => {
-      for (const n of scene.nodes) if (overlapArea(label.bounds, n.bounds) > 0.5) fail(`label ${snippet(label.content)} overlaps node ${n.id}`);
+      for (const n of scene.nodes) {
+        if (overlapArea(label.bounds, n.bounds) <= 0.5) continue;
+        if (containers.has(n.id) && contains(n.bounds, label.bounds)) continue;
+        fail(`label ${snippet(label.content)} overlaps node ${n.id}`);
+      }
+      for (const t of nodeTexts) if (containers.has(t.node ?? '') && overlapArea(label.bounds, t.bounds) > 0.5) fail(`label ${snippet(label.content)} overlaps text ${snippet(t.content)} of ${t.node}`);
       for (const other of labels.slice(i + 1)) if (overlapArea(label.bounds, other.bounds) > 0.5) fail(`labels ${snippet(label.content)} and ${snippet(other.content)} overlap`);
       if (scene.frameHeading && overlapArea(label.bounds, scene.frameHeading) > 0.5) fail(`label ${snippet(label.content)} overlaps the frame heading`);
     });
@@ -101,19 +118,34 @@ export function runGates(scene: Scene, expectedTexts: readonly string[] = []): Q
   }, !exactEdges);
 
   gate('edge-endpoints', fail => {
+    const nodeTexts = scene.texts.filter(t => t.role === 'text' && t.node);
     for (const e of scene.edges) {
       if (e.points.length < 2) { fail(`edge ${e.id} has fewer than two points`); continue; }
       for (const [end, id, p] of [['source', e.source, e.points[0]!], ['target', e.target, e.points.at(-1)!]] as const) {
         const node = nodeById.get(id);
+        const onEdge = node ? undefined : scene.edges.find(other => other.id === id && other !== e);
+        if (onEdge) {
+          // An end attached to another edge (a note anchored to a relationship) must lie on that edge.
+          const d = Math.min(...onEdge.points.slice(1).map((q, k) => distanceToSegment(p, onEdge.points[k]!, q)));
+          if (d > 1) fail(`edge ${e.id} ${end} point (${p.x}, ${p.y}) is ${d.toFixed(2)}px off edge ${id}`);
+          continue;
+        }
         if (!node) { fail(`edge ${e.id} ${end} ${id} is not a node`); continue; }
-        const d = distanceToBorder(p, node.bounds);
-        if (d > 1) fail(`edge ${e.id} ${end} point (${p.x}, ${p.y}) is ${d.toFixed(2)}px off the border of ${id}`);
+        const d = node.shape ? distanceToOutline(p, node.bounds, node.shape) : distanceToBorder(p, node.bounds);
+        if (d > 1) fail(`edge ${e.id} ${end} point (${p.x}, ${p.y}) is ${d.toFixed(2)}px off the ${node.shape ?? 'border'} of ${id}`);
       }
       for (let k = 1; k < e.points.length; k++) {
         const a = e.points[k - 1]!, b = e.points[k]!;
         for (const n of scene.nodes) {
           if (n.id === e.source || n.id === e.target || contains(n.bounds, nodeById.get(e.source)?.bounds ?? n.bounds) || contains(n.bounds, nodeById.get(e.target)?.bounds ?? n.bounds)) continue;
+          // A node on the border of an end node (entry/exit point) may be touched by that end's lines.
+          if (n.borderOf !== undefined && (n.borderOf === e.source || n.borderOf === e.target)) continue;
           if (segmentIntersectsRect(a, b, inflate(n.bounds, -1))) fail(`edge ${e.id} passes through node ${n.id}`);
+        }
+        // Lines crossing into a container must not run over its texts (a composite state's name).
+        for (const t of nodeTexts) {
+          if (t.node === e.source || t.node === e.target) continue;
+          if (segmentIntersectsRect(a, b, inflate(t.bounds, -1))) { fail(`edge ${e.id} crosses text ${snippet(t.content)} of ${t.node}`); break; }
         }
       }
     }
