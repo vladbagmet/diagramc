@@ -1,0 +1,64 @@
+{
+  "kind": "state-machine",
+  "title": "Order lifecycle",
+  "elements": [
+    { "id": "init", "type": "initial" },
+    { "id": "draft", "type": "state", "name": "Draft", "internal": [{ "trigger": "edit", "effect": "updateLines" }] },
+    { "id": "check", "type": "junction" },
+    {
+      "id": "processing", "type": "state", "name": "Processing", "entry": "reserve stock",
+      "connectionPoints": [{ "id": "resume", "type": "entryPoint", "name": "resume" }, { "id": "aborted", "type": "exitPoint", "name": "aborted" }],
+      "regions": [
+        {
+          "elements": [
+            { "id": "pInit", "type": "initial" },
+            { "id": "split", "type": "fork" },
+            {
+              "id": "work", "type": "state", "name": "Fulfilment",
+              "regions": [
+                { "name": "payment", "elements": [
+                  { "id": "payInit", "type": "initial" },
+                  { "id": "charging", "type": "state", "name": "Charging" },
+                  { "id": "paid", "type": "final" }
+                ] },
+                { "name": "shipping", "elements": [
+                  { "id": "packing", "type": "state", "name": "Packing", "doActivity": "pick items" },
+                  { "id": "shipped", "type": "final" }
+                ] }
+              ]
+            },
+            { "id": "deep", "type": "deepHistory" },
+            { "id": "pDone", "type": "final" }
+          ]
+        }
+      ]
+    },
+    { "id": "billing", "type": "state", "name": "Invoice", "submachine": "Billing" },
+    { "id": "closed", "type": "state", "name": "Closed" },
+    { "id": "kill", "type": "terminate" },
+    { "id": "note", "type": "note", "text": "A fraud alert terminates the state machine at once.", "attachedTo": ["kill"] }
+  ],
+  "transitions": [
+    { "from": "init", "to": "draft", "effect": "createOrder" },
+    { "from": "draft", "to": "draft", "trigger": "autosave", "guard": "dirty" },
+    { "from": "draft", "to": "check", "trigger": "submit" },
+    { "from": "check", "to": "processing", "guard": "valid" },
+    { "from": "check", "to": "draft", "guard": "else" },
+    { "from": "pInit", "to": "split" },
+    { "from": "split", "to": "charging" },
+    { "from": "split", "to": "packing" },
+    { "from": "payInit", "to": "charging" },
+    { "from": "charging", "to": "paid", "trigger": "approved" },
+    { "from": "packing", "to": "shipped", "trigger": "handedOver" },
+    { "from": "work", "to": "pDone" },
+    { "from": "resume", "to": "deep" },
+    { "from": "deep", "to": "work" },
+    { "from": "charging", "to": "aborted", "trigger": "declined" },
+    { "from": "aborted", "to": "draft", "effect": "notifyCustomer" },
+    { "from": "processing", "to": "billing" },
+    { "from": "billing", "to": "closed", "trigger": "settled" },
+    { "from": "closed", "to": "processing", "trigger": "reopen" },
+    { "from": "closed", "to": "resume", "trigger": "retry" },
+    { "from": "draft", "to": "kill", "trigger": "fraudAlert" }
+  ]
+}

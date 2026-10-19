@@ -1,0 +1,1912 @@
+[
+ {
+  "name": "unknown property",
+  "expect": {
+   "code": "SCHEMA_INVALID",
+   "path": "/elements/1/color"
+  },
+  "doc": {
+   "kind": "state-machine",
+   "elements": [
+    {
+     "id": "i",
+     "type": "initial"
+    },
+    {
+     "id": "a",
+     "type": "state",
+     "name": "A",
+     "color": "red"
+    },
+    {
+     "id": "b",
+     "type": "state",
+     "name": "B"
+    },
+    {
+     "id": "f",
+     "type": "final"
+    }
+   ],
+   "transitions": [
+    {
+     "from": "i",
+     "to": "a"
+    },
+    {
+     "from": "a",
+     "to": "b",
+     "trigger": "go"
+    },
+    {
+     "from": "b",
+     "to": "f"
+    }
+   ]
+  }
+ },
+ {
+  "name": "name on a pseudostate",
+  "expect": {
+   "code": "SCHEMA_INVALID",
+   "path": "/elements/0/name"
+  },
+  "doc": {
+   "kind": "state-machine",
+   "elements": [
+    {
+     "id": "i",
+     "type": "initial",
+     "name": "start"
+    },
+    {
+     "id": "a",
+     "type": "state",
+     "name": "A"
+    },
+    {
+     "id": "b",
+     "type": "state",
+     "name": "B"
+    },
+    {
+     "id": "f",
+     "type": "final"
+    }
+   ],
+   "transitions": [
+    {
+     "from": "i",
+     "to": "a"
+    },
+    {
+     "from": "a",
+     "to": "b",
+     "trigger": "go"
+    },
+    {
+     "from": "b",
+     "to": "f"
+    }
+   ]
+  }
+ },
+ {
+  "name": "unknown vertex type",
+  "expect": {
+   "code": "SCHEMA_INVALID",
+   "path": "/elements/0"
+  },
+  "doc": {
+   "kind": "state-machine",
+   "elements": [
+    {
+     "id": "i",
+     "type": "start"
+    },
+    {
+     "id": "a",
+     "type": "state",
+     "name": "A"
+    },
+    {
+     "id": "b",
+     "type": "state",
+     "name": "B"
+    },
+    {
+     "id": "f",
+     "type": "final"
+    }
+   ],
+   "transitions": [
+    {
+     "from": "i",
+     "to": "a"
+    },
+    {
+     "from": "a",
+     "to": "b",
+     "trigger": "go"
+    },
+    {
+     "from": "b",
+     "to": "f"
+    }
+   ]
+  }
+ },
+ {
+  "name": "empty region",
+  "expect": {
+   "code": "SCHEMA_INVALID",
+   "path": "/elements/1/regions/0/elements"
+  },
+  "doc": {
+   "kind": "state-machine",
+   "elements": [
+    {
+     "id": "i",
+     "type": "initial"
+    },
+    {
+     "id": "a",
+     "type": "state",
+     "name": "A",
+     "regions": [
+      {
+       "elements": []
+      }
+     ]
+    },
+    {
+     "id": "b",
+     "type": "state",
+     "name": "B"
+    },
+    {
+     "id": "f",
+     "type": "final"
+    }
+   ],
+   "transitions": [
+    {
+     "from": "i",
+     "to": "a"
+    },
+    {
+     "from": "a",
+     "to": "b",
+     "trigger": "go"
+    },
+    {
+     "from": "b",
+     "to": "f"
+    }
+   ]
+  }
+ },
+ {
+  "name": "note inside a region",
+  "expect": {
+   "code": "SCHEMA_INVALID",
+   "path": "/elements/1/regions/0/elements/0"
+  },
+  "doc": {
+   "kind": "state-machine",
+   "elements": [
+    {
+     "id": "i",
+     "type": "initial"
+    },
+    {
+     "id": "a",
+     "type": "state",
+     "name": "A",
+     "regions": [
+      {
+       "elements": [
+        {
+         "id": "n",
+         "type": "note",
+         "text": "x"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "b",
+     "type": "state",
+     "name": "B"
+    },
+    {
+     "id": "f",
+     "type": "final"
+    }
+   ],
+   "transitions": [
+    {
+     "from": "i",
+     "to": "a"
+    },
+    {
+     "from": "a",
+     "to": "b",
+     "trigger": "go"
+    },
+    {
+     "from": "b",
+     "to": "f"
+    }
+   ]
+  }
+ },
+ {
+  "name": "unknown transition property",
+  "expect": {
+   "code": "SCHEMA_INVALID",
+   "path": "/transitions/1/event"
+  },
+  "doc": {
+   "kind": "state-machine",
+   "elements": [
+    {
+     "id": "i",
+     "type": "initial"
+    },
+    {
+     "id": "a",
+     "type": "state",
+     "name": "A"
+    },
+    {
+     "id": "b",
+     "type": "state",
+     "name": "B"
+    },
+    {
+     "id": "f",
+     "type": "final"
+    }
+   ],
+   "transitions": [
+    {
+     "from": "i",
+     "to": "a"
+    },
+    {
+     "from": "a",
+     "to": "b",
+     "trigger": "go",
+     "event": "x"
+    },
+    {
+     "from": "b",
+     "to": "f"
+    }
+   ]
+  }
+ },
+ {
+  "name": "blank trigger",
+  "expect": {
+   "code": "INVALID_TEXT",
+   "path": "/transitions/1/trigger"
+  },
+  "doc": {
+   "kind": "state-machine",
+   "elements": [
+    {
+     "id": "i",
+     "type": "initial"
+    },
+    {
+     "id": "a",
+     "type": "state",
+     "name": "A"
+    },
+    {
+     "id": "b",
+     "type": "state",
+     "name": "B"
+    },
+    {
+     "id": "f",
+     "type": "final"
+    }
+   ],
+   "transitions": [
+    {
+     "from": "i",
+     "to": "a"
+    },
+    {
+     "from": "a",
+     "to": "b",
+     "trigger": " "
+    },
+    {
+     "from": "b",
+     "to": "f"
+    }
+   ]
+  }
+ },
+ {
+  "name": "duplicate ID across nesting levels",
+  "expect": {
+   "code": "DUPLICATE_ID",
+   "path": "/elements/2/id"
+  },
+  "doc": {
+   "kind": "state-machine",
+   "elements": [
+    {
+     "id": "i",
+     "type": "initial"
+    },
+    {
+     "id": "a",
+     "type": "state",
+     "name": "A",
+     "regions": [
+      {
+       "elements": [
+        {
+         "id": "b",
+         "type": "state",
+         "name": "Inner"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "b",
+     "type": "state",
+     "name": "B"
+    },
+    {
+     "id": "f",
+     "type": "final"
+    }
+   ],
+   "transitions": [
+    {
+     "from": "i",
+     "to": "a"
+    },
+    {
+     "from": "a",
+     "to": "b",
+     "trigger": "go"
+    },
+    {
+     "from": "b",
+     "to": "f"
+    }
+   ]
+  }
+ },
+ {
+  "name": "unknown transition target",
+  "expect": {
+   "code": "MISSING_REFERENCE",
+   "path": "/transitions/1/to"
+  },
+  "doc": {
+   "kind": "state-machine",
+   "elements": [
+    {
+     "id": "i",
+     "type": "initial"
+    },
+    {
+     "id": "a",
+     "type": "state",
+     "name": "A"
+    },
+    {
+     "id": "b",
+     "type": "state",
+     "name": "B"
+    },
+    {
+     "id": "f",
+     "type": "final"
+    }
+   ],
+   "transitions": [
+    {
+     "from": "i",
+     "to": "a"
+    },
+    {
+     "from": "a",
+     "to": "nope",
+     "trigger": "go"
+    },
+    {
+     "from": "b",
+     "to": "f"
+    }
+   ]
+  }
+ },
+ {
+  "name": "note attached to unknown element",
+  "expect": {
+   "code": "MISSING_REFERENCE",
+   "path": "/elements/4/attachedTo/0"
+  },
+  "doc": {
+   "kind": "state-machine",
+   "elements": [
+    {
+     "id": "i",
+     "type": "initial"
+    },
+    {
+     "id": "a",
+     "type": "state",
+     "name": "A"
+    },
+    {
+     "id": "b",
+     "type": "state",
+     "name": "B"
+    },
+    {
+     "id": "f",
+     "type": "final"
+    },
+    {
+     "id": "n",
+     "type": "note",
+     "text": "x",
+     "attachedTo": [
+      "nope"
+     ]
+    }
+   ],
+   "transitions": [
+    {
+     "from": "i",
+     "to": "a"
+    },
+    {
+     "from": "a",
+     "to": "b",
+     "trigger": "go"
+    },
+    {
+     "from": "b",
+     "to": "f"
+    }
+   ]
+  }
+ },
+ {
+  "name": "note attached to a note",
+  "expect": {
+   "code": "INVALID_ATTACHMENT",
+   "path": "/elements/5/attachedTo/0"
+  },
+  "doc": {
+   "kind": "state-machine",
+   "elements": [
+    {
+     "id": "i",
+     "type": "initial"
+    },
+    {
+     "id": "a",
+     "type": "state",
+     "name": "A"
+    },
+    {
+     "id": "b",
+     "type": "state",
+     "name": "B"
+    },
+    {
+     "id": "f",
+     "type": "final"
+    },
+    {
+     "id": "n",
+     "type": "note",
+     "text": "x"
+    },
+    {
+     "id": "m",
+     "type": "note",
+     "text": "y",
+     "attachedTo": [
+      "n"
+     ]
+    }
+   ],
+   "transitions": [
+    {
+     "from": "i",
+     "to": "a"
+    },
+    {
+     "from": "a",
+     "to": "b",
+     "trigger": "go"
+    },
+    {
+     "from": "b",
+     "to": "f"
+    }
+   ]
+  }
+ },
+ {
+  "name": "transition from a note",
+  "expect": {
+   "code": "NOTE_IN_TRANSITION",
+   "path": "/transitions/3/from"
+  },
+  "doc": {
+   "kind": "state-machine",
+   "elements": [
+    {
+     "id": "i",
+     "type": "initial"
+    },
+    {
+     "id": "a",
+     "type": "state",
+     "name": "A"
+    },
+    {
+     "id": "b",
+     "type": "state",
+     "name": "B"
+    },
+    {
+     "id": "f",
+     "type": "final"
+    },
+    {
+     "id": "n",
+     "type": "note",
+     "text": "x"
+    }
+   ],
+   "transitions": [
+    {
+     "from": "i",
+     "to": "a"
+    },
+    {
+     "from": "a",
+     "to": "b",
+     "trigger": "go"
+    },
+    {
+     "from": "b",
+     "to": "f"
+    },
+    {
+     "from": "n",
+     "to": "a"
+    }
+   ]
+  }
+ },
+ {
+  "name": "two initial pseudostates in one region",
+  "expect": {
+   "code": "MULTIPLE_INITIAL",
+   "path": "/elements/4"
+  },
+  "doc": {
+   "kind": "state-machine",
+   "elements": [
+    {
+     "id": "i",
+     "type": "initial"
+    },
+    {
+     "id": "a",
+     "type": "state",
+     "name": "A"
+    },
+    {
+     "id": "b",
+     "type": "state",
+     "name": "B"
+    },
+    {
+     "id": "f",
+     "type": "final"
+    },
+    {
+     "id": "i2",
+     "type": "initial"
+    }
+   ],
+   "transitions": [
+    {
+     "from": "i",
+     "to": "a"
+    },
+    {
+     "from": "a",
+     "to": "b",
+     "trigger": "go"
+    },
+    {
+     "from": "b",
+     "to": "f"
+    },
+    {
+     "from": "i2",
+     "to": "b"
+    }
+   ]
+  }
+ },
+ {
+  "name": "initial without outgoing transition",
+  "expect": {
+   "code": "INITIAL_OUTGOING",
+   "path": "/elements/0"
+  },
+  "doc": {
+   "kind": "state-machine",
+   "elements": [
+    {
+     "id": "i",
+     "type": "initial"
+    },
+    {
+     "id": "a",
+     "type": "state",
+     "name": "A"
+    },
+    {
+     "id": "b",
+     "type": "state",
+     "name": "B"
+    },
+    {
+     "id": "f",
+     "type": "final"
+    }
+   ],
+   "transitions": [
+    {
+     "from": "a",
+     "to": "b",
+     "trigger": "go"
+    },
+    {
+     "from": "b",
+     "to": "f"
+    }
+   ]
+  }
+ },
+ {
+  "name": "transition into an initial pseudostate",
+  "expect": {
+   "code": "INITIAL_HAS_INCOMING",
+   "path": "/transitions/3/to"
+  },
+  "doc": {
+   "kind": "state-machine",
+   "elements": [
+    {
+     "id": "i",
+     "type": "initial"
+    },
+    {
+     "id": "a",
+     "type": "state",
+     "name": "A"
+    },
+    {
+     "id": "b",
+     "type": "state",
+     "name": "B"
+    },
+    {
+     "id": "f",
+     "type": "final"
+    }
+   ],
+   "transitions": [
+    {
+     "from": "i",
+     "to": "a"
+    },
+    {
+     "from": "a",
+     "to": "b",
+     "trigger": "go"
+    },
+    {
+     "from": "b",
+     "to": "f"
+    },
+    {
+     "from": "b",
+     "to": "i"
+    }
+   ]
+  }
+ },
+ {
+  "name": "trigger on the initial transition",
+  "expect": {
+   "code": "INITIAL_TRANSITION_TRIGGER",
+   "path": "/transitions/0/trigger"
+  },
+  "doc": {
+   "kind": "state-machine",
+   "elements": [
+    {
+     "id": "i",
+     "type": "initial"
+    },
+    {
+     "id": "a",
+     "type": "state",
+     "name": "A"
+    },
+    {
+     "id": "b",
+     "type": "state",
+     "name": "B"
+    },
+    {
+     "id": "f",
+     "type": "final"
+    }
+   ],
+   "transitions": [
+    {
+     "from": "i",
+     "to": "a",
+     "trigger": "boot"
+    },
+    {
+     "from": "a",
+     "to": "b",
+     "trigger": "go"
+    },
+    {
+     "from": "b",
+     "to": "f"
+    }
+   ]
+  }
+ },
+ {
+  "name": "guard on the initial transition",
+  "expect": {
+   "code": "INITIAL_TRANSITION_GUARD",
+   "path": "/transitions/0/guard"
+  },
+  "doc": {
+   "kind": "state-machine",
+   "elements": [
+    {
+     "id": "i",
+     "type": "initial"
+    },
+    {
+     "id": "a",
+     "type": "state",
+     "name": "A"
+    },
+    {
+     "id": "b",
+     "type": "state",
+     "name": "B"
+    },
+    {
+     "id": "f",
+     "type": "final"
+    }
+   ],
+   "transitions": [
+    {
+     "from": "i",
+     "to": "a",
+     "guard": "ready"
+    },
+    {
+     "from": "a",
+     "to": "b",
+     "trigger": "go"
+    },
+    {
+     "from": "b",
+     "to": "f"
+    }
+   ]
+  }
+ },
+ {
+  "name": "outgoing transition from a final state",
+  "expect": {
+   "code": "FINAL_STATE_HAS_OUTGOING",
+   "path": "/transitions/3/from"
+  },
+  "doc": {
+   "kind": "state-machine",
+   "elements": [
+    {
+     "id": "i",
+     "type": "initial"
+    },
+    {
+     "id": "a",
+     "type": "state",
+     "name": "A"
+    },
+    {
+     "id": "b",
+     "type": "state",
+     "name": "B"
+    },
+    {
+     "id": "f",
+     "type": "final"
+    }
+   ],
+   "transitions": [
+    {
+     "from": "i",
+     "to": "a"
+    },
+    {
+     "from": "a",
+     "to": "b",
+     "trigger": "go"
+    },
+    {
+     "from": "b",
+     "to": "f"
+    },
+    {
+     "from": "f",
+     "to": "a"
+    }
+   ]
+  }
+ },
+ {
+  "name": "outgoing transition from terminate",
+  "expect": {
+   "code": "TERMINATE_HAS_OUTGOING",
+   "path": "/transitions/3/from"
+  },
+  "doc": {
+   "kind": "state-machine",
+   "elements": [
+    {
+     "id": "i",
+     "type": "initial"
+    },
+    {
+     "id": "a",
+     "type": "state",
+     "name": "A"
+    },
+    {
+     "id": "b",
+     "type": "state",
+     "name": "B"
+    },
+    {
+     "id": "f",
+     "type": "final"
+    },
+    {
+     "id": "t",
+     "type": "terminate"
+    }
+   ],
+   "transitions": [
+    {
+     "from": "i",
+     "to": "a"
+    },
+    {
+     "from": "a",
+     "to": "b",
+     "trigger": "go"
+    },
+    {
+     "from": "b",
+     "to": "f"
+    },
+    {
+     "from": "t",
+     "to": "a"
+    }
+   ]
+  }
+ },
+ {
+  "name": "trigger on a transition leaving a choice",
+  "expect": {
+   "code": "TRIGGER_ON_PSEUDOSTATE_TRANSITION",
+   "path": "/transitions/4/trigger"
+  },
+  "doc": {
+   "kind": "state-machine",
+   "elements": [
+    {
+     "id": "i",
+     "type": "initial"
+    },
+    {
+     "id": "a",
+     "type": "state",
+     "name": "A"
+    },
+    {
+     "id": "b",
+     "type": "state",
+     "name": "B"
+    },
+    {
+     "id": "f",
+     "type": "final"
+    },
+    {
+     "id": "ch",
+     "type": "choice"
+    }
+   ],
+   "transitions": [
+    {
+     "from": "i",
+     "to": "a"
+    },
+    {
+     "from": "a",
+     "to": "b",
+     "trigger": "go"
+    },
+    {
+     "from": "b",
+     "to": "f"
+    },
+    {
+     "from": "a",
+     "to": "ch"
+    },
+    {
+     "from": "ch",
+     "to": "b",
+     "trigger": "x",
+     "guard": "g"
+    }
+   ]
+  }
+ },
+ {
+  "name": "choice without any guard",
+  "expect": {
+   "code": "CHOICE_WITHOUT_GUARD",
+   "path": "/elements/4"
+  },
+  "doc": {
+   "kind": "state-machine",
+   "elements": [
+    {
+     "id": "i",
+     "type": "initial"
+    },
+    {
+     "id": "a",
+     "type": "state",
+     "name": "A"
+    },
+    {
+     "id": "b",
+     "type": "state",
+     "name": "B"
+    },
+    {
+     "id": "f",
+     "type": "final"
+    },
+    {
+     "id": "ch",
+     "type": "choice"
+    }
+   ],
+   "transitions": [
+    {
+     "from": "i",
+     "to": "a"
+    },
+    {
+     "from": "a",
+     "to": "b",
+     "trigger": "go"
+    },
+    {
+     "from": "b",
+     "to": "f"
+    },
+    {
+     "from": "a",
+     "to": "ch"
+    },
+    {
+     "from": "ch",
+     "to": "b"
+    }
+   ]
+  }
+ },
+ {
+  "name": "choice without outgoing transition",
+  "expect": {
+   "code": "CHOICE_DEGREE",
+   "path": "/elements/4"
+  },
+  "doc": {
+   "kind": "state-machine",
+   "elements": [
+    {
+     "id": "i",
+     "type": "initial"
+    },
+    {
+     "id": "a",
+     "type": "state",
+     "name": "A"
+    },
+    {
+     "id": "b",
+     "type": "state",
+     "name": "B"
+    },
+    {
+     "id": "f",
+     "type": "final"
+    },
+    {
+     "id": "ch",
+     "type": "choice"
+    }
+   ],
+   "transitions": [
+    {
+     "from": "i",
+     "to": "a"
+    },
+    {
+     "from": "a",
+     "to": "b",
+     "trigger": "go"
+    },
+    {
+     "from": "b",
+     "to": "f"
+    },
+    {
+     "from": "a",
+     "to": "ch"
+    }
+   ]
+  }
+ },
+ {
+  "name": "junction without incoming transition",
+  "expect": {
+   "code": "JUNCTION_DEGREE",
+   "path": "/elements/4"
+  },
+  "doc": {
+   "kind": "state-machine",
+   "elements": [
+    {
+     "id": "i",
+     "type": "initial"
+    },
+    {
+     "id": "a",
+     "type": "state",
+     "name": "A"
+    },
+    {
+     "id": "b",
+     "type": "state",
+     "name": "B"
+    },
+    {
+     "id": "f",
+     "type": "final"
+    },
+    {
+     "id": "jn",
+     "type": "junction"
+    }
+   ],
+   "transitions": [
+    {
+     "from": "i",
+     "to": "a"
+    },
+    {
+     "from": "a",
+     "to": "b",
+     "trigger": "go"
+    },
+    {
+     "from": "b",
+     "to": "f"
+    },
+    {
+     "from": "jn",
+     "to": "b"
+    }
+   ]
+  }
+ },
+ {
+  "name": "fork with one outgoing transition",
+  "expect": {
+   "code": "FORK_DEGREE",
+   "path": "/elements/4"
+  },
+  "doc": {
+   "kind": "state-machine",
+   "elements": [
+    {
+     "id": "i",
+     "type": "initial"
+    },
+    {
+     "id": "a",
+     "type": "state",
+     "name": "A"
+    },
+    {
+     "id": "b",
+     "type": "state",
+     "name": "B"
+    },
+    {
+     "id": "f",
+     "type": "final"
+    },
+    {
+     "id": "k",
+     "type": "fork"
+    }
+   ],
+   "transitions": [
+    {
+     "from": "i",
+     "to": "a"
+    },
+    {
+     "from": "a",
+     "to": "b",
+     "trigger": "go"
+    },
+    {
+     "from": "b",
+     "to": "f"
+    },
+    {
+     "from": "a",
+     "to": "k"
+    },
+    {
+     "from": "k",
+     "to": "b"
+    }
+   ]
+  }
+ },
+ {
+  "name": "join with one incoming transition",
+  "expect": {
+   "code": "JOIN_DEGREE",
+   "path": "/elements/4"
+  },
+  "doc": {
+   "kind": "state-machine",
+   "elements": [
+    {
+     "id": "i",
+     "type": "initial"
+    },
+    {
+     "id": "a",
+     "type": "state",
+     "name": "A"
+    },
+    {
+     "id": "b",
+     "type": "state",
+     "name": "B"
+    },
+    {
+     "id": "f",
+     "type": "final"
+    },
+    {
+     "id": "j",
+     "type": "join"
+    }
+   ],
+   "transitions": [
+    {
+     "from": "i",
+     "to": "a"
+    },
+    {
+     "from": "a",
+     "to": "b",
+     "trigger": "go"
+    },
+    {
+     "from": "b",
+     "to": "f"
+    },
+    {
+     "from": "a",
+     "to": "j"
+    },
+    {
+     "from": "j",
+     "to": "b"
+    }
+   ]
+  }
+ },
+ {
+  "name": "guard on a transition leaving a fork",
+  "expect": {
+   "code": "GUARD_ON_FORK_OR_JOIN",
+   "path": "/transitions/4/guard"
+  },
+  "doc": {
+   "kind": "state-machine",
+   "elements": [
+    {
+     "id": "k",
+     "type": "fork"
+    },
+    {
+     "id": "o",
+     "type": "state",
+     "name": "O"
+    },
+    {
+     "id": "c",
+     "type": "state",
+     "name": "C",
+     "regions": [
+      {
+       "elements": [
+        {
+         "id": "x",
+         "type": "state",
+         "name": "X"
+        }
+       ]
+      },
+      {
+       "elements": [
+        {
+         "id": "y",
+         "type": "state",
+         "name": "Y"
+        }
+       ]
+      }
+     ]
+    }
+   ],
+   "transitions": [
+    {
+     "from": "o",
+     "to": "k"
+    },
+    {
+     "from": "k",
+     "to": "x"
+    },
+    {
+     "from": "k",
+     "to": "y"
+    },
+    {
+     "from": "o",
+     "to": "o",
+     "trigger": "t"
+    },
+    {
+     "from": "k",
+     "to": "o",
+     "guard": "g"
+    }
+   ]
+  }
+ },
+ {
+  "name": "history with two outgoing transitions",
+  "expect": {
+   "code": "HISTORY_DEGREE",
+   "path": "/elements/0/regions/0/elements/0"
+  },
+  "doc": {
+   "kind": "state-machine",
+   "elements": [
+    {
+     "id": "c",
+     "type": "state",
+     "name": "C",
+     "regions": [
+      {
+       "elements": [
+        {
+         "id": "h",
+         "type": "shallowHistory"
+        },
+        {
+         "id": "x",
+         "type": "state",
+         "name": "X"
+        },
+        {
+         "id": "y",
+         "type": "state",
+         "name": "Y"
+        }
+       ]
+      }
+     ]
+    }
+   ],
+   "transitions": [
+    {
+     "from": "h",
+     "to": "x"
+    },
+    {
+     "from": "h",
+     "to": "y"
+    }
+   ]
+  }
+ },
+ {
+  "name": "history at the top level",
+  "expect": {
+   "code": "HISTORY_AT_TOP_LEVEL",
+   "path": "/elements/4"
+  },
+  "doc": {
+   "kind": "state-machine",
+   "elements": [
+    {
+     "id": "i",
+     "type": "initial"
+    },
+    {
+     "id": "a",
+     "type": "state",
+     "name": "A"
+    },
+    {
+     "id": "b",
+     "type": "state",
+     "name": "B"
+    },
+    {
+     "id": "f",
+     "type": "final"
+    },
+    {
+     "id": "h",
+     "type": "deepHistory"
+    }
+   ],
+   "transitions": [
+    {
+     "from": "i",
+     "to": "a"
+    },
+    {
+     "from": "a",
+     "to": "b",
+     "trigger": "go"
+    },
+    {
+     "from": "b",
+     "to": "f"
+    }
+   ]
+  }
+ },
+ {
+  "name": "two shallow histories in one region",
+  "expect": {
+   "code": "MULTIPLE_HISTORY",
+   "path": "/elements/0/regions/0/elements/1"
+  },
+  "doc": {
+   "kind": "state-machine",
+   "elements": [
+    {
+     "id": "c",
+     "type": "state",
+     "name": "C",
+     "regions": [
+      {
+       "elements": [
+        {
+         "id": "h1",
+         "type": "shallowHistory"
+        },
+        {
+         "id": "h2",
+         "type": "shallowHistory"
+        },
+        {
+         "id": "x",
+         "type": "state",
+         "name": "X"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ },
+ {
+  "name": "self-transition on a pseudostate",
+  "expect": {
+   "code": "PSEUDOSTATE_SELF_TRANSITION",
+   "path": "/transitions/3"
+  },
+  "doc": {
+   "kind": "state-machine",
+   "elements": [
+    {
+     "id": "i",
+     "type": "initial"
+    },
+    {
+     "id": "a",
+     "type": "state",
+     "name": "A"
+    },
+    {
+     "id": "b",
+     "type": "state",
+     "name": "B"
+    },
+    {
+     "id": "f",
+     "type": "final"
+    },
+    {
+     "id": "jn",
+     "type": "junction"
+    }
+   ],
+   "transitions": [
+    {
+     "from": "i",
+     "to": "a"
+    },
+    {
+     "from": "a",
+     "to": "b",
+     "trigger": "go"
+    },
+    {
+     "from": "b",
+     "to": "f"
+    },
+    {
+     "from": "jn",
+     "to": "jn"
+    }
+   ]
+  }
+ },
+ {
+  "name": "transition between orthogonal regions",
+  "expect": {
+   "code": "TRANSITION_ACROSS_REGIONS",
+   "path": "/transitions/0"
+  },
+  "doc": {
+   "kind": "state-machine",
+   "elements": [
+    {
+     "id": "c",
+     "type": "state",
+     "name": "C",
+     "regions": [
+      {
+       "elements": [
+        {
+         "id": "x",
+         "type": "state",
+         "name": "X"
+        }
+       ]
+      },
+      {
+       "elements": [
+        {
+         "id": "y",
+         "type": "state",
+         "name": "Y"
+        }
+       ]
+      }
+     ]
+    }
+   ],
+   "transitions": [
+    {
+     "from": "x",
+     "to": "y"
+    }
+   ]
+  }
+ },
+ {
+  "name": "entry point leading outside its state",
+  "expect": {
+   "code": "INVALID_ENTRY_POINT_TRANSITION",
+   "path": "/transitions/0/to"
+  },
+  "doc": {
+   "kind": "state-machine",
+   "elements": [
+    {
+     "id": "o",
+     "type": "state",
+     "name": "O"
+    },
+    {
+     "id": "c",
+     "type": "state",
+     "name": "C",
+     "regions": [
+      {
+       "elements": [
+        {
+         "id": "x",
+         "type": "state",
+         "name": "X"
+        }
+       ]
+      }
+     ],
+     "connectionPoints": [
+      {
+       "id": "en",
+       "type": "entryPoint"
+      }
+     ]
+    }
+   ],
+   "transitions": [
+    {
+     "from": "en",
+     "to": "o"
+    }
+   ]
+  }
+ },
+ {
+  "name": "exit point reached from outside its state",
+  "expect": {
+   "code": "INVALID_EXIT_POINT_TRANSITION",
+   "path": "/transitions/0/from"
+  },
+  "doc": {
+   "kind": "state-machine",
+   "elements": [
+    {
+     "id": "o",
+     "type": "state",
+     "name": "O"
+    },
+    {
+     "id": "c",
+     "type": "state",
+     "name": "C",
+     "regions": [
+      {
+       "elements": [
+        {
+         "id": "x",
+         "type": "state",
+         "name": "X"
+        }
+       ]
+      }
+     ],
+     "connectionPoints": [
+      {
+       "id": "ex",
+       "type": "exitPoint"
+      }
+     ]
+    }
+   ],
+   "transitions": [
+    {
+     "from": "o",
+     "to": "ex"
+    }
+   ]
+  }
+ },
+ {
+  "name": "connection point on a simple state",
+  "expect": {
+   "code": "CONNECTION_POINT_ON_SIMPLE_STATE",
+   "path": "/elements/1/connectionPoints"
+  },
+  "doc": {
+   "kind": "state-machine",
+   "elements": [
+    {
+     "id": "i",
+     "type": "initial"
+    },
+    {
+     "id": "a",
+     "type": "state",
+     "name": "A",
+     "connectionPoints": [
+      {
+       "id": "en",
+       "type": "entryPoint"
+      }
+     ]
+    },
+    {
+     "id": "b",
+     "type": "state",
+     "name": "B"
+    },
+    {
+     "id": "f",
+     "type": "final"
+    }
+   ],
+   "transitions": [
+    {
+     "from": "i",
+     "to": "a"
+    },
+    {
+     "from": "a",
+     "to": "b",
+     "trigger": "go"
+    },
+    {
+     "from": "b",
+     "to": "f"
+    }
+   ]
+  }
+ },
+ {
+  "name": "submachine state with regions",
+  "expect": {
+   "code": "SUBMACHINE_WITH_REGIONS",
+   "path": "/elements/1/submachine"
+  },
+  "doc": {
+   "kind": "state-machine",
+   "elements": [
+    {
+     "id": "i",
+     "type": "initial"
+    },
+    {
+     "id": "a",
+     "type": "state",
+     "name": "A",
+     "submachine": "M",
+     "regions": [
+      {
+       "elements": [
+        {
+         "id": "x",
+         "type": "state",
+         "name": "X"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "b",
+     "type": "state",
+     "name": "B"
+    },
+    {
+     "id": "f",
+     "type": "final"
+    }
+   ],
+   "transitions": [
+    {
+     "from": "i",
+     "to": "a"
+    },
+    {
+     "from": "a",
+     "to": "b",
+     "trigger": "go"
+    },
+    {
+     "from": "b",
+     "to": "f"
+    }
+   ]
+  }
+ },
+ {
+  "name": "note attached to a connection point",
+  "expect": {
+   "code": "INVALID_ATTACHMENT",
+   "path": "/elements/2/attachedTo/0"
+  },
+  "doc": {
+   "kind": "state-machine",
+   "elements": [
+    {
+     "id": "o",
+     "type": "state",
+     "name": "O"
+    },
+    {
+     "id": "c",
+     "type": "state",
+     "name": "C",
+     "regions": [
+      {
+       "elements": [
+        {
+         "id": "x",
+         "type": "state",
+         "name": "X"
+        }
+       ]
+      }
+     ],
+     "connectionPoints": [
+      {
+       "id": "en",
+       "type": "entryPoint"
+      }
+     ]
+    },
+    {
+     "id": "n",
+     "type": "note",
+     "text": "x",
+     "attachedTo": [
+      "en"
+     ]
+    }
+   ]
+  }
+ },
+ {
+  "name": "nesting deeper than six levels",
+  "expect": {
+   "code": "NESTING_TOO_DEEP",
+   "path": "/elements/0/regions/0/elements/0/regions/0/elements/0/regions/0/elements/0/regions/0/elements/0/regions/0/elements/0/regions/0/elements/0"
+  },
+  "doc": {
+   "kind": "state-machine",
+   "elements": [
+    {
+     "id": "d7",
+     "type": "state",
+     "name": "Level 7",
+     "regions": [
+      {
+       "elements": [
+        {
+         "id": "d6",
+         "type": "state",
+         "name": "Level 6",
+         "regions": [
+          {
+           "elements": [
+            {
+             "id": "d5",
+             "type": "state",
+             "name": "Level 5",
+             "regions": [
+              {
+               "elements": [
+                {
+                 "id": "d4",
+                 "type": "state",
+                 "name": "Level 4",
+                 "regions": [
+                  {
+                   "elements": [
+                    {
+                     "id": "d3",
+                     "type": "state",
+                     "name": "Level 3",
+                     "regions": [
+                      {
+                       "elements": [
+                        {
+                         "id": "d2",
+                         "type": "state",
+                         "name": "Level 2",
+                         "regions": [
+                          {
+                           "elements": [
+                            {
+                             "id": "d1",
+                             "type": "state",
+                             "name": "Level 1",
+                             "regions": [
+                              {
+                               "elements": [
+                                {
+                                 "id": "d0",
+                                 "type": "state",
+                                 "name": "Leaf"
+                                }
+                               ]
+                              }
+                             ]
+                            }
+                           ]
+                          }
+                         ]
+                        }
+                       ]
+                      }
+                     ]
+                    }
+                   ]
+                  }
+                 ]
+                }
+               ]
+              }
+             ]
+            }
+           ]
+          }
+         ]
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ }
+]
