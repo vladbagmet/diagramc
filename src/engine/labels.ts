@@ -85,10 +85,17 @@ function centerCandidates(request: LabelRequest): Rect[] {
   const { width: w, height: h } = request;
   for (const { a, b, length } of segments) {
     const vertical = Math.abs(b.x - a.x) < Math.abs(b.y - a.y);
+    const diagonal = Math.abs(b.x - a.x) > 1 && Math.abs(b.y - a.y) > 1;
     for (const f of [0.5, 0.3, 0.7, 0.15, 0.85]) {
       const m = { x: a.x + (b.x - a.x) * f, y: a.y + (b.y - a.y) * f };
       if (length < 2 && f !== 0.5) continue;
-      if (vertical) {
+      if (diagonal) {
+        // Slanted segments (polyline routing): push the box off the line along its
+        // normal until its nearest corner is GAP away, on either side.
+        const n = { x: -(b.y - a.y) / length, y: (b.x - a.x) / length };
+        const reach = GAP + 2 + (w / 2) * Math.abs(n.x) + (h / 2) * Math.abs(n.y);
+        for (const side of [1, -1]) out.push({ x: m.x + n.x * reach * side - w / 2, y: m.y + n.y * reach * side - h / 2, width: w, height: h });
+      } else if (vertical) {
         out.push({ x: m.x + GAP + 2, y: m.y - h / 2, width: w, height: h });
         out.push({ x: m.x - GAP - 2 - w, y: m.y - h / 2, width: w, height: h });
       } else {

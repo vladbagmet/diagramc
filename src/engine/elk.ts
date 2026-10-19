@@ -36,8 +36,15 @@ export interface LayoutNode {
   /** Inner padding of a compound node (room for a package tab, a name compartment...). */
   padding?: { top: number; left: number; bottom: number; right: number };
   ports?: LayoutPort[];
+  /** Keep exactly this size even with ports (small symbols such as pseudostates). */
+  fixedSize?: boolean;
   /** Free space to keep at the right of the node (self-loops and their labels). */
   reserveRight?: number;
+  /**
+   * Room to keep free below the node for a caption drawn under it (an actor's
+   * name): a centered box of this size directly under the node.
+   */
+  labelBelow?: { width: number; height: number };
 }
 export interface LayoutLabel { id: string; width: number; height: number; placement: 'center' | 'head' | 'tail' }
 export interface LayoutEdge {
@@ -51,6 +58,10 @@ export interface LayoutEdge {
 }
 export interface LayoutOptions {
   direction: Direction;
+  /** Edge routing: orthogonal (default) or polyline (straight segments, bends between layers). */
+  routing?: 'orthogonal' | 'polyline';
+  /** Extra ELK layout options for the root graph, overriding the defaults (kind-specific tuning). */
+  elk?: Record<string, string>;
   nodeSpacing?: number;
   layerSpacing?: number;
 }
@@ -67,6 +78,10 @@ const ElkConstructor = ((ElkModule as unknown as { default?: unknown }).default 
 const elk = new ElkConstructor();
 
 export async function layout(nodes: readonly LayoutNode[], edges: readonly LayoutEdge[], options: LayoutOptions): Promise<LayoutResult> {
+  // elkjs 0.11.1 applies a compound node's minimum size with width and height
+  // swapped when the layout direction is vertical (INCLUDE_CHILDREN); compensate.
+  const vertical = options.direction === 'DOWN' || options.direction === 'UP';
+  const minimum = (node: LayoutNode): string => node.children?.length && vertical ? `(${node.height}, ${node.width})` : `(${node.width}, ${node.height})`;
   const toElk = (node: LayoutNode): ElkNode => ({
     id: node.id,
     ...(node.children?.length ? {} : { width: node.width, height: node.height }),
@@ -77,14 +92,24 @@ export async function layout(nodes: readonly LayoutNode[], edges: readonly Layou
     }) } : {}),
     // An invisible outside label reserves room right of the node. Its text must not
     // be empty: ELK ignores empty labels when computing node margins.
-    ...(node.reserveRight ? { labels: [{ id: `${node.id}::reserve`, text: 'reserved', width: node.reserveRight, height: Math.max(1, node.height - 2), layoutOptions: { 'elk.nodeLabels.placement': '[OUTSIDE, H_RIGHT, V_CENTER]' } }] } : {}),
+    ...(node.reserveRight || node.labelBelow ? { labels: [
+      ...(node.reserveRight ? [{ id: `${node.id}::reserve`, text: 'reserved', width: node.reserveRight, height: Math.max(1, node.height - 2), layoutOptions: { 'elk.nodeLabels.placement': '[OUTSIDE, H_RIGHT, V_CENTER]' } }] : []),
+      ...(node.labelBelow ? [{ id: `${node.id}::below`, text: 'caption', width: node.labelBelow.width, height: node.labelBelow.height, layoutOptions: { 'elk.nodeLabels.placement': '[OUTSIDE, H_CENTER, V_BOTTOM]' } }] : []),
+    ] } : {}),
     layoutOptions: {
       ...(node.ports?.length ? {
         'elk.portConstraints': 'FIXED_SIDE',
         // Grow the node if its ports need more room than its content.
-        'elk.nodeSize.constraints': '[PORTS, MINIMUM_SIZE]',
-        'elk.nodeSize.minimum': `(${node.width}, ${node.height})`,
+        ...(node.fixedSize ? { 'elk.nodeSize.constraints': '[]' } : {
+          'elk.nodeSize.constraints': '[PORTS, MINIMUM_SIZE]',
+          'elk.nodeSize.minimum': minimum(node),
+        }),
         'elk.spacing.portPort': '6',
+      } : {}),
+      // A compound node is at least as large as its own content (e.g. a name compartment).
+      ...(node.children?.length && !node.ports?.length && (node.width > 0 || node.height > 0) ? {
+        'elk.nodeSize.constraints': '[MINIMUM_SIZE]',
+        'elk.nodeSize.minimum': minimum(node),
       } : {}),
       ...(node.padding ? { 'elk.padding': `[top=${node.padding.top},left=${node.padding.left},bottom=${node.padding.bottom},right=${node.padding.right}]` } : {}),
       'elk.spacing.labelNode': '0',
@@ -95,7 +120,7 @@ export async function layout(nodes: readonly LayoutNode[], edges: readonly Layou
     layoutOptions: {
       'elk.algorithm': 'layered',
       'elk.direction': options.direction,
-      'elk.edgeRouting': 'ORTHOGONAL',
+      'elk.edgeRouting': options.routing === 'polyline' ? 'POLYLINE' : 'ORTHOGONAL',
       'elk.hierarchyHandling': 'INCLUDE_CHILDREN',
       'elk.randomSeed': '1',
       'elk.padding': '[top=0,left=0,bottom=0,right=0]',
@@ -116,6 +141,7 @@ export async function layout(nodes: readonly LayoutNode[], edges: readonly Layou
       'elk.layered.thoroughness': '20',
       'elk.separateConnectedComponents': 'true',
       'elk.spacing.componentComponent': String(options.nodeSpacing ?? theme.spacing.nodeNode),
+      ...options.elk,
     },
     children: nodes.map(toElk),
     edges: edges.map((e): ElkExtendedEdge => ({
