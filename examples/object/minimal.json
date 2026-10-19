@@ -1,0 +1,8 @@
+{
+  "kind": "object",
+  "elements": [
+    { "id": "ann", "type": "instance", "name": "ann", "classifier": "Customer", "slots": [{ "feature": "name", "value": "\"Ann Lee\"" }] },
+    { "id": "o1", "type": "instance", "name": "o1", "classifier": "Order", "slots": [{ "feature": "total", "value": "42.50" }] }
+  ],
+  "relationships": [{ "type": "link", "from": "ann", "to": "o1", "toEnd": { "role": "orders" } }]
+}

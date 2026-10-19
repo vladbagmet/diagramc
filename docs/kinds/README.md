@@ -99,6 +99,8 @@ Copy the structure of `src/kinds/class/layout.ts` and `draw.ts`.
 | Notes | `measureNote()` + `drawNote()`; anchor lines: `drawEdge` with `style: 'dashed'`, both markers `none`, type `note-anchor` |
 | Packages / containers | `measurePackageTab()` + `drawPackage()`; give ELK a compound node with `padding.top` >= tab height |
 | Diagram frame | when `title` is set: `measureFrameHeading()` + `drawFrame(canvas, kind.frameKeyword, title, bounds)` |
+| Whole node/edge diagram | `renderDiagram(spec)` in `src/engine/diagram.ts`: boxes, notes and packages (nested through `children`), edges with markers, end and center labels, tree and reversed edges, self-loops, frame. Object, package and profile kinds are thin mappings onto it |
+| Packages | `measurePackage()` + `drawPackageNode()` in `src/engine/packages.ts` (tab with `data-uml-tab`; name in the tab for containers, in the body otherwise) |
 | Layout | `layout(nodes, edges, { direction })` from `src/engine/elk.ts`: sizes, compound `children`, fixed-side `ports` (a shared port gives generalization trees; a port as wide as an end's labels and marker keeps neighbours apart), edge labels `center`/`head`/`tail` |
 | Self-loops | never give them to ELK: `planSelfLoops()` before layout (node `reserveRight`, min height), `selfLoopRoute()` after |
 | Lines and arrowheads | `drawEdge({ points, style, sourceMarker, targetMarker, ... })`; markers: `hollow-triangle`, `filled-triangle`, `open-arrow`, `hollow-diamond`, `filled-diamond`, `cross`, `circle-plus`, `none` |

@@ -1,0 +1,28 @@
+{
+  "kind": "profile",
+  "title": "EJB",
+  "elements": [
+    { "id": "ejb", "type": "profile", "name": "EJB", "members": ["component", "interface", "bean", "entity", "session", "remote", "home", "stateKind"] },
+    { "id": "component", "type": "metaclass", "name": "Component" },
+    { "id": "interface", "type": "metaclass", "name": "Interface" },
+    { "id": "bean", "type": "stereotype", "name": "Bean", "abstract": true },
+    { "id": "entity", "type": "stereotype", "name": "Entity", "attributes": [{ "name": "table", "type": "String", "multiplicity": "0..1" }] },
+    { "id": "session", "type": "stereotype", "name": "Session", "attributes": [{ "name": "state", "type": "StateKind", "default": "stateless" }] },
+    { "id": "remote", "type": "stereotype", "name": "Remote" },
+    { "id": "home", "type": "stereotype", "name": "Home" },
+    { "id": "stateKind", "type": "enumeration", "name": "StateKind", "literals": ["stateless", "stateful"] },
+    { "id": "uml", "type": "package", "name": "UML" },
+    { "id": "shop", "type": "package", "name": "Shop", "members": ["cart"] },
+    { "id": "cart", "type": "class", "name": "CartBean", "stereotypes": ["Session"] },
+    { "id": "n1", "type": "note", "text": "Every component in a model that applies EJB is a Bean.", "attachedTo": ["bean"] }
+  ],
+  "relationships": [
+    { "type": "extension", "from": "bean", "to": "component", "required": true },
+    { "type": "generalization", "from": "entity", "to": "bean" },
+    { "type": "generalization", "from": "session", "to": "bean" },
+    { "type": "extension", "from": "remote", "to": "interface" },
+    { "type": "extension", "from": "home", "to": "interface" },
+    { "type": "reference", "from": "ejb", "to": "uml" },
+    { "type": "apply", "from": "shop", "to": "ejb" }
+  ]
+}

@@ -1,0 +1,31 @@
+{
+  "kind": "object",
+  "title": "Order 1042 at checkout",
+  "classifiers": [
+    { "name": "Customer", "attributes": ["name", "email"] },
+    { "name": "Order", "attributes": ["number", "status", "total"] },
+    { "name": "OrderLine", "attributes": ["quantity", "unitPrice"] },
+    { "name": "Product", "attributes": ["sku", "title"] },
+    { "name": "Address" }
+  ],
+  "elements": [
+    { "id": "ann", "type": "instance", "name": "ann", "classifier": "Customer",
+      "slots": [{ "feature": "name", "type": "String", "value": "\"Ann Lee\"" }, { "feature": "email", "value": "\"ann@example.org\"" }] },
+    { "id": "home", "type": "instance", "classifier": "Address", "slots": [{ "feature": "city", "value": "\"Utrecht\"" }] },
+    { "id": "o1042", "type": "instance", "name": "o1042", "classifier": "Order",
+      "slots": [{ "feature": "number", "value": "1042" }, { "feature": "status", "value": "CONFIRMED" }, { "feature": "total", "type": "Money", "value": "59.90 EUR" }] },
+    { "id": "l1", "type": "instance", "classifier": "OrderLine", "slots": [{ "feature": "quantity", "value": "2" }, { "feature": "unitPrice", "value": "19.95 EUR" }] },
+    { "id": "l2", "type": "instance", "classifier": "OrderLine", "slots": [{ "feature": "quantity", "value": "1" }, { "feature": "unitPrice", "value": "20.00 EUR" }] },
+    { "id": "mug", "type": "instance", "name": "mug", "classifier": "Product", "slots": [{ "feature": "sku", "value": "\"MUG-01\"" }, { "feature": "title", "value": "\"Espresso mug\"" }] },
+    { "id": "beans", "type": "instance", "name": "beans", "classifier": "Product", "slots": [{ "feature": "sku", "value": "\"BEAN-1KG\"" }] },
+    { "id": "n1", "type": "note", "text": "Anonymous instances: only the classifier is known.", "attachedTo": ["l1"] }
+  ],
+  "relationships": [
+    { "type": "link", "from": "ann", "to": "o1042", "association": "places", "toEnd": { "role": "orders", "navigable": true } },
+    { "type": "link", "from": "ann", "to": "home", "toEnd": { "role": "shipTo" } },
+    { "type": "link", "from": "o1042", "to": "l1", "toEnd": { "role": "lines" } },
+    { "type": "link", "from": "o1042", "to": "l2", "toEnd": { "role": "lines" } },
+    { "type": "link", "from": "l1", "to": "mug", "fromEnd": { "navigable": false }, "toEnd": { "role": "product", "navigable": true } },
+    { "type": "link", "from": "l2", "to": "beans", "fromEnd": { "navigable": false }, "toEnd": { "role": "product", "navigable": true } }
+  ]
+}

@@ -61,9 +61,25 @@ export function runGates(scene: Scene, expectedTexts: readonly string[] = []): Q
     }
   });
 
+  // Ancestors of a node through data-uml-parent (nesting).
+  const ancestors = (id: string): Set<string> => {
+    const out = new Set<string>();
+    for (let p = nodeById.get(id)?.parent; p && !out.has(p); p = nodeById.get(p)?.parent) out.add(p);
+    return out;
+  };
+  const edgeById = new Map(scene.edges.map(e => [e.id, e]));
+
   gate('label-overlap', fail => {
     labels.forEach((label, i) => {
-      for (const n of scene.nodes) if (overlapArea(label.bounds, n.bounds) > 0.5) fail(`label ${snippet(label.content)} overlaps node ${n.id}`);
+      // A label may sit inside a container (package) that encloses an end of its
+      // own edge, as long as it keeps clear of the container's tab.
+      const edge = label.owner === undefined ? undefined : edgeById.get(label.owner);
+      const enclosing = edge ? new Set([...ancestors(edge.source), ...ancestors(edge.target)]) : new Set<string>();
+      for (const n of scene.nodes) {
+        if (overlapArea(label.bounds, n.bounds) <= 0.5) continue;
+        if (enclosing.has(n.id) && contains(n.bounds, label.bounds) && !(n.tab && overlapArea(label.bounds, n.tab) > 0.5)) continue;
+        fail(`label ${snippet(label.content)} overlaps node ${n.id}`);
+      }
       for (const other of labels.slice(i + 1)) if (overlapArea(label.bounds, other.bounds) > 0.5) fail(`labels ${snippet(label.content)} and ${snippet(other.content)} overlap`);
       if (scene.frameHeading && overlapArea(label.bounds, scene.frameHeading) > 0.5) fail(`label ${snippet(label.content)} overlaps the frame heading`);
     });
@@ -104,7 +120,10 @@ export function runGates(scene: Scene, expectedTexts: readonly string[] = []): Q
       for (const [end, id, p] of [['source', e.source, e.points[0]!], ['target', e.target, e.points.at(-1)!]] as const) {
         const node = nodeById.get(id);
         if (!node) { fail(`edge ${e.id} ${end} ${id} is not a node`); continue; }
-        const d = distanceToBorder(p, node.bounds);
+        // A package's outline is its tab plus the body below the tab.
+        const d = node.tab
+          ? Math.min(distanceToBorder(p, node.tab), distanceToBorder(p, { x: node.bounds.x, y: node.bounds.y + node.tab.height, width: node.bounds.width, height: node.bounds.height - node.tab.height }))
+          : distanceToBorder(p, node.bounds);
         if (d > 1) fail(`edge ${e.id} ${end} point (${p.x}, ${p.y}) is ${d.toFixed(2)}px off the border of ${id}`);
       }
       for (let k = 1; k < e.points.length; k++) {

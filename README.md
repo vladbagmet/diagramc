@@ -106,6 +106,64 @@ Examples: [`examples/class/`](examples/class/).
 [`examples/v1/`](examples/v1/)) keep working as class diagrams; members are drawn
 verbatim and error paths refer to the v1 document.
 
+### Object diagrams
+
+Instance specifications drawn `name : Classifier` underlined (`: Classifier` for
+an anonymous instance, `name` when the classifier is not shown), with a slots
+compartment (`feature = value`, `feature : Type = value`), and `link`s between
+them: solid lines with an underlined `name : association`, role names and
+navigability per end. Optional `classifiers` declarations make the validator check
+classifier names and slot features. Links are laid out from the instance listed
+first to the one listed later.
+
+```json
+{ "kind": "object", "elements": [
+    { "id": "ann", "type": "instance", "name": "ann", "classifier": "Customer", "slots": [{ "feature": "name", "value": "\"Ann\"" }] },
+    { "id": "o1", "type": "instance", "classifier": "Order" } ],
+  "relationships": [{ "type": "link", "from": "ann", "to": "o1", "association": "places", "toEnd": { "role": "orders", "navigable": true } }] }
+```
+
+Checklist: [`docs/kinds/object.md`](docs/kinds/object.md). Examples: [`examples/object/`](examples/object/).
+
+### Package diagrams
+
+Packages as tab folders, nested through `members` (name in the tab when the
+package shows contents, in the body otherwise), name-only classifiers and notes.
+Relationships: `import` and `access` (from the importing package to a package or
+classifier), `merge` (from the receiving to the merged package), `dependency`
+(client to supplier, optional «keyword»), `containment` (from the owner, circle-plus,
+an alternative to nesting). An element has one owner; ownership is acyclic.
+
+```json
+{ "kind": "package", "elements": [
+    { "id": "app", "type": "package", "name": "app", "members": ["main"] },
+    { "id": "main", "type": "class", "name": "Main" },
+    { "id": "util", "type": "package", "name": "util" } ],
+  "relationships": [{ "type": "import", "from": "app", "to": "util" }] }
+```
+
+Checklist: [`docs/kinds/package.md`](docs/kinds/package.md). Examples: [`examples/package/`](examples/package/).
+
+### Profile diagrams
+
+`profile`s (packages with «profile»), `stereotype`s with tag definitions as
+attributes (abstract ones in italics), `metaclass`es, enumerations for tag types,
+and packages and classes that use the profile. Relationships: `extension` (from a
+stereotype to a metaclass, filled triangle, `required: true` adds {required}),
+`generalization` between stereotypes, `apply` (from a package to a profile) and
+`reference` (from a profile to a metaclass or metamodel package). Metaclasses are
+drawn above their stereotypes.
+
+```json
+{ "kind": "profile", "elements": [
+    { "id": "p", "type": "profile", "name": "Persistence", "members": ["entity", "class"] },
+    { "id": "entity", "type": "stereotype", "name": "Entity", "attributes": [{ "name": "table", "type": "String" }] },
+    { "id": "class", "type": "metaclass", "name": "Class" } ],
+  "relationships": [{ "type": "extension", "from": "entity", "to": "class" }] }
+```
+
+Checklist: [`docs/kinds/profile.md`](docs/kinds/profile.md). Examples: [`examples/profile/`](examples/profile/).
+
 ## Errors
 
 Errors are one JSON object on stderr; no output file is written or changed.
@@ -152,7 +210,7 @@ include `USAGE`, `INVALID_JSON`, `INVALID_ENCODING`, `INPUT_TOO_LARGE`,
 `src/qa` inspects rendered SVGs and enforces hard gates on every fixture and
 example: markup safety, everything inside the canvas, no node overlap (containment
 allowed), no label overlapping a node, label or line, end labels near and
-unambiguous at their end, edges ending on node borders, arrowheads present at the
+unambiguous at their end, edges ending on node borders (a package's tab or body), arrowheads present at the
 right end and pointing inward, every input text drawn literally, minimum font size
 11 px, text inside its box. Own-engine SVGs carry `data-uml-*` attributes so gates
 are exact; PlantUML SVGs are checked best-effort. `npm run gallery` renders every

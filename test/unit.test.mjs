@@ -192,7 +192,10 @@ test('CLI validate, schema and kinds print JSON on stdout', () => {
   assert.equal(result.status, 0);
   assert.equal(JSON.parse(result.stdout).properties.kind.const, 'class');
   result = cli(['kinds']);
-  assert.deepEqual(JSON.parse(result.stdout).map(k => k.kind), ['class']);
+  // Every registered kind, class first (the list grows as kinds are added).
+  const listed = JSON.parse(result.stdout).map(k => k.kind);
+  assert.equal(listed[0], 'class');
+  for (const kind of ['object', 'package', 'profile']) assert.ok(listed.includes(kind), kind);
   assert.deepEqual(JSON.parse(result.stdout)[0].backends, ['engine', 'plantuml']);
 });
 test('invalid input never spawns renderer or creates/replaces output', async t => {

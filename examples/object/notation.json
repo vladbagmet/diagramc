@@ -1,0 +1,18 @@
+{
+  "kind": "object",
+  "title": "Notation reference",
+  "elements": [
+    { "id": "named", "type": "instance", "name": "alice", "classifier": "Person", "stereotypes": ["entity"],
+      "slots": [{ "feature": "age", "type": "Integer", "value": "34" }, { "feature": "nick", "value": "\"Al\"" }] },
+    { "id": "anon", "type": "instance", "classifier": "Person" },
+    { "id": "untyped", "type": "instance", "name": "bob" },
+    { "id": "team", "type": "instance", "name": "core", "classifier": "Team" },
+    { "id": "n1", "type": "note", "text": "Anonymous instance (classifier only) and an instance whose classifier is not shown (name only).", "attachedTo": ["anon", "untyped"] }
+  ],
+  "relationships": [
+    { "type": "link", "from": "named", "to": "anon", "name": "k1", "association": "knows", "fromEnd": { "role": "friend" }, "toEnd": { "role": "friend" } },
+    { "type": "link", "from": "named", "to": "team", "association": "memberOf", "fromEnd": { "role": "member", "navigable": false }, "toEnd": { "role": "team", "navigable": true } },
+    { "type": "link", "from": "untyped", "to": "team", "name": "m2" },
+    { "type": "link", "from": "named", "to": "named", "association": "mentors", "fromEnd": { "role": "mentor" }, "toEnd": { "role": "mentee" } }
+  ]
+}
