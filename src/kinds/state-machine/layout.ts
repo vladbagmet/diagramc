@@ -90,13 +90,13 @@ export async function layoutStateMachine(model: StateMachineDiagram, metrics: Fo
     }
     return best!;
   }, measure, { penalty: i => i ? 0.25 : 0 });
-  // Pseudostates with several incoming lines share one arrowhead tip in the
-  // candidates. Each line gets the free side of the pseudostate that faces its
-  // source in the chosen layout, and that layout runs once more.
+  // The chosen candidate runs once more, polished (winding lines and jogs
+  // straightened). Pseudostates with several incoming lines shared one arrowhead
+  // tip in the candidates: each line now gets the free side of the pseudostate
+  // that faces its source in the chosen layout.
   const [dir, mode, variant] = settings.get(chosen)!;
   const sides = incomingSides(model, chosen, dir);
-  if (!sides.size) return chosen;
-  try { return await layoutOnce(model, metrics, dir, mode, variant, sides); } catch { return chosen; }
+  try { return await layoutOnce(model, metrics, dir, mode, variant, sides, true); } catch { return chosen; }
 }
 
 /** Logical side of the index-th outgoing line of a pseudostate (see layoutOnce). */
@@ -149,7 +149,7 @@ function incomingSides(model: StateMachineDiagram, scene: StateScene, dir: 'DOWN
 /** Orthogonal regions of a composite: one after the other along the layout direction, or side by side across it. */
 type RegionMode = 'along' | 'across';
 
-async function layoutOnce(model: StateMachineDiagram, metrics: FontMetrics, dir: 'DOWN' | 'RIGHT', regionMode: RegionMode, variant: Record<string, string>, inSides: ReadonlyMap<string, Side> = new Map()): Promise<StateScene> {
+async function layoutOnce(model: StateMachineDiagram, metrics: FontMetrics, dir: 'DOWN' | 'RIGHT', regionMode: RegionMode, variant: Record<string, string>, inSides: ReadonlyMap<string, Side> = new Map(), polish = false): Promise<StateScene> {
   const down = dir === 'DOWN';
   /** Real side of a logical side of the top-to-bottom convention (targets NORTH, sources SOUTH). */
   const S = (side: Side): Side => down ? side : ({ NORTH: 'WEST', SOUTH: 'EAST', WEST: 'NORTH', EAST: 'SOUTH' } as const)[side];
@@ -419,7 +419,7 @@ async function layoutOnce(model: StateMachineDiagram, metrics: FontMetrics, dir:
       const at = result.ports.get(pointPort.get(id)!)!, r = rect(owner);
       const d = [Math.abs(at.x - r.x), Math.abs(at.x - r.x - r.width), Math.abs(at.y - r.y), Math.abs(at.y - r.y - r.height)];
       const side = d.indexOf(Math.min(...d)), vertical = side < 2;
-      const margin = theme.size.state.radius + theme.size.state.point / 2 + 6;
+      const margin = theme.size.state.radius + theme.size.state.point / 2 + 14;
       const ownerElement = vertices.get(owner)!.element;
       const named = isState(ownerElement) && (ownerElement.regions ?? []).some(g => g.name !== undefined);
       // Below the name compartment and the region names in the top corners of the regions.
@@ -575,7 +575,7 @@ async function layoutOnce(model: StateMachineDiagram, metrics: FontMetrics, dir:
   // Transitions with three or more bends (ELK's back edges wind around neighbours):
   // rerouted when the router finds a route with fewer bends that is not longer.
   const winding = new Set(sceneEdges.filter(e => e.type === 'transition' && e.source !== e.target && e.points.length >= 5).map(e => e.id));
-  if (winding.size) {
+  if (polish && winding.size) {
     const retry = repairRoutes(repairNodes, repairEdges(), { spacing: theme.spacing.edgeEdge, force: winding, shorten: false });
     for (const e of sceneEdges) {
       if (!winding.has(e.id) || !retry.changed.has(e.id)) continue;
@@ -592,7 +592,7 @@ async function layoutOnce(model: StateMachineDiagram, metrics: FontMetrics, dir:
     for (let p = repairNodes.find(n => n.id === id)?.parent; p !== undefined && !out.has(p); p = repairNodes.find(n => n.id === p)?.parent) out.add(p);
     return out;
   };
-  for (const e of sceneEdges) {
+  for (const e of polish ? sceneEdges : []) {
     const r = e.points;
     if (e.type !== 'transition' || r.length !== 4 || e.source === e.target || points.has(e.source) || points.has(e.target)) continue;
     if (shapeOf(e.source) !== 'rect' || shapeOf(e.target) !== 'rect' || typeOf(e.source) !== 'state' || typeOf(e.target) !== 'state') continue;
