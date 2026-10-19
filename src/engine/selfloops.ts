@@ -1,3 +1,4 @@
+import { theme } from '../core/theme.js';
 import type { Point, Rect } from './geometry.js';
 
 /**
@@ -34,6 +35,8 @@ export interface SelfLoopSpec {
 type Slot = 'top' | 'bottom' | 'side';
 /** Gap between the corner loops' legs and the side loops (room for two arrowheads). */
 const GROUP_GAP = 14;
+/** Minimum distance between the legs of nested side loops: two arrowheads plus a gap. */
+const MIN_BAND = 2 * theme.size.triangle.halfWidth + 6;
 interface PlannedLoop {
   slot: Slot;
   /** Distance of the far leg from the right border. */
@@ -80,7 +83,8 @@ export function planSelfLoops(loops: readonly SelfLoopSpec[]): SelfLoopPlan {
   // Further loops nest on the right side, between the corner loops' legs.
   let extent = 0, halfSpan = 4, previousCenter = 0;
   loops.slice(2).forEach((loop, i) => {
-    const band = loop.endLabelRows ? loop.endLabelRows * (loop.labelHeight + 2) + 6 : 10;
+    // Legs of nested loops keep two arrowheads apart (the end-spacing gate).
+    const band = Math.max(loop.endLabelRows ? loop.endLabelRows * (loop.labelHeight + 2) + 6 : 0, MIN_BAND);
     halfSpan += band;
     extent = Math.max(i === 0 ? 26 : extent + 16 + previousCenter, loop.endLabelWidth + 14);
     previousCenter = loop.centerLabel ? loop.centerLabel.width + 12 : 0;
@@ -91,7 +95,7 @@ export function planSelfLoops(loops: readonly SelfLoopSpec[]): SelfLoopPlan {
   return {
     reserveRight: loops.length ? right : 0,
     reserveAbove: above, reserveBelow: below,
-    minHeight: loops.length ? cornerDepth + side + (loops.length > 2 ? 2 * GROUP_GAP : 8) : 0,
+    minHeight: loops.length ? cornerDepth + side + (loops.length > 2 ? 2 * GROUP_GAP : loops.length === 2 ? MIN_BAND : 4) : 0,
     loops: planned,
   };
 }

@@ -400,6 +400,11 @@ export async function layoutDiagram(spec: DiagramSpec, metrics: FontMetrics): Pr
       texts: tab ? [tab] : [],
     };
   });
+  // The room of a node's self-loops is an obstacle for every other line.
+  for (const [id] of loopPlans) {
+    const loops = plans.filter(p => p.spec.source === id && p.spec.target === id).map(p => routes.get(p.spec.id)!);
+    repairNodes.push({ id: `${id}::self-loops`, rect: union(loops.flat().map(p => ({ ...p, width: 0, height: 0 }))), parent: all.get(id)!.parent });
+  }
   const labelObstacles = [...all.keys()].flatMap(id => all.get(id)!.spec.children?.length ? [tabs.get(id)!] : [rects.get(id)!]);
   const containerBorders: [Point, Point][] = [];
   for (const id of all.keys()) {

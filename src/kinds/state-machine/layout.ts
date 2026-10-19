@@ -301,7 +301,8 @@ export async function layoutStateMachine(model: StateMachineDiagram, metrics: Fo
     id: e.id, source: e.source, target: e.target, route: e.points,
     sourceMarker: 'none', targetMarker: e.type === 'note-anchor' ? 'none' : 'open-arrow',
     fixedSource: pinned(e.source), fixedTarget: pinned(e.target),
-  })));
+  // Pseudostates are small: aim for the plain line spacing between ends, not more.
+  })), { spacing: theme.spacing.edgeEdge });
   for (const e of sceneEdges) {
     if (!repaired.changed.has(e.id)) continue;
     // New ends on circles and diamonds move onto the outline along their end segment.

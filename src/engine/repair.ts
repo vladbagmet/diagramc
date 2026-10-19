@@ -108,7 +108,7 @@ export function repairRoutes(nodes: readonly RepairNode[], edges: readonly Repai
     for (let p = byId.get(id)?.parent; p !== undefined && !out.has(p); p = byId.get(p)?.parent) out.add(p);
     return out;
   };
-  const baseSpacing = options.spacing ?? theme.spacing.edgeEdge;
+  const baseSpacing = options.spacing ?? theme.spacing.endEnd;
   const all = union(nodes.map(n => n.rect));
   // Container borders count as lines: routes keep a line spacing away from them instead of hugging them.
   const borders = nodes.filter(n => n.container).map(({ rect: r }) => [{ x: r.x, y: r.y }, { x: r.x + r.width, y: r.y }, { x: r.x + r.width, y: r.y + r.height }, { x: r.x, y: r.y + r.height }, { x: r.x, y: r.y }]);
@@ -130,7 +130,7 @@ export function repairRoutes(nodes: readonly RepairNode[], edges: readonly Repai
     for (let k = 1; k < route.length; k++) for (const r of rects) if (segmentIntersectsRect(route[k - 1]!, route[k]!, inflate(r, -1))) return true;
     return false;
   };
-  const endsOf = (exclude: string) => edges.flatMap(o => o.id === exclude || o.source === o.target ? [] : [
+  const endsOf = (exclude: string) => edges.flatMap(o => o.id === exclude ? [] : [
     { edge: o, node: o.source, p: routes.get(o.id)![0]!, marker: o.sourceMarker },
     { edge: o, node: o.target, p: routes.get(o.id)!.at(-1)!, marker: o.targetMarker },
   ]);
