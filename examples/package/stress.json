@@ -1,0 +1,473 @@
+{
+ "kind": "package",
+ "title": "Shop platform",
+ "elements": [
+  {
+   "id": "billing",
+   "type": "package",
+   "name": "billing",
+   "members": [
+    "billing_api",
+    "billing_core",
+    "billing_store"
+   ]
+  },
+  {
+   "id": "billing_api",
+   "type": "package",
+   "name": "billing.api",
+   "members": [
+    "billing_api_0",
+    "billing_api_1",
+    "billing_api_2"
+   ]
+  },
+  {
+   "id": "billing_api_0",
+   "type": "interface",
+   "name": "BillingApiService"
+  },
+  {
+   "id": "billing_api_1",
+   "type": "class",
+   "name": "BillingApiModel"
+  },
+  {
+   "id": "billing_api_2",
+   "type": "class",
+   "name": "BillingApiMapper"
+  },
+  {
+   "id": "billing_core",
+   "type": "package",
+   "name": "billing.core",
+   "members": [
+    "billing_core_0",
+    "billing_core_1",
+    "billing_core_2"
+   ]
+  },
+  {
+   "id": "billing_core_0",
+   "type": "class",
+   "name": "BillingCoreService"
+  },
+  {
+   "id": "billing_core_1",
+   "type": "class",
+   "name": "BillingCoreModel"
+  },
+  {
+   "id": "billing_core_2",
+   "type": "class",
+   "name": "BillingCoreMapper"
+  },
+  {
+   "id": "billing_store",
+   "type": "package",
+   "name": "billing.store",
+   "members": [
+    "billing_store_0",
+    "billing_store_1",
+    "billing_store_2"
+   ]
+  },
+  {
+   "id": "billing_store_0",
+   "type": "class",
+   "name": "BillingStoreService"
+  },
+  {
+   "id": "billing_store_1",
+   "type": "class",
+   "name": "BillingStoreModel"
+  },
+  {
+   "id": "billing_store_2",
+   "type": "class",
+   "name": "BillingStoreMapper"
+  },
+  {
+   "id": "catalog",
+   "type": "package",
+   "name": "catalog",
+   "members": [
+    "catalog_api",
+    "catalog_core",
+    "catalog_store"
+   ]
+  },
+  {
+   "id": "catalog_api",
+   "type": "package",
+   "name": "catalog.api",
+   "members": [
+    "catalog_api_0",
+    "catalog_api_1",
+    "catalog_api_2"
+   ]
+  },
+  {
+   "id": "catalog_api_0",
+   "type": "interface",
+   "name": "CatalogApiService"
+  },
+  {
+   "id": "catalog_api_1",
+   "type": "class",
+   "name": "CatalogApiModel"
+  },
+  {
+   "id": "catalog_api_2",
+   "type": "class",
+   "name": "CatalogApiMapper"
+  },
+  {
+   "id": "catalog_core",
+   "type": "package",
+   "name": "catalog.core",
+   "members": [
+    "catalog_core_0",
+    "catalog_core_1",
+    "catalog_core_2"
+   ]
+  },
+  {
+   "id": "catalog_core_0",
+   "type": "class",
+   "name": "CatalogCoreService"
+  },
+  {
+   "id": "catalog_core_1",
+   "type": "class",
+   "name": "CatalogCoreModel"
+  },
+  {
+   "id": "catalog_core_2",
+   "type": "class",
+   "name": "CatalogCoreMapper"
+  },
+  {
+   "id": "catalog_store",
+   "type": "package",
+   "name": "catalog.store",
+   "members": [
+    "catalog_store_0",
+    "catalog_store_1",
+    "catalog_store_2"
+   ]
+  },
+  {
+   "id": "catalog_store_0",
+   "type": "class",
+   "name": "CatalogStoreService"
+  },
+  {
+   "id": "catalog_store_1",
+   "type": "class",
+   "name": "CatalogStoreModel"
+  },
+  {
+   "id": "catalog_store_2",
+   "type": "class",
+   "name": "CatalogStoreMapper"
+  },
+  {
+   "id": "shipping",
+   "type": "package",
+   "name": "shipping",
+   "members": [
+    "shipping_api",
+    "shipping_core",
+    "shipping_store"
+   ]
+  },
+  {
+   "id": "shipping_api",
+   "type": "package",
+   "name": "shipping.api",
+   "members": [
+    "shipping_api_0",
+    "shipping_api_1",
+    "shipping_api_2"
+   ]
+  },
+  {
+   "id": "shipping_api_0",
+   "type": "interface",
+   "name": "ShippingApiService"
+  },
+  {
+   "id": "shipping_api_1",
+   "type": "class",
+   "name": "ShippingApiModel"
+  },
+  {
+   "id": "shipping_api_2",
+   "type": "class",
+   "name": "ShippingApiMapper"
+  },
+  {
+   "id": "shipping_core",
+   "type": "package",
+   "name": "shipping.core",
+   "members": [
+    "shipping_core_0",
+    "shipping_core_1",
+    "shipping_core_2"
+   ]
+  },
+  {
+   "id": "shipping_core_0",
+   "type": "class",
+   "name": "ShippingCoreService"
+  },
+  {
+   "id": "shipping_core_1",
+   "type": "class",
+   "name": "ShippingCoreModel"
+  },
+  {
+   "id": "shipping_core_2",
+   "type": "class",
+   "name": "ShippingCoreMapper"
+  },
+  {
+   "id": "shipping_store",
+   "type": "package",
+   "name": "shipping.store",
+   "members": [
+    "shipping_store_0",
+    "shipping_store_1",
+    "shipping_store_2"
+   ]
+  },
+  {
+   "id": "shipping_store_0",
+   "type": "class",
+   "name": "ShippingStoreService"
+  },
+  {
+   "id": "shipping_store_1",
+   "type": "class",
+   "name": "ShippingStoreModel"
+  },
+  {
+   "id": "shipping_store_2",
+   "type": "class",
+   "name": "ShippingStoreMapper"
+  },
+  {
+   "id": "java_time",
+   "type": "package",
+   "name": "java.time",
+   "stereotypes": [
+    "library"
+   ]
+  },
+  {
+   "id": "java_util",
+   "type": "package",
+   "name": "java.util",
+   "stereotypes": [
+    "library"
+   ]
+  },
+  {
+   "id": "jakarta_persistence",
+   "type": "package",
+   "name": "jakarta.persistence",
+   "stereotypes": [
+    "library"
+   ]
+  },
+  {
+   "id": "jackson",
+   "type": "package",
+   "name": "jackson",
+   "stereotypes": [
+    "library"
+   ]
+  },
+  {
+   "id": "slf4j",
+   "type": "package",
+   "name": "slf4j",
+   "stereotypes": [
+    "library"
+   ]
+  },
+  {
+   "id": "kernel",
+   "type": "package",
+   "name": "kernel"
+  },
+  {
+   "id": "note",
+   "type": "note",
+   "text": "Subsystems talk to each other only through their api packages.",
+   "attachedTo": [
+    "catalog_api"
+   ]
+  }
+ ],
+ "relationships": [
+  {
+   "type": "import",
+   "from": "billing_api",
+   "to": "billing_core"
+  },
+  {
+   "type": "access",
+   "from": "billing_store",
+   "to": "billing_core"
+  },
+  {
+   "type": "import",
+   "from": "billing_core",
+   "to": "java_util"
+  },
+  {
+   "type": "import",
+   "from": "billing_store",
+   "to": "jakarta_persistence"
+  },
+  {
+   "type": "import",
+   "from": "billing_api",
+   "to": "jackson"
+  },
+  {
+   "type": "merge",
+   "from": "billing_core",
+   "to": "kernel"
+  },
+  {
+   "type": "dependency",
+   "from": "billing_api_0",
+   "to": "billing_core_0",
+   "keyword": "use"
+  },
+  {
+   "type": "dependency",
+   "from": "billing_store_2",
+   "to": "billing_core_1",
+   "keyword": "use"
+  },
+  {
+   "type": "import",
+   "from": "catalog_api",
+   "to": "catalog_core"
+  },
+  {
+   "type": "access",
+   "from": "catalog_store",
+   "to": "catalog_core"
+  },
+  {
+   "type": "import",
+   "from": "catalog_core",
+   "to": "java_util"
+  },
+  {
+   "type": "import",
+   "from": "catalog_store",
+   "to": "jakarta_persistence"
+  },
+  {
+   "type": "import",
+   "from": "catalog_api",
+   "to": "jackson"
+  },
+  {
+   "type": "merge",
+   "from": "catalog_core",
+   "to": "kernel"
+  },
+  {
+   "type": "dependency",
+   "from": "catalog_api_0",
+   "to": "catalog_core_0",
+   "keyword": "use"
+  },
+  {
+   "type": "dependency",
+   "from": "catalog_store_2",
+   "to": "catalog_core_1",
+   "keyword": "use"
+  },
+  {
+   "type": "import",
+   "from": "shipping_api",
+   "to": "shipping_core"
+  },
+  {
+   "type": "access",
+   "from": "shipping_store",
+   "to": "shipping_core"
+  },
+  {
+   "type": "import",
+   "from": "shipping_core",
+   "to": "java_util"
+  },
+  {
+   "type": "import",
+   "from": "shipping_store",
+   "to": "jakarta_persistence"
+  },
+  {
+   "type": "import",
+   "from": "shipping_api",
+   "to": "jackson"
+  },
+  {
+   "type": "merge",
+   "from": "shipping_core",
+   "to": "kernel"
+  },
+  {
+   "type": "dependency",
+   "from": "shipping_api_0",
+   "to": "shipping_core_0",
+   "keyword": "use"
+  },
+  {
+   "type": "dependency",
+   "from": "shipping_store_2",
+   "to": "shipping_core_1",
+   "keyword": "use"
+  },
+  {
+   "type": "import",
+   "from": "billing_core",
+   "to": "catalog_api"
+  },
+  {
+   "type": "import",
+   "from": "shipping_core",
+   "to": "catalog_api"
+  },
+  {
+   "type": "import",
+   "from": "shipping_core",
+   "to": "billing_api"
+  },
+  {
+   "type": "import",
+   "from": "billing_core",
+   "to": "java_time"
+  },
+  {
+   "type": "import",
+   "from": "shipping_core",
+   "to": "java_time"
+  },
+  {
+   "type": "dependency",
+   "from": "billing_store_0",
+   "to": "slf4j",
+   "keyword": "use"
+  }
+ ]
+}

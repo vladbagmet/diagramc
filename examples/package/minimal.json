@@ -1,0 +1,9 @@
+{
+  "kind": "package",
+  "elements": [
+    { "id": "app", "type": "package", "name": "app", "members": ["main"] },
+    { "id": "main", "type": "class", "name": "Main" },
+    { "id": "util", "type": "package", "name": "util" }
+  ],
+  "relationships": [{ "type": "import", "from": "app", "to": "util" }]
+}
