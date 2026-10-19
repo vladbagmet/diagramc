@@ -97,7 +97,15 @@ function endCandidates(request: LabelRequest): Rect[] {
   // Extent along the segment and across it (labels are axis-aligned boxes).
   const along = vertical ? h : w, across = vertical ? w : h;
   const clearance = Math.max(GAP + 1, request.clearance ?? 0);
+  // Slanted end segments (polyline routing): a w x h box whose nearest corner is t0
+  // along the line from the end and a0 off it.
+  const slanted = Math.abs(u.x) > 0.1 && Math.abs(u.y) > 0.1;
   const box = (t0: number, a0: number, side: number): Rect => {
+    if (slanted) {
+      const halfAlong = (w / 2) * Math.abs(u.x) + (h / 2) * Math.abs(u.y), halfAcross = (w / 2) * Math.abs(n.x) + (h / 2) * Math.abs(n.y);
+      const c = { x: p.x - u.x * (t0 + halfAlong) + n.x * side * (a0 + halfAcross), y: p.y - u.y * (t0 + halfAlong) + n.y * side * (a0 + halfAcross) };
+      return { x: c.x - w / 2, y: c.y - h / 2, width: w, height: h };
+    }
     const corners = [
       { x: p.x - u.x * t0 + n.x * side * a0, y: p.y - u.y * t0 + n.y * side * a0 },
       { x: p.x - u.x * (t0 + along) + n.x * side * (a0 + across), y: p.y - u.y * (t0 + along) + n.y * side * (a0 + across) },

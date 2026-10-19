@@ -1,0 +1,426 @@
+{
+ "kind": "state-machine",
+ "title": "Deeply nested awkward machine",
+ "elements": [
+  {
+   "id": "i",
+   "type": "initial"
+  },
+  {
+   "id": "x",
+   "type": "state",
+   "name": "Composite level 4 with an intentionally long name",
+   "regions": [
+    {
+     "name": "region 0 at depth 4",
+     "elements": [
+      {
+       "id": "xr0i",
+       "type": "initial"
+      },
+      {
+       "id": "xr0a",
+       "type": "state",
+       "name": "State with a fairly long name at depth 4 region 0",
+       "entry": "initialise the subsystem with all default parameters",
+       "doActivity": "poll",
+       "exit": "cleanup"
+      },
+      {
+       "id": "xc",
+       "type": "state",
+       "name": "Composite level 3 with an intentionally long name",
+       "regions": [
+        {
+         "name": "region 0 at depth 3",
+         "elements": [
+          {
+           "id": "xcr0i",
+           "type": "initial"
+          },
+          {
+           "id": "xcr0a",
+           "type": "state",
+           "name": "State with a fairly long name at depth 3 region 0",
+           "entry": "initialise the subsystem with all default parameters",
+           "doActivity": "poll",
+           "exit": "cleanup"
+          },
+          {
+           "id": "xcc",
+           "type": "state",
+           "name": "Composite level 2 with an intentionally long name",
+           "regions": [
+            {
+             "name": "region 0 at depth 2",
+             "elements": [
+              {
+               "id": "xccr0i",
+               "type": "initial"
+              },
+              {
+               "id": "xccr0a",
+               "type": "state",
+               "name": "State with a fairly long name at depth 2 region 0",
+               "entry": "initialise the subsystem with all default parameters",
+               "doActivity": "poll",
+               "exit": "cleanup"
+              },
+              {
+               "id": "xccc",
+               "type": "state",
+               "name": "Composite level 1 with an intentionally long name",
+               "regions": [
+                {
+                 "name": "region 0 at depth 1",
+                 "elements": [
+                  {
+                   "id": "xcccr0i",
+                   "type": "initial"
+                  },
+                  {
+                   "id": "xcccr0a",
+                   "type": "state",
+                   "name": "State with a fairly long name at depth 1 region 0",
+                   "entry": "initialise the subsystem with all default parameters",
+                   "doActivity": "poll",
+                   "exit": "cleanup"
+                  },
+                  {
+                   "id": "xcccc",
+                   "type": "state",
+                   "name": "Composite level 0 with an intentionally long name",
+                   "regions": [
+                    {
+                     "name": "region 0 at depth 0",
+                     "elements": [
+                      {
+                       "id": "xccccr0i",
+                       "type": "initial"
+                      },
+                      {
+                       "id": "xccccr0a",
+                       "type": "state",
+                       "name": "State with a fairly long name at depth 0 region 0",
+                       "entry": "initialise the subsystem with all default parameters",
+                       "doActivity": "poll",
+                       "exit": "cleanup"
+                      },
+                      {
+                       "id": "xccccr0j",
+                       "type": "junction"
+                      }
+                     ]
+                    },
+                    {
+                     "name": "region 1 at depth 0",
+                     "elements": [
+                      {
+                       "id": "xccccr1i",
+                       "type": "initial"
+                      },
+                      {
+                       "id": "xccccr1a",
+                       "type": "state",
+                       "name": "State with a fairly long name at depth 0 region 1",
+                       "entry": "initialise the subsystem with all default parameters",
+                       "doActivity": "poll",
+                       "exit": "cleanup"
+                      },
+                      {
+                       "id": "xccccr1j",
+                       "type": "junction"
+                      }
+                     ]
+                    }
+                   ]
+                  },
+                  {
+                   "id": "xcccr0h",
+                   "type": "deepHistory"
+                  }
+                 ]
+                }
+               ]
+              },
+              {
+               "id": "xccr0j",
+               "type": "junction"
+              }
+             ]
+            },
+            {
+             "name": "region 1 at depth 2",
+             "elements": [
+              {
+               "id": "xccr1i",
+               "type": "initial"
+              },
+              {
+               "id": "xccr1a",
+               "type": "state",
+               "name": "State with a fairly long name at depth 2 region 1",
+               "entry": "initialise the subsystem with all default parameters",
+               "doActivity": "poll",
+               "exit": "cleanup"
+              },
+              {
+               "id": "xccr1j",
+               "type": "junction"
+              }
+             ]
+            }
+           ]
+          },
+          {
+           "id": "xcr0h",
+           "type": "deepHistory"
+          }
+         ]
+        }
+       ]
+      },
+      {
+       "id": "xr0j",
+       "type": "junction"
+      }
+     ]
+    },
+    {
+     "name": "region 1 at depth 4",
+     "elements": [
+      {
+       "id": "xr1i",
+       "type": "initial"
+      },
+      {
+       "id": "xr1a",
+       "type": "state",
+       "name": "State with a fairly long name at depth 4 region 1",
+       "entry": "initialise the subsystem with all default parameters",
+       "doActivity": "poll",
+       "exit": "cleanup"
+      },
+      {
+       "id": "xr1j",
+       "type": "junction"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "done",
+   "type": "final"
+  },
+  {
+   "id": "t",
+   "type": "terminate"
+  },
+  {
+   "id": "note0",
+   "type": "note",
+   "text": "Note number 0: a longer comment that explains something about the attached vertex in detail so it wraps.",
+   "attachedTo": [
+    "x"
+   ]
+  },
+  {
+   "id": "note1",
+   "type": "note",
+   "text": "Note number 1: a longer comment that explains something about the attached vertex in detail so it wraps.",
+   "attachedTo": [
+    "done"
+   ]
+  },
+  {
+   "id": "note2",
+   "type": "note",
+   "text": "Note number 2: a longer comment that explains something about the attached vertex in detail so it wraps.",
+   "attachedTo": [
+    "t"
+   ]
+  },
+  {
+   "id": "note3",
+   "type": "note",
+   "text": "Note number 3: a longer comment that explains something about the attached vertex in detail so it wraps.",
+   "attachedTo": [
+    "xr0a"
+   ]
+  },
+  {
+   "id": "note4",
+   "type": "note",
+   "text": "Note number 4: a longer comment that explains something about the attached vertex in detail so it wraps.",
+   "attachedTo": [
+    "xcr0a"
+   ]
+  }
+ ],
+ "transitions": [
+  {
+   "from": "xr0i",
+   "to": "xr0a"
+  },
+  {
+   "from": "xcr0i",
+   "to": "xcr0a"
+  },
+  {
+   "from": "xccr0i",
+   "to": "xccr0a"
+  },
+  {
+   "from": "xcccr0i",
+   "to": "xcccr0a"
+  },
+  {
+   "from": "xccccr0i",
+   "to": "xccccr0a"
+  },
+  {
+   "from": "xccccr0a",
+   "to": "xccccr0j",
+   "trigger": "t"
+  },
+  {
+   "from": "xccccr0j",
+   "to": "xccccr0a",
+   "guard": "loop back"
+  },
+  {
+   "from": "xccccr1i",
+   "to": "xccccr1a"
+  },
+  {
+   "from": "xccccr1a",
+   "to": "xccccr1j",
+   "trigger": "t"
+  },
+  {
+   "from": "xccccr1j",
+   "to": "xccccr1a",
+   "guard": "loop back"
+  },
+  {
+   "from": "xcccr0a",
+   "to": "xcccc",
+   "trigger": "descend",
+   "guard": "the descent condition holds for this level",
+   "effect": "prepareDescent()"
+  },
+  {
+   "from": "xcccc",
+   "to": "xcccr0a",
+   "trigger": "ascend"
+  },
+  {
+   "from": "xcccr0h",
+   "to": "xcccr0a"
+  },
+  {
+   "from": "xccr0a",
+   "to": "xccc",
+   "trigger": "descend",
+   "guard": "the descent condition holds for this level",
+   "effect": "prepareDescent()"
+  },
+  {
+   "from": "xccc",
+   "to": "xccr0a",
+   "trigger": "ascend"
+  },
+  {
+   "from": "xccr0a",
+   "to": "xccr0j",
+   "trigger": "t"
+  },
+  {
+   "from": "xccr0j",
+   "to": "xccr0a",
+   "guard": "loop back"
+  },
+  {
+   "from": "xccr1i",
+   "to": "xccr1a"
+  },
+  {
+   "from": "xccr1a",
+   "to": "xccr1j",
+   "trigger": "t"
+  },
+  {
+   "from": "xccr1j",
+   "to": "xccr1a",
+   "guard": "loop back"
+  },
+  {
+   "from": "xcr0a",
+   "to": "xcc",
+   "trigger": "descend",
+   "guard": "the descent condition holds for this level",
+   "effect": "prepareDescent()"
+  },
+  {
+   "from": "xcc",
+   "to": "xcr0a",
+   "trigger": "ascend"
+  },
+  {
+   "from": "xcr0h",
+   "to": "xcr0a"
+  },
+  {
+   "from": "xr0a",
+   "to": "xc",
+   "trigger": "descend",
+   "guard": "the descent condition holds for this level",
+   "effect": "prepareDescent()"
+  },
+  {
+   "from": "xc",
+   "to": "xr0a",
+   "trigger": "ascend"
+  },
+  {
+   "from": "xr0a",
+   "to": "xr0j",
+   "trigger": "t"
+  },
+  {
+   "from": "xr0j",
+   "to": "xr0a",
+   "guard": "loop back"
+  },
+  {
+   "from": "xr1i",
+   "to": "xr1a"
+  },
+  {
+   "from": "xr1a",
+   "to": "xr1j",
+   "trigger": "t"
+  },
+  {
+   "from": "xr1j",
+   "to": "xr1a",
+   "guard": "loop back"
+  },
+  {
+   "from": "i",
+   "to": "x"
+  },
+  {
+   "from": "x",
+   "to": "done",
+   "trigger": "shutdown"
+  },
+  {
+   "from": "x",
+   "to": "t",
+   "trigger": "fatalError",
+   "effect": "dumpCore()"
+  }
+ ]
+}

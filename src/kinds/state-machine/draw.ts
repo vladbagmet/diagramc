@@ -22,7 +22,7 @@ export async function drawStateMachine(scene: StateScene, metrics: FontMetrics):
     parts.push(...compartments(canvas, header, bounds, c.state.id, true));
     parts.push(el('line', { x1: bounds.x, y1: bounds.y + header.height, x2: bounds.x + bounds.width, y2: bounds.y + header.height, stroke: theme.color.nodeStroke, 'stroke-width': theme.stroke.compartment }));
     for (const s of c.separators) {
-      parts.push(el('line', { x1: s.x1, y1: s.y, x2: s.x2, y2: s.y, stroke: theme.color.nodeStroke, 'stroke-width': theme.stroke.compartment, 'stroke-dasharray': theme.stroke.dash }));
+      parts.push(el('line', { x1: s.x1, y1: s.y1, x2: s.x2, y2: s.y2, stroke: theme.color.nodeStroke, 'stroke-width': theme.stroke.compartment, 'stroke-dasharray': theme.stroke.dash }));
     }
     for (const n of c.regionNames) {
       const size = theme.font.size.body, lh = metrics.lineHeight(size);

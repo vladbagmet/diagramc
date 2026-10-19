@@ -33,10 +33,10 @@ export const LABEL: TextStyle = { size: theme.font.size.label };
 const NAME: TextStyle = { size: theme.font.size.name };
 /** Offset of the back rectangle of a multi-object. */
 export const STACK = 6;
-const ARROW = 36;
+const ARROW = 40;
 const MAX_LABEL_WIDTH = 300;
 /** Self-link loop: height above the node and width beyond its right border. */
-const LOOP_UP = 22, LOOP_OUT = 26, LOOP_INSET = 18, LOOP_END = 9, SELF_ARROW = 28;
+const LOOP_UP = 22, LOOP_OUT = 26, LOOP_INSET = 18, LOOP_END = 9, SELF_ARROW = 30;
 
 export interface CommNode { lifeline: Lifeline; label: string; box: MeasuredBox; bounds: Rect; front: Rect; back?: Rect }
 export interface CommLink { id: string; source: string; target: string; points: Point[] }
@@ -66,7 +66,7 @@ interface Group {
 interface LinkPlan { id: string; from: string; to: string; self: boolean; groups: Group[] }
 
 const markerOf = (sort: MessageSort): Marker => sort === 'synchronous' ? 'filled-triangle' : 'open-arrow';
-const halfOf = (sort: MessageSort): number => sort === 'synchronous' ? theme.size.triangle.halfWidth : theme.size.arrow.halfWidth;
+const halfOf = (sort: MessageSort): number => sort === 'synchronous' ? theme.size.messageTriangle.halfWidth : theme.size.arrow.halfWidth;
 const SORTS: MessageSort[] = ['synchronous', 'asynchronous', 'reply'];
 
 function plan(model: CommunicationDiagram, metrics: FontMetrics): LinkPlan[] {
@@ -231,44 +231,125 @@ function snap(ids: readonly string[], centers: Map<string, Point>, threshold: nu
 }
 
 /**
- * Local search on grid cells, starting from the snapped stress layout: moves
- * or swaps one lifeline at a time while that lowers a cost that prefers short,
- * horizontal or vertical links (then 45 degree diagonals), no link through a
- * lifeline, few crossings and a compact grid. Deterministic.
+ * Cost of a placement of lifelines on grid cells: prefers short, horizontal or
+ * vertical links (then 45 degree diagonals), no link through a lifeline, few
+ * crossings and a compact grid not much wider than tall. Only the placed
+ * lifelines (and links between them) count, so a partial placement can be scored.
  */
-function refineGrid(ids: readonly string[], pairs: readonly [string, string][], start: Grid): Grid {
+/** Two links of one lifeline closer than 20 degrees count as crowded. */
+const NARROW_COS = Math.cos(20 * Math.PI / 180);
+
+function gridCost(pos: ReadonlyMap<string, Point>, pairs: readonly [string, string][], loops: ReadonlySet<string> = new Set()): number {
+  let cost = 0;
+  // A self-link needs a corner of its lifeline that no diagonal link leaves through.
+  for (const id of loops) {
+    const p = pos.get(id);
+    if (!p) continue;
+    const corners = new Set<string>();
+    for (const [a, b] of pairs) {
+      const other = a === id ? pos.get(b) : b === id ? pos.get(a) : undefined;
+      if (other && other.x !== p.x && other.y !== p.y) corners.add(`${Math.sign(other.x - p.x)},${Math.sign(other.y - p.y)}`);
+    }
+    if (corners.size === 4) cost += 8;
+  }
+  const placed = pairs.filter(([a, b]) => pos.has(a) && pos.has(b));
+  const segments = placed.map(([a, b]) => [pos.get(a)!, pos.get(b)!] as const);
+  placed.forEach(([a, b], i) => {
+    const [p, q] = segments[i]!;
+    const dx = Math.abs(p.x - q.x), dy = Math.abs(p.y - q.y);
+    cost += Math.hypot(dx, dy) + (dx === 0 || dy === 0 ? 0 : dx === dy ? 0.45 : 1.2);
+    for (const [id, c] of pos) {
+      if (id === a || id === b) continue;
+      if (Math.abs(c.x - p.x) + Math.abs(c.y - p.y) > dx + dy) continue;
+      if (distanceToSegment(c, p, q) < 0.3) cost += 6;
+    }
+    for (let j = i + 1; j < placed.length; j++) {
+      const [c, d] = placed[j]!;
+      if (c === a || c === b || d === a || d === b) continue;
+      const [r, t] = segments[j]!;
+      if (segmentDistance(p, q, r, t) < 1e-9) cost += 2.5;
+    }
+  });
+  // Links leaving one lifeline at a narrow angle crowd each other's message blocks.
+  const spokes = new Map<string, Point[]>();
+  for (const [a, b] of placed) {
+    const p = pos.get(a)!, q = pos.get(b)!;
+    spokes.set(a, [...spokes.get(a) ?? [], { x: q.x - p.x, y: q.y - p.y }]);
+    spokes.set(b, [...spokes.get(b) ?? [], { x: p.x - q.x, y: p.y - q.y }]);
+  }
+  for (const vs of spokes.values()) {
+    for (let i = 0; i < vs.length; i++) for (let j = i + 1; j < vs.length; j++) {
+      const u = vs[i]!, v = vs[j]!;
+      const cos = (u.x * v.x + u.y * v.y) / (Math.hypot(u.x, u.y) * Math.hypot(v.x, v.y));
+      if (cos > NARROW_COS) cost += 3;
+    }
+  }
+  const xs = [...pos.values()].map(p => p.x), ys = [...pos.values()].map(p => p.y);
+  // Compact, and not much wider than tall: a cell is about three times wider
+  // than tall on paper, so a grid with more columns than rows is already wide.
+  const width = Math.max(...xs) - Math.min(...xs), height = Math.max(...ys) - Math.min(...ys);
+  return cost + 0.25 * (width + height) + 0.6 * Math.max(0, width - height);
+}
+
+const toGrid = (ids: readonly string[], pos: ReadonlyMap<string, Point>): Grid => {
+  const xs = [...new Set([...pos.values()].map(p => p.x))].sort((a, b) => a - b);
+  const ys = [...new Set([...pos.values()].map(p => p.y))].sort((a, b) => a - b);
+  return {
+    columns: xs.map(x => ids.filter(id => pos.get(id)!.x === x)),
+    rows: ys.map(y => ids.filter(id => pos.get(id)!.y === y)),
+  };
+};
+
+const fromGrid = (grid: Grid): Map<string, Point> => {
   const pos = new Map<string, Point>();
-  start.columns.forEach((c, x) => c.forEach(id => pos.set(id, { x, y: 0 })));
-  start.rows.forEach((r, y) => r.forEach(id => { pos.get(id)!.y = y; }));
+  grid.columns.forEach((c, x) => c.forEach(id => pos.set(id, { x, y: 0 })));
+  grid.rows.forEach((r, y) => r.forEach(id => { pos.get(id)!.y = y; }));
+  return pos;
+};
+
+/**
+ * Greedy construction: the best connected lifeline first (a hub in the middle),
+ * then each next lifeline (most links to those already placed) on the free cell
+ * that adds least cost. Stars become wheels around their hub, with every spoke
+ * on a neighbouring cell, instead of whatever the stress layout snapped to.
+ */
+function constructGrid(ids: readonly string[], pairs: readonly [string, string][], loops: ReadonlySet<string>): Map<string, Point> {
+  const pos = new Map<string, Point>();
+  const degree = new Map(ids.map(id => [id, 0]));
+  for (const [a, b] of pairs) { degree.set(a, degree.get(a)! + 1); degree.set(b, degree.get(b)! + 1); }
+  const taken = new Set<string>();
+  const key = (p: Point) => `${p.x},${p.y}`;
+  while (pos.size < ids.length) {
+    const links = (id: string) => pairs.filter(([a, b]) => (a === id && pos.has(b)) || (b === id && pos.has(a))).length;
+    let next = ids[0]!, best = -Infinity;
+    for (const id of ids) {
+      if (pos.has(id)) continue;
+      const score = links(id) * 100 + degree.get(id)!;
+      if (score > best) { best = score; next = id; }
+    }
+    if (!pos.size) { pos.set(next, { x: 0, y: 0 }); taken.add('0,0'); continue; }
+    const xs = [...pos.values()].map(p => p.x), ys = [...pos.values()].map(p => p.y);
+    let cell: Point | undefined, cellCost = Infinity;
+    for (let y = Math.min(...ys) - 2; y <= Math.max(...ys) + 2; y++) for (let x = Math.min(...xs) - 2; x <= Math.max(...xs) + 2; x++) {
+      if (taken.has(`${x},${y}`)) continue;
+      pos.set(next, { x, y });
+      const c = gridCost(pos, pairs, loops);
+      if (c < cellCost - 1e-9) { cellCost = c; cell = { x, y }; }
+    }
+    pos.set(next, cell!);
+    taken.add(key(cell!));
+  }
+  return pos;
+}
+
+/**
+ * Local search on grid cells (gridCost), from a start placement: moves or swaps
+ * one lifeline at a time while that lowers the cost. Deterministic.
+ */
+function localSearch(ids: readonly string[], pairs: readonly [string, string][], loops: ReadonlySet<string>, pos: Map<string, Point>): number {
   const occupant = new Map<string, string>();
   const key = (p: Point) => `${p.x},${p.y}`;
   for (const [id, p] of pos) occupant.set(key(p), id);
-  const total = (): number => {
-    let cost = 0;
-    const segments = pairs.map(([a, b]) => [pos.get(a)!, pos.get(b)!] as const);
-    pairs.forEach(([a, b], i) => {
-      const [p, q] = segments[i]!;
-      const dx = Math.abs(p.x - q.x), dy = Math.abs(p.y - q.y);
-      cost += Math.hypot(dx, dy) + (dx === 0 || dy === 0 ? 0 : dx === dy ? 0.45 : 1.2);
-      for (const id of ids) {
-        if (id === a || id === b) continue;
-        const c = pos.get(id)!;
-        if (Math.abs(c.x - p.x) + Math.abs(c.y - p.y) > dx + dy) continue;
-        if (distanceToSegment(c, p, q) < 0.5) cost += 6;
-      }
-      for (let j = i + 1; j < pairs.length; j++) {
-        const [c, d] = pairs[j]!;
-        if (c === a || c === b || d === a || d === b) continue;
-        const [r, t] = segments[j]!;
-        if (segmentDistance(p, q, r, t) < 1e-9) cost += 2.5;
-      }
-    });
-    const xs = [...pos.values()].map(p => p.x), ys = [...pos.values()].map(p => p.y);
-    // Compact, and not much wider than tall: a cell is about three times wider
-    // than tall on paper, so a grid with more columns than rows is already wide.
-    const width = Math.max(...xs) - Math.min(...xs), height = Math.max(...ys) - Math.min(...ys);
-    return cost + 0.25 * (width + height) + 0.6 * Math.max(0, width - height);
-  };
   const move = (id: string, to: Point): void => {
     const from = pos.get(id)!, other = occupant.get(key(to));
     occupant.delete(key(from));
@@ -276,7 +357,7 @@ function refineGrid(ids: readonly string[], pairs: readonly [string, string][], 
     pos.set(id, to);
     occupant.set(key(to), id);
   };
-  let current = total();
+  let current = gridCost(pos, pairs, loops);
   for (let pass = 0; pass < 40; pass++) {
     let improved = false;
     for (const id of ids) {
@@ -286,7 +367,7 @@ function refineGrid(ids: readonly string[], pairs: readonly [string, string][], 
         if (!dx && !dy) continue;
         const to = { x: origin.x + dx, y: origin.y + dy };
         move(id, to);
-        const c = total();
+        const c = gridCost(pos, pairs, loops);
         if (c < bestCost) { bestCost = c; best = to; }
         move(id, origin);
       }
@@ -294,12 +375,19 @@ function refineGrid(ids: readonly string[], pairs: readonly [string, string][], 
     }
     if (!improved) break;
   }
-  const xs = [...new Set([...pos.values()].map(p => p.x))].sort((a, b) => a - b);
-  const ys = [...new Set([...pos.values()].map(p => p.y))].sort((a, b) => a - b);
-  return {
-    columns: xs.map(x => ids.filter(id => pos.get(id)!.x === x)),
-    rows: ys.map(y => ids.filter(id => pos.get(id)!.y === y)),
-  };
+  return current;
+}
+
+/**
+ * The grid: the snapped stress layout and a greedy construction, each improved
+ * by local search; the cheaper one wins (the stress layout on ties).
+ */
+function refineGrid(ids: readonly string[], pairs: readonly [string, string][], loops: ReadonlySet<string>, start: Grid): Grid {
+  const snapped = fromGrid(start);
+  const a = localSearch(ids, pairs, loops, snapped);
+  const built = constructGrid(ids, pairs, loops);
+  const b = localSearch(ids, pairs, loops, built);
+  return toGrid(ids, b < a - 1e-6 ? built : snapped);
 }
 
 // ---------------------------------------------------------------------------
@@ -366,7 +454,7 @@ export async function layoutCommunicationDiagram(model: CommunicationDiagram, me
     ids.map(id => ({ id, width: nodes.get(id)!.w, height: nodes.get(id)!.h })),
     pairs.map(k => ({ source: k.from, target: k.to, length: Math.max(desired, 90 + Math.max(0, ...k.groups.map(g => Math.max(g.width, g.height)))) })),
     { edgeLength: desired });
-  const grid = refineGrid(ids, pairs.map(k => [k.from, k.to]), snap(ids, centers, desired * 0.42));
+  const grid = refineGrid(ids, pairs.map(k => [k.from, k.to]), new Set(links.filter(k => k.self).map(k => k.from)), snap(ids, centers, desired * 0.42));
   // Mirror so that messages mostly flow left to right and top to bottom, the
   // reading direction (the stress layout has no preferred orientation).
   {
@@ -403,7 +491,7 @@ export async function layoutCommunicationDiagram(model: CommunicationDiagram, me
     const width = link.groups.length ? Math.max(...link.groups.map(g => g.width)) : 0;
     const extent = link.groups.reduce((sum, g) => sum + Math.max(g.height, SELF_ARROW), 0) + GROUP_GAP * Math.max(0, link.groups.length - 1);
     const up = Math.max(LOOP_UP, extent + 10 - (n.h / 2 - LOOP_END));
-    const side = LOOP_OUT + (width ? 19 + theme.size.triangle.halfWidth + TEXT_GAP + width + 4 : 6);
+    const side = LOOP_OUT + (width ? 19 + theme.size.arrow.halfWidth + TEXT_GAP + width + 4 : 6);
     if (sx > 0) n.right = side; else n.left = side;
     if (sy < 0) n.top = up + 4; else n.bottom = up + 4;
     n.loop = { sx, sy, up };

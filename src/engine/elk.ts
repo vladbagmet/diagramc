@@ -77,6 +77,8 @@ export interface LayoutNode {
    * (ELK creates hidden ports there), so arrowheads ending on it do not touch.
    */
   portSpacing?: number;
+  /** Extra ELK layout options of this node (e.g. a layer constraint). */
+  elk?: Record<string, string>;
 }
 export interface LayoutLabel { id: string; width: number; height: number; placement: 'center' | 'head' | 'tail' }
 export interface LayoutEdge {
@@ -87,6 +89,8 @@ export interface LayoutEdge {
   labels?: LayoutLabel[];
   /** Higher values make ELK keep this edge pointing in the layout direction. */
   directionPriority?: number;
+  /** Higher values make ELK node placement keep this edge straight (fewer jogs, lines into a bundle hub). */
+  straightness?: number;
 }
 export interface LayoutOptions {
   direction: Direction;
@@ -168,6 +172,7 @@ export async function layout(nodes: readonly LayoutNode[], edges: readonly Layou
       ...(node.portSpacing ? { 'elk.spacing.portPort': String(node.portSpacing) } : {}),
       ...(node.padding ? { 'elk.padding': `[top=${node.padding.top},left=${node.padding.left},bottom=${node.padding.bottom},right=${node.padding.right}]` } : {}),
       'elk.spacing.labelNode': '0',
+      ...node.elk,
     },
   });
   const graph: ElkNode = {
@@ -198,7 +203,10 @@ export async function layout(nodes: readonly LayoutNode[], edges: readonly Layou
         id: l.id, text: l.id, width: l.width, height: l.height,
         layoutOptions: { 'elk.edgeLabels.placement': l.placement.toUpperCase() },
       })),
-      ...(e.directionPriority ? { layoutOptions: { 'elk.layered.priority.direction': String(e.directionPriority) } } : {}),
+      ...(e.directionPriority || e.straightness ? { layoutOptions: {
+        ...(e.directionPriority ? { 'elk.layered.priority.direction': String(e.directionPriority) } : {}),
+        ...(e.straightness ? { 'elk.layered.priority.straightness': String(e.straightness) } : {}),
+      } } : {}),
     })),
   };
   const result = await elk.layout(graph);

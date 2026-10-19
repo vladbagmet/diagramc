@@ -1,0 +1,36 @@
+{
+  "kind": "state-machine",
+  "title": "Elevator controller",
+  "elements": [
+    { "id": "init", "type": "initial" },
+    { "id": "idle", "type": "state", "name": "Idle", "entry": "doors closed", "internal": [{ "trigger": "tick", "effect": "logHeartbeat" }] },
+    { "id": "moving", "type": "state", "name": "Moving", "entry": "start motor", "exit": "stop motor",
+      "regions": [ { "elements": [
+        { "id": "mInit", "type": "initial" },
+        { "id": "accel", "type": "state", "name": "Accelerating" },
+        { "id": "cruise", "type": "state", "name": "Cruising" },
+        { "id": "decel", "type": "state", "name": "Decelerating" },
+        { "id": "mFinal", "type": "final" }
+      ] } ] },
+    { "id": "doors", "type": "state", "name": "Doors open", "entry": "open doors", "doActivity": "count down 5 s", "exit": "close doors" },
+    { "id": "which", "type": "choice" },
+    { "id": "fault", "type": "state", "name": "Out of service", "entry": "alert maintenance" },
+    { "id": "n", "type": "note", "text": "Any safety fault takes the elevator out of service until reset.", "attachedTo": ["fault"] }
+  ],
+  "transitions": [
+    { "from": "init", "to": "idle" },
+    { "from": "idle", "to": "which", "trigger": "call(floor)" },
+    { "from": "which", "to": "doors", "guard": "floor == current" },
+    { "from": "which", "to": "moving", "guard": "else", "effect": "setTarget(floor)" },
+    { "from": "mInit", "to": "accel" },
+    { "from": "accel", "to": "cruise", "trigger": "speedReached" },
+    { "from": "cruise", "to": "decel", "trigger": "nearTarget" },
+    { "from": "decel", "to": "mFinal", "trigger": "stopped" },
+    { "from": "moving", "to": "doors" },
+    { "from": "doors", "to": "idle", "trigger": "after(5 s)", "guard": "no pending calls" },
+    { "from": "doors", "to": "which", "trigger": "after(5 s)", "guard": "pending calls" },
+    { "from": "doors", "to": "doors", "trigger": "obstacle", "effect": "restart timer" },
+    { "from": "moving", "to": "fault", "trigger": "safetyFault" },
+    { "from": "fault", "to": "idle", "trigger": "reset", "guard": "technician present" }
+  ]
+}

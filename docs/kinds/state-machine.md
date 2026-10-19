@@ -16,7 +16,7 @@ example passes every QA gate.
 | Entry, do, exit behaviors | `entry`, `doActivity`, `exit` | `entry / ...`, `do / ...`, `exit / ...` in a compartment below the name (14.2.4) | sm: notation test; fixture "state behaviors and internal transitions" |
 | Internal transitions | `internal[]` | `trigger [guard] / effect` in the same compartment | sm: `edit / updateLines` |
 | Composite state | `regions` (one) | Rounded rectangle, name compartment, a line, then the nested vertices (14.2.4) | sm: `composite-state`; fixture "composite state with one region" |
-| Orthogonal regions | `regions` (several), optional region `name` | Regions stacked top to bottom, separated by dashed lines; names in italics at the region's top left | sm: one dashed separator, italic `payment` |
+| Orthogonal regions | `regions` (several), optional region `name` | Regions one below the other or side by side (whichever reads better), separated by dashed lines; names in italics at the region's top left | sm: one dashed separator, italic `payment`; sm: regions side by side |
 | Submachine state | `submachine` | `name : Submachine` (14.2.4) | sm: `Invoice : Billing`, type `submachine-state` |
 | Entry point / exit point | `connectionPoints[]` | Small circle / circle with a cross on the state's border (entry left, exit right), name beside it (14.2.4) | sm: points centered on the composite's border; fixture "entry and exit points" |
 | Initial pseudostate | `type: "initial"` | Filled circle (14.2.4) | sm: filled circle, ellipse outline |
@@ -74,10 +74,21 @@ the edge-endpoints gate reads `data-uml-shape`), pseudostates keep their size
 
 ## Known limitations
 
-- Orthogonal regions are always stacked vertically (horizontal dashed separators);
-  side-by-side regions are not offered.
-- Layout is ELK layered, top-down, with depth-first cycle breaking so the main flow
-  starts at the top. Strongly cyclic machines can still get long return lines.
+- Layout is ELK layered with depth-first cycle breaking, so the main flow starts at
+  the top (or the left). Four candidates are compared with `layoutScore`
+  (src/engine/aspect.ts): top to bottom or left to right, each with orthogonal
+  regions one after the other or side by side. Left to right carries a penalty, so
+  it wins only when clearly more compact. A long chain of large composites still
+  ends up as a tall column (the stress example is about 1:4); ELK graph wrapping
+  produced crossings and is not used.
+- Entry and exit points stay on the side ELK chose, moved along it to keep clear of
+  the corners, the name compartment and region names, and beside the region their
+  inner lines lead to.
+- Pseudostates with several incoming lines are laid out twice: the second run gives
+  each line the free side facing its source, so arrowheads never share a tip.
+- Orthogonal regions keep their cells: a line from one region to the outside does
+  not cut through a sibling region. Their order on the page follows the layout, not
+  the document (UML gives regions no order).
 - Transitions from outside into a nested vertex enter the composite through its top;
   when the composite's name fills the header they detour around its side.
 - Routes go through the shared repair pass (src/engine/repair.ts): lines over a

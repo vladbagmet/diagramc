@@ -1,0 +1,16 @@
+{
+  "kind": "state-machine",
+  "title": "Traffic light",
+  "elements": [
+    { "id": "start", "type": "initial" },
+    { "id": "red", "type": "state", "name": "Red" },
+    { "id": "green", "type": "state", "name": "Green" },
+    { "id": "yellow", "type": "state", "name": "Yellow" }
+  ],
+  "transitions": [
+    { "from": "start", "to": "red" },
+    { "from": "red", "to": "green", "trigger": "timer", "guard": "pedestrians clear", "effect": "log()" },
+    { "from": "green", "to": "yellow", "trigger": "timer" },
+    { "from": "yellow", "to": "red", "trigger": "timer" }
+  ]
+}

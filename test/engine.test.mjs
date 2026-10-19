@@ -13,6 +13,7 @@ import { splitFallbackRuns } from '../dist/engine/png.js';
 import { routeOrthogonal } from '../dist/engine/router.js';
 import { repairRoutes } from '../dist/engine/repair.js';
 import { aspectPenalty, chooseLayout, layoutScore } from '../dist/engine/aspect.js';
+import { placeLabels } from '../dist/engine/labels.js';
 
 const options = { direction: 'DOWN' };
 
@@ -191,6 +192,15 @@ test('stress placement: deterministic, linked nodes about the desired distance a
   }
 });
 
+test('labels: an end label on a slanted line is a full-size box beside the line, near its end', () => {
+  const route = [{ x: 0, y: 200 }, { x: 300, y: 80 }];
+  const placed = placeLabels([{ id: 'm', width: 26, height: 15, route, at: 'target', side: 1, clearance: 4 }], { rects: [], segments: [[route[0], route[1]]] });
+  const r = placed.get('m');
+  assert.deepEqual([r.width, r.height], [26, 15]);
+  assert.ok(!segmentIntersectsRect(route[0], route[1], r), 'clear of the line');
+  assert.ok(Math.hypot(Math.max(r.x - 300, 0, 300 - r.x - r.width), Math.max(r.y - 80, 0, 80 - r.y - r.height)) < 20, 'next to the end');
+});
+
 test('geometry: segment distances', () => {
   assert.equal(segmentDistance({ x: 0, y: 0 }, { x: 10, y: 10 }, { x: 0, y: 10 }, { x: 10, y: 0 }), 0, 'crossing');
   assert.equal(segmentDistance({ x: 0, y: 0 }, { x: 10, y: 0 }, { x: 0, y: 5 }, { x: 10, y: 5 }), 5, 'parallel');
@@ -216,6 +226,16 @@ test('QA gate message-arrows: accepts a well-placed arrow and catches each defec
   assert.deepEqual(failed(await checkSvg(doc(a + c + link + ok + label(167, 120)))), ['message-arrows']);
   // Owned by a link that does not connect sender and receiver.
   assert.deepEqual(failed(await checkSvg(doc(a + c + link + arrow({ x: 167, y: 30 }, { x: 203, y: 30 }, { target: 'a' }) + label(167, 18)))), ['message-arrows']);
+});
+
+test('message arrows use the smaller message triangle and declare its size for the gates', async () => {
+  const svg = drawMessageArrow({ owner: 'l', group: 'g', source: 'a', target: 'c', from: { x: 0, y: 0 }, to: { x: 40, y: 0 }, style: 'solid', marker: 'filled-triangle' });
+  assert.match(svg, /data-uml-size="10,4.5"/);
+  // The triangle's base is 10 px behind the tip and 9 px wide.
+  assert.match(svg, /points="40,0 30,4.5 30,-4.5"/);
+  // Relationship edges keep the full-size triangle unless told otherwise.
+  const edge = drawEdge({ id: 'e', type: 't', source: 'a', target: 'b', points: [{ x: 0, y: 0 }, { x: 60, y: 0 }], style: 'solid', sourceMarker: 'none', targetMarker: 'filled-triangle' });
+  assert.doesNotMatch(edge, /data-uml-size/);
 });
 
 // Additions for state machine and use case diagrams (chunk 5).
@@ -307,6 +327,36 @@ test('PNG text: lines mixing Inter and fallback glyphs are split into runs so th
   const xs = texts.slice(0, 3).map(t => Number(t[1].match(/ x="([^"]*)"/)[1]));
   assert.equal(xs[0], 10);
   assert.ok(Math.abs(xs[1] - (10 + metrics.measure('Kundin · Zoë ', { size: 14, bold: true }))) < 0.01);
+});
+
+test('notes: a last row of one word is avoided by wrapping narrower with the same number of rows', async () => {
+  const { measureNote } = await import('../dist/engine/shapes.js');
+  const metrics = await loadFonts();
+  const { rows } = measureNote(metrics, 'Two app servers in production; one shown.');
+  assert.ok(rows.length >= 2 && /\s/.test(rows.at(-1).trim()), `rows: ${JSON.stringify(rows)}`);
+});
+
+test('repairRoutes (junctions): a line crossing another right next to its end is rerouted', () => {
+  const nodes = [
+    { id: 'a', rect: { x: 0, y: 60, width: 60, height: 40 } }, { id: 'c', rect: { x: 300, y: 60, width: 60, height: 40 } },
+    { id: 'g', rect: { x: 100, y: 200, width: 60, height: 40 } }, { id: 'h', rect: { x: 250, y: -100, width: 60, height: 40 } },
+  ];
+  const edges = [
+    { id: 'l1', source: 'a', target: 'c', route: [{ x: 60, y: 80 }, { x: 300, y: 80 }], sourceMarker: 'none', targetMarker: 'none' },
+    { id: 'l2', source: 'g', target: 'h', route: [{ x: 130, y: 200 }, { x: 130, y: 150 }, { x: 290, y: 150 }, { x: 290, y: -60 }], sourceMarker: 'none', targetMarker: 'none' },
+  ];
+  const near = routes => {
+    const l1 = routes.get('l1'), l2 = routes.get('l2');
+    return l2.slice(1).some((q, k) => {
+      const p = l2[k];
+      if (p.x !== q.x) return false;
+      const y0 = Math.min(p.y, q.y), y1 = Math.max(p.y, q.y);
+      return y0 < 80 && y1 > 80 && [l1[0], l1.at(-1), l2[0], l2.at(-1)].some(e => Math.hypot(e.x - p.x, e.y - 80) < 30);
+    });
+  };
+  assert.ok(near(repairRoutes(nodes, edges, { shorten: false }).routes), 'without the option the crossing stays');
+  const { routes, changed } = repairRoutes(nodes, edges, { shorten: false, junctions: true });
+  assert.ok(changed.has('l2') && !near(routes), JSON.stringify(routes.get('l2')));
 });
 
 test('router: an orthogonal route around an obstacle, leaving and entering perpendicular with straight stubs', () => {

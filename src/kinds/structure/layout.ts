@@ -1,13 +1,13 @@
 import { theme } from '../../core/theme.js';
 import type { LineStyle, Marker } from '../../engine/edges.js';
-import { layout, type LayoutEdge, type LayoutLabel, type LayoutNode, type LayoutPort, type Side } from '../../engine/elk.js';
+import { layout, type Direction, type LayoutEdge, type LayoutLabel, type LayoutNode, type LayoutPort, type Side } from '../../engine/elk.js';
 import type { FontMetrics, TextStyle } from '../../engine/fonts.js';
-import { contains, direction, distance, inflate, overlaps, segmentIntersectsRect, simplify, union, type Point, type Rect } from '../../engine/geometry.js';
+import { contains, direction, distance, inflate, overlaps, segmentIntersectsRect, simplify, straightenJogs, union, type Point, type Rect } from '../../engine/geometry.js';
 import { placeLabels, type LabelRequest } from '../../engine/labels.js';
 import { measureBox, measureFrameHeading, measureNote, type Compartment, type MeasuredBox } from '../../engine/shapes.js';
 import { ballBounds, socketBounds } from '../../engine/symbols.js';
 import { wrapText } from '../../engine/text.js';
-import { chooseLayout, countCrossings, routesLength } from '../../engine/aspect.js';
+import { chooseLayout, countCrossings, LAYOUT_VARIANTS, routesLength, type LayoutVariant } from '../../engine/aspect.js';
 import { repairRoutes, type RepairNode } from '../../engine/repair.js';
 import { guillemets, type StructAssembly, type StructEdge, type StructGraph, type StructNode, type StructStub } from './graph.js';
 
@@ -94,6 +94,12 @@ const CENTER_LABEL_WIDTH = 180;
 const NODE_SPACING = 30;
 const LAYER_SPACING = 44;
 const LABEL_GAP = 3;
+/** Room at the right end of a top border kept for the icon in the corner. */
+const ICON_ROOM = 30;
+/** ELK straightness priority of stems and assembly halves (joints in line with their ports). */
+const STRAIGHT = 10;
+/** A conventional layout within this size is kept (see layoutStructure). */
+const SMALL_LAYOUT = { width: 1000, height: 1000 };
 /** Inner padding of containers; sides with ports get more for delegation stubs. */
 const PAD = { side: 20, portSide: 34, bottom: 18, belowHeader: 14 };
 
@@ -168,11 +174,21 @@ interface Level {
 
 /**
  * Lays out a structure graph. The graph's `directions` (default RIGHT only) are
- * tried in order and the most readable result wins (src/engine/aspect.ts).
+ * tried in order and the most readable result wins (src/engine/aspect.ts). A
+ * conventional layout that fits SMALL_LAYOUT is kept: it reads at full scale,
+ * whatever its aspect ratio.
  */
 export async function layoutStructure(graph: StructGraph, metrics: FontMetrics): Promise<StructScene> {
   const directions = graph.directions ?? ['RIGHT'];
-  return chooseLayout(directions, dir => layoutIn(graph, metrics, dir === 'DOWN' ? 'DOWN' : 'RIGHT'), scene => {
+  const runs = new Map<string, Promise<StructScene>>();
+  const run = (dir: Direction, variant: LayoutVariant): Promise<StructScene> => {
+    const key = `${dir} ${variant}`;
+    if (!runs.has(key)) runs.set(key, layoutIn(graph, metrics, dir === 'DOWN' ? 'DOWN' : 'RIGHT', variant));
+    return runs.get(key)!;
+  };
+  const first = await run(directions[0]!, 'plain');
+  if (directions.length === 1 || (first.width <= SMALL_LAYOUT.width && first.height <= SMALL_LAYOUT.height)) return first;
+  return chooseLayout(directions, run, scene => {
     const lines = scene.edges.map(e => e.points);
     return { width: scene.width, height: scene.height, crossings: countCrossings(lines), edgeLength: routesLength(lines) };
   });
@@ -184,7 +200,7 @@ export async function layoutStructure(graph: StructGraph, metrics: FontMetrics):
  * `S()` maps a logical side to the real one, and `main`/`cross` name the real axes
  * along and across the layout direction.
  */
-async function layoutIn(graph: StructGraph, metrics: FontMetrics, dir: 'RIGHT' | 'DOWN'): Promise<StructScene> {
+async function layoutIn(graph: StructGraph, metrics: FontMetrics, dir: 'RIGHT' | 'DOWN', variant: LayoutVariant = 'plain'): Promise<StructScene> {
   const down = dir === 'DOWN';
   const S = (side: Side): Side => down ? ({ EAST: 'SOUTH', WEST: 'NORTH', NORTH: 'WEST', SOUTH: 'EAST' } as const)[side] : side;
   const main = down ? 'y' as const : 'x' as const, cross = down ? 'x' as const : 'y' as const;
@@ -332,6 +348,10 @@ async function layoutIn(graph: StructGraph, metrics: FontMetrics, dir: 'RIGHT' |
     for (const end of ['source', 'target'] as const) {
       const endpoint = end === 'source' ? p.source : p.target;
       if (portOwner.has(endpoint) || info.get(endpoint)?.isolatedRoot !== undefined || endPorts.has(`${p.id}\u0000${end}`)) continue;
+      // Top to bottom, ELK 0.11 fails on fixed-side ports of a container with lines
+      // crossing its border (TypeError in the hierarchical port placement): such ends
+      // attach to the container itself, whose port spacing keeps them apart.
+      if (down && info.get(endpoint)?.node.children?.length) continue;
       const marker = markerExtent(end === 'source' ? p.sourceMarker : p.targetMarker);
       const labelled = p.ends.some(e => e.end === end);
       if (!marker.length && !labelled) continue;
@@ -484,8 +504,8 @@ async function layoutIn(graph: StructGraph, metrics: FontMetrics, dir: 'RIGHT' |
         const ownerIsSource = symbol.kind === 'joint' ? p.id.endsWith('::required') : symbol.side !== 'WEST';
         const labels = portLabelFor(source, symbol.id, ownerIsSource);
         const far = symbol.kind === 'joint' ? `${symbol.id}::${ownerIsSource ? 'in' : 'out'}` : `${symbol.id}::port`;
-        if (ownerIsSource) elkEdges.push({ id: p.id, source: owner, target: far, labels });
-        else { elkEdges.push({ id: p.id, source: far, target: owner, labels }); reversed.add(p.id); }
+        if (ownerIsSource) elkEdges.push({ id: p.id, source: owner, target: far, labels, straightness: STRAIGHT });
+        else { elkEdges.push({ id: p.id, source: far, target: owner, labels, straightness: STRAIGHT }); reversed.add(p.id); }
         continue;
       }
       const labels: LayoutLabel[] = [];
@@ -507,7 +527,7 @@ async function layoutIn(graph: StructGraph, metrics: FontMetrics, dir: 'RIGHT' |
       });
     }
 
-    const options = { direction: dir, nodeSpacing: NODE_SPACING, layerSpacing: LAYER_SPACING };
+    const options = { direction: dir, nodeSpacing: NODE_SPACING, layerSpacing: LAYER_SPACING, ...(rootContainer === undefined ? { elk: LAYOUT_VARIANTS[variant] } : {}) };
     // ELK 0.11 fails on some hierarchy-crossing lines (a note anchor or role binding into
     // a nested part, with many ports on a container, top to bottom): lay out without
     // the hierarchy-crossing anchors and bindings then; repairRoutes routes them.
@@ -728,25 +748,75 @@ async function layoutIn(graph: StructGraph, metrics: FontMetrics, dir: 'RIGHT' |
     if (x.kind !== 'port' || x.parent === undefined) continue;
     const owner = rects.get(x.parent)!, text = repairNodes.find(n => n.id === x.parent)?.texts?.[0];
     if (!text || Math.abs(x.center.y - owner.y) > 0.5 || x.center.x < text.x - portSize || x.center.x > text.x + text.width + portSize) continue;
-    if (symbols.some(y => y.kind !== 'port' && stubOwner.get(y.id)?.owner === x.id) || graph.assemblies.some(a => a.requirer === x.id || a.provider === x.id)) continue;
+    // Beside the name on the side the port is nearer to, clear of the icon in the top-right corner.
     const right = text.x + text.width + portSize + 4, left = text.x - portSize - 4;
-    const to = right + portSize <= owner.x + owner.width ? right : left;
-    if (to - portSize < owner.x) continue;
+    const rightFits = right + portSize / 2 <= owner.x + owner.width - ICON_ROOM, leftFits = left - portSize / 2 >= owner.x + 4;
+    const preferRight = x.center.x >= text.x + text.width / 2;
+    const to = (preferRight && rightFits) || !leftFits ? right : left;
+    if (!(to === right ? rightFits : leftFits)) continue;
     const dx = to - x.center.x;
+    const headerBottom = text.y + text.height;
+    /** The route from the port with its first (vertical) segment moved by dx: a jog below the name inside, halfway outside. */
+    const shifted = (route: readonly Point[]): Point[] => {
+      const r = route.map(q => ({ ...q }));
+      const [a, b] = [r[0]!, r[1]!];
+      if (Math.abs(a.x - b.x) > 0.5) { r[0] = { x: a.x + dx, y: a.y }; return r; }
+      const inward = b.y > a.y;
+      const y = inward ? Math.min(headerBottom + 4, (a.y + b.y) / 2) : (a.y + b.y) / 2;
+      return simplify([{ x: a.x + dx, y: a.y }, { x: a.x + dx, y }, { x: a.x, y }, ...r.slice(1)]);
+    };
+    // Lollipops and sockets of the port move with it, so their stems stay straight.
+    const stubs = symbols.filter(y => y.kind !== 'port' && stubOwner.get(y.id)?.owner === x.id);
     x.center = { x: to, y: x.center.y };
     x.bounds = translateRect(x.bounds, { x: dx, y: 0 });
+    for (const s of stubs) {
+      s.center = translatePoint(s.center, { x: dx, y: 0 });
+      s.bounds = translateRect(s.bounds, { x: dx, y: 0 });
+      for (const l of fixedLabels) if (l.owner === s.id) l.rect = translateRect(l.rect, { x: dx, y: 0 });
+      const route = routes.get(`${s.id}::stem`);
+      if (route) routes.set(`${s.id}::stem`, route.map(q => translatePoint(q, { x: dx, y: 0 })));
+      const n = repairNodes.find(m => m.id === s.id);
+      if (n) { n.rect = s.bounds; n.texts = fixedLabels.filter(l => l.owner === s.id).map(l => l.rect); }
+    }
     const node = repairNodes.find(n => n.id === x.id);
     if (node) node.rect = x.bounds;
     for (const p of plans) {
       const route = routes.get(p.id);
-      if (!route) continue;
-      for (const reversed of [false, true]) {
-        if ((reversed ? p.target : p.source) !== x.id) continue;
-        const r = reversed ? [...route].reverse() : route.map(q => ({ ...q }));
-        if (r.length === 2) r.splice(1, 0, { x: r[0]!.x + dx, y: (r[0]!.y + r[1]!.y) / 2 }, { x: r[1]!.x, y: (r[0]!.y + r[1]!.y) / 2 });
-        else if (Math.abs(r[0]!.x - r[1]!.x) < 0.5) r[1] = { x: r[1]!.x + dx, y: r[1]!.y };
-        r[0] = { x: r[0]!.x + dx, y: r[0]!.y };
-        routes.set(p.id, simplify(reversed ? r.reverse() : r));
+      if (!route || stubs.some(s => p.id === `${s.id}::stem`)) continue;
+      if (p.source === x.id) routes.set(p.id, shifted(route));
+      else if (p.target === x.id) routes.set(p.id, shifted([...route].reverse()).reverse());
+    }
+  }
+  // Two notes side by side whose anchors cross trade places (ELK orders notes by the
+  // model, and a hierarchy-crossing anchor often meets its container's border on the
+  // far side); their anchors are then routed afresh.
+  const noteIds = [...rects.keys()].filter(id => info.get(id)!.node.shape === 'note');
+  const anchorRoutes = (note: string): Point[][] => plans.filter(p => p.type === 'note-anchor' && p.source === note && routes.has(p.id)).map(p => routes.get(p.id)!);
+  for (const [i, a] of noteIds.entries()) {
+    for (const b of noteIds.slice(i + 1)) {
+      if (info.get(a)!.parent !== info.get(b)!.parent) continue;
+      const ra = rects.get(a)!, rb = rects.get(b)!;
+      const together = [...anchorRoutes(a), ...anchorRoutes(b)];
+      if (!together.length || countCrossings(together) === 0) continue;
+      // Same column (one above the other) or same row: swap along that axis.
+      const column = Math.min(ra.x + ra.width, rb.x + rb.width) > Math.max(ra.x, rb.x);
+      const [first, second] = column ? (ra.y < rb.y ? [ra, rb] : [rb, ra]) : (ra.x < rb.x ? [ra, rb] : [rb, ra]);
+      const gap = column ? second.y - first.y - first.height : second.x - first.x - first.width;
+      if (gap < 0) continue;
+      const movedSecond = column ? { ...second, y: first.y } : { ...second, x: first.x };
+      const movedFirst = column ? { ...first, y: first.y + second.height + gap } : { ...first, x: first.x + second.width + gap };
+      const others = [...rects].filter(([id]) => id !== a && id !== b && !info.get(id)!.node.children?.length).map(([, r]) => r);
+      if ([movedFirst, movedSecond].some(r => others.some(o => overlaps(inflate(r, 4), o)) || symbols.some(s => overlaps(inflate(r, 4), s.bounds)))) continue;
+      const firstId = first === ra ? a : b, secondId = first === ra ? b : a;
+      rects.set(firstId, movedFirst);
+      rects.set(secondId, movedSecond);
+      for (const n of repairNodes) if (n.id === firstId) n.rect = movedFirst; else if (n.id === secondId) n.rect = movedSecond;
+      for (const p of plans) {
+        if (p.type !== 'note-anchor' || (p.source !== a && p.source !== b) || !routes.has(p.id)) continue;
+        const r = rects.get(p.source)!, t = rects.get(p.target) ?? symbols.find(s => s.id === p.target)?.bounds;
+        if (!t) continue;
+        routes.set(p.id, provisionalRoute(r, t));
+        unrouted.add(p.id);
       }
     }
   }
@@ -755,8 +825,80 @@ async function layoutIn(graph: StructGraph, metrics: FontMetrics, dir: 'RIGHT' |
   const repaired = repairRoutes(repairNodes, plans.filter(p => routes.has(p.id)).map(p => ({
     id: p.id, source: p.source, target: p.target, route: routes.get(p.id)!, sourceMarker: p.sourceMarker, targetMarker: p.targetMarker,
     fixedSource: pinned(p.source), fixedTarget: pinned(p.target),
-  })), { keep: new Set(plans.filter(p => p.symbol !== undefined).map(p => p.id)), force: unrouted });
+  })), { keep: new Set(plans.filter(p => p.symbol !== undefined).map(p => p.id)), force: unrouted, junctions: true });
   for (const id of repaired.changed) { routes.set(id, repaired.routes.get(id)!); for (const key of [...suggestions.keys()]) if (key.startsWith(`${id}::`)) suggestions.delete(key); }
+  straightenZigZags();
+
+  /**
+   * A line between two nodes side by side that zig-zags (out, across, in) because
+   * ELK attached it at different heights becomes one straight segment when one of
+   * its ends can slide along its node's side: within the side, clear of other ends,
+   * nodes, container texts and lines, and without adding crossings.
+   */
+  function straightenZigZags(): void {
+    const nodeRect = (id: string): Rect | undefined => pinned(id) || portOwner.has(id) ? undefined : rects.get(id);
+    const texts = repairNodes.flatMap(n => n.texts ?? []);
+    for (const p of plans) {
+      const r = routes.get(p.id);
+      if (!r || r.length < 4 || p.symbol !== undefined) continue;
+      const n = r.length;
+      // Both end segments along one axis, and the route never turns back along it.
+      const monotone = (axis: 'x' | 'y'): boolean => {
+        const steps = r.slice(1).map((q, i) => Math.sign(Math.round(q[axis] - r[i]![axis])));
+        return !(steps.includes(1) && steps.includes(-1));
+      };
+      const horizontal = Math.abs(r[0]!.y - r[1]!.y) < 0.01 && Math.abs(r[n - 2]!.y - r[n - 1]!.y) < 0.01 && monotone('x');
+      const vertical = Math.abs(r[0]!.x - r[1]!.x) < 0.01 && Math.abs(r[n - 2]!.x - r[n - 1]!.x) < 0.01 && monotone('y');
+      if (!horizontal && !vertical) continue;
+      const k = horizontal ? 'y' as const : 'x' as const;
+      const others = plans.filter(o => o.id !== p.id && routes.has(o.id)).map(o => ({ o, route: routes.get(o.id)! }));
+      const before = countCrossings([r, ...others.map(x => x.route)]);
+      const related = new Set([...ancestors(ownerNode(p.source)), ...ancestors(ownerNode(p.target))]);
+      for (const [moving, value] of [['target', r[0]![k]], ['source', r[n - 1]![k]]] as const) {
+        const node = nodeRect(moving === 'source' ? p.source : p.target);
+        if (!node) continue;
+        const lo = k === 'y' ? node.y : node.x, size = k === 'y' ? node.height : node.width;
+        if (value < lo + 10 || value > lo + size - 10) continue;
+        const next = horizontal
+          ? [{ x: r[0]!.x, y: value }, { x: r[n - 1]!.x, y: value }]
+          : [{ x: value, y: r[0]!.y }, { x: value, y: r[n - 1]!.y }];
+        const end = moving === 'source' ? next[0]! : next[1]!, endpoint = moving === 'source' ? p.source : p.target;
+        const box = { x: Math.min(next[0]!.x, next[1]!.x), y: Math.min(next[0]!.y, next[1]!.y), width: Math.abs(next[0]!.x - next[1]!.x), height: Math.abs(next[0]!.y - next[1]!.y) };
+        const blocked = [...rects].some(([id, rect]) => !related.has(id) && id !== ownerNode(p.source) && id !== ownerNode(p.target) && segmentIntersectsRect(next[0]!, next[1]!, inflate(rect, -1)))
+          || symbols.some(s => s.id !== p.source && s.id !== p.target && segmentIntersectsRect(next[0]!, next[1]!, inflate(s.bounds, 2)))
+          || texts.some(t => segmentIntersectsRect(next[0]!, next[1]!, t))
+          || others.some(({ route }) => route.slice(1).some((q, i) => {
+            const a = route[i]!;
+            // Running along another line closer than the line spacing.
+            const parallel = horizontal ? Math.abs(a.y - q.y) < 0.01 && Math.abs(a.y - value) < theme.spacing.edgeEdge : Math.abs(a.x - q.x) < 0.01 && Math.abs(a.x - value) < theme.spacing.edgeEdge;
+            if (!parallel) return false;
+            const [s0, s1] = horizontal ? [Math.min(a.x, q.x), Math.max(a.x, q.x)] : [Math.min(a.y, q.y), Math.max(a.y, q.y)];
+            const [t0, t1] = horizontal ? [box.x, box.x + box.width] : [box.y, box.y + box.height];
+            return Math.min(s1, t1) - Math.max(s0, t0) > 0;
+          }))
+          || others.some(({ o, route }) => [[o.source, route[0]!], [o.target, route.at(-1)!]].some(([n, q]) => n === endpoint && distance(q as Point, end) < theme.spacing.endEnd));
+        if (blocked || countCrossings([next, ...others.map(x => x.route)]) > before) continue;
+        routes.set(p.id, next);
+        for (const key of [...suggestions.keys()]) if (key.startsWith(`${p.id}::`)) suggestions.delete(key);
+        break;
+      }
+    }
+    // Small jogs (a few px, where ELK fans lines out of one side) are removed by sliding an end.
+    for (const p of plans) {
+      const r = routes.get(p.id), s = nodeRect(p.source), t = nodeRect(p.target);
+      if (!r || r.length < 4 || !s || !t || p.symbol !== undefined) continue;
+      const next = straightenJogs(r, { source: s, target: t });
+      if (next.length === r.length) continue;
+      const related = new Set([...ancestors(ownerNode(p.source)), ...ancestors(ownerNode(p.target)), p.source, p.target]);
+      const ends: [string, Point][] = [[p.source, next[0]!], [p.target, next.at(-1)!]];
+      const crowded = plans.some(o => o.id !== p.id && routes.has(o.id) && ends.some(([n, q]) =>
+        (o.source === n && distance(routes.get(o.id)![0]!, q) < theme.spacing.endEnd) || (o.target === n && distance(routes.get(o.id)!.at(-1)!, q) < theme.spacing.endEnd)));
+      const blocked = next.slice(1).some((q, i) => [...rects].some(([id, rect]) => !related.has(id) && segmentIntersectsRect(next[i]!, q, inflate(rect, -1))) || texts.some(x => segmentIntersectsRect(next[i]!, q, x)));
+      if (crowded || blocked) continue;
+      routes.set(p.id, next);
+      for (const key of [...suggestions.keys()]) if (key.startsWith(`${p.id}::`)) suggestions.delete(key);
+    }
+  }
 
   // ---- Scene edges ----
   const sceneEdges: PlacedEdge[] = [];

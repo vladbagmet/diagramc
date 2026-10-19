@@ -88,3 +88,47 @@ test('the published deployment schema describes the contract', async () => {
   assert.deepEqual(deploymentKind.schema.definitions.relationship.oneOf.map(b => b.properties.type.const), ['communicationPath', 'deploy', 'manifest', 'dependency']);
   assert.equal(deploymentKind.frameKeyword, 'dep');
 });
+
+const regression = name => readFile(join(root, 'test/fixtures/regression', name), 'utf8');
+
+/** Proper crossing points between two polylines. */
+function crossings(a, b) {
+  const out = [];
+  const cross = (o, p, q) => (p.x - o.x) * (q.y - o.y) - (p.y - o.y) * (q.x - o.x);
+  for (let i = 1; i < a.length; i++) for (let j = 1; j < b.length; j++) {
+    const [p, q, r, t] = [a[i - 1], a[i], b[j - 1], b[j]];
+    const d1 = cross(r, t, p), d2 = cross(r, t, q), d3 = cross(p, q, r), d4 = cross(p, q, t);
+    if (((d1 > 0 && d2 < 0) || (d1 < 0 && d2 > 0)) && ((d3 > 0 && d4 < 0) || (d3 < 0 && d4 > 0))) {
+      const k = d1 / (d1 - d2);
+      out.push({ x: p.x + (q.x - p.x) * k, y: p.y + (q.y - p.y) * k });
+    }
+  }
+  return out;
+}
+
+test('layout: a path between neighbours is straight when its ends can slide along their nodes (B-21)', async () => {
+  const { scene: s } = await scene(await regression('deployment-d3-agent-v3.json'));
+  for (const id of ['relationships/0', 'relationships/2', 'relationships/3']) assert.equal(s.edges.find(e => e.id === id).points.length, 2, `${id} zig-zags`);
+});
+
+test('layout: anchors of notes beside each other do not cross (B-13)', async () => {
+  const { scene: s } = await scene(await regression('deployment-d2-awkward.json'));
+  const anchors = s.edges.filter(e => e.type === 'note-anchor');
+  assert.ok(anchors.length >= 6);
+  for (const [i, a] of anchors.entries()) for (const b of anchors.slice(i + 1)) assert.equal(crossings(a.points, b.points).length, 0, `${a.id} crosses ${b.id}`);
+});
+
+test('layout: lines never cross another line right next to where it meets a node (B-13)', async () => {
+  for (const name of ['deployment-d1-k8s.json', 'deployment-d2-awkward.json', 'deployment-d3-agent-v3.json']) {
+    const { scene: s } = await scene(await regression(name));
+    for (const [i, a] of s.edges.entries()) {
+      for (const b of s.edges.slice(i + 1)) {
+        if ([a.source, a.target].some(n => n === b.source || n === b.target)) continue;
+        const ends = [a.points[0], a.points.at(-1), b.points[0], b.points.at(-1)];
+        for (const p of crossings(a.points, b.points)) {
+          assert.ok(ends.every(e => Math.hypot(e.x - p.x, e.y - p.y) >= 30), `${name}: ${a.id} crosses ${b.id} at ${p.x},${p.y} next to an end`);
+        }
+      }
+    }
+  }
+});

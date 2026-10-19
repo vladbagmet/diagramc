@@ -1,0 +1,53 @@
+{
+  "kind": "component",
+  "title": "Enterprise integration platform with an unusually long diagram title to test the frame heading",
+  "elements": [
+    { "id": "IBus", "type": "interface", "name": "IEnterpriseServiceBusMessagePublishingAndSubscriptionContract" },
+    { "id": "IAudit", "type": "interface", "name": "IAudit" },
+    { "id": "bus", "type": "component", "name": "Central Enterprise Service Bus (Apache ActiveMQ Artemis cluster, three brokers)",
+      "stereotypes": ["infrastructure", "highly-available", "managed"],
+      "ports": [ { "id": "busIn", "name": "amqp", "type": "AmqpEndpoint", "provides": ["IBus"] } ],
+      "requires": ["IAudit"] },
+    { "id": "a1", "type": "component", "name": "Order Intake", "requires": ["IBus"] },
+    { "id": "a2", "type": "component", "name": "Inventory Synchronisation Worker", "requires": ["IBus"] },
+    { "id": "a3", "type": "component", "name": "Billing", "requires": ["IBus"] },
+    { "id": "a4", "type": "component", "name": "Customer Relationship Management Adapter", "requires": ["IBus"] },
+    { "id": "a5", "type": "component", "name": "Shipping", "requires": ["IBus"] },
+    { "id": "a6", "type": "component", "name": "Returns", "requires": ["IBus"] },
+    { "id": "a7", "type": "component", "name": "Fraud Detection", "requires": ["IBus"] },
+    { "id": "auditor", "type": "component", "name": "Audit", "provides": ["IAudit"] },
+    { "id": "outer", "type": "component", "name": "Level 1",
+      "ports": [ { "id": "outerP", "name": "entry", "provides": ["IAudit"] } ],
+      "elements": [
+        { "id": "l2", "type": "component", "name": "Level 2",
+          "ports": [ { "id": "l2P", "name": "entry2", "provides": ["IAudit"] } ],
+          "elements": [
+            { "id": "l3", "type": "component", "name": "Level 3",
+              "ports": [ { "id": "l3P", "name": "entry3", "provides": ["IAudit"] } ],
+              "elements": [
+                { "id": "l4", "type": "class", "name": "DeepestAuditWriterWithAVeryLongClassName", "provides": ["IAudit"] }
+              ] }
+          ] }
+      ] },
+    { "id": "n1", "type": "note", "text": "Every adapter publishes through the bus; direct calls between adapters are forbidden by the architecture board.", "attachedTo": ["bus", "a1", "a7"] },
+    { "id": "n2", "type": "note", "text": "Legacy.", "attachedTo": ["a4"] },
+    { "id": "n3", "type": "note", "text": "Nested four levels deep on purpose.", "attachedTo": ["outer", "l4"] },
+    { "id": "n4", "type": "note", "text": "Note on a note.", "attachedTo": ["auditor"] }
+  ],
+  "relationships": [
+    { "type": "assembly", "from": "a1", "to": "busIn", "interface": "IBus" },
+    { "type": "assembly", "from": "a2", "to": "busIn", "interface": "IBus" },
+    { "type": "assembly", "from": "a3", "to": "busIn", "interface": "IBus" },
+    { "type": "assembly", "from": "a4", "to": "busIn", "interface": "IBus" },
+    { "type": "assembly", "from": "a5", "to": "busIn", "interface": "IBus" },
+    { "type": "assembly", "from": "a6", "to": "busIn", "interface": "IBus" },
+    { "type": "assembly", "from": "a7", "to": "busIn", "interface": "IBus" },
+    { "type": "assembly", "from": "bus", "to": "auditor", "interface": "IAudit" },
+    { "type": "delegation", "from": "outerP", "to": "l2P" },
+    { "type": "delegation", "from": "l2P", "to": "l3P" },
+    { "type": "delegation", "from": "l3P", "to": "l4" },
+    { "type": "dependency", "from": "a1", "to": "a2", "keyword": "trace", "name": "shares order ids with the inventory synchronisation worker" },
+    { "type": "dependency", "from": "a6", "to": "a3" },
+    { "type": "dependency", "from": "a3", "to": "a6" }
+  ]
+}

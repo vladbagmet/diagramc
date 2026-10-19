@@ -122,3 +122,25 @@ test('nesting rules: one owner, no duplicates, no cycles', () => {
   assert.ok(nestedIn('d', 'a', new Map([['b', 'a'], ['d', 'b']])));
   assert.ok(!nestedIn('a', 'x', new Map([['b', 'a']])));
 });
+
+test('parallel relationships between one pair form a short bundle with each label beside its own line', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const { renderAndCheck } = await import('../dist/qa/index.js');
+  const { labelLineDistances } = await import('../dist/engine/labels.js');
+  const doc = await readFile(new URL('./fixtures/regression/package-awkward.json', import.meta.url), 'utf8');
+  const { svg, report } = await renderAndCheck(doc);
+  assert.ok(report.ok);
+  const scene = await inspectSvg(svg);
+  const node = id => scene.nodes.find(n => n.id === id).bounds;
+  const gap = Math.max(0, node('lib').y - node('other').y - node('other').height, node('other').y - node('lib').y - node('lib').height)
+    + Math.max(0, node('lib').x - node('other').x - node('other').width, node('other').x - node('lib').x - node('lib').width);
+  const pair = scene.edges.filter(e => [e.source, e.target].sort().join() === 'lib,other');
+  assert.equal(pair.length, 5);
+  const length = pts => pts.slice(1).reduce((s, p, k) => s + Math.hypot(p.x - pts[k].x, p.y - pts[k].y), 0);
+  for (const e of pair) {
+    assert.ok(length(e.points) <= gap + 400, `${e.id} is ${length(e.points).toFixed(0)} px long for a ${gap.toFixed(0)} px gap`);
+    const label = scene.texts.find(t => t.role === 'label' && t.owner === e.id && !t.end);
+    const d = labelLineDistances(label.bounds, e.points, pair.filter(o => o !== e).map(o => o.points));
+    assert.ok(d.own <= 8 && d.other >= d.own + 6, `label of ${e.id}: ${d.own.toFixed(1)} px from its line, ${d.other.toFixed(1)} px from the next`);
+  }
+});

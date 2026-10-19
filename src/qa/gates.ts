@@ -44,10 +44,10 @@ const fmt = (r: Rect): string => `[${r.x.toFixed(1)},${r.y.toFixed(1)} ${r.width
 const snippet = (s: string): string => JSON.stringify(s.length > 40 ? `${s.slice(0, 40)}…` : s);
 
 /** Approximate footprint of a marker: its length along the line and its width across. */
-function markerBox(m: { marker: string; tip: { x: number; y: number }; direction: { x: number; y: number } }): Rect {
-  const size = m.marker.includes('diamond') ? theme.size.diamond : m.marker.includes('triangle') ? theme.size.triangle : m.marker === 'open-arrow' ? theme.size.arrow
+function markerBox(m: { marker: string; tip: { x: number; y: number }; direction: { x: number; y: number }; size?: { length: number; halfWidth: number } }): Rect {
+  const size = m.size ?? (m.marker.includes('diamond') ? theme.size.diamond : m.marker.includes('triangle') ? theme.size.triangle : m.marker === 'open-arrow' ? theme.size.arrow
     : m.marker === 'circle-plus' ? { length: 2 * theme.size.circlePlus.radius, halfWidth: theme.size.circlePlus.radius }
-    : { length: theme.size.cross.offset + theme.size.cross.half, halfWidth: theme.size.cross.half };
+    : { length: theme.size.cross.offset + theme.size.cross.half, halfWidth: theme.size.cross.half });
   const u = m.direction, n = { x: -u.y, y: u.x };
   const base = { x: m.tip.x - u.x * size.length, y: m.tip.y - u.y * size.length };
   const xs = [m.tip.x, base.x + n.x * size.halfWidth, base.x - n.x * size.halfWidth];
@@ -307,7 +307,10 @@ export function runGates(scene: Scene, expectedTexts: readonly string[] = []): Q
     // Message arrows (communication diagrams) sit beside their own link, parallel
     // to it, point from sender to receiver, touch nothing, and their labels are
     // next to them.
-    const boxes = scene.arrows.map(a => inflate(boundsOfPoints([a.from, a.to]), a.marker.includes('triangle') ? theme.size.triangle.halfWidth : theme.size.arrow.halfWidth));
+    // Half the width of each arrow's head: the declared size, else the theme's.
+    const headHalf = (a: (typeof scene.arrows)[number]): number => scene.markers.find(m => m.marker === a.marker && distance(m.tip, a.to) <= 0.5)?.size?.halfWidth
+      ?? (a.marker.includes('triangle') ? theme.size.triangle.halfWidth : theme.size.arrow.halfWidth);
+    const boxes = scene.arrows.map(a => inflate(boundsOfPoints([a.from, a.to]), headHalf(a)));
     scene.arrows.forEach((a, i) => {
       const name = `message arrow ${a.group}`;
       const edge = scene.edges.find(e => e.id === a.owner);

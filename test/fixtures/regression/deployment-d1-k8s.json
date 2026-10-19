@@ -1,0 +1,37 @@
+{
+  "kind": "deployment",
+  "title": "Hospital portal on Kubernetes",
+  "elements": [
+    { "id": "browser", "type": "device", "name": "Clinician Workstation", "elements": [
+      { "id": "chrome", "type": "executionEnvironment", "name": "Browser", "elements": [
+        { "id": "spa", "type": "artifact", "name": "portal-spa.js" } ] } ] },
+    { "id": "ingress", "type": "node", "name": "Ingress Controller", "stereotypes": ["nginx"] },
+    { "id": "cluster", "type": "node", "name": "EKS Cluster", "stereotypes": ["kubernetes"], "elements": [
+      { "id": "nodeA", "type": "node", "name": "Worker Node A", "elements": [
+        { "id": "podApi", "type": "executionEnvironment", "name": "Pod: patient-api", "elements": [
+          { "id": "apiImg", "type": "artifact", "name": "patient-api:2.4.1" },
+          { "id": "apiCfg", "type": "deploymentSpecification", "name": "api-config", "properties": [
+            { "name": "replicas", "type": "Integer", "value": "3" },
+            { "name": "cpuLimit", "value": "500m" } ] } ] } ] },
+      { "id": "nodeB", "type": "node", "name": "Worker Node B", "elements": [
+        { "id": "podSched", "type": "executionEnvironment", "name": "Pod: scheduler", "elements": [
+          { "id": "schedImg", "type": "artifact", "name": "scheduler:1.9.0" } ] } ] } ] },
+    { "id": "rds", "type": "device", "name": "RDS PostgreSQL", "stereotypes": ["managed"] },
+    { "id": "redis", "type": "node", "name": "ElastiCache Redis" },
+    { "id": "hl7", "type": "device", "name": "HL7 Interface Engine", "stereotypes": ["on-premises"] },
+    { "id": "migr", "type": "artifact", "name": "migrations.sql" },
+    { "id": "comp", "type": "component", "name": "Patient API" },
+    { "id": "note1", "type": "note", "text": "PHI never leaves the VPC except over the VPN to the HL7 engine.", "attachedTo": ["hl7"] }
+  ],
+  "relationships": [
+    { "type": "communicationPath", "from": "browser", "to": "ingress", "protocol": "HTTPS", "fromEnd": { "multiplicity": "*" }, "toEnd": { "multiplicity": "1" } },
+    { "type": "communicationPath", "from": "ingress", "to": "podApi", "protocol": "HTTP" },
+    { "type": "communicationPath", "from": "podApi", "to": "rds", "protocol": "TCP", "name": "JDBC pool" },
+    { "type": "communicationPath", "from": "podApi", "to": "redis", "protocol": "RESP" },
+    { "type": "communicationPath", "from": "podSched", "to": "rds", "protocol": "TCP" },
+    { "type": "communicationPath", "from": "podSched", "to": "hl7", "protocol": "MLLP", "name": "site-to-site VPN" },
+    { "type": "dependency", "from": "apiCfg", "to": "apiImg", "keyword": "configures" },
+    { "type": "deploy", "from": "migr", "to": "rds" },
+    { "type": "manifest", "from": "apiImg", "to": "comp" }
+  ]
+}

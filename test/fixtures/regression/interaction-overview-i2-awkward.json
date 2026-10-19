@@ -1,0 +1,233 @@
+{
+ "kind": "interaction-overview",
+ "title": "Negotiation with a really long overview title for the frame",
+ "lifelines": [
+  ":VeryLongParticipantTypeName0",
+  ":VeryLongParticipantTypeName1",
+  ":VeryLongParticipantTypeName2",
+  ":VeryLongParticipantTypeName3",
+  ":VeryLongParticipantTypeName4",
+  ":VeryLongParticipantTypeName5"
+ ],
+ "nodes": [
+  {
+   "id": "s",
+   "type": "initial"
+  },
+  {
+   "id": "m0",
+   "type": "merge"
+  },
+  {
+   "id": "big",
+   "type": "interaction",
+   "name": "NegotiateSessionParametersWithAllUpstreamProvidersBeforeTimeout",
+   "lifelines": [
+    {
+     "id": "l0",
+     "name": "participant0",
+     "type": "VeryLongParticipantTypeName0"
+    },
+    {
+     "id": "l1",
+     "name": "participant1",
+     "type": "VeryLongParticipantTypeName1"
+    },
+    {
+     "id": "l2",
+     "name": "participant2",
+     "type": "VeryLongParticipantTypeName2"
+    },
+    {
+     "id": "l3",
+     "name": "participant3",
+     "type": "VeryLongParticipantTypeName3"
+    },
+    {
+     "id": "l4",
+     "name": "participant4",
+     "type": "VeryLongParticipantTypeName4"
+    },
+    {
+     "id": "l5",
+     "name": "participant5",
+     "type": "VeryLongParticipantTypeName5"
+    }
+   ],
+   "messages": [
+    {
+     "from": "l0",
+     "to": "l1",
+     "name": "negotiateCapabilitiesAndQualityOfServiceParameters",
+     "arguments": [
+      "offer",
+      "deadline"
+     ]
+    },
+    {
+     "from": "l1",
+     "to": "l2",
+     "name": "negotiateCapabilitiesAndQualityOfServiceParameters",
+     "arguments": [
+      "offer",
+      "deadline"
+     ]
+    },
+    {
+     "from": "l2",
+     "to": "l3",
+     "name": "negotiateCapabilitiesAndQualityOfServiceParameters",
+     "arguments": [
+      "offer",
+      "deadline"
+     ]
+    },
+    {
+     "from": "l3",
+     "to": "l4",
+     "name": "negotiateCapabilitiesAndQualityOfServiceParameters",
+     "arguments": [
+      "offer",
+      "deadline"
+     ]
+    },
+    {
+     "from": "l4",
+     "to": "l5",
+     "name": "negotiateCapabilitiesAndQualityOfServiceParameters",
+     "arguments": [
+      "offer",
+      "deadline"
+     ]
+    },
+    {
+     "from": "l5",
+     "to": "l0",
+     "name": "negotiateCapabilitiesAndQualityOfServiceParameters",
+     "arguments": [
+      "offer",
+      "deadline"
+     ]
+    },
+    {
+     "from": "l3",
+     "to": "l3",
+     "name": "recomputeBudget"
+    },
+    {
+     "from": "l0",
+     "to": "l5",
+     "name": "x",
+     "sort": "asynchronous"
+    }
+   ]
+  },
+  {
+   "id": "d",
+   "type": "decision"
+  },
+  {
+   "id": "r0",
+   "type": "interaction-use",
+   "name": "HandleOutcome0WithAnExtremelyDescriptiveInteractionNameThatGoesOnAndOn",
+   "arguments": [
+    "sessionId",
+    "outcome",
+    "attemptCounter"
+   ]
+  },
+  {
+   "id": "r1",
+   "type": "interaction-use",
+   "name": "HandleOutcome1WithAnExtremelyDescriptiveInteractionNameThatGoesOnAndOn",
+   "arguments": [
+    "sessionId",
+    "outcome",
+    "attemptCounter"
+   ]
+  },
+  {
+   "id": "r2",
+   "type": "interaction-use",
+   "name": "HandleOutcome2WithAnExtremelyDescriptiveInteractionNameThatGoesOnAndOn",
+   "arguments": [
+    "sessionId",
+    "outcome",
+    "attemptCounter"
+   ]
+  },
+  {
+   "id": "r3",
+   "type": "interaction-use",
+   "name": "HandleOutcome3WithAnExtremelyDescriptiveInteractionNameThatGoesOnAndOn",
+   "arguments": [
+    "sessionId",
+    "outcome",
+    "attemptCounter"
+   ]
+  },
+  {
+   "id": "f",
+   "type": "final"
+  },
+  {
+   "id": "ff",
+   "type": "flow-final"
+  }
+ ],
+ "flows": [
+  {
+   "from": "s",
+   "to": "m0"
+  },
+  {
+   "from": "m0",
+   "to": "big"
+  },
+  {
+   "from": "big",
+   "to": "d"
+  },
+  {
+   "from": "d",
+   "to": "r0",
+   "guard": "accepted by every upstream provider within the negotiated deadline"
+  },
+  {
+   "from": "d",
+   "to": "r1",
+   "guard": "partially accepted"
+  },
+  {
+   "from": "d",
+   "to": "r2",
+   "guard": "rejected"
+  },
+  {
+   "from": "d",
+   "to": "r3",
+   "guard": "timeout"
+  },
+  {
+   "from": "d",
+   "to": "m0",
+   "guard": "retry"
+  },
+  {
+   "from": "r0",
+   "to": "f"
+  },
+  {
+   "from": "r1",
+   "to": "f"
+  },
+  {
+   "from": "r2",
+   "to": "f"
+  },
+  {
+   "from": "r3",
+   "to": "ff"
+  }
+ ]
+}
