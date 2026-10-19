@@ -1,0 +1,29 @@
+{
+  "kind": "timing",
+  "title": "Door access",
+  "timeUnit": "ms",
+  "lifelines": [
+    { "id": "reader", "name": "reader", "classifier": "CardReader", "notation": "concise",
+      "states": ["Idle", "Reading", "Granted"],
+      "changes": [ { "at": 0, "state": "Idle" }, { "at": 10, "state": "Reading" }, { "at": 25, "state": "Granted" }, { "at": 60, "state": "Idle" } ] },
+    { "id": "lock", "name": "lock", "classifier": "Lock", "notation": "robust",
+      "states": ["Locked", "Unlocked"],
+      "changes": [ { "at": 0, "state": "Locked" }, { "at": 30, "state": "Unlocked" }, { "at": 80, "state": "Locked" } ] },
+    { "id": "door", "name": "door", "classifier": "Door", "notation": "robust",
+      "states": ["Open", "Ajar", "Closed"],
+      "changes": [ { "at": 0, "state": "Closed" }, { "at": 40, "state": "Ajar" }, { "at": 45, "state": "Open" }, { "at": 70, "state": "Closed" } ] }
+  ],
+  "messages": [
+    { "from": "reader", "fromTime": 25, "to": "lock", "toTime": 30, "name": "unlock" },
+    { "from": "door", "fromTime": 70, "to": "lock", "toTime": 80, "name": "closed" }
+  ],
+  "durationConstraints": [
+    { "lifeline": "lock", "from": 30, "to": 80, "min": "0", "max": "60" }
+  ],
+  "timeConstraints": [
+    { "lifeline": "door", "at": 40, "from": 30, "to": 50 }
+  ],
+  "notes": [
+    { "lifeline": "reader", "at": 10, "text": "Card presented" }
+  ]
+}

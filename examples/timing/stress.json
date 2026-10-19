@@ -1,0 +1,723 @@
+{
+ "kind": "timing",
+ "title": "UART receive path",
+ "timeUnit": "µs",
+ "lifelines": [
+  {
+   "id": "cpu",
+   "name": "cpu",
+   "classifier": "Processor",
+   "notation": "robust",
+   "states": [
+    "Busy",
+    "Idle",
+    "Sleep"
+   ],
+   "changes": [
+    {
+     "at": 0,
+     "state": "Idle"
+    },
+    {
+     "at": 12,
+     "state": "Sleep"
+    },
+    {
+     "at": 39,
+     "state": "Busy"
+    },
+    {
+     "at": 80,
+     "state": "Sleep"
+    },
+    {
+     "at": 134,
+     "state": "Busy"
+    },
+    {
+     "at": 145,
+     "state": "Sleep"
+    },
+    {
+     "at": 173,
+     "state": "Idle"
+    },
+    {
+     "at": 214,
+     "state": "Busy"
+    },
+    {
+     "at": 264,
+     "state": "Sleep"
+    },
+    {
+     "at": 278,
+     "state": "Busy"
+    },
+    {
+     "at": 318,
+     "state": "Sleep"
+    },
+    {
+     "at": 369,
+     "state": "Idle"
+    }
+   ]
+  },
+  {
+   "id": "bus",
+   "name": "bus",
+   "classifier": "MemoryBus",
+   "notation": "robust",
+   "states": [
+    "Write",
+    "Read",
+    "Free"
+   ],
+   "changes": [
+    {
+     "at": 0,
+     "state": "Write"
+    },
+    {
+     "at": 18,
+     "state": "Read"
+    },
+    {
+     "at": 31,
+     "state": "Write"
+    },
+    {
+     "at": 37,
+     "state": "Free"
+    },
+    {
+     "at": 75,
+     "state": "Read"
+    },
+    {
+     "at": 122,
+     "state": "Write"
+    },
+    {
+     "at": 151,
+     "state": "Read"
+    },
+    {
+     "at": 164,
+     "state": "Write"
+    },
+    {
+     "at": 170,
+     "state": "Free"
+    },
+    {
+     "at": 216,
+     "state": "Read"
+    },
+    {
+     "at": 261,
+     "state": "Write"
+    },
+    {
+     "at": 284,
+     "state": "Read"
+    },
+    {
+     "at": 297,
+     "state": "Write"
+    },
+    {
+     "at": 335,
+     "state": "Read"
+    },
+    {
+     "at": 387,
+     "state": "Write"
+    }
+   ]
+  },
+  {
+   "id": "dma",
+   "name": "dma",
+   "classifier": "DmaEngine",
+   "notation": "robust",
+   "states": [
+    "Transfer",
+    "Ready"
+   ],
+   "changes": [
+    {
+     "at": 0,
+     "state": "Transfer"
+    },
+    {
+     "at": 22,
+     "state": "Ready"
+    },
+    {
+     "at": 37,
+     "state": "Transfer"
+    },
+    {
+     "at": 50,
+     "state": "Ready"
+    },
+    {
+     "at": 56,
+     "state": "Transfer"
+    },
+    {
+     "at": 104,
+     "state": "Ready"
+    },
+    {
+     "at": 143,
+     "state": "Transfer"
+    },
+    {
+     "at": 170,
+     "state": "Ready"
+    },
+    {
+     "at": 183,
+     "state": "Transfer"
+    },
+    {
+     "at": 200,
+     "state": "Ready"
+    },
+    {
+     "at": 250,
+     "state": "Transfer"
+    },
+    {
+     "at": 303,
+     "state": "Ready"
+    },
+    {
+     "at": 316,
+     "state": "Transfer"
+    },
+    {
+     "at": 362,
+     "state": "Ready"
+    }
+   ]
+  },
+  {
+   "id": "irq",
+   "name": "irq",
+   "classifier": "InterruptLine",
+   "notation": "robust",
+   "states": [
+    "Asserted",
+    "Clear"
+   ],
+   "changes": [
+    {
+     "at": 0,
+     "state": "Clear"
+    },
+    {
+     "at": 35,
+     "state": "Asserted"
+    },
+    {
+     "at": 56,
+     "state": "Clear"
+    },
+    {
+     "at": 69,
+     "state": "Asserted"
+    },
+    {
+     "at": 119,
+     "state": "Clear"
+    },
+    {
+     "at": 150,
+     "state": "Asserted"
+    },
+    {
+     "at": 189,
+     "state": "Clear"
+    },
+    {
+     "at": 202,
+     "state": "Asserted"
+    },
+    {
+     "at": 207,
+     "state": "Clear"
+    },
+    {
+     "at": 246,
+     "state": "Asserted"
+    },
+    {
+     "at": 285,
+     "state": "Clear"
+    },
+    {
+     "at": 322,
+     "state": "Asserted"
+    },
+    {
+     "at": 335,
+     "state": "Clear"
+    },
+    {
+     "at": 390,
+     "state": "Asserted"
+    }
+   ]
+  },
+  {
+   "id": "uart",
+   "name": "uart",
+   "classifier": "Uart",
+   "notation": "concise",
+   "states": [
+    "IDLE",
+    "START",
+    "DATA",
+    "STOP"
+   ],
+   "changes": [
+    {
+     "at": 0,
+     "state": "IDLE"
+    },
+    {
+     "at": 48,
+     "state": "DATA"
+    },
+    {
+     "at": 75,
+     "state": "START"
+    },
+    {
+     "at": 88,
+     "state": "STOP"
+    },
+    {
+     "at": 123,
+     "state": "IDLE"
+    },
+    {
+     "at": 177,
+     "state": "DATA"
+    },
+    {
+     "at": 208,
+     "state": "START"
+    },
+    {
+     "at": 221,
+     "state": "DATA"
+    },
+    {
+     "at": 260,
+     "state": "START"
+    },
+    {
+     "at": 341,
+     "state": "STOP"
+    },
+    {
+     "at": 349,
+     "state": "DATA"
+    },
+    {
+     "at": 354,
+     "state": "IDLE"
+    }
+   ]
+  },
+  {
+   "id": "fifo",
+   "name": "fifo",
+   "classifier": "RxFifo",
+   "notation": "concise",
+   "states": [
+    "EMPTY",
+    "PARTIAL",
+    "FULL"
+   ],
+   "changes": [
+    {
+     "at": 0,
+     "state": "EMPTY"
+    },
+    {
+     "at": 51,
+     "state": "PARTIAL"
+    },
+    {
+     "at": 94,
+     "state": "EMPTY"
+    },
+    {
+     "at": 107,
+     "state": "PARTIAL"
+    },
+    {
+     "at": 121,
+     "state": "EMPTY"
+    },
+    {
+     "at": 190,
+     "state": "PARTIAL"
+    },
+    {
+     "at": 227,
+     "state": "FULL"
+    },
+    {
+     "at": 240,
+     "state": "EMPTY"
+    },
+    {
+     "at": 247,
+     "state": "PARTIAL"
+    },
+    {
+     "at": 329,
+     "state": "EMPTY"
+    },
+    {
+     "at": 360,
+     "state": "FULL"
+    },
+    {
+     "at": 373,
+     "state": "EMPTY"
+    }
+   ]
+  },
+  {
+   "id": "driver",
+   "name": "driver",
+   "classifier": "UartDriver",
+   "notation": "concise",
+   "states": [
+    "WAIT",
+    "COPY",
+    "NOTIFY"
+   ],
+   "changes": [
+    {
+     "at": 0,
+     "state": "NOTIFY"
+    },
+    {
+     "at": 30,
+     "state": "WAIT"
+    },
+    {
+     "at": 94,
+     "state": "NOTIFY"
+    },
+    {
+     "at": 113,
+     "state": "COPY"
+    },
+    {
+     "at": 126,
+     "state": "NOTIFY"
+    },
+    {
+     "at": 181,
+     "state": "WAIT"
+    },
+    {
+     "at": 234,
+     "state": "COPY"
+    },
+    {
+     "at": 246,
+     "state": "WAIT"
+    },
+    {
+     "at": 259,
+     "state": "NOTIFY"
+    },
+    {
+     "at": 319,
+     "state": "WAIT"
+    },
+    {
+     "at": 379,
+     "state": "NOTIFY"
+    },
+    {
+     "at": 387,
+     "state": "COPY"
+    }
+   ]
+  },
+  {
+   "id": "app",
+   "name": "app",
+   "classifier": "Application",
+   "notation": "concise",
+   "states": [
+    "RUN",
+    "HANDLE"
+   ],
+   "changes": [
+    {
+     "at": 0,
+     "state": "RUN"
+    },
+    {
+     "at": 56,
+     "state": "HANDLE"
+    },
+    {
+     "at": 103,
+     "state": "RUN"
+    },
+    {
+     "at": 132,
+     "state": "HANDLE"
+    },
+    {
+     "at": 159,
+     "state": "RUN"
+    },
+    {
+     "at": 248,
+     "state": "HANDLE"
+    },
+    {
+     "at": 265,
+     "state": "RUN"
+    },
+    {
+     "at": 298,
+     "state": "HANDLE"
+    },
+    {
+     "at": 361,
+     "state": "RUN"
+    }
+   ]
+  }
+ ],
+ "messages": [
+  {
+   "from": "cpu",
+   "fromTime": 12,
+   "to": "bus",
+   "toTime": 18,
+   "name": "m1",
+   "arguments": [
+    "b0"
+   ]
+  },
+  {
+   "from": "bus",
+   "fromTime": 31,
+   "to": "dma",
+   "toTime": 37,
+   "name": "m2"
+  },
+  {
+   "from": "dma",
+   "fromTime": 50,
+   "to": "irq",
+   "toTime": 56,
+   "name": "m3"
+  },
+  {
+   "from": "irq",
+   "fromTime": 69,
+   "to": "uart",
+   "toTime": 75,
+   "name": "m4",
+   "arguments": [
+    "b3"
+   ]
+  },
+  {
+   "from": "uart",
+   "fromTime": 88,
+   "to": "fifo",
+   "toTime": 94,
+   "name": "m5"
+  },
+  {
+   "from": "fifo",
+   "fromTime": 107,
+   "to": "driver",
+   "toTime": 113,
+   "name": "m6"
+  },
+  {
+   "from": "driver",
+   "fromTime": 126,
+   "to": "app",
+   "toTime": 132,
+   "name": "m7",
+   "arguments": [
+    "b6"
+   ]
+  },
+  {
+   "from": "cpu",
+   "fromTime": 145,
+   "to": "bus",
+   "toTime": 151,
+   "name": "m8"
+  },
+  {
+   "from": "bus",
+   "fromTime": 164,
+   "to": "dma",
+   "toTime": 170,
+   "name": "m9"
+  },
+  {
+   "from": "dma",
+   "fromTime": 183,
+   "to": "irq",
+   "toTime": 189,
+   "name": "m10",
+   "arguments": [
+    "b9"
+   ]
+  },
+  {
+   "from": "irq",
+   "fromTime": 202,
+   "to": "uart",
+   "toTime": 208,
+   "name": "m11"
+  },
+  {
+   "from": "uart",
+   "fromTime": 221,
+   "to": "fifo",
+   "toTime": 227,
+   "name": "m12"
+  },
+  {
+   "from": "fifo",
+   "fromTime": 240,
+   "to": "driver",
+   "toTime": 246,
+   "name": "m13",
+   "arguments": [
+    "b12"
+   ]
+  },
+  {
+   "from": "driver",
+   "fromTime": 259,
+   "to": "app",
+   "toTime": 265,
+   "name": "m14"
+  },
+  {
+   "from": "cpu",
+   "fromTime": 278,
+   "to": "bus",
+   "toTime": 284,
+   "name": "m15"
+  },
+  {
+   "from": "bus",
+   "fromTime": 297,
+   "to": "dma",
+   "toTime": 303,
+   "name": "m16",
+   "arguments": [
+    "b15"
+   ]
+  },
+  {
+   "from": "dma",
+   "fromTime": 316,
+   "to": "irq",
+   "toTime": 322,
+   "name": "m17"
+  },
+  {
+   "from": "irq",
+   "fromTime": 335,
+   "to": "uart",
+   "toTime": 341,
+   "name": "m18"
+  },
+  {
+   "from": "uart",
+   "fromTime": 354,
+   "to": "fifo",
+   "toTime": 360,
+   "name": "m19",
+   "arguments": [
+    "b18"
+   ]
+  },
+  {
+   "from": "fifo",
+   "fromTime": 373,
+   "to": "driver",
+   "toTime": 379,
+   "name": "m20"
+  }
+ ],
+ "durationConstraints": [
+  {
+   "lifeline": "cpu",
+   "from": 12,
+   "to": 80,
+   "min": "20",
+   "max": "90"
+  },
+  {
+   "lifeline": "dma",
+   "from": 37,
+   "to": 56,
+   "min": "10",
+   "max": "60"
+  },
+  {
+   "lifeline": "irq",
+   "from": 150,
+   "to": 202,
+   "min": "d",
+   "max": "3*d"
+  }
+ ],
+ "timeConstraints": [
+  {
+   "lifeline": "irq",
+   "at": 69,
+   "from": 61,
+   "to": 77
+  }
+ ],
+ "highlights": [
+  {
+   "from": 300,
+   "to": 340,
+   "label": "low-power window"
+  }
+ ],
+ "notes": [
+  {
+   "lifeline": "uart",
+   "at": 48,
+   "text": "Start bit detected"
+  },
+  {
+   "lifeline": "app",
+   "at": 103,
+   "position": "bottom",
+   "text": "Handler runs at task level"
+  }
+ ]
+}
