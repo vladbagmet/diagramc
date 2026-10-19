@@ -96,7 +96,7 @@ export async function drawInteractionOverview(scene: OverviewScene, metrics: Fon
   for (const label of scene.labels) {
     canvas.labels.push(canvas.text(label.text, label.rect.x, label.rect.y + baselineOffset(metrics, GUARD.size, lh), {
       ...GUARD, fill: theme.color.edgeText, role: 'label', owner: label.owner, halo: true,
-      data: { 'data-uml-end': label.end, 'data-uml-anchor': `${num(label.anchor.x)},${num(label.anchor.y)}` },
+      data: label.end && label.anchor ? { 'data-uml-end': label.end, 'data-uml-anchor': `${num(label.anchor.x)},${num(label.anchor.y)}` } : {},
     }));
   }
   return canvas.finish({ width: scene.width, height: scene.height, kind: 'interaction-overview', title: scene.frame?.title });
