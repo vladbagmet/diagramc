@@ -15,7 +15,7 @@ example passes every QA gate.
 | Actor | `type: "actor"`, `stereotypes` | Stick figure with the name below; «stereotype» above the name (18.1.4) | uc: "UML 2.5.1 notation of actors, use cases, subjects and relationships" |
 | Use case | `type: "useCase"` | Ellipse with the name inside (18.1.4) | uc: ellipse, `data-uml-shape="ellipse"` |
 | Extension points | `extensionPoints[]` | A line across the ellipse, then "extension points" and one point per line (18.1.4) | uc: chord line, heading and points; fixture "many extension points" |
-| Subject (system boundary) | `type: "subject"`, `useCases[].subject` | Rectangle around its use cases, name at the top, optional «subsystem» (18.1.4) | uc: use cases' parent is the subject, bold name at the top |
+| Subject (system boundary) | `type: "subject"`; each use case inside it sets `"subject": "<subject id>"` (the subject has no list of use cases) | Rectangle around its use cases, name at the top, optional «subsystem» (18.1.4) | uc: use cases' parent is the subject, bold name at the top |
 | Association | `type: "association"` | Solid line between actor and use case, no arrowheads; optional name and end multiplicities (18.1.4) | uc: markers `none`, `1` and `0..*` at their ends |
 | «include» | `type: "include"`, from base to included | Dashed line, open arrowhead at the included use case, «include» (18.1.4) | uc: dashed, `open-arrow` at the target |
 | «extend» | `type: "extend"`, from extension to base | Dashed line, open arrowhead at the base use case, «extend» (18.1.4) | uc: dashed, `open-arrow` at the base |

@@ -13,7 +13,7 @@ export const interactionOverviewSchema = kindSchema({
   description: 'An activity-like control flow (top-down) whose nodes are interaction uses (ref frames) and inline interactions (sd frames with a small sequence fragment), plus initial, final, flow-final, decision, merge, fork and join nodes (UML 2.5.1 clause 17.10). Exactly one initial node; every node must be reachable from it; every path ends in a final node.',
   required: ['nodes'],
   properties: {
-    lifelines: { type: 'array', minItems: 1, maxItems: 12, items: ref('name'), description: 'Optional lifelines list for the frame heading, drawn "sd <title> lifelines :A, :B". Write each entry as it should appear, e.g. ":User".' },
+    lifelines: { type: 'array', minItems: 1, maxItems: 12, items: ref('name'), description: 'Optional lifelines list for the frame heading, drawn "sd <title> lifelines :A, :B". Write each entry as it should appear, e.g. ":User" or "u:User"; an entry without a colon is a type and is drawn ":User".' },
     nodes: { type: 'array', minItems: 1, maxItems: 60, items: ref('node'), description: 'IDs share one namespace with flows and inline lifelines and messages.' },
     flows: { type: 'array', maxItems: 120, items: ref('flow'), description: 'Control flows, drawn as solid lines with an open arrowhead at `to`.' },
   },

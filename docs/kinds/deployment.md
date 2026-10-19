@@ -21,7 +21,7 @@ node, below its name.
 | Device | `type = "device"` | Node with «device» above the name (19.4.4) | same test |
 | Execution environment | `type = "executionEnvironment"` | Node with «executionEnvironment» above the name (19.4.4) | same test |
 | Stereotypes | `stereotypes` | «a, b» above the name, below the keyword (22.3.4) | same test («blade») |
-| Nesting | `elements` of a node, device or execution environment | Nested nodes and deployed elements drawn inside the front face (19.4.4, 19.2.4) | same test (parent and containment for four levels) |
+| Nesting | `elements` of a node, device or execution environment | Nested nodes and deployed elements drawn inside the front face (19.4.4, 19.2.4) | same test (parent and containment for four levels; up to six are allowed, e.g. data centre, rack, server, hypervisor, JVM, WAR) |
 | Artifact | `type = "artifact"` | Rectangle with «artifact» and the document icon in the top-right corner (19.3.4) | same test |
 | Deployment of an artifact | an artifact nested in a node, or `type = "deploy"` | Artifact drawn inside the node, or a dashed line with an open arrowhead from the artifact to the node and «deploy» (19.2.4) | deployment: "«deploy» and «manifest» are dashed..."; fixture "deploy dependencies onto nested execution environments" |
 | Deployment specification | `type = "deploymentSpecification"`, `properties` | Rectangle with «deployment spec» and the document icon, properties `name : type = value` in a compartment (19.2.4) | deployment: "UML notation: nodes are 3D boxes..." (`heap = 2g`) |
@@ -47,7 +47,7 @@ node, below its name.
 | INVALID_NESTING | an execution environment contains no nodes or devices | `/elements/0/elements/0/type` |
 | NOTE_IN_RELATIONSHIP | relationships do not connect notes | `/relationships/0/to` |
 | INVALID_ATTACHMENT | a note is not attached to a note | `/elements/1/attachedTo/0` |
-| NESTING_TOO_DEEP | at most four levels of nesting | `/elements/0/elements/0/elements/0/elements/0/elements/0/elements/0` |
+| NESTING_TOO_DEEP | at most six levels of nesting | `/elements/0/elements/0/elements/0/elements/0/elements/0/elements/0/elements/0/elements/0` |
 | SCHEMA_INVALID | unknown properties, nested elements in an artifact, notes nested in nodes, roles on path ends, `protocol` on a deploy, unknown relationship types | see `invalid.json` |
 | INVALID_TEXT | blank text, unpaired surrogates, bidi controls | `/elements/0/name` |
 

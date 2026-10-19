@@ -1927,5 +1927,6 @@
    "code": "DECISION_SPANS_PARTITIONS",
    "path": "/nodes/1/partition"
   }
- }
+ },
+  {"name": "guard written with its brackets", "expect": {"code": "SCHEMA_INVALID", "path": "/edges/2/guard"}, "doc": {"kind": "activity", "nodes": [{"id": "i", "type": "initial"}, {"id": "d", "type": "decision"}, {"id": "a", "type": "action", "name": "A"}, {"id": "f", "type": "activityFinal"}, {"id": "g", "type": "flowFinal"}], "edges": [{"from": "i", "to": "d"}, {"from": "d", "to": "a", "guard": "ok"}, {"from": "d", "to": "g", "guard": "[else]"}, {"from": "a", "to": "f"}]}}
 ]

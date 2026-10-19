@@ -62,5 +62,6 @@
   { "name": "unsupported relationship type", "expect": { "code": "SCHEMA_INVALID", "path": "/relationships/0/type" },
     "doc": { "kind": "profile", "elements": [{ "id": "s", "type": "stereotype", "name": "S" }, { "id": "m", "type": "metaclass", "name": "Class" }], "relationships": [{ "type": "association", "from": "s", "to": "m" }] } },
   { "name": "blank stereotype name", "expect": { "code": "INVALID_TEXT", "path": "/elements/0/name" },
-    "doc": { "kind": "profile", "elements": [{ "id": "s", "type": "stereotype", "name": "\u00a0 " }] } }
+    "doc": { "kind": "profile", "elements": [{ "id": "s", "type": "stereotype", "name": "\u00a0 " }] } },
+  {"name": "applied stereotype that the diagram does not define", "expect": {"code": "UNKNOWN_STEREOTYPE", "path": "/elements/3/stereotypes/0"}, "doc": {"kind": "profile", "elements": [{"id": "p", "type": "profile", "name": "P", "members": ["s", "m"]}, {"id": "s", "type": "stereotype", "name": "Resource"}, {"id": "m", "type": "metaclass", "name": "Class"}, {"id": "c", "type": "class", "name": "Order", "stereotypes": ["Resorce"]}], "relationships": [{"type": "extension", "from": "s", "to": "m"}]}}
 ]

@@ -66,5 +66,8 @@
   { "name": "blank attribute type", "expect": { "code": "INVALID_TEXT", "path": "/elements/0/attributes/0/type" },
     "doc": { "kind": "class", "elements": [{ "id": "a", "type": "class", "name": "A", "attributes": [{ "name": "x", "type": "   " }] }] } },
   { "name": "unknown kind", "expect": { "code": "UNKNOWN_KIND", "path": "/kind" },
-    "doc": { "kind": "klass", "elements": [] } }
+    "doc": { "kind": "klass", "elements": [] } },
+  {"name": "derived mark written in the attribute name", "expect": {"code": "DERIVED_MARK_IN_NAME", "path": "/elements/0/attributes/0/name"}, "doc": {"kind": "class", "elements": [{"id": "a", "type": "class", "name": "A", "attributes": [{"name": "/overdue", "type": "Boolean"}]}]}},
+  {"name": "keyword written with guillemets", "expect": {"code": "SCHEMA_INVALID", "path": "/relationships/0/keyword"}, "doc": {"kind": "class", "elements": [{"id": "a", "type": "class", "name": "A"}, {"id": "b", "type": "class", "name": "B"}], "relationships": [{"type": "dependency", "from": "a", "to": "b", "keyword": "«use»"}]}},
+  {"name": "stereotype written with << >>", "expect": {"code": "SCHEMA_INVALID", "path": "/elements/0/stereotypes/0"}, "doc": {"kind": "class", "elements": [{"id": "a", "type": "class", "name": "A", "stereotypes": ["<<entity>>"]}]}}
 ]

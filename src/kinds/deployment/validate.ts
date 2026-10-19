@@ -7,7 +7,7 @@ import { isNodeType, type DeploymentDiagram, type Element, type Note } from './m
  * Semantic rules of deployment diagrams (UML 2.5.1 clause 19). Codes are
  * stable; docs/kinds/deployment.md lists them with their fixtures.
  */
-export const MAX_DEPLOYMENT_DEPTH = 4;
+export const MAX_DEPLOYMENT_DEPTH = 6;
 
 export function validateDeploymentDiagram(model: DeploymentDiagram): Diagnostic[] {
   const diagnostics: Diagnostic[] = [];

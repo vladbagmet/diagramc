@@ -206,6 +206,14 @@ function withHints(kind: KindDefinition, document: unknown, diagnostics: Diagnos
         return { ...d, message: `${d.message}. "${details.property}" on a ${type} belongs to ${elsewhere.map(k => `${k} diagrams`).join(' and ')}; this ${kind.kind} diagram does not draw it, so remove it (or draw it in a ${elsewhere[0]} diagram)` };
       }
     }
+    if (d.code === 'MISSING_REFERENCE' && /\/attachedTo\/\d+$/u.test(d.path)) {
+      // A note attached to a relationship (UML allows it; this kind draws note anchors to elements only).
+      const wrong = valueAt(document, d.path);
+      const relationship = typeof wrong === 'string' ? findRelationship(document, wrong) : undefined;
+      if (relationship) {
+        return { ...d, message: `"${wrong}" is a relationship; notes in ${kind.kind} diagrams attach to elements, so attach this note to one of its ends ("${relationship.from}" or "${relationship.to}")`, details: { ...(d.details as object | undefined), relationship: wrong, ends: [relationship.from, relationship.to] } };
+      }
+    }
     if (d.code === 'MISSING_REFERENCE') {
       // A reference by name: point at the ID of the element with that name.
       const wrong = (d.details as { id?: unknown } | undefined)?.id ?? valueAt(document, d.path);
@@ -225,6 +233,16 @@ function withSwapHints(kind: KindDefinition, document: unknown, diagnostics: Dia
 function annotateSwap(d: Diagnostic, swapped: ReadonlyMap<string, { from: string; to: string; type?: string }>): Diagnostic {
   const item = swapped.get(itemPath(d.path));
   return item ? { ...d, message: `${d.message} (from and to look swapped: with "from": "${item.to}" and "to": "${item.from}" this ${item.type ?? 'relationship'} is valid)`, details: { ...(d.details as object | undefined), swap: { from: item.to, to: item.from } } } : d;
+}
+
+/** The item with this ID in a relationship array of the document. */
+function findRelationship(document: unknown, id: string): { from: string; to: string } | undefined {
+  for (const [array, items] of Object.entries(document as Record<string, unknown>)) {
+    if (!RELATIONSHIP_ARRAYS.has(array) || !Array.isArray(items)) continue;
+    const hit = items.find(r => r && typeof r === 'object' && (r as Record<string, unknown>).id === id) as Record<string, unknown> | undefined;
+    if (hit && typeof hit.from === 'string' && typeof hit.to === 'string') return { from: hit.from, to: hit.to };
+  }
+  return undefined;
 }
 
 /** ID of the one object in the document whose `name` is `name` (ignoring case and spacing). */

@@ -44,7 +44,9 @@ export interface OverviewScene {
 
 /** Heading text of the diagram frame: title and the optional lifelines list. */
 export function frameName(model: InteractionOverviewDiagram): string | undefined {
-  const parts = [model.title, model.lifelines && `lifelines ${model.lifelines.join(', ')}`].filter((p): p is string => !!p);
+  // An entry without a colon names the lifeline's type: drawn ":Type", as in the UML heading "lifelines :User, :Shop".
+  const lifeline = (l: string): string => l.includes(':') ? l : `:${l}`;
+  const parts = [model.title, model.lifelines && `lifelines ${model.lifelines.map(lifeline).join(', ')}`].filter((p): p is string => !!p);
   return parts.length ? parts.join(' ') : undefined;
 }
 
