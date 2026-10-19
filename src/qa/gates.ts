@@ -32,6 +32,8 @@ function markerBox(m: { marker: string; tip: { x: number; y: number }; direction
 
 export function runGates(scene: Scene, expectedTexts: readonly string[] = []): QaReport {
   const engine = scene.renderer === 'engine';
+  // Edge gates need exact edge geometry: the own engine, or a PlantUML reader that provides it.
+  const exactEdges = engine || scene.exactEdges === true;
   const gates: GateResult[] = [];
   const gate = (name: string, check: (fail: (message: string) => void) => void, skip = false): void => {
     if (skip) { gates.push({ gate: name, ok: true, skipped: true, failures: [] }); return; }
@@ -79,7 +81,7 @@ export function runGates(scene: Scene, expectedTexts: readonly string[] = []): Q
         if (segmentIntersectsRect(e.points[k - 1]!, e.points[k]!, box)) { fail(`label ${snippet(label.content)} crosses edge ${e.id}`); break; }
       }
     }
-  }, !engine);
+  }, !exactEdges);
 
   gate('label-proximity', fail => {
     // An end label must sit near its own end and nearer to it than to any other
@@ -96,7 +98,7 @@ export function runGates(scene: Scene, expectedTexts: readonly string[] = []): Q
       const rival = ends.find(o => !(o.edge === label.owner && o.end === label.end) && distanceToRect(o.p, label.bounds) < near - 2);
       if (rival) fail(`end label ${snippet(label.content)} of ${label.owner} is closer to an end of ${rival.edge} than to its own`);
     }
-  }, !engine);
+  }, !exactEdges);
 
   gate('edge-endpoints', fail => {
     for (const e of scene.edges) {
@@ -115,7 +117,7 @@ export function runGates(scene: Scene, expectedTexts: readonly string[] = []): Q
         }
       }
     }
-  }, !engine);
+  }, !exactEdges);
 
   gate('markers', fail => {
     for (const e of scene.edges) {
@@ -141,7 +143,7 @@ export function runGates(scene: Scene, expectedTexts: readonly string[] = []): Q
     for (const m of scene.markers) {
       if (!scene.edges.some(e => distance(e.points[0]!, m.tip) <= 0.5 || distance(e.points.at(-1)!, m.tip) <= 0.5)) fail(`${m.marker} at (${m.tip.x}, ${m.tip.y}) is not at an edge end`);
     }
-  }, !engine);
+  }, !exactEdges);
 
   gate('literal-text', fail => {
     const contents = scene.texts.map(t => t.content);
