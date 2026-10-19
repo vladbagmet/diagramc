@@ -6,6 +6,7 @@ import { direction, simplify, union, type Point, type Rect } from './geometry.js
 import { labelCost, labelFits, placeLabels, type LabelRequest } from './labels.js';
 import { drawPackageNode, measurePackage, packageTabRect, type MeasuredPackage, type PackageHeader } from './packages.js';
 import { repairRoutes, type RepairNode } from './repair.js';
+import { bundleHub, bundleSpacing, type BundleMember } from './bundles.js';
 import { chooseLayout, countCrossings, LAYOUT_VARIANTS, routesLength, type LayoutVariant } from './aspect.js';
 import { planSelfLoops, selfLoopRoute, type SelfLoopPlan } from './selfloops.js';
 import { baselineOffset, startsData, drawBox, drawFrame, drawNote, measureBox, measureFrameHeading, measureNote, type Compartment, type MeasuredBox } from './shapes.js';
@@ -103,6 +104,8 @@ export interface DiagramScene {
 const LABEL: TextStyle = { size: theme.font.size.label };
 const CENTER_LABEL_WIDTH = 180;
 const CONTAINER_PAD = 18;
+/** ELK's gap between neighbouring ports on a side ('elk.spacing.portPort' in elk.ts). */
+const BUNDLE_PORT_GAP = 6;
 /** Room between lines meeting a container's border: two arrowheads side by side plus a gap. */
 const CONTAINER_PORT_SPACING = 2 * theme.size.triangle.halfWidth + 12;
 
@@ -132,13 +135,13 @@ const JOG = 12;
  * leaves a few-pixel sidestep between a port and the main line) by sliding the
  * start point along the node's border, if it stays clear of the corners.
  */
-function straightenJog(route: Point[], node: Rect): Point[] {
+function straightenJog(route: Point[], node: Rect, max = JOG): Point[] {
   if (route.length < 4) return route;
   const [p0, p1, p2, p3] = route as [Point, Point, Point, Point];
   const vertical = Math.abs(p0.x - p1.x) < 0.01 && Math.abs(p2.x - p3.x) < 0.01 && Math.abs(p1.y - p2.y) < 0.01;
   const horizontal = Math.abs(p0.y - p1.y) < 0.01 && Math.abs(p2.y - p3.y) < 0.01 && Math.abs(p1.x - p2.x) < 0.01;
   const jog = Math.hypot(p2.x - p1.x, p2.y - p1.y);
-  if ((!vertical && !horizontal) || jog < 0.01 || jog > JOG) return route;
+  if ((!vertical && !horizontal) || jog < 0.01 || jog > max) return route;
   const start = { x: p0.x + (p2.x - p1.x), y: p0.y + (p2.y - p1.y) };
   const margin = 8;
   if (vertical && (start.x < node.x + margin || start.x > node.x + node.width - margin)) return route;
@@ -243,6 +246,34 @@ export async function layoutDiagram(spec: DiagramSpec, metrics: FontMetrics): Pr
     return p;
   });
 
+  // Parallel relationships between one pair of nodes with center labels (no end
+  // labels, not tree edges) run as a bundle through an invisible hub node in the
+  // innermost container of both ends (src/engine/bundles.ts).
+  const chain = (id: string): string[] => { const out: string[] = []; for (let p = all.get(id)?.parent; p; p = all.get(p)?.parent) out.push(p); return out; };
+  interface Bundle { id: string; source: string; target: string; parent: string | undefined; members: EdgePlan[]; info: BundleMember[] }
+  const bundles: Bundle[] = [];
+  const bundleOf = new Map<string, { bundle: Bundle; index: number; forward: boolean }>();
+  {
+    const groups = new Map<string, EdgePlan[]>();
+    for (const p of plans) {
+      const e = p.spec;
+      if (e.source === e.target || e.tree || e.reversed || p.ends.length || chain(e.source).includes(e.target) || chain(e.target).includes(e.source)) continue;
+      const key = [e.source, e.target].sort().join('\u0000');
+      groups.set(key, [...(groups.get(key) ?? []), p]);
+    }
+    for (const members of groups.values()) {
+      if (members.length < 2 || !members.some(p => p.center)) continue;
+      const { source, target } = members[0]!.spec;
+      const targetChain = new Set(chain(target));
+      const bundle: Bundle = {
+        id: `${members[0]!.spec.id}::bundle`, source, target, parent: chain(source).find(id => targetChain.has(id)), members,
+        info: members.map(p => ({ id: p.spec.id, markers: [p.spec.sourceMarker, p.spec.targetMarker], label: p.center ? { width: Math.max(...p.center.widths), height: p.center.lines.length * lineHeight } : undefined })),
+      };
+      bundles.push(bundle);
+      members.forEach((p, index) => bundleOf.set(p.spec.id, { bundle, index, forward: p.spec.source === source }));
+    }
+  }
+
   // Self-loops are routed by the engine, not ELK; plan their room first (leaf nodes only).
   const loopsByNode = new Map<string, EdgePlan[]>();
   for (const p of plans) if (p.spec.source === p.spec.target) loopsByNode.set(p.spec.source, [...(loopsByNode.get(p.spec.source) ?? []), p]);
@@ -275,6 +306,20 @@ export async function layoutDiagram(spec: DiagramSpec, metrics: FontMetrics): Pr
     for (const p of plans) {
       const e = p.spec;
       if (e.source === e.target) continue;
+      const member = bundleOf.get(e.id);
+      if (member) {
+        // Bundle members leave the bundle's source and reach its target, whatever their own direction.
+        for (const end of ['source', 'target'] as const) {
+          const node = end === 'source' ? member.bundle.source : member.bundle.target;
+          if (isContainer(node)) continue;
+          const marker = (end === 'source') === member.forward ? e.sourceMarker : e.targetMarker;
+          const id = `${e.id}::port-${end}`;
+          // Ports as far apart as the lines inside the hub, so the lines run straight into it.
+          addPort(node, { id, side: end === 'source' ? side.out : side.in, width: Math.max(2 * markerExtent(marker).half + 2, bundleSpacing(member.bundle.info) - BUNDLE_PORT_GAP) });
+          endPort.set(`${e.id}\u0000${end}`, id);
+        }
+        continue;
+      }
       if (e.tree && isContainer(e.target)) p.elkSource = e.target;
       if (e.tree) {
         if (!isContainer(e.target) && !treePorts.has(p.elkSource)) {
@@ -302,6 +347,15 @@ export async function layoutDiagram(spec: DiagramSpec, metrics: FontMetrics): Pr
     // ELK ignores minimum sizes of compound nodes: a container narrower than its
     // tab gets extra right padding and the layout runs again.
     const extraRight = new Map<string, number>();
+    // Hubs: lines enter on the side facing the bundle's source (top or left; mirrored for UP and LEFT).
+    const flip = dir === 'UP' || dir === 'LEFT';
+    const hubs = (parent: string | undefined): LayoutNode[] => bundles.filter(b => b.parent === parent).map(b => {
+      const hub = bundleHub(b.info, dir === 'DOWN' || dir === 'UP');
+      const mirror = (q: Point): Point => flip ? (dir === 'UP' ? { x: q.x, y: hub.height - q.y } : { x: hub.width - q.x, y: q.y }) : q;
+      return { id: b.id, width: hub.width, height: hub.height, fixedSize: true, ports: b.members.flatMap((p, i) => [
+        { id: `${b.id}::in${i}`, side: side.in, position: mirror(hub.enter[i]!) }, { id: `${b.id}::out${i}`, side: side.out, position: mirror(hub.exit[i]!) },
+      ]) };
+    });
     const toLayout = (id: string): LayoutNode => {
       const { spec: node } = all.get(id)!;
       const size = sizes.get(id)!;
@@ -314,7 +368,7 @@ export async function layoutDiagram(spec: DiagramSpec, metrics: FontMetrics): Pr
         id, width: size.width, height: Math.max(size.height - (leafPackage?.tab.height ?? 0), loops?.minHeight ?? 0),
         ...(leafPackage ? { reserveTop: leafPackage.tab } : {}),
         ...(node.children?.length ? {
-          children: node.children.map(c => toLayout(c.id)),
+          children: [...node.children.map(c => toLayout(c.id)), ...hubs(id)],
           padding: { top: pkg!.tab.height + CONTAINER_PAD, left: CONTAINER_PAD, bottom: CONTAINER_PAD, right: CONTAINER_PAD + (extraRight.get(id) ?? 0) },
           portSpacing: CONTAINER_PORT_SPACING,
         } : {}),
@@ -322,22 +376,32 @@ export async function layoutDiagram(spec: DiagramSpec, metrics: FontMetrics): Pr
         ...(loops ? { reserveRight: loops.reserveRight, reserveAbove: loops.reserveAbove, reserveBelow: loops.reserveBelow } : {}),
       };
     };
-    const edges: LayoutEdge[] = plans.filter(p => p.spec.source !== p.spec.target).map(p => {
+    const edges: LayoutEdge[] = plans.filter(p => p.spec.source !== p.spec.target).flatMap((p): LayoutEdge[] => {
       const e = p.spec;
+      const member = bundleOf.get(e.id);
+      if (member) {
+        const { bundle, index } = member;
+        return [
+          { id: `${e.id}::in`, source: endPort.get(`${e.id}\u0000source`) ?? bundle.source, target: `${bundle.id}::in${index}`, directionPriority: 1, straightnessPriority: 10 },
+          { id: `${e.id}::out`, source: `${bundle.id}::out${index}`, target: endPort.get(`${e.id}\u0000target`) ?? bundle.target, directionPriority: 1, straightnessPriority: 10 },
+        ];
+      }
       const labels: LayoutLabel[] = [];
       if (p.center) labels.push({ id: `${e.id}::center`, width: Math.max(...p.center.widths) + 4, height: p.center.lines.length * lineHeight, placement: 'center' });
       p.ends.forEach((l, k) => labels.push({ id: `${e.id}::end${k}`, width: l.width + 4, height: lineHeight, placement: (l.end === 'source') !== !!(e.tree || e.reversed) ? 'tail' : 'head' }));
       const sourcePort = endPort.get(`${e.id}\u0000source`) ?? e.source, targetPort = endPort.get(`${e.id}\u0000target`) ?? e.target;
-      return {
+      return [{
         id: e.id,
         source: e.tree ? p.elkSource : e.reversed ? targetPort : sourcePort,
         target: e.tree ? e.source : e.reversed ? sourcePort : targetPort,
         labels,
         directionPriority: e.priority ?? (e.tree || e.reversed ? 10 : 1),
-      };
+      }];
     });
-    const options = { direction: dir, elk: LAYOUT_VARIANTS[variant] };
-    let result = await layout(spec.nodes.map(n => toLayout(n.id)), edges, options);
+    const roots = (): LayoutNode[] => [...spec.nodes.map(n => toLayout(n.id)), ...hubs(undefined)];
+    // Network simplex node placement keeps the lines into and out of a bundle's hub straight.
+    const options = { direction: dir, elk: { ...LAYOUT_VARIANTS[variant], ...(bundles.length ? { 'elk.layered.nodePlacement.strategy': 'NETWORK_SIMPLEX' } : {}) } };
+    let result = await layout(roots(), edges, options);
     for (let pass = 0; pass < 3; pass++) {
       let changed = false;
       for (const [id, pkg] of packages) {
@@ -347,7 +411,7 @@ export async function layoutDiagram(spec: DiagramSpec, metrics: FontMetrics): Pr
         changed = true;
       }
       if (!changed) break;
-      result = await layout(spec.nodes.map(n => toLayout(n.id)), edges, options);
+      result = await layout(roots(), edges, options);
     }
     return { result, dir };
   };
@@ -371,6 +435,7 @@ export async function layoutDiagram(spec: DiagramSpec, metrics: FontMetrics): Pr
   // Routes from the semantic source border to the semantic target border.
   const loopIndex = new Map<string, number>();
   const routes = new Map<string, Point[]>();
+  const bundled = new Set<string>(), bundleLabels = new Map<string, Rect>();
   for (const p of plans) {
     const e = p.spec;
     if (e.source === e.target) {
@@ -379,18 +444,41 @@ export async function layoutDiagram(spec: DiagramSpec, metrics: FontMetrics): Pr
       routes.set(e.id, selfLoopRoute(rects.get(e.source)!, loopPlans.get(e.source)!, i));
       continue;
     }
-    const points = result.edges.get(e.id)!.points;
+    const member = bundleOf.get(e.id);
+    let points = result.edges.get(e.id)?.points ?? [];
+    if (member) {
+      // In through the hub, along the member's own path inside it, and out.
+      const { bundle, index, forward } = member;
+      const r = result.nodes.get(bundle.id)!;
+      const inside = bundleHub(bundle.info, best.dir === 'DOWN' || best.dir === 'UP').paths[index]!.map(q => {
+        const m = best.dir === 'UP' ? { x: q.x, y: r.height - q.y } : best.dir === 'LEFT' ? { x: r.width - q.x, y: q.y } : q;
+        return { x: r.x + m.x, y: r.y + m.y };
+      });
+      const label = bundleHub(bundle.info, best.dir === 'DOWN' || best.dir === 'UP').labels[index];
+      if (label) {
+        const l = best.dir === 'UP' ? { ...label, y: r.height - label.y - label.height } : best.dir === 'LEFT' ? { ...label, x: r.width - label.x - label.width } : label;
+        bundleLabels.set(e.id, { ...l, x: r.x + l.x, y: r.y + l.y });
+      }
+      // The pieces outside the hub lose small jogs at the nodes (all members slide alike: one pitch).
+      const jog = 2 * bundleSpacing(bundle.info);
+      const enter = straightenJog(result.edges.get(`${e.id}::in`)!.points, rects.get(bundle.source)!, jog);
+      const leave = straightenJog([...result.edges.get(`${e.id}::out`)!.points].reverse(), rects.get(bundle.target)!, jog).reverse();
+      points = simplify([...enter.slice(0, -1), ...inside, ...leave.slice(1)]);
+      if (!forward) points = points.reverse();
+      bundled.add(e.id);
+    }
     let route = e.tree || e.reversed ? [...points].reverse() : [...points];
     // Shared tree ports must stay put; other ends may slide to remove small jogs.
-    route = straightenJog(route, rects.get(e.source)!);
-    if (!e.tree) route = straightenJog([...route].reverse(), rects.get(e.target)!).reverse();
+    if (!member) {
+      route = straightenJog(route, rects.get(e.source)!);
+      if (!e.tree) route = straightenJog([...route].reverse(), rects.get(e.target)!).reverse();
+    }
     // Lines must meet a package's outline (tab or body), not the empty corner
     // right of the tab.
     route = fitToTab(route, tabs.get(e.source), rects.get(e.source)!);
     route = fitToTab([...route].reverse(), tabs.get(e.target), rects.get(e.target)!).reverse();
     routes.set(e.id, route);
   }
-
   // Repair routes that cross texts or nodes, detour, crowd other ends or bend under a marker.
   const repairNodes: RepairNode[] = [...all.keys()].map(id => {
     const r = rects.get(id)!, tab = tabs.get(id);
@@ -425,11 +513,12 @@ export async function layoutDiagram(spec: DiagramSpec, metrics: FontMetrics): Pr
       sourceMarker: p.spec.sourceMarker, targetMarker: p.spec.targetMarker,
       group: p.spec.tree ? `${p.spec.type}@${p.spec.target}` : undefined,
     })), {
+      keep: bundled,
       // Center labels need a clean spot beside their own line (no crossing, not as
       // close to another line); bundled lines without one are spread apart.
       labelFits: (id, route, current) => {
         const p = plans.find(q => q.spec.id === id)!;
-        if (!p.center) return true;
+        if (!p.center || bundled.has(id)) return true;
         // The original route of a crowded edge has no room (an earlier pass found none); a new route is judged normally.
         if (crowded.has(id) && [baseRoutes.get(id), previous?.get(id)].some(r => JSON.stringify(route) === JSON.stringify(r))) return false;
         const others = [...current].filter(([other]) => other !== id);
@@ -502,7 +591,8 @@ export async function layoutDiagram(spec: DiagramSpec, metrics: FontMetrics): Pr
       const e = p.spec, id = `${e.id}::center`;
       const w = Math.max(...p.center.widths), h = p.center.lines.length * lineHeight;
       const suggested = repaired.changed.has(e.id) ? undefined : result.edges.get(e.id)?.labels.get(id);
-      requests.push({ owner: e.id, lines: p.center.lines, widths: p.center.widths, request: { id, owner: e.id, width: w, height: h, route: routes.get(e.id)!, at: 'center', suggestion: suggested && { x: suggested.x + 2, y: suggested.y, width: w, height: h } } });
+      const suggestion = bundleLabels.get(e.id) ?? (suggested && { x: suggested.x + 2, y: suggested.y, width: w, height: h });
+      requests.push({ owner: e.id, lines: p.center.lines, widths: p.center.widths, request: { id, owner: e.id, width: w, height: h, route: routes.get(e.id)!, at: 'center', suggestion } });
     }
     const labelledEnds = plans.flatMap(p => [...new Set(p.ends.map(l => l.end))].map(end => end === 'source' ? routes.get(p.spec.id)![0]! : routes.get(p.spec.id)!.at(-1)!));
     const lineOwners = plans.map(p => ({ owner: p.spec.id, points: routes.get(p.spec.id)! }));
