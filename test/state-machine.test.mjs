@@ -110,3 +110,39 @@ test('state machine: hostile text stays literal in every slot and creates no act
     assert.ok(scene.texts.filter(t => t.content.includes(text)).length >= 8, JSON.stringify(text));
   }
 });
+
+// Layout regressions from reviewer models (test/fixtures/regression/state-machine-*.json).
+const regression = name => readFile(join(root, 'test/fixtures/regression', name), 'utf8');
+
+test('state machine layout: orthogonal regions side by side when that reads better', async () => {
+  const svg = await svgOf(await readFile(join(root, 'examples/state-machine/stress.json'), 'utf8'));
+  const { width, height } = (await inspectSvg(svg)).viewBox;
+  // Stacked regions made it 891 x 5354 (1:6); side by side it is about 1:4.
+  assert.ok(height / width < 4.5, `${width} x ${height}`);
+  const vertical = [...svg.matchAll(/<line x1="([\d.]+)" y1="[\d.]+" x2="([\d.]+)" y2="[\d.]+" [^>]*stroke-dasharray="7 4"/g)].filter(m => m[1] === m[2]);
+  assert.ok(vertical.length >= 2, 'region separators run top to bottom');
+});
+
+test('state machine layout: entry and exit points keep clear of corners and of the name compartment', async () => {
+  const scene = await inspectSvg(await svgOf(await readFile(join(root, 'examples/state-machine/notation.json'), 'utf8')));
+  const owner = scene.nodes.find(n => n.id === 'processing').bounds;
+  for (const id of ['resume', 'aborted']) {
+    const b = scene.nodes.find(n => n.id === id).bounds, cy = b.y + b.height / 2;
+    assert.ok(cy - owner.y >= 60 && owner.y + owner.height - cy >= 18, `${id} at ${cy} on ${owner.y}..${owner.y + owner.height}`);
+  }
+});
+
+test('state machine layout: incoming lines of a choice get their own arrowheads', async () => {
+  const scene = await inspectSvg(await svgOf(await regression('state-machine-sm-elevator.json')));
+  const into = scene.edges.filter(e => e.type === 'transition' && e.target === 'which').map(e => e.points.at(-1));
+  assert.equal(into.length, 2);
+  assert.ok(Math.hypot(into[0].x - into[1].x, into[0].y - into[1].y) > 10, JSON.stringify(into));
+});
+
+test('state machine layout: a simple cycle of states has straight lines, no jogs', async () => {
+  const scene = await inspectSvg(await svgOf(await regression('state-machine-sm-traffic-light.json')));
+  // The line back from Yellow to Red runs beside the chain; the others are straight.
+  for (const e of scene.edges.filter(e => e.type === 'transition' && e.source !== 'yellow')) {
+    assert.equal(e.points.length, 2, `${e.id}: ${JSON.stringify(e.points)}`);
+  }
+});
