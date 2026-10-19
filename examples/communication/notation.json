@@ -1,0 +1,32 @@
+{
+  "kind": "communication",
+  "title": "Notation reference",
+  "lifelines": [
+    { "id": "ui", "name": "ui", "type": "Screen" },
+    { "id": "session", "name": "session" },
+    { "id": "cache", "type": "Cache" },
+    { "id": "workers", "name": "w", "selector": "k", "type": "Worker" },
+    { "id": "pool", "name": "pool", "type": "Worker", "multiObject": true },
+    { "id": "log", "type": "AuditLog" }
+  ],
+  "links": [
+    { "id": "ui-session", "from": "ui", "to": "session" },
+    { "id": "session-self", "from": "session", "to": "session" },
+    { "id": "session-cache", "from": "session", "to": "cache" },
+    { "id": "session-pool", "from": "session", "to": "pool" },
+    { "id": "pool-workers", "from": "pool", "to": "workers" },
+    { "id": "session-log", "from": "session", "to": "log" }
+  ],
+  "messages": [
+    { "sequence": "1", "from": "ui", "to": "session", "name": "open", "arguments": ["user"], "assignTo": "s" },
+    { "sequence": "1.1", "from": "session", "to": "session", "name": "checkQuota", "arguments": [] },
+    { "sequence": "1.2", "from": "session", "to": "cache", "name": "lookup", "arguments": ["user.id"], "assignTo": "hit" },
+    { "sequence": "1.3", "from": "session", "to": "pool", "name": "warmUp", "arguments": ["n"], "iteration": "i=1..n", "parallel": true },
+    { "sequence": "1.3.1", "from": "pool", "to": "workers", "name": "start", "sort": "asynchronous" },
+    { "sequence": "1.4", "from": "session", "to": "cache", "name": "store", "arguments": ["user"], "guard": "not hit", "sort": "asynchronous" },
+    { "sequence": "1.5", "from": "session", "to": "ui", "name": "open", "returnValue": "s", "sort": "reply" },
+    { "sequence": "2", "from": "ui", "to": "session", "name": "refresh", "arguments": [] },
+    { "sequence": "2.1", "from": "session", "to": "session", "name": "touch", "sort": "asynchronous" },
+    { "sequence": "2.2", "from": "session", "to": "ui", "name": "changed", "arguments": ["view"], "sort": "asynchronous" }
+  ]
+}

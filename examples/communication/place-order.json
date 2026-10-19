@@ -1,0 +1,30 @@
+{
+  "kind": "communication",
+  "title": "PlaceOrder",
+  "lifelines": [
+    { "id": "form", "name": "form", "type": "OrderForm" },
+    { "id": "ctrl", "name": "ctrl", "type": "OrderController" },
+    { "id": "order", "name": "o", "type": "Order" },
+    { "id": "lines", "name": "lines", "type": "OrderLine", "multiObject": true },
+    { "id": "stock", "type": "Inventory" },
+    { "id": "pay", "name": "gateway", "type": "PaymentGateway" },
+    { "id": "mail", "type": "Mailer" }
+  ],
+  "links": [
+    { "id": "l-form", "from": "form", "to": "ctrl" },
+    { "id": "l-order", "from": "ctrl", "to": "order" },
+    { "id": "l-lines", "from": "order", "to": "lines" },
+    { "id": "l-stock", "from": "ctrl", "to": "stock" },
+    { "id": "l-pay", "from": "ctrl", "to": "pay" },
+    { "id": "l-mail", "from": "ctrl", "to": "mail" }
+  ],
+  "messages": [
+    { "sequence": "1", "from": "form", "to": "ctrl", "name": "placeOrder", "arguments": ["cart"], "assignTo": "o" },
+    { "sequence": "1.1", "from": "ctrl", "to": "order", "name": "create", "arguments": ["cart"] },
+    { "sequence": "1.1.1", "from": "order", "to": "lines", "name": "add", "arguments": ["item"], "iteration": "i=1..n" },
+    { "sequence": "1.2", "from": "ctrl", "to": "stock", "name": "reserve", "arguments": ["o"], "assignTo": "ok" },
+    { "sequence": "1.3a", "from": "ctrl", "to": "pay", "name": "authorize", "arguments": ["o.total"], "guard": "ok" },
+    { "sequence": "1.3b", "from": "ctrl", "to": "mail", "name": "sendConfirmation", "arguments": ["o"], "sort": "asynchronous" },
+    { "sequence": "1.4", "from": "ctrl", "to": "form", "name": "placeOrder", "returnValue": "o", "sort": "reply" }
+  ]
+}

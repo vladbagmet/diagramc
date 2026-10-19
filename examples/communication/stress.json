@@ -1,0 +1,654 @@
+{
+  "kind": "communication",
+  "title": "Checkout (stress)",
+  "lifelines": [
+    {
+      "id": "api",
+      "name": "api",
+      "type": "ApiGateway"
+    },
+    {
+      "id": "auth",
+      "name": "auth",
+      "type": "AuthService"
+    },
+    {
+      "id": "orders",
+      "name": "orders",
+      "type": "OrderService"
+    },
+    {
+      "id": "catalog",
+      "name": "catalog",
+      "type": "CatalogService"
+    },
+    {
+      "id": "tokens",
+      "name": "tokens",
+      "type": "TokenStore"
+    },
+    {
+      "id": "users",
+      "name": "users",
+      "type": "UserRepository"
+    },
+    {
+      "id": "carts",
+      "name": "carts",
+      "type": "CartService"
+    },
+    {
+      "id": "pricing",
+      "name": "pricing",
+      "type": "PricingEngine"
+    },
+    {
+      "id": "stock",
+      "name": "stock",
+      "type": "Inventory"
+    },
+    {
+      "id": "search",
+      "name": "search",
+      "type": "SearchIndex"
+    },
+    {
+      "id": "media",
+      "name": "media",
+      "type": "MediaStore"
+    },
+    {
+      "id": "audit",
+      "name": "audit",
+      "type": "AuditLog"
+    },
+    {
+      "id": "payments",
+      "name": "payments",
+      "type": "PaymentService"
+    },
+    {
+      "id": "fraud",
+      "name": "fraud",
+      "type": "FraudCheck"
+    },
+    {
+      "id": "ledger",
+      "name": "ledger",
+      "type": "Ledger"
+    },
+    {
+      "id": "shipping",
+      "name": "shipping",
+      "type": "ShippingService"
+    },
+    {
+      "id": "carriers",
+      "name": "carriers",
+      "type": "CarrierAdapter"
+    },
+    {
+      "id": "notify",
+      "name": "notify",
+      "type": "Notifier"
+    },
+    {
+      "id": "mail",
+      "name": "mail",
+      "type": "MailQueue"
+    },
+    {
+      "id": "sms",
+      "name": "sms",
+      "type": "SmsGateway"
+    },
+    {
+      "id": "tax",
+      "name": "tax",
+      "type": "TaxCalculator"
+    },
+    {
+      "id": "promo",
+      "name": "promo",
+      "type": "PromotionRules"
+    },
+    {
+      "id": "wh",
+      "name": "wh",
+      "type": "Warehouse",
+      "multiObject": true
+    },
+    {
+      "id": "metrics",
+      "name": "metrics",
+      "type": "Metrics"
+    }
+  ],
+  "links": [
+    {
+      "from": "api",
+      "to": "auth"
+    },
+    {
+      "from": "api",
+      "to": "orders"
+    },
+    {
+      "from": "api",
+      "to": "catalog"
+    },
+    {
+      "from": "auth",
+      "to": "tokens"
+    },
+    {
+      "from": "auth",
+      "to": "users"
+    },
+    {
+      "from": "orders",
+      "to": "carts"
+    },
+    {
+      "from": "orders",
+      "to": "payments"
+    },
+    {
+      "from": "orders",
+      "to": "shipping"
+    },
+    {
+      "from": "orders",
+      "to": "notify"
+    },
+    {
+      "from": "catalog",
+      "to": "search"
+    },
+    {
+      "from": "catalog",
+      "to": "media"
+    },
+    {
+      "from": "carts",
+      "to": "pricing"
+    },
+    {
+      "from": "carts",
+      "to": "stock"
+    },
+    {
+      "from": "pricing",
+      "to": "tax"
+    },
+    {
+      "from": "pricing",
+      "to": "promo"
+    },
+    {
+      "from": "stock",
+      "to": "wh"
+    },
+    {
+      "from": "payments",
+      "to": "fraud"
+    },
+    {
+      "from": "payments",
+      "to": "ledger"
+    },
+    {
+      "from": "shipping",
+      "to": "carriers"
+    },
+    {
+      "from": "notify",
+      "to": "mail"
+    },
+    {
+      "from": "notify",
+      "to": "sms"
+    },
+    {
+      "from": "orders",
+      "to": "audit"
+    },
+    {
+      "from": "payments",
+      "to": "audit"
+    },
+    {
+      "from": "auth",
+      "to": "audit"
+    },
+    {
+      "from": "stock",
+      "to": "metrics"
+    },
+    {
+      "from": "api",
+      "to": "metrics"
+    },
+    {
+      "from": "shipping",
+      "to": "wh"
+    }
+  ],
+  "messages": [
+    {
+      "sequence": "1",
+      "from": "api",
+      "to": "auth",
+      "name": "authenticate",
+      "arguments": []
+    },
+    {
+      "sequence": "1.1",
+      "from": "auth",
+      "to": "tokens",
+      "name": "issue",
+      "arguments": []
+    },
+    {
+      "sequence": "1.1.1",
+      "from": "tokens",
+      "to": "auth",
+      "name": "issue",
+      "returnValue": "result",
+      "sort": "reply"
+    },
+    {
+      "sequence": "1.2",
+      "from": "auth",
+      "to": "users",
+      "name": "find",
+      "arguments": []
+    },
+    {
+      "sequence": "1.2.1",
+      "from": "users",
+      "to": "auth",
+      "name": "find",
+      "returnValue": "result",
+      "sort": "reply"
+    },
+    {
+      "sequence": "1.3",
+      "from": "auth",
+      "to": "audit",
+      "name": "record",
+      "arguments": [],
+      "sort": "asynchronous"
+    },
+    {
+      "sequence": "1.4",
+      "from": "auth",
+      "to": "api",
+      "name": "authenticate",
+      "returnValue": "result",
+      "sort": "reply"
+    },
+    {
+      "sequence": "2",
+      "from": "api",
+      "to": "orders",
+      "name": "submit",
+      "arguments": []
+    },
+    {
+      "sequence": "2.1",
+      "from": "orders",
+      "to": "carts",
+      "name": "checkout",
+      "arguments": []
+    },
+    {
+      "sequence": "2.1.1",
+      "from": "carts",
+      "to": "pricing",
+      "name": "quote",
+      "arguments": []
+    },
+    {
+      "sequence": "2.1.1.1",
+      "from": "pricing",
+      "to": "tax",
+      "name": "compute",
+      "arguments": [],
+      "iteration": "line in cart"
+    },
+    {
+      "sequence": "2.1.1.1.1",
+      "from": "tax",
+      "to": "pricing",
+      "name": "compute",
+      "returnValue": "result",
+      "sort": "reply"
+    },
+    {
+      "sequence": "2.1.1.2",
+      "from": "pricing",
+      "to": "promo",
+      "name": "apply",
+      "arguments": []
+    },
+    {
+      "sequence": "2.1.1.2.1",
+      "from": "promo",
+      "to": "pricing",
+      "name": "apply",
+      "returnValue": "result",
+      "sort": "reply"
+    },
+    {
+      "sequence": "2.1.1.3",
+      "from": "pricing",
+      "to": "carts",
+      "name": "quote",
+      "returnValue": "result",
+      "sort": "reply"
+    },
+    {
+      "sequence": "2.1.2",
+      "from": "carts",
+      "to": "stock",
+      "name": "reserve",
+      "arguments": []
+    },
+    {
+      "sequence": "2.1.2.1",
+      "from": "stock",
+      "to": "wh",
+      "name": "pick",
+      "arguments": []
+    },
+    {
+      "sequence": "2.1.2.1.1",
+      "from": "wh",
+      "to": "stock",
+      "name": "pick",
+      "returnValue": "result",
+      "sort": "reply"
+    },
+    {
+      "sequence": "2.1.2.2",
+      "from": "stock",
+      "to": "metrics",
+      "name": "count",
+      "arguments": [],
+      "sort": "asynchronous"
+    },
+    {
+      "sequence": "2.1.2.3",
+      "from": "stock",
+      "to": "carts",
+      "name": "reserve",
+      "returnValue": "result",
+      "sort": "reply"
+    },
+    {
+      "sequence": "2.1.3",
+      "from": "carts",
+      "to": "orders",
+      "name": "checkout",
+      "returnValue": "result",
+      "sort": "reply"
+    },
+    {
+      "sequence": "2.2",
+      "from": "orders",
+      "to": "payments",
+      "name": "charge",
+      "arguments": []
+    },
+    {
+      "sequence": "2.2.1",
+      "from": "payments",
+      "to": "fraud",
+      "name": "score",
+      "arguments": [],
+      "guard": "amount > limit"
+    },
+    {
+      "sequence": "2.2.1.1",
+      "from": "fraud",
+      "to": "payments",
+      "name": "score",
+      "returnValue": "result",
+      "sort": "reply"
+    },
+    {
+      "sequence": "2.2.2",
+      "from": "payments",
+      "to": "ledger",
+      "name": "post",
+      "arguments": []
+    },
+    {
+      "sequence": "2.2.2.1",
+      "from": "ledger",
+      "to": "payments",
+      "name": "post",
+      "returnValue": "result",
+      "sort": "reply"
+    },
+    {
+      "sequence": "2.2.3",
+      "from": "payments",
+      "to": "audit",
+      "name": "record",
+      "arguments": [],
+      "sort": "asynchronous"
+    },
+    {
+      "sequence": "2.2.4",
+      "from": "payments",
+      "to": "orders",
+      "name": "charge",
+      "returnValue": "result",
+      "sort": "reply"
+    },
+    {
+      "sequence": "2.3",
+      "from": "orders",
+      "to": "shipping",
+      "name": "book",
+      "arguments": []
+    },
+    {
+      "sequence": "2.3.1",
+      "from": "shipping",
+      "to": "carriers",
+      "name": "label",
+      "arguments": []
+    },
+    {
+      "sequence": "2.3.1.1",
+      "from": "carriers",
+      "to": "shipping",
+      "name": "label",
+      "returnValue": "result",
+      "sort": "reply"
+    },
+    {
+      "sequence": "2.3.2",
+      "from": "shipping",
+      "to": "wh",
+      "name": "pick",
+      "arguments": []
+    },
+    {
+      "sequence": "2.3.2.1",
+      "from": "wh",
+      "to": "shipping",
+      "name": "pick",
+      "returnValue": "result",
+      "sort": "reply"
+    },
+    {
+      "sequence": "2.3.3",
+      "from": "shipping",
+      "to": "orders",
+      "name": "book",
+      "returnValue": "result",
+      "sort": "reply"
+    },
+    {
+      "sequence": "2.4",
+      "from": "orders",
+      "to": "notify",
+      "name": "orderPlaced",
+      "arguments": [],
+      "sort": "asynchronous"
+    },
+    {
+      "sequence": "2.4.1",
+      "from": "notify",
+      "to": "mail",
+      "name": "enqueue",
+      "arguments": [],
+      "sort": "asynchronous"
+    },
+    {
+      "sequence": "2.4.2",
+      "from": "notify",
+      "to": "sms",
+      "name": "send",
+      "arguments": [],
+      "sort": "asynchronous"
+    },
+    {
+      "sequence": "2.5",
+      "from": "orders",
+      "to": "audit",
+      "name": "record",
+      "arguments": [],
+      "sort": "asynchronous"
+    },
+    {
+      "sequence": "2.6",
+      "from": "orders",
+      "to": "api",
+      "name": "submit",
+      "returnValue": "result",
+      "sort": "reply"
+    },
+    {
+      "sequence": "3",
+      "from": "api",
+      "to": "catalog",
+      "name": "browse",
+      "arguments": []
+    },
+    {
+      "sequence": "3.1",
+      "from": "catalog",
+      "to": "search",
+      "name": "query",
+      "arguments": []
+    },
+    {
+      "sequence": "3.1.1",
+      "from": "search",
+      "to": "catalog",
+      "name": "query",
+      "returnValue": "result",
+      "sort": "reply"
+    },
+    {
+      "sequence": "3.2",
+      "from": "catalog",
+      "to": "media",
+      "name": "thumbnails",
+      "arguments": []
+    },
+    {
+      "sequence": "3.2.1",
+      "from": "media",
+      "to": "catalog",
+      "name": "thumbnails",
+      "returnValue": "result",
+      "sort": "reply"
+    },
+    {
+      "sequence": "3.3",
+      "from": "catalog",
+      "to": "api",
+      "name": "browse",
+      "returnValue": "result",
+      "sort": "reply"
+    },
+    {
+      "sequence": "4",
+      "from": "api",
+      "to": "metrics",
+      "name": "count",
+      "arguments": [],
+      "sort": "asynchronous"
+    },
+    {
+      "sequence": "5",
+      "from": "api",
+      "to": "orders",
+      "name": "track",
+      "arguments": [
+        "orderId"
+      ],
+      "assignTo": "status"
+    },
+    {
+      "sequence": "5.1",
+      "from": "orders",
+      "to": "shipping",
+      "name": "status",
+      "arguments": [
+        "orderId"
+      ],
+      "assignTo": "s"
+    },
+    {
+      "sequence": "5.1.1",
+      "from": "shipping",
+      "to": "carriers",
+      "name": "track",
+      "arguments": [
+        "label"
+      ]
+    },
+    {
+      "sequence": "5.1.2",
+      "from": "shipping",
+      "to": "wh",
+      "name": "lastScan",
+      "arguments": []
+    },
+    {
+      "sequence": "5.2",
+      "from": "orders",
+      "to": "audit",
+      "name": "record",
+      "arguments": [
+        "\"track\""
+      ],
+      "sort": "asynchronous"
+    },
+    {
+      "sequence": "5.3",
+      "from": "orders",
+      "to": "api",
+      "name": "track",
+      "returnValue": "s",
+      "sort": "reply"
+    },
+    {
+      "sequence": "6",
+      "from": "api",
+      "to": "metrics",
+      "name": "count",
+      "arguments": [
+        "\"checkout\""
+      ],
+      "sort": "asynchronous"
+    }
+  ]
+}
