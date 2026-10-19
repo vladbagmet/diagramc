@@ -1,0 +1,72 @@
+import { theme } from '../../core/theme.js';
+
+/**
+ * Sequence-specific PlantUML settings generated from the shared theme tokens, on
+ * top of the generic skinParams(). `strictuml` gives UML 2.5.1 arrowheads (filled
+ * triangle for synchronous calls, open for asynchronous and reply messages);
+ * `hide footbox` removes the non-UML repeated heads at the bottom.
+ */
+export function sequenceSkin(): string[] {
+  const { color, font, stroke } = theme;
+  return [
+    'skinparam style strictuml',
+    'hide footbox',
+    'skinparam sequenceMessageAlign left',
+    'skinparam responseMessageBelowArrow false',
+    `skinparam participantBackgroundColor ${color.nodeHeaderFill}`,
+    `skinparam sequenceLifeLineBackgroundColor ${color.nodeFill}`,
+    `skinparam sequenceLifeLineBorderColor ${color.edge}`,
+    `skinparam sequenceLifeLineBorderThickness ${stroke.compartment}`,
+    `skinparam sequenceGroupBorderColor ${color.frameStroke}`,
+    `skinparam sequenceGroupBorderThickness ${stroke.frame}`,
+    `skinparam sequenceGroupBackgroundColor ${color.frameHeadingFill}`,
+    `skinparam sequenceGroupHeaderBackgroundColor ${color.frameHeadingFill}`,
+    'skinparam sequenceGroupBodyBackgroundColor transparent',
+    `skinparam sequenceGroupFontSize ${font.size.body}`,
+    `skinparam sequenceGroupFontColor ${color.text}`,
+    `skinparam sequenceGroupHeaderFontSize ${font.size.body}`,
+    `skinparam sequenceGroupHeaderFontColor ${color.text}`,
+    `skinparam sequenceReferenceBorderColor ${color.frameStroke}`,
+    `skinparam sequenceReferenceBorderThickness ${stroke.frame}`,
+    `skinparam sequenceReferenceHeaderBackgroundColor ${color.frameHeadingFill}`,
+    `skinparam sequenceReferenceBackgroundColor ${color.background}`,
+    `skinparam sequenceReferenceFontSize ${font.size.body}`,
+    `skinparam sequenceReferenceFontColor ${color.text}`,
+    `skinparam sequenceDividerBorderColor ${color.frameStroke}`,
+    '<style>',
+    'mainframe {',
+    `  LineColor ${color.frameStroke}`,
+    `  LineThickness ${stroke.frame}`,
+    `  FontSize ${font.size.body}`,
+    '}',
+    'sequenceDiagram {',
+    '  lifeLine {',
+    `    LineColor ${color.edge}`,
+    `    BackGroundColor ${color.nodeFill}`,
+    `    LineThickness ${stroke.compartment}`,
+    '  }',
+    '  activationBox {',
+    `    LineColor ${color.edge}`,
+    `    BackGroundColor ${color.nodeFill}`,
+    `    LineThickness ${stroke.compartment}`,
+    '  }',
+    '  group {',
+    `    LineColor ${color.frameStroke}`,
+    `    LineThickness ${stroke.frame}`,
+    '  }',
+    '  groupHeader {',
+    `    LineColor ${color.frameStroke}`,
+    `    LineThickness ${stroke.frame}`,
+    '  }',
+    '  referenceHeader {',
+    `    LineColor ${color.frameStroke}`,
+    `    LineThickness ${stroke.frame}`,
+    '  }',
+    '  reference {',
+    `    LineColor ${color.frameStroke}`,
+    `    LineThickness ${stroke.frame}`,
+    '  }',
+    '}',
+    '</style>',
+  ];
+}

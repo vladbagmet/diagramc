@@ -247,6 +247,52 @@ one initial node; every node reachable; every path ends in a final node.
 Checklist and rules: [`docs/kinds/interaction-overview.md`](docs/kinds/interaction-overview.md).
 Examples: [`examples/interaction-overview/`](examples/interaction-overview/).
 
+### Sequence diagrams
+
+Drawn by PlantUML. `lifelines` (left to right; `name`, `classifier`, `symbol`
+rectangle, actor, boundary, control or entity) and `items` in time order, top to
+bottom: `message` from `from` to `to` with a `sort` (synchronous: filled
+arrowhead; asynchronous: open; reply: dashed, open; create: dashed to the new
+lifeline's head; delete: ends in the X of `to`), `found` and `lost` messages,
+`activate`/`deactivate` (or `activate: true` on a message for the receiver,
+`deactivate: true` for the sender), `destroy`, `stateInvariant`, `note`, `ref`
+(interaction use over `covered` lifelines) and `fragment` (`operator` alt, opt,
+loop with `min`/`max`, par, break, critical, neg, strict, seq, assert; `operands`
+with optional `guard` and their own items). A created lifeline must not appear
+before its create message, nothing may follow a destruction, and activations end
+in the operand where they start.
+
+```json
+{ "kind": "sequence", "title": "Ping",
+  "lifelines": [{ "id": "c", "name": "client", "classifier": "Client" }, { "id": "s", "classifier": "Server" }],
+  "items": [
+    { "type": "message", "sort": "synchronous", "from": "c", "to": "s", "name": "ping", "arguments": [], "activate": true },
+    { "type": "message", "sort": "reply", "from": "s", "to": "c", "name": "ping", "returnValue": "pong", "deactivate": true }] }
+```
+
+Checklist and rules: [`docs/kinds/sequence.md`](docs/kinds/sequence.md).
+Examples: [`examples/sequence/`](examples/sequence/).
+
+### Timing diagrams
+
+Drawn by PlantUML. `lifelines` (top to bottom) with `notation` robust (one row per
+state, a stepped state line) or concise (values in bands), their declared
+`states` and `changes` (`at`, `state`) in increasing time order. All times are
+integers in `timeUnit`, which labels the time axis. Optional `messages` (sent by
+`from` at `fromTime`, received by `to` at `toTime`), `durationConstraints`
+(arrow labelled `{min..max}` on a lifeline between two times), `timeConstraints`
+(the change of `lifeline` at `at` must happen within `[from, to]`), `highlights`
+and `notes` (concise lifelines).
+
+```json
+{ "kind": "timing", "title": "Blink", "timeUnit": "s",
+  "lifelines": [{ "id": "led", "name": "led", "notation": "robust", "states": ["On", "Off"],
+    "changes": [{ "at": 0, "state": "Off" }, { "at": 1, "state": "On" }, { "at": 2, "state": "Off" }] }] }
+```
+
+Checklist and rules: [`docs/kinds/timing.md`](docs/kinds/timing.md).
+Examples: [`examples/timing/`](examples/timing/).
+
 ## Errors
 
 Errors are one JSON object on stderr; no output file is written or changed.
@@ -299,7 +345,13 @@ arrows parallel to and beside their own link and pointing at the receiver, every
 text drawn literally, minimum font size 11 px, text inside its box, ports on their
 owner's border and interface symbols facing outward with aligned ball-and-socket
 joints. Own-engine SVGs carry `data-uml-*` attributes so gates
-are exact; PlantUML SVGs are checked best-effort. `npm run gallery` renders every
+are exact; PlantUML SVGs are checked best-effort. For PlantUML sequence and timing
+diagrams a dedicated reader (`src/qa/plantuml-interaction.ts`) recovers lifelines,
+activation bars, messages, state lines and labels, so label overlaps, labels on
+lines, the `message-endpoints` gate (every message starts and ends on its
+lifeline or state line, arrowhead at the receiving end, found/lost circles) and
+the `lifeline-crossing` gate (no lifeline or activation bar through any text)
+are evaluated; gates without data are reported as skipped. `npm run gallery` renders every
 example to SVG and PNG with an `index.html` overview.
 
 ## Repository layout

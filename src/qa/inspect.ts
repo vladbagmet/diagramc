@@ -1,6 +1,7 @@
 import { loadFonts, type FontMetrics } from '../engine/fonts.js';
 import { union, type Point, type Rect } from '../engine/geometry.js';
 import { parseXml, textContent, walk, type XmlElement } from './xml.js';
+import { readSequence, readTiming, type Interaction } from './plantuml-interaction.js';
 
 /**
  * Geometry extracted from a rendered SVG. Own-engine output is read exactly from
@@ -56,6 +57,10 @@ export interface Scene {
   frameHeading?: Rect;
   /** Markup that must never appear (scripts, links, foreign content, event handlers). */
   unsafe: string[];
+  /** PlantUML interaction diagrams (sequence, timing): lifelines and messages for the message-endpoints gate. */
+  interaction?: Interaction;
+  /** Gates normally evaluated only on own-engine output that this PlantUML scene supplies exact data for. */
+  evaluated?: string[];
 }
 
 const numbers = (s: string | undefined): number[] => (s ?? '').match(/-?\d*\.?\d+(?:e-?\d+)?/giu)?.map(Number) ?? [];
@@ -67,14 +72,14 @@ const point = (s: string | undefined): Point | undefined => {
   const [x, y] = numbers(s);
   return y === undefined ? undefined : { x: x!, y };
 };
-const pointList = (s: string | undefined): Point[] => {
+export const pointList = (s: string | undefined): Point[] => {
   const n = numbers(s), out: Point[] = [];
   for (let i = 0; i + 1 < n.length; i += 2) out.push({ x: n[i]!, y: n[i + 1]! });
   return out;
 };
 
 /** End points of an SVG path (absolute and relative M/L/H/V/C/S/Q/T/A/Z); control points included. */
-function pathPoints(d: string): Point[] {
+export function pathPoints(d: string): Point[] {
   const out: Point[] = [];
   let x = 0, y = 0, startX = 0, startY = 0;
   const arity: Record<string, number> = { m: 2, l: 2, h: 1, v: 1, c: 6, s: 4, q: 4, t: 2, a: 7, z: 0 };
@@ -127,6 +132,8 @@ export async function inspectSvg(svg: string): Promise<Scene> {
   }
 
   if (renderer === 'engine') readEngine(root, scene);
+  else if (root.attrs['data-diagram-type'] === 'SEQUENCE') readSequence(root, scene);
+  else if (root.attrs['data-diagram-type'] === 'TIMING') readTiming(root, scene);
   else readPlantUml(root, scene);
   return scene;
 }

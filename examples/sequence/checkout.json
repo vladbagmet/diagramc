@@ -1,0 +1,32 @@
+{
+  "kind": "sequence",
+  "title": "Checkout",
+  "lifelines": [
+    { "id": "customer", "name": "Customer", "symbol": "actor" },
+    { "id": "ui", "name": "web", "classifier": "CheckoutPage", "symbol": "boundary" },
+    { "id": "service", "name": "service", "classifier": "OrderService", "symbol": "control" },
+    { "id": "order", "name": "order", "classifier": "Order" },
+    { "id": "payments", "name": "payments", "classifier": "PaymentGateway" },
+    { "id": "repo", "classifier": "OrderRepository", "symbol": "entity" }
+  ],
+  "items": [
+    { "type": "message", "sort": "synchronous", "from": "customer", "to": "ui", "name": "placeOrder", "arguments": ["cart"], "activate": true },
+    { "type": "message", "sort": "synchronous", "from": "ui", "to": "service", "name": "checkout", "arguments": ["cart", "customerId"], "activate": true },
+    { "type": "message", "sort": "create", "from": "service", "to": "order", "name": "Order", "arguments": ["cart"] },
+    { "type": "stateInvariant", "lifeline": "order", "constraint": "status = NEW" },
+    { "type": "message", "sort": "synchronous", "from": "service", "to": "payments", "name": "charge", "arguments": ["order.total"], "activate": true },
+    { "type": "message", "sort": "reply", "from": "payments", "to": "service", "assignment": "result", "name": "charge", "returnValue": "ChargeResult", "deactivate": true },
+    { "type": "fragment", "operator": "alt", "operands": [
+      { "guard": "result.accepted", "items": [
+        { "type": "message", "sort": "synchronous", "from": "service", "to": "order", "name": "confirm", "arguments": ["result.receipt"] },
+        { "type": "message", "sort": "asynchronous", "from": "service", "to": "repo", "name": "save", "arguments": ["order"] }
+      ] },
+      { "guard": "else", "items": [
+        { "type": "message", "sort": "delete", "from": "service", "to": "order", "name": "discard" }
+      ] }
+    ] },
+    { "type": "message", "sort": "reply", "from": "service", "to": "ui", "name": "checkout", "returnValue": "result", "deactivate": true },
+    { "type": "note", "position": "right", "lifelines": ["ui"], "text": "The page shows the receipt or the decline reason." },
+    { "type": "message", "sort": "reply", "from": "ui", "to": "customer", "name": "placeOrder", "returnValue": "confirmation", "deactivate": true }
+  ]
+}

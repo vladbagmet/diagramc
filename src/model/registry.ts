@@ -8,6 +8,8 @@ import { interactionOverviewKind } from '../kinds/interaction-overview/index.js'
 import { componentKind } from '../kinds/component/index.js';
 import { deploymentKind } from '../kinds/deployment/index.js';
 import { compositeStructureKind } from '../kinds/composite-structure/index.js';
+import { sequenceKind } from '../kinds/sequence/index.js';
+import { timingKind } from '../kinds/timing/index.js';
 
 /**
  * Every diagram kind the CLI knows, in `uml kinds` order. To add a kind, create
@@ -24,6 +26,8 @@ export const kinds: readonly KindDefinition[] = [
   componentKind,
   deploymentKind,
   compositeStructureKind,
+  sequenceKind,
+  timingKind,
 ];
 
 export function findKind(name: string): KindDefinition | undefined {
