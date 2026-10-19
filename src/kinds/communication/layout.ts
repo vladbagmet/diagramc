@@ -105,6 +105,8 @@ interface Placed { group: Group; arrow: { from: Point; to: Point }; arrowBox: Re
 interface Candidate { placed: Placed[]; rects: Rect[]; lines: [Point, Point][] }
 
 const GROUP_GAP = 14, TEXT_GAP = 4;
+/** Message blocks keep this far from other links, so they cannot be read as theirs. */
+const FOREIGN_CLEARANCE = 12;
 
 /** Geometry of the groups of one side of a link, at parameter t of segment a-b. */
 function sideBlock(groups: readonly Group[], a: Point, b: Point, t: number, sign: 1 | -1, offset: number, shift: number, length: number): Candidate {
@@ -153,7 +155,10 @@ function cost(c: Candidate, link: string, world: World): number {
     const clearance = halfOf(p.group.sort) + 3;
     for (const s of world.segments) {
       if (segmentIntersectsRect(s.a, s.b, thin)) total += 400;
-      if (segmentDistance(s.a, s.b, p.arrow.from, p.arrow.to) < clearance) total += 400;
+      else if (s.link !== link && segmentIntersectsRect(s.a, s.b, inflate(p.text, FOREIGN_CLEARANCE))) total += 60;
+      const d = segmentDistance(s.a, s.b, p.arrow.from, p.arrow.to);
+      if (d < clearance) total += 400;
+      else if (s.link !== link && d < clearance + FOREIGN_CLEARANCE) total += 60;
     }
     for (const [a, b] of world.placedLines) if (segmentIntersectsRect(a, b, thin)) total += 400;
   }

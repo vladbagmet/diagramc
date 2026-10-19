@@ -39,7 +39,7 @@ export interface OverviewScene {
   frame?: { bounds: Rect; title: string };
   nodes: OverviewSceneNode[];
   edges: { id: string; source: string; target: string; points: Point[] }[];
-  labels: { id: string; owner: string; rect: Rect; text: string; anchor: Point }[];
+  labels: { id: string; owner: string; rect: Rect; text: string; end: 'source' | 'target'; anchor: Point }[];
 }
 
 /** Heading text of the diagram frame: title and the optional lifelines list. */
@@ -154,34 +154,43 @@ export async function layoutInteractionOverview(model: InteractionOverviewDiagra
       const fanIn = n.type === 'merge';
       const many = (fanIn ? ins(n.id) : outs(n.id)).map(f => ({ f, p: center(fanIn ? f.from : f.to) }));
       for (const f of fanIn ? outs(n.id) : ins(n.id)) vertices.set(`${n.id}\u0000${f.id}`, fanIn ? 'SOUTH' : 'NORTH');
-      // Branches ordered left to right get distinct vertices, so every guard
-      // sits on its own line: one branch goes straight (down from a decision, up
-      // into a merge), the leftmost leaves west, the rightmost east.
+      // Loops (back flows) run on the east side, leaving the decision and entering
+      // the merge there, so they never cross the main flow. Other branches,
+      // ordered left to right, get distinct vertices where possible, so every
+      // guard sits on its own line: one goes straight (down from a decision, up
+      // into a merge), the leftmost west, the rightmost east.
       const straight: Vertex = fanIn ? 'NORTH' : 'SOUTH';
-      const sorted = [...many].sort((x, y) => x.p.x - y.p.x || many.indexOf(x) - many.indexOf(y));
       const set = (f: { id: string }, v: Vertex) => vertices.set(`${n.id}\u0000${f.id}`, v);
-      if (sorted.length === 1) set(sorted[0]!.f, back.has(sorted[0]!.f.id) ? 'WEST' : straight);
+      const loops = many.filter(({ f }) => back.has(f.id));
+      for (const { f } of loops) set(f, 'EAST');
+      const available: Vertex[] = loops.length ? ['WEST', straight] : ['WEST', straight, 'EAST'];
+      const sorted = many.filter(({ f }) => !back.has(f.id)).sort((x, y) => x.p.x - y.p.x || many.indexOf(x) - many.indexOf(y));
+      const aligned = [...sorted].sort((x, y) => Math.abs(x.p.x - c.x) - Math.abs(y.p.x - c.x))[0];
+      if (sorted.length === 1) set(sorted[0]!.f, straight);
+      else if (sorted.length === available.length) sorted.forEach(({ f }, k) => set(f, available[k]!));
       else if (sorted.length === 2) {
-        const forward = sorted.filter(({ f }) => !back.has(f.id));
-        const aligned = [...forward].sort((x, y) => Math.abs(x.p.x - c.x) - Math.abs(y.p.x - c.x))[0];
+        // Three vertices for two branches: straight for an aligned one, else west and east.
         if (aligned && Math.abs(aligned.p.x - c.x) < 40) {
           const other = sorted.find(o => o !== aligned)!;
           set(aligned.f, straight);
           set(other.f, other.p.x < c.x ? 'WEST' : 'EAST');
         } else { set(sorted[0]!.f, 'WEST'); set(sorted[1]!.f, 'EAST'); }
       } else {
-        sorted.forEach(({ f }, k) => set(f, k === 0 ? 'WEST' : k === sorted.length - 1 ? 'EAST' : straight));
+        // More branches than vertices: the middle ones share the straight vertex.
+        sorted.forEach(({ f }, k) => set(f, k === 0 ? 'WEST' : k === sorted.length - 1 && available.includes('EAST') ? 'EAST' : straight));
       }
     }
     return vertices;
   };
   let result = await run();
   let vertices = assign(result);
-  for (let pass = 0; pass < 4; pass++) {
-    result = await run(vertices);
+  // `result` is always the layout of `vertices`.
+  result = await run(vertices);
+  for (let pass = 0; pass < 3; pass++) {
     const next = assign(result);
     if ([...next].every(([k, v]) => vertices.get(k) === v)) break;
     vertices = next;
+    result = await run(vertices);
   }
 
   // Guards next to the start of their flow.
@@ -191,15 +200,20 @@ export async function layoutInteractionOverview(model: InteractionOverviewDiagra
     return [f.id, back.has(f.id) ? [...points].reverse() : points];
   }));
   const requests: LabelRequest[] = [];
-  const guards = new Map<string, { owner: string; text: string; anchor: Point }>();
+  const guards = new Map<string, { owner: string; text: string; end: 'source' | 'target'; anchor: Point }>();
   for (const f of flows) {
     if (f.guard === undefined) continue;
     const id = `${f.id}::guard`, text = `[${f.guard}]`;
     const width = Math.ceil(metrics.measure(text, GUARD));
     const route = routes.get(f.id)!;
     const suggested = result.edges.get(f.id)!.labels.get(id);
-    requests.push({ id, width, height: guardHeight, route, at: 'source', side: 1, clearance: 4, suggestion: suggested && { x: suggested.x + 2, y: suggested.y, width, height: guardHeight } });
-    guards.set(id, { owner: f.id, text, anchor: route[0]! });
+    // A guard belongs next to the decision, unless several branches leave the
+    // same vertex: then it goes next to the branch's target, where it is unique.
+    const vertex = vertices.get(`${f.from}\u0000${f.id}`);
+    const shared = vertex !== undefined && flows.some(g => g !== f && g.from === f.from && vertices.get(`${g.from}\u0000${g.id}`) === vertex);
+    const at = shared ? 'target' as const : 'source' as const;
+    requests.push({ id, width, height: guardHeight, route, at, side: 1, clearance: shared ? theme.size.arrow.halfWidth + 3 : 4, ...(shared ? {} : { suggestion: suggested && { x: suggested.x + 2, y: suggested.y, width, height: guardHeight } }) });
+    guards.set(id, { owner: f.id, text, end: at, anchor: at === 'source' ? route[0]! : route.at(-1)! });
   }
   const segments: [Point, Point][] = [];
   const markerBoxes: Rect[] = [];
@@ -208,7 +222,7 @@ export async function layoutInteractionOverview(model: InteractionOverviewDiagra
     const tip = route.at(-1)!, half = theme.size.arrow.halfWidth + 2;
     markerBoxes.push({ x: tip.x - half - 4, y: tip.y - half - 4, width: 2 * half + 8, height: 2 * half + 8 });
   }
-  const placed = placeLabels(requests, { rects: [...rects.values(), ...markerBoxes], segments, ends: flows.filter(f => f.guard !== undefined).map(f => routes.get(f.id)![0]!) });
+  const placed = placeLabels(requests, { rects: [...rects.values(), ...markerBoxes], segments, ends: [...guards.values()].map(g => g.anchor) });
   const labels = [...placed].map(([id, rect]) => ({ id, rect, ...guards.get(id)! }));
 
   // Translate into the canvas (inside the frame, if any).

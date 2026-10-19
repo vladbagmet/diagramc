@@ -77,7 +77,7 @@ function drawNode(canvas: Canvas, entry: OverviewSceneNode): string {
       }
       for (const arrow of f.arrows) {
         parts.push(drawEdge({ id: arrow.id, type: 'message', source: arrow.source, target: arrow.target, points: arrow.points.map(p => ({ x: ox + p.x, y: oy + p.y })), style: arrow.style, sourceMarker: 'none', targetMarker: arrow.marker }));
-        parts.push(canvas.lines(arrow.rows, arrow.labelX.map(x => ox + x), oy + arrow.labelTop + base, lh, { ...FRAGMENT_TEXT, fill: theme.color.edgeText, role: 'text', owner: arrow.id }));
+        parts.push(canvas.lines(arrow.rows, arrow.labelX.map(x => ox + x), oy + arrow.labelTop + base, lh, { ...FRAGMENT_TEXT, fill: theme.color.edgeText, role: 'text', owner: arrow.id, halo: true }));
       }
       return group(id, node.type, b, parts);
     }
@@ -96,7 +96,7 @@ export async function drawInteractionOverview(scene: OverviewScene, metrics: Fon
   for (const label of scene.labels) {
     canvas.labels.push(canvas.text(label.text, label.rect.x, label.rect.y + baselineOffset(metrics, GUARD.size, lh), {
       ...GUARD, fill: theme.color.edgeText, role: 'label', owner: label.owner, halo: true,
-      data: { 'data-uml-end': 'source', 'data-uml-anchor': `${num(label.anchor.x)},${num(label.anchor.y)}` },
+      data: { 'data-uml-end': label.end, 'data-uml-anchor': `${num(label.anchor.x)},${num(label.anchor.y)}` },
     }));
   }
   return canvas.finish({ width: scene.width, height: scene.height, kind: 'interaction-overview', title: scene.frame?.title });
