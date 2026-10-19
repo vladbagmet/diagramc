@@ -763,5 +763,579 @@
     }
    ]
   }
+ },
+ {
+  "name": "review C-01: two-way decision whose branches go to two other swimlanes",
+  "doc": {
+   "kind": "activity",
+   "partitions": [
+    {
+     "id": "a",
+     "name": "Lane A"
+    },
+    {
+     "id": "b",
+     "name": "Lane B"
+    },
+    {
+     "id": "c",
+     "name": "Lane C"
+    }
+   ],
+   "nodes": [
+    {
+     "id": "i",
+     "type": "initial",
+     "partition": "a"
+    },
+    {
+     "id": "d1",
+     "type": "decision",
+     "partition": "a"
+    },
+    {
+     "id": "x",
+     "type": "action",
+     "name": "X",
+     "partition": "b"
+    },
+    {
+     "id": "y",
+     "type": "action",
+     "name": "Y",
+     "partition": "c"
+    },
+    {
+     "id": "m1",
+     "type": "merge"
+    },
+    {
+     "id": "f",
+     "type": "activityFinal",
+     "partition": "a"
+    }
+   ],
+   "edges": [
+    {
+     "type": "control",
+     "from": "i",
+     "to": "d1"
+    },
+    {
+     "type": "control",
+     "from": "d1",
+     "to": "x",
+     "guard": "p"
+    },
+    {
+     "type": "control",
+     "from": "d1",
+     "to": "y",
+     "guard": "else"
+    },
+    {
+     "type": "control",
+     "from": "x",
+     "to": "m1"
+    },
+    {
+     "type": "control",
+     "from": "y",
+     "to": "m1"
+    },
+    {
+     "type": "control",
+     "from": "m1",
+     "to": "f"
+    }
+   ]
+  }
+ },
+ {
+  "name": "review C-01: nested cross-swimlane decisions",
+  "doc": {
+   "kind": "activity",
+   "title": "Cross-lane nested decision",
+   "partitions": [
+    {
+     "id": "a",
+     "name": "Lane A"
+    },
+    {
+     "id": "b",
+     "name": "Lane B"
+    },
+    {
+     "id": "c",
+     "name": "Lane C"
+    }
+   ],
+   "nodes": [
+    {
+     "id": "i",
+     "type": "initial",
+     "partition": "a"
+    },
+    {
+     "id": "d1",
+     "type": "decision",
+     "partition": "a"
+    },
+    {
+     "id": "d2",
+     "type": "decision",
+     "partition": "b"
+    },
+    {
+     "id": "x",
+     "type": "action",
+     "name": "X",
+     "partition": "b"
+    },
+    {
+     "id": "y",
+     "type": "action",
+     "name": "Y",
+     "partition": "c"
+    },
+    {
+     "id": "m2",
+     "type": "merge"
+    },
+    {
+     "id": "z",
+     "type": "action",
+     "name": "Z",
+     "partition": "c"
+    },
+    {
+     "id": "m1",
+     "type": "merge"
+    },
+    {
+     "id": "f",
+     "type": "activityFinal",
+     "partition": "a"
+    }
+   ],
+   "edges": [
+    {
+     "type": "control",
+     "from": "i",
+     "to": "d1"
+    },
+    {
+     "type": "control",
+     "from": "d1",
+     "to": "d2",
+     "guard": "p"
+    },
+    {
+     "type": "control",
+     "from": "d1",
+     "to": "z",
+     "guard": "else"
+    },
+    {
+     "type": "control",
+     "from": "d2",
+     "to": "x",
+     "guard": "q"
+    },
+    {
+     "type": "control",
+     "from": "d2",
+     "to": "y",
+     "guard": "else"
+    },
+    {
+     "type": "control",
+     "from": "x",
+     "to": "m2"
+    },
+    {
+     "type": "control",
+     "from": "y",
+     "to": "m2"
+    },
+    {
+     "type": "control",
+     "from": "m2",
+     "to": "m1"
+    },
+    {
+     "type": "control",
+     "from": "z",
+     "to": "m1"
+    },
+    {
+     "type": "control",
+     "from": "m1",
+     "to": "f"
+    }
+   ]
+  }
+ },
+ {
+  "name": "review C-02: guard of an empty branch stays at its own line",
+  "doc": {
+   "kind": "activity",
+   "title": "Elevator call",
+   "nodes": [
+    {
+     "id": "start",
+     "type": "initial"
+    },
+    {
+     "id": "press",
+     "type": "action",
+     "name": "Press call button"
+    },
+    {
+     "id": "busy",
+     "type": "decision"
+    },
+    {
+     "id": "wait",
+     "type": "action",
+     "name": "Wait in queue"
+    },
+    {
+     "id": "m",
+     "type": "merge"
+    },
+    {
+     "id": "move",
+     "type": "action",
+     "name": "Move to floor"
+    },
+    {
+     "id": "open",
+     "type": "action",
+     "name": "Open doors"
+    },
+    {
+     "id": "end",
+     "type": "activityFinal"
+    }
+   ],
+   "edges": [
+    {
+     "type": "control",
+     "from": "start",
+     "to": "press"
+    },
+    {
+     "type": "control",
+     "from": "press",
+     "to": "busy"
+    },
+    {
+     "type": "control",
+     "from": "busy",
+     "to": "m",
+     "guard": "yes"
+    },
+    {
+     "type": "control",
+     "from": "busy",
+     "to": "wait",
+     "guard": "no"
+    },
+    {
+     "type": "control",
+     "from": "wait",
+     "to": "m"
+    },
+    {
+     "type": "control",
+     "from": "move",
+     "to": "open"
+    },
+    {
+     "type": "control",
+     "from": "open",
+     "to": "end"
+    },
+    {
+     "type": "control",
+     "from": "m",
+     "to": "move"
+    }
+   ]
+  }
+ },
+ {
+  "name": "three-way decision inside one swimlane",
+  "doc": {
+   "kind": "activity",
+   "partitions": [
+    {
+     "id": "a",
+     "name": "Lane A"
+    },
+    {
+     "id": "b",
+     "name": "Lane B"
+    },
+    {
+     "id": "c",
+     "name": "Lane C"
+    }
+   ],
+   "nodes": [
+    {
+     "id": "i",
+     "type": "initial",
+     "partition": "a"
+    },
+    {
+     "id": "x",
+     "type": "action",
+     "name": "Move to B",
+     "partition": "b"
+    },
+    {
+     "id": "d",
+     "type": "decision",
+     "partition": "b"
+    },
+    {
+     "id": "p",
+     "type": "action",
+     "name": "P",
+     "partition": "b"
+    },
+    {
+     "id": "q",
+     "type": "action",
+     "name": "Q",
+     "partition": "b"
+    },
+    {
+     "id": "r",
+     "type": "action",
+     "name": "R",
+     "partition": "b"
+    },
+    {
+     "id": "m",
+     "type": "merge"
+    },
+    {
+     "id": "z",
+     "type": "action",
+     "name": "Back in C",
+     "partition": "c"
+    },
+    {
+     "id": "f",
+     "type": "activityFinal",
+     "partition": "c"
+    }
+   ],
+   "edges": [
+    {
+     "from": "i",
+     "to": "x"
+    },
+    {
+     "from": "x",
+     "to": "d"
+    },
+    {
+     "from": "d",
+     "to": "p",
+     "guard": "p"
+    },
+    {
+     "from": "d",
+     "to": "q",
+     "guard": "q"
+    },
+    {
+     "from": "d",
+     "to": "r",
+     "guard": "else"
+    },
+    {
+     "from": "p",
+     "to": "m"
+    },
+    {
+     "from": "q",
+     "to": "m"
+    },
+    {
+     "from": "r",
+     "to": "m"
+    },
+    {
+     "from": "m",
+     "to": "z"
+    },
+    {
+     "from": "z",
+     "to": "f"
+    }
+   ]
+  }
+ },
+ {
+  "name": "loops and a fork across swimlanes, flow types inferred",
+  "doc": {
+   "kind": "activity",
+   "title": "Loops across lanes",
+   "partitions": [
+    {
+     "id": "a",
+     "name": "Lane A"
+    },
+    {
+     "id": "b",
+     "name": "Lane B"
+    },
+    {
+     "id": "c",
+     "name": "Lane C"
+    }
+   ],
+   "nodes": [
+    {
+     "id": "i",
+     "type": "initial",
+     "partition": "a"
+    },
+    {
+     "id": "wm",
+     "type": "merge"
+    },
+    {
+     "id": "wd",
+     "type": "decision",
+     "partition": "a"
+    },
+    {
+     "id": "wb",
+     "type": "action",
+     "name": "Poll in B",
+     "partition": "b"
+    },
+    {
+     "id": "rm",
+     "type": "merge"
+    },
+    {
+     "id": "rb",
+     "type": "action",
+     "name": "Retry in C",
+     "partition": "c"
+    },
+    {
+     "id": "rd",
+     "type": "decision",
+     "partition": "c"
+    },
+    {
+     "id": "fk",
+     "type": "fork",
+     "partition": "b"
+    },
+    {
+     "id": "f1",
+     "type": "action",
+     "name": "Left work",
+     "partition": "a"
+    },
+    {
+     "id": "f2",
+     "type": "action",
+     "name": "Right work",
+     "partition": "c"
+    },
+    {
+     "id": "jn",
+     "type": "join"
+    },
+    {
+     "id": "o",
+     "type": "object",
+     "name": "Report",
+     "state": "final",
+     "partition": "b"
+    },
+    {
+     "id": "f",
+     "type": "activityFinal",
+     "partition": "b"
+    }
+   ],
+   "edges": [
+    {
+     "from": "i",
+     "to": "wm"
+    },
+    {
+     "from": "wm",
+     "to": "wd"
+    },
+    {
+     "from": "wd",
+     "to": "wb",
+     "guard": "pending"
+    },
+    {
+     "from": "wb",
+     "to": "wm"
+    },
+    {
+     "from": "wd",
+     "to": "rm",
+     "guard": "ready"
+    },
+    {
+     "from": "rm",
+     "to": "rb"
+    },
+    {
+     "from": "rb",
+     "to": "rd"
+    },
+    {
+     "from": "rd",
+     "to": "rm",
+     "guard": "transient failure"
+    },
+    {
+     "from": "rd",
+     "to": "fk",
+     "guard": "done"
+    },
+    {
+     "from": "fk",
+     "to": "f1"
+    },
+    {
+     "from": "fk",
+     "to": "f2"
+    },
+    {
+     "from": "f1",
+     "to": "jn"
+    },
+    {
+     "from": "f2",
+     "to": "jn"
+    },
+    {
+     "from": "jn",
+     "to": "o"
+    },
+    {
+     "from": "o",
+     "to": "f"
+    }
+   ]
+  }
  }
 ]

@@ -220,3 +220,22 @@ export function structure(model: ActivityDiagram): Block {
 }
 
 const cap = (s: string): string => s[0]!.toUpperCase() + s.slice(1);
+
+/** Partitions of every node drawn inside a block, nested blocks included. */
+export function blockPartitions(block: Block): Set<string> {
+  const out = new Set<string>();
+  const add = (node: { partition?: string } | { id: string }): void => { if ('partition' in node && node.partition !== undefined) out.add(node.partition); };
+  for (const step of block) {
+    switch (step.kind) {
+      case 'node': add(step.node); break;
+      case 'decision': add(step.node); for (const b of step.branches) for (const p of blockPartitions(b.body)) out.add(p); break;
+      case 'fork': add(step.node); for (const b of step.branches) for (const p of blockPartitions(b)) out.add(p); break;
+      case 'while': case 'repeat':
+        add(step.decision);
+        for (const p of blockPartitions(step.body)) out.add(p);
+        if (step.kind === 'repeat' && step.backward) add(step.backward);
+        break;
+    }
+  }
+  return out;
+}

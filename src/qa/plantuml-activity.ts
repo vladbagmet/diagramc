@@ -15,9 +15,10 @@ import { walk, type XmlElement } from './xml.js';
  * - edges: chains of edge-colored <line> segments between node borders; the end
  *   with an arrowhead is the target. A chain end that touches no node is reported
  *   with an empty node ID, which the edge-endpoints gate fails;
+ * - note anchors: dashed lines, not flows (they only count for the canvas);
  * - texts: inside a node -> role "text"; in the frame heading -> "frame-label";
  *   swimlane titles -> "partition-label"; anything else (guards) -> "label".
- *   Note lines are merged into one text, as a wrapped paragraph.
+ *   The lines of a node (wrapped names, notes) are merged into one text.
  */
 export function readPlantUmlActivity(root: XmlElement, scene: Scene): void {
   const same = (a: string | undefined, b: string): boolean => (a ?? '').toUpperCase() === b.toUpperCase();
@@ -56,7 +57,7 @@ export function readPlantUmlActivity(root: XmlElement, scene: Scene): void {
     } else if (e.tag === 'path' && same(a.fill, color.noteFill)) {
       const r = boundsOfPoints(pathPts(a.d));
       if (!nodes.some(n => n.type === 'note' && contains(n.bounds, r, 0.5))) add('note', r);
-    } else if (e.tag === 'line' && same(strokeOf(e), color.edge)) {
+    } else if (e.tag === 'line' && same(strokeOf(e), color.edge) && !e.attrs.style?.includes('stroke-dasharray')) {
       const p = { x: num(a.x1), y: num(a.y1) }, q = { x: num(a.x2), y: num(a.y2) };
       if (distance(p, q) > 0.01) segments.push([p, q]);
     } else if (e.tag === 'polyline' && same(strokeOf(e), color.edge) && a.fill === 'none') {
@@ -143,7 +144,8 @@ export function readPlantUmlActivity(root: XmlElement, scene: Scene): void {
     const c = center(t);
     if (scene.frameHeading && inside(scene.frameHeading, c)) { kept.push({ ...t, role: 'frame-label' }); continue; }
     const owner = nodes.filter(n => inside(n.bounds, c)).sort((m, n) => m.bounds.width * m.bounds.height - n.bounds.width * n.bounds.height)[0];
-    if (owner?.type === 'note') {
+    // Lines of one node (a wrapped name or note) form one text, in drawing order.
+    if (owner) {
       const previous = notes.get(owner.id);
       if (previous) {
         previous.content += t.content;
@@ -156,7 +158,6 @@ export function readPlantUmlActivity(root: XmlElement, scene: Scene): void {
       }
       continue;
     }
-    if (owner) { kept.push({ ...t, role: 'text', node: owner.id }); continue; }
     kept.push({ ...t, role: t.bold ? 'partition-label' : 'label' });
   }
   scene.texts.splice(0, scene.texts.length, ...kept);
@@ -164,7 +165,7 @@ export function readPlantUmlActivity(root: XmlElement, scene: Scene): void {
   for (const n of nodes) scene.extents.push(n.bounds);
   for (const [p, q] of segments) scene.extents.push(union([{ ...p, width: 0, height: 0 }, { ...q, width: 0, height: 0 }]));
   for (const e of elements) {
-    if (e.tag === 'line' && !same(strokeOf(e), color.edge)) scene.extents.push(union([{ x: num(e.attrs.x1), y: num(e.attrs.y1), width: 0, height: 0 }, { x: num(e.attrs.x2), y: num(e.attrs.y2), width: 0, height: 0 }]));
+    if (e.tag === 'line' && (!same(strokeOf(e), color.edge) || e.attrs.style?.includes('stroke-dasharray'))) scene.extents.push(union([{ x: num(e.attrs.x1), y: num(e.attrs.y1), width: 0, height: 0 }, { x: num(e.attrs.x2), y: num(e.attrs.y2), width: 0, height: 0 }]));
   }
   scene.exactEdges = true;
 }

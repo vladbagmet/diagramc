@@ -51,14 +51,20 @@ test('activity: UML 2.5.1 notation of every construct', async () => {
   const svg = await svgOf(await readFile(join(root, 'examples/activity/notation.json'), 'utf8'));
   const scene = await inspectSvg(svg);
   const count = type => scene.nodes.filter(n => n.type === type).length;
-  const owner = text => scene.nodes.find(n => n.id === scene.texts.find(t => t.content === text)?.node);
+  // The lines of a node are read as one text: "Result" and "[complete]" become "Result[complete]".
+  const owner = text => scene.nodes.find(n => n.id === scene.texts.find(t => t.node && (t.content === text || t.content.startsWith(`${text}[`)))?.node);
   // Actions are rounded rectangles; object nodes square rectangles.
   for (const action of ['Validate request', 'Log rejection', 'Audit', 'Back off', 'Poll status']) assert.equal(owner(action)?.type, 'action', action);
   for (const object of ['Request', 'Result']) assert.equal(owner(object)?.type, 'object', object);
-  assert.ok(scene.texts.some(t => t.content === '[complete]' && t.node === owner('Result').id), 'object state in brackets under the name');
+  assert.ok(scene.texts.some(t => t.content === 'Result[complete]' && t.node === owner('Result').id && t.lines.length === 2), 'object state in brackets under the name');
   // Send signal (convex pentagon) and accept event (concave notch) are five-sided.
   for (const signal of ['Notify backend', 'Request received']) assert.equal(owner(signal)?.type, 'signal', signal);
   assert.match(svg, /<polygon fill="#F8FAFC" points="([\d.]+,[\d.]+,){4}[\d.]+,[\d.]+"/, 'pentagon');
+  // Accept event: the concave notch is on the left (UML 16.10.4): its fifth point lies inside the left edge.
+  const pentagons = [...svg.matchAll(/<polygon fill="#F8FAFC" points="([^"]+)"/g)].map(m => m[1].split(',').map(Number)).filter(n => n.length === 10);
+  const accept = pentagons.find(n => n[8] > n[0] && n[8] < n[2]);
+  assert.ok(accept, 'accept event pentagon with the notch on the left');
+  assert.ok(pentagons.some(n => n[4] > n[2]), 'send signal pentagon with the point on the right');
   // Call behavior action: the rake symbol.
   assert.match(svg, /<path d="M[\d.]+,[\d.]+ V[\d.]+ M[\d.]+,[\d.]+ V[\d.]+ H[\d.]+ V[\d.]+" fill="none"/);
   // Decision/merge diamonds, fork/join bars, initial, activity final and flow final circles.
@@ -76,6 +82,15 @@ test('activity: UML 2.5.1 notation of every construct', async () => {
   }
   // Note: rectangle with folded corner, attached to its action.
   assert.equal(count('note'), 1);
+  // UML 7.2.4: the note is attached by a dashed line, not by a speech-bubble pointer.
+  const note = scene.nodes.find(n => n.type === 'note');
+  assert.match(svg, new RegExp(`<line x1="${note.bounds.x}" y1="[\\d.]+" x2="[\\d.]+" y2="[\\d.]+" style="[^"]*stroke-dasharray`), 'dashed anchor from the note');
+  assert.ok(note.bounds.width > 100 && scene.extents.length > 0);
+  // Fork and join bars span their flows, not the whole block.
+  for (const bar of scene.nodes.filter(n => n.type === 'bar')) {
+    const flows = scene.edges.flatMap(e => [e.points[0], e.points.at(-1)]).filter(p => Math.abs(p.y - bar.bounds.y) < 2 || Math.abs(p.y - (bar.bounds.y + bar.bounds.height)) < 2).map(p => p.x).filter(x => x >= bar.bounds.x && x <= bar.bounds.x + bar.bounds.width);
+    assert.ok(Math.min(...flows) - bar.bounds.x <= 16.5 && bar.bounds.x + bar.bounds.width - Math.max(...flows) <= 16.5, 'bar overhang at most 16 px');
+  }
   // Frame heading: bold keyword "act" and the name.
   const heading = scene.texts.filter(t => t.role === 'frame-label');
   assert.deepEqual(heading.map(t => [t.content, t.bold]), [['act', true], ['Notation', false]]);

@@ -76,6 +76,7 @@ export const CALL_BEHAVIOR_MARK = '#334156';
 export function activitySkinParams(): string[] {
   const { color, font, stroke } = theme;
   return [
+    'skinparam conditionStyle diamond',
     `skinparam activityBarColor ${color.edge}`,
     `skinparam activityStartColor ${color.text}`,
     `skinparam activityEndColor ${color.text}`,

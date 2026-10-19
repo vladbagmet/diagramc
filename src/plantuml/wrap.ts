@@ -1,29 +1,61 @@
+import type { FontMetrics, TextStyle } from '../engine/fonts.js';
 import { displayText } from './encode.js';
 
+const graphemes = new Intl.Segmenter('en', { granularity: 'grapheme' });
+
 /**
- * Splits display text into lines of at most `max` code points, breaking after
- * spaces where possible and inside long words otherwise. Spaces stay at the end
- * of their line, so `lines.join('') === text` and the QA reader can rebuild the
- * literal input from the drawn lines.
+ * Quality of a line break between `before` and `after` (higher is better, 0 means
+ * "only if nothing else fits"): after a space, after punctuation that separates
+ * parts of identifiers and paths (`. _ - / : , ( ) ;`), at a camelCase boundary
+ * or between a letter and a digit.
  */
-export function wrapLines(text: string, max: number): string[] {
-  const chars = [...text];
-  if (chars.length <= max) return [text];
+function breakRank(before: string, after: string): number {
+  if (before === ' ' && after !== ' ') return 4;
+  if (/[._\-/:,;()=]/u.test(before) && after !== ' ') return 3;
+  if (/\p{Ll}/u.test(before) && /\p{Lu}/u.test(after)) return 2;
+  if (/\p{L}/u.test(before) && /\p{Nd}/u.test(after)) return 1;
+  return 0;
+}
+
+/**
+ * Greedy wrapping that prefers natural break points: spaces first, then
+ * identifier punctuation, then camelCase boundaries, and only then any grapheme
+ * boundary. A break point is used when it keeps at least a third of the line.
+ * Spaces stay at the end of their line, so `lines.join('') === text` and the QA
+ * reader can rebuild the literal input from the drawn lines.
+ */
+export function wrapBy(text: string, fits: (line: string) => boolean): string[] {
+  const units = [...graphemes.segment(text)].map(s => s.segment);
   const lines: string[] = [];
   let start = 0;
-  while (chars.length - start > max) {
-    let end = start + max;
-    // Break after the last space within the window (keep the space on this line).
-    let space = -1;
-    for (let i = end; i > start; i--) if (chars[i - 1] === ' ' && chars[i] !== ' ') { space = i; break; }
-    if (space > start + Math.floor(max / 3)) end = space;
-    // Let a run of spaces finish on this line rather than start the next one.
-    while (end < chars.length && chars[end] === ' ') end++;
-    lines.push(chars.slice(start, end).join(''));
-    start = end;
+  while (start < units.length) {
+    // Longest prefix from `start` that fits (at least one grapheme).
+    let end = start + 1;
+    while (end < units.length && fits(units.slice(start, end + 1).join('').trimEnd())) end++;
+    if (end >= units.length) { lines.push(units.slice(start).join('')); break; }
+    let best = -1, bestRank = 0;
+    const floor = start + Math.max(1, Math.floor((end - start) / 3));
+    for (let i = end; i >= floor; i--) {
+      const rank = breakRank(units[i - 1]!, units[i]!);
+      if (rank > bestRank) { best = i; bestRank = rank; if (rank === 4) break; }
+    }
+    let cut = best > start ? best : end;
+    // A run of spaces finishes on this line rather than starting the next one.
+    while (cut < units.length && units[cut] === ' ') cut++;
+    lines.push(units.slice(start, cut).join(''));
+    start = cut;
   }
-  if (start < chars.length) lines.push(chars.slice(start).join(''));
   return lines;
+}
+
+/** Splits display text into lines of at most `max` graphemes (see wrapBy). */
+export function wrapLines(text: string, max: number): string[] {
+  return wrapBy(text, line => [...graphemes.segment(line)].length <= max);
+}
+
+/** Splits display text into lines at most `maxWidth` px wide in the given style (see wrapBy). */
+export function wrapMeasured(metrics: FontMetrics, text: string, style: TextStyle, maxWidth: number): string[] {
+  return wrapBy(text, line => metrics.measure(line, style) <= maxWidth);
 }
 
 /**

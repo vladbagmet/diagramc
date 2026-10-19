@@ -55,10 +55,10 @@ export const activitySchema = kindSchema({
       ],
     },
     edge: {
-      type: 'object', additionalProperties: false, required: ['type', 'from', 'to'],
+      type: 'object', additionalProperties: false, required: ['from', 'to'],
       properties: {
         id: ref('id', 'Optional ID, used in diagnostics.'),
-        type: { enum: ['control', 'object'], description: '"control" for control flow; "object" for object flow (into or out of an object node). Both are drawn as solid arrows.' },
+        type: { enum: ['control', 'object'], description: '"control" for control flow; "object" for object flow (into or out of an object node). Both are drawn as solid arrows. Optional: when omitted, a flow touching an object node is an object flow, any other flow a control flow.' },
         from: ref('id'), to: ref('id'),
         guard: ref('text', 'Guard condition WITHOUT brackets, drawn [guard]. Required on flows leaving a decision node and only allowed there; "else" is a valid guard.'),
       },

@@ -2,7 +2,7 @@ import { displayText } from '../../plantuml/encode.js';
 import { activitySkinParams, plantUmlDocument } from '../../plantuml/skin.js';
 import { theme } from '../../core/theme.js';
 import { type FontMetrics } from '../../engine/fonts.js';
-import { wrapText } from '../../engine/text.js';
+import { wrapMeasured } from '../../plantuml/wrap.js';
 import type { ActivityDiagram, ActivityNode, ExecutableNode } from './model.js';
 import { structure, type Block } from './structure.js';
 
@@ -44,9 +44,11 @@ export function activityToPlantUml(model: ActivityDiagram, metrics?: FontMetrics
   };
 
   const executable = (node: ExecutableNode, indent: string, keyword = ''): void => {
+    // Long names wrap at natural break points; each line is encoded separately.
+    const rows = (t: string): string => nameRows(t, metrics).map(displayText).join('\\n');
     const text = node.type === 'object' && node.state !== undefined
-      ? `${displayText(node.name)}\n${indent}${displayText(`[${node.state}]`)}`
-      : displayText(node.name);
+      ? `${rows(node.name)}\\n${rows(`[${node.state}]`)}`
+      : rows(node.name);
     const stereotype = { action: '', callBehavior: ' <<callBehavior>>', sendSignal: ' <<output>>', acceptEvent: ' <<input>>', object: ' <<object>>' }[node.type];
     lines.push(`${indent}${keyword}:${text};${stereotype}`);
     if (node.note !== undefined) {
@@ -68,15 +70,27 @@ export function activityToPlantUml(model: ActivityDiagram, metrics?: FontMetrics
           else executable(n as ExecutableNode, indent);
           break;
         }
-        case 'decision':
+        case 'decision': {
           enter(step.node, indent);
-          lines.push(`${indent}switch ()`);
-          for (const b of order(step.branches, x => x.body)) {
-            lines.push(`${indent}case ${guard(b.guard)}`);
-            block(b.body, `${indent}  `);
+          const branches = order(step.branches, x => x.body);
+          if (branches.length === 2) {
+            // if/else keeps each guard at its own branch line and survives swimlane
+            // changes inside the branches (switch/case does not; see validate.ts).
+            lines.push(`${indent}if () then ${guard(branches[0]!.guard)}`);
+            block(branches[0]!.body, `${indent}  `);
+            lines.push(`${indent}else ${guard(branches[1]!.guard)}`);
+            block(branches[1]!.body, `${indent}  `);
+            lines.push(`${indent}endif`);
+          } else {
+            lines.push(`${indent}switch ()`);
+            for (const b of branches) {
+              lines.push(`${indent}case ${guard(b.guard)}`);
+              block(b.body, `${indent}  `);
+            }
+            lines.push(`${indent}endswitch`);
           }
-          lines.push(`${indent}endswitch`);
           break;
+        }
         case 'fork':
           enter(step.node, indent);
           order(step.branches, x => x).forEach((b, i) => {
@@ -98,7 +112,10 @@ export function activityToPlantUml(model: ActivityDiagram, metrics?: FontMetrics
           block(step.body, `${indent}  `);
           enter(step.decision, indent);
           if (step.backward) executable(step.backward, indent, 'backward');
-          lines.push(`${indent}repeat while () is ${guard(step.backGuard)} not ${guard(step.exitGuard)}`);
+          // PlantUML drops the is/not labels of repeat loops when decisions are drawn
+          // as plain diamonds (and always with swimlanes): the returning guard is the
+          // condition text beside the diamond, the leaving guard labels the next flow.
+          lines.push(`${indent}repeat while ${guard(step.backGuard)}`, `${indent}->${displayText(`[${step.exitGuard}]`)};`);
           break;
       }
     }
@@ -113,5 +130,11 @@ export function activityToPlantUml(model: ActivityDiagram, metrics?: FontMetrics
  */
 function noteRows(text: string, metrics: FontMetrics | undefined): string[] {
   if (!metrics) return [text];
-  return wrapText(metrics, text, { size: theme.font.size.body }, theme.size.maxNoteWidth);
+  return wrapMeasured(metrics, text, { size: theme.font.size.body }, theme.size.maxNoteWidth);
+}
+
+/** Action and object node names wrapped to the theme's maximum name width. */
+function nameRows(text: string, metrics: FontMetrics | undefined): string[] {
+  if (!metrics) return [text];
+  return wrapMeasured(metrics, text, { size: theme.font.size.name }, theme.size.maxNameWidth);
 }

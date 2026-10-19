@@ -1827,5 +1827,105 @@
     }
    ]
   }
+ },
+ {
+  "name": "three-way decision whose branches leave its swimlane",
+  "doc": {
+   "kind": "activity",
+   "partitions": [
+    {
+     "id": "a",
+     "name": "Lane A"
+    },
+    {
+     "id": "b",
+     "name": "Lane B"
+    },
+    {
+     "id": "c",
+     "name": "Lane C"
+    }
+   ],
+   "nodes": [
+    {
+     "id": "i",
+     "type": "initial",
+     "partition": "a"
+    },
+    {
+     "id": "d",
+     "type": "decision",
+     "partition": "a"
+    },
+    {
+     "id": "p",
+     "type": "action",
+     "name": "P",
+     "partition": "b"
+    },
+    {
+     "id": "q",
+     "type": "action",
+     "name": "Q",
+     "partition": "a"
+    },
+    {
+     "id": "r",
+     "type": "action",
+     "name": "R",
+     "partition": "c"
+    },
+    {
+     "id": "m",
+     "type": "merge"
+    },
+    {
+     "id": "f",
+     "type": "activityFinal",
+     "partition": "a"
+    }
+   ],
+   "edges": [
+    {
+     "from": "i",
+     "to": "d"
+    },
+    {
+     "from": "d",
+     "to": "p",
+     "guard": "p"
+    },
+    {
+     "from": "d",
+     "to": "q",
+     "guard": "q"
+    },
+    {
+     "from": "d",
+     "to": "r",
+     "guard": "else"
+    },
+    {
+     "from": "p",
+     "to": "m"
+    },
+    {
+     "from": "q",
+     "to": "m"
+    },
+    {
+     "from": "r",
+     "to": "m"
+    },
+    {
+     "from": "m",
+     "to": "f"
+    }
+   ]
+  },
+  "expect": {
+   "code": "DECISION_SPANS_PARTITIONS",
+   "path": "/nodes/1/partition"
+  }
  }
 ]
