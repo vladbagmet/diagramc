@@ -89,8 +89,8 @@ export interface LayoutEdge {
   labels?: LayoutLabel[];
   /** Higher values make ELK keep this edge pointing in the layout direction. */
   directionPriority?: number;
-  /** Higher values make ELK's node placement keep this edge straight (lines into a bundle hub). */
-  straightnessPriority?: number;
+  /** Higher values make ELK node placement keep this edge straight (fewer jogs, lines into a bundle hub). */
+  straightness?: number;
 }
 export interface LayoutOptions {
   direction: Direction;
@@ -203,9 +203,9 @@ export async function layout(nodes: readonly LayoutNode[], edges: readonly Layou
         id: l.id, text: l.id, width: l.width, height: l.height,
         layoutOptions: { 'elk.edgeLabels.placement': l.placement.toUpperCase() },
       })),
-      ...(e.directionPriority || e.straightnessPriority ? { layoutOptions: {
+      ...(e.directionPriority || e.straightness ? { layoutOptions: {
         ...(e.directionPriority ? { 'elk.layered.priority.direction': String(e.directionPriority) } : {}),
-        ...(e.straightnessPriority ? { 'elk.layered.priority.straightness': String(e.straightnessPriority) } : {}),
+        ...(e.straightness ? { 'elk.layered.priority.straightness': String(e.straightness) } : {}),
       } } : {}),
     })),
   };

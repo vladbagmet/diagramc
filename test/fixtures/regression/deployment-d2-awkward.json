@@ -1,0 +1,275 @@
+{
+ "kind": "deployment",
+ "title": "Wide-area network",
+ "elements": [
+  {
+   "id": "core",
+   "type": "node",
+   "name": "Core Router and Firewall Appliance (Juniper SRX4600, redundant pair, rack 12)",
+   "stereotypes": [
+    "network",
+    "ha-pair"
+   ]
+  },
+  {
+   "id": "br1",
+   "type": "device",
+   "name": "Branch Office 1 Edge Gateway"
+  },
+  {
+   "id": "br2",
+   "type": "device",
+   "name": "Branch Office 2 Edge Gateway"
+  },
+  {
+   "id": "br3",
+   "type": "device",
+   "name": "Branch Office 3 Edge Gateway"
+  },
+  {
+   "id": "br4",
+   "type": "device",
+   "name": "Branch Office 4 Edge Gateway"
+  },
+  {
+   "id": "br5",
+   "type": "device",
+   "name": "Branch Office 5 Edge Gateway"
+  },
+  {
+   "id": "br6",
+   "type": "device",
+   "name": "Branch Office 6 Edge Gateway"
+  },
+  {
+   "id": "br7",
+   "type": "device",
+   "name": "Branch Office 7 Edge Gateway"
+  },
+  {
+   "id": "br8",
+   "type": "device",
+   "name": "Branch Office 8 Edge Gateway"
+  },
+  {
+   "id": "br9",
+   "type": "device",
+   "name": "Branch Office 9 Edge Gateway"
+  },
+  {
+   "id": "dc",
+   "type": "node",
+   "name": "Data Centre",
+   "elements": [
+    {
+     "id": "srv",
+     "type": "device",
+     "name": "Blade Server 07",
+     "elements": [
+      {
+       "id": "vm",
+       "type": "executionEnvironment",
+       "name": "VMware ESXi 8",
+       "elements": [
+        {
+         "id": "jvm",
+         "type": "executionEnvironment",
+         "name": "OpenJDK 21 HotSpot VM",
+         "elements": [
+          {
+           "id": "war",
+           "type": "artifact",
+           "name": "erp-backend-with-a-very-long-artifact-file-name-2026.10.19-SNAPSHOT.war"
+          }
+         ]
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "spec",
+   "type": "deploymentSpecification",
+   "name": "erp.properties",
+   "properties": [
+    {
+     "name": "jdbc.url",
+     "type": "String",
+     "value": "jdbc:postgresql://db.internal.example.com:5432/erp_production?sslmode=verify-full"
+    }
+   ]
+  },
+  {
+   "id": "n0",
+   "type": "note",
+   "text": "Note number 0 attached to core: maintenance window is Sunday 02:00 to 04:00 UTC.",
+   "attachedTo": [
+    "core"
+   ]
+  },
+  {
+   "id": "n1",
+   "type": "note",
+   "text": "Note number 1 attached to br1: maintenance window is Sunday 02:00 to 04:00 UTC.",
+   "attachedTo": [
+    "br1"
+   ]
+  },
+  {
+   "id": "n2",
+   "type": "note",
+   "text": "Note number 2 attached to br5: maintenance window is Sunday 02:00 to 04:00 UTC.",
+   "attachedTo": [
+    "br5"
+   ]
+  },
+  {
+   "id": "n3",
+   "type": "note",
+   "text": "Note number 3 attached to dc: maintenance window is Sunday 02:00 to 04:00 UTC.",
+   "attachedTo": [
+    "dc"
+   ]
+  },
+  {
+   "id": "n4",
+   "type": "note",
+   "text": "Note number 4 attached to jvm: maintenance window is Sunday 02:00 to 04:00 UTC.",
+   "attachedTo": [
+    "jvm"
+   ]
+  },
+  {
+   "id": "n5",
+   "type": "note",
+   "text": "Note number 5 attached to spec: maintenance window is Sunday 02:00 to 04:00 UTC.",
+   "attachedTo": [
+    "spec"
+   ]
+  }
+ ],
+ "relationships": [
+  {
+   "type": "communicationPath",
+   "from": "br1",
+   "to": "core",
+   "protocol": "IPsec",
+   "fromEnd": {
+    "multiplicity": "1"
+   },
+   "toEnd": {
+    "multiplicity": "1..2"
+   }
+  },
+  {
+   "type": "communicationPath",
+   "from": "br2",
+   "to": "core",
+   "protocol": "IPsec",
+   "fromEnd": {
+    "multiplicity": "1"
+   },
+   "toEnd": {
+    "multiplicity": "1..2"
+   }
+  },
+  {
+   "type": "communicationPath",
+   "from": "br3",
+   "to": "core",
+   "protocol": "IPsec",
+   "fromEnd": {
+    "multiplicity": "1"
+   },
+   "toEnd": {
+    "multiplicity": "1..2"
+   }
+  },
+  {
+   "type": "communicationPath",
+   "from": "br4",
+   "to": "core",
+   "protocol": "IPsec",
+   "fromEnd": {
+    "multiplicity": "1"
+   },
+   "toEnd": {
+    "multiplicity": "1..2"
+   }
+  },
+  {
+   "type": "communicationPath",
+   "from": "br5",
+   "to": "core",
+   "protocol": "IPsec",
+   "fromEnd": {
+    "multiplicity": "1"
+   },
+   "toEnd": {
+    "multiplicity": "1..2"
+   }
+  },
+  {
+   "type": "communicationPath",
+   "from": "br6",
+   "to": "core",
+   "protocol": "IPsec",
+   "fromEnd": {
+    "multiplicity": "1"
+   },
+   "toEnd": {
+    "multiplicity": "1..2"
+   }
+  },
+  {
+   "type": "communicationPath",
+   "from": "br7",
+   "to": "core",
+   "protocol": "IPsec",
+   "fromEnd": {
+    "multiplicity": "1"
+   },
+   "toEnd": {
+    "multiplicity": "1..2"
+   }
+  },
+  {
+   "type": "communicationPath",
+   "from": "br8",
+   "to": "core",
+   "protocol": "IPsec",
+   "fromEnd": {
+    "multiplicity": "1"
+   },
+   "toEnd": {
+    "multiplicity": "1..2"
+   }
+  },
+  {
+   "type": "communicationPath",
+   "from": "br9",
+   "to": "core",
+   "protocol": "IPsec",
+   "fromEnd": {
+    "multiplicity": "1"
+   },
+   "toEnd": {
+    "multiplicity": "1..2"
+   }
+  },
+  {
+   "type": "communicationPath",
+   "from": "core",
+   "to": "srv",
+   "protocol": "10GbE"
+  },
+  {
+   "type": "dependency",
+   "from": "spec",
+   "to": "war",
+   "keyword": "configures"
+  }
+ ]
+}

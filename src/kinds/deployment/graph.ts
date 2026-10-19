@@ -47,7 +47,7 @@ export function deploymentGraph(model: DeploymentDiagram): StructGraph {
     }
   });
   return {
-    kind: 'deployment', frameKeyword: 'dep', title: model.title,
+    kind: 'deployment', frameKeyword: 'dep', title: model.title, directions: ['RIGHT', 'DOWN'],
     nodes: model.elements.map(node), edges, assemblies: [],
     anchors: model.elements.flatMap(e => e.type === 'note' ? (e.attachedTo ?? []).map(target => ({ note: e.id, target })) : []),
   };

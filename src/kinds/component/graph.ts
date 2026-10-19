@@ -23,6 +23,12 @@ export function componentGraph(model: ComponentDiagram): StructGraph {
     joined.add(`${r.from}\u0000requires\u0000${r.interface}`);
     joined.add(`${r.to}\u0000provides\u0000${r.interface}`);
   }
+  // A «use» or realization line to the interface's box already shows the dependency:
+  // no second, unconnected socket or lollipop for the same interface on that element.
+  for (const r of relationships) {
+    if (r.type === 'usage' && interfaces.has(r.to)) joined.add(`${r.from}\u0000requires\u0000${r.to}`);
+    if (r.type === 'realization' && interfaces.has(r.to)) joined.add(`${r.from}\u0000provides\u0000${r.to}`);
+  }
   // A delegation passes an interface through: draw it once, at the outer end.
   const parentOf = new Map<string, string>(), portOf = new Map<string, string>();
   const walk = (e: Element | Nested, parent: string | undefined): void => {
@@ -115,7 +121,7 @@ export function componentGraph(model: ComponentDiagram): StructGraph {
   });
 
   return {
-    kind: 'component', frameKeyword: 'cmp', title: model.title,
+    kind: 'component', frameKeyword: 'cmp', title: model.title, directions: ['RIGHT', 'DOWN'],
     nodes: model.elements.flatMap(e => node(e) ?? []),
     edges, assemblies,
     anchors: model.elements.flatMap(e => e.type === 'note' ? (e.attachedTo ?? []).map(target => ({ note: e.id, target })) : []),

@@ -3,17 +3,30 @@ import { drawEdge } from '../../engine/edges.js';
 import type { FontMetrics } from '../../engine/fonts.js';
 import { baselineOffset, drawBox, drawFrame, drawNote, startsData } from '../../engine/shapes.js';
 import { Canvas, num } from '../../engine/svg.js';
+import { inflate, overlaps, type Rect } from '../../engine/geometry.js';
 import { artifactIcon, componentIcon, drawBall, drawEllipse, drawJoint, drawNode3d, drawPort, drawSocket } from '../../engine/symbols.js';
 import type { PlacedNode, StructScene } from './layout.js';
 
-/** Icon at the top-right corner of a node's front face. */
-function icon(node: PlacedNode): string[] {
+const ICON_GAP = 4;
+
+/**
+ * Icon at the top-right corner of a node's front face. A port square straddling
+ * the border next to that corner pushes the icon left or down (whichever moves it
+ * less), so the square never touches it.
+ */
+function icon(node: PlacedNode, ports: readonly Rect[]): string[] {
   const { x, y, width } = node.bounds;
   const right = x + width - (node.node.shape === 'node3d' ? theme.size.nodeDepth : 0);
-  const top = y + (node.node.shape === 'node3d' ? theme.size.nodeDepth : 0) + 7;
-  if (node.node.icon === 'component') return [componentIcon(right - theme.size.componentIcon.width - 7, top)];
-  if (node.node.icon === 'artifact') return [artifactIcon(right - theme.size.artifactIcon.width - 8, top)];
-  return [];
+  const size = node.node.icon === 'component' ? theme.size.componentIcon : node.node.icon === 'artifact' ? theme.size.artifactIcon : undefined;
+  if (!size) return [];
+  let at = { x: right - size.width - (node.node.icon === 'component' ? 7 : 8), y: y + (node.node.shape === 'node3d' ? theme.size.nodeDepth : 0) + 7 };
+  for (let round = 0; round < 4; round++) {
+    const hit = ports.find(p => overlaps(inflate(p, ICON_GAP), { ...at, ...size }));
+    if (!hit) break;
+    const left = { x: hit.x - ICON_GAP - size.width - 0.5, y: at.y }, down = { x: at.x, y: hit.y + hit.height + ICON_GAP + 0.5 };
+    at = at.x - left.x <= down.y - at.y ? left : down;
+  }
+  return [node.node.icon === 'component' ? componentIcon(at.x, at.y) : artifactIcon(at.x, at.y)];
 }
 
 /**
@@ -23,15 +36,16 @@ function icon(node: PlacedNode): string[] {
  */
 export async function drawStructure(scene: StructScene, metrics: FontMetrics): Promise<string> {
   const canvas = new Canvas(metrics);
+  const portsOf = (id: string): Rect[] => scene.symbols.filter(s => s.kind === 'port' && s.parent === id).map(s => s.bounds);
   if (scene.frame) canvas.frame.push(drawFrame(canvas, scene.frame.keyword, scene.frame.title, scene.frame.bounds));
   for (const n of scene.nodes) {
     const data = { id: n.node.id, type: n.node.type, parent: n.parent };
     const layer = n.container ? canvas.frame : canvas.nodes;
     switch (n.node.shape) {
       case 'note': layer.push(drawNote(canvas, n.noteRows ?? [], n.bounds, data)); break;
-      case 'node3d': layer.push(drawNode3d(canvas, n.box!, n.bounds, data, { above: icon(n), middle: !n.container })); break;
+      case 'node3d': layer.push(drawNode3d(canvas, n.box!, n.bounds, data, { above: icon(n, portsOf(n.node.id)), middle: !n.container })); break;
       case 'ellipse': layer.push(drawEllipse(canvas, n.box!, n.bounds, data, { textTop: n.ellipse!.textTop, ...(n.ellipse!.separatorY !== undefined ? { separatorY: n.ellipse!.separatorY } : {}), dashed: n.node.dashed !== false })); break;
-      default: layer.push(drawBox(canvas, n.box!, n.bounds, data, { dashed: !!n.node.dashed, above: icon(n), middle: !n.container }));
+      default: layer.push(drawBox(canvas, n.box!, n.bounds, data, { dashed: !!n.node.dashed, above: icon(n, portsOf(n.node.id)), middle: !n.container }));
     }
   }
   for (const edge of scene.edges) canvas.edges.push(drawEdge(edge));

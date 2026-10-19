@@ -96,6 +96,28 @@ export interface RepairOptions {
   labelSpacing?: (id: string) => number | undefined;
   /** Also shorten long routes that break no rule (default true). */
   shorten?: boolean;
+  /**
+   * Also reroute a line that crosses another line within JUNCTION_DISTANCE of
+   * either line's end: there the crossing reads as a junction at the node.
+   */
+  junctions?: boolean;
+}
+
+/** See RepairOptions.junctions. */
+export const JUNCTION_DISTANCE = 30;
+
+/** Crossing points of two routes' segments (proper crossings only). */
+function crossingPoints(a: readonly Point[], b: readonly Point[]): Point[] {
+  const out: Point[] = [];
+  const cross = (o: Point, p: Point, q: Point) => (p.x - o.x) * (q.y - o.y) - (p.y - o.y) * (q.x - o.x);
+  for (let i = 1; i < a.length; i++) for (let j = 1; j < b.length; j++) {
+    const p = a[i - 1]!, q = a[i]!, r = b[j - 1]!, t = b[j]!;
+    const d1 = cross(r, t, p), d2 = cross(r, t, q), d3 = cross(p, q, r), d4 = cross(p, q, t);
+    if (!(((d1 > 0 && d2 < 0) || (d1 < 0 && d2 > 0)) && ((d3 > 0 && d4 < 0) || (d3 < 0 && d4 > 0)))) continue;
+    const k = d1 / (d1 - d2);
+    out.push({ x: p.x + (q.x - p.x) * k, y: p.y + (q.y - p.y) * k });
+  }
+  return out;
 }
 
 /** Returns the repaired routes (all edges, changed or not) and the IDs of rerouted edges. */
@@ -152,6 +174,14 @@ export function repairRoutes(nodes: readonly RepairNode[], edges: readonly Repai
       }
     }
     if (options.labelFits && !options.labelFits(e.id, route, routes)) return 'label';
+    if (options.junctions) {
+      for (const o of edges) {
+        if (o.id === e.id || o.source === e.source || o.source === e.target || o.target === e.source || o.target === e.target) continue;
+        const other = routes.get(o.id)!;
+        const ends = [route[0]!, route.at(-1)!, other[0]!, other.at(-1)!];
+        if (crossingPoints(route, other).some(p => ends.some(q => distance(p, q) < JUNCTION_DISTANCE))) return 'junction';
+      }
+    }
     return undefined;
   };
 

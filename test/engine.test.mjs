@@ -329,6 +329,36 @@ test('PNG text: lines mixing Inter and fallback glyphs are split into runs so th
   assert.ok(Math.abs(xs[1] - (10 + metrics.measure('Kundin · Zoë ', { size: 14, bold: true }))) < 0.01);
 });
 
+test('notes: a last row of one word is avoided by wrapping narrower with the same number of rows', async () => {
+  const { measureNote } = await import('../dist/engine/shapes.js');
+  const metrics = await loadFonts();
+  const { rows } = measureNote(metrics, 'Two app servers in production; one shown.');
+  assert.ok(rows.length >= 2 && /\s/.test(rows.at(-1).trim()), `rows: ${JSON.stringify(rows)}`);
+});
+
+test('repairRoutes (junctions): a line crossing another right next to its end is rerouted', () => {
+  const nodes = [
+    { id: 'a', rect: { x: 0, y: 60, width: 60, height: 40 } }, { id: 'c', rect: { x: 300, y: 60, width: 60, height: 40 } },
+    { id: 'g', rect: { x: 100, y: 200, width: 60, height: 40 } }, { id: 'h', rect: { x: 250, y: -100, width: 60, height: 40 } },
+  ];
+  const edges = [
+    { id: 'l1', source: 'a', target: 'c', route: [{ x: 60, y: 80 }, { x: 300, y: 80 }], sourceMarker: 'none', targetMarker: 'none' },
+    { id: 'l2', source: 'g', target: 'h', route: [{ x: 130, y: 200 }, { x: 130, y: 150 }, { x: 290, y: 150 }, { x: 290, y: -60 }], sourceMarker: 'none', targetMarker: 'none' },
+  ];
+  const near = routes => {
+    const l1 = routes.get('l1'), l2 = routes.get('l2');
+    return l2.slice(1).some((q, k) => {
+      const p = l2[k];
+      if (p.x !== q.x) return false;
+      const y0 = Math.min(p.y, q.y), y1 = Math.max(p.y, q.y);
+      return y0 < 80 && y1 > 80 && [l1[0], l1.at(-1), l2[0], l2.at(-1)].some(e => Math.hypot(e.x - p.x, e.y - 80) < 30);
+    });
+  };
+  assert.ok(near(repairRoutes(nodes, edges, { shorten: false }).routes), 'without the option the crossing stays');
+  const { routes, changed } = repairRoutes(nodes, edges, { shorten: false, junctions: true });
+  assert.ok(changed.has('l2') && !near(routes), JSON.stringify(routes.get('l2')));
+});
+
 test('router: an orthogonal route around an obstacle, leaving and entering perpendicular with straight stubs', () => {
   const source = { x: 0, y: 0, width: 80, height: 40 }, target = { x: 0, y: 200, width: 80, height: 40 }, wall = { x: -40, y: 90, width: 160, height: 30 };
   const route = routeOrthogonal({ source: { rect: source, stub: 20 }, target: { rect: target, stub: 20 }, obstacles: [wall], lines: [], area: { x: -100, y: -50, width: 300, height: 350 } });

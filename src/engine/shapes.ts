@@ -152,7 +152,19 @@ export function drawBox(canvas: Canvas, box: MeasuredBox, bounds: Rect, data: No
 export function measureNote(metrics: FontMetrics, text: string): { width: number; height: number; rows: string[] } {
   const style = { size: theme.font.size.body };
   const pad = 10, fold = theme.size.noteFold;
-  const rows = wrapText(metrics, text, style, theme.size.maxNoteWidth);
+  let rows = wrapText(metrics, text, style, theme.size.maxNoteWidth);
+  // A last row of one word ("one / shown.") looks orphaned: wrap narrower, with the
+  // same number of rows, so the words spread evenly.
+  const single = (r: readonly string[]): boolean => r.length >= 2 && !/\s/.test(r.at(-1)!.trim());
+  if (single(rows)) {
+    let lo: number = theme.size.maxNoteWidth / 2, hi: number = theme.size.maxNoteWidth;
+    for (let i = 0; i < 8; i++) {
+      const mid = (lo + hi) / 2;
+      if (wrapText(metrics, text, style, mid).length === rows.length) hi = mid; else lo = mid;
+    }
+    const balanced = wrapText(metrics, text, style, hi);
+    if (balanced.length === rows.length) rows = balanced;
+  }
   const width = Math.max(60, Math.ceil(Math.max(...rows.map(r => metrics.measure(r.trimEnd(), style))) + 2 * pad + fold / 2));
   return { width, height: rows.length * metrics.lineHeight(style.size) + 2 * pad - 2, rows };
 }

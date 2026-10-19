@@ -382,8 +382,8 @@ export async function layoutDiagram(spec: DiagramSpec, metrics: FontMetrics): Pr
       if (member) {
         const { bundle, index } = member;
         return [
-          { id: `${e.id}::in`, source: endPort.get(`${e.id}\u0000source`) ?? bundle.source, target: `${bundle.id}::in${index}`, directionPriority: 1, straightnessPriority: 10 },
-          { id: `${e.id}::out`, source: `${bundle.id}::out${index}`, target: endPort.get(`${e.id}\u0000target`) ?? bundle.target, directionPriority: 1, straightnessPriority: 10 },
+          { id: `${e.id}::in`, source: endPort.get(`${e.id}\u0000source`) ?? bundle.source, target: `${bundle.id}::in${index}`, directionPriority: 1, straightness: 10 },
+          { id: `${e.id}::out`, source: `${bundle.id}::out${index}`, target: endPort.get(`${e.id}\u0000target`) ?? bundle.target, directionPriority: 1, straightness: 10 },
         ];
       }
       const labels: LayoutLabel[] = [];
