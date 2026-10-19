@@ -106,6 +106,45 @@ Examples: [`examples/class/`](examples/class/).
 [`examples/v1/`](examples/v1/)) keep working as class diagrams; members are drawn
 verbatim and error paths refer to the v1 document.
 
+### Communication diagrams
+
+`lifelines` (rectangles `name : Type`, optional selector, multi-object stacks),
+undirected `links` between them, and `messages` that travel on links: `from` is
+the sender, `to` the receiver, `sequence` a decimal number (`1`, `1.2`, `2a`).
+Each message is listed beside its link with an arrow toward the receiver (filled
+for synchronous, open for asynchronous, dashed for replies), with optional guard,
+iteration, arguments, assignment and return value. A nested message (`1.2`) is
+sent by the receiver of its parent (`1`); every message needs a link (a self-link
+for self-messages).
+
+```json
+{ "kind": "communication",
+  "lifelines": [{ "id": "c", "name": "client", "type": "Client" }, { "id": "s", "type": "Server" }],
+  "links": [{ "from": "c", "to": "s" }],
+  "messages": [{ "sequence": "1", "from": "c", "to": "s", "name": "ping", "arguments": [] }] }
+```
+
+Checklist and rules: [`docs/kinds/communication.md`](docs/kinds/communication.md).
+Examples: [`examples/communication/`](examples/communication/).
+
+### Interaction overview diagrams
+
+A top-down control flow: `nodes` of type `initial`, `final`, `flow-final`,
+`decision`, `merge`, `fork`, `join`, `interaction-use` (a `ref` frame naming
+another interaction) and `interaction` (an inline `sd` frame with its own
+lifelines and messages), connected by `flows` from `from` to `to`. Flows leaving a
+decision carry a `guard`. Optional `lifelines` go into the frame heading. Exactly
+one initial node; every node reachable; every path ends in a final node.
+
+```json
+{ "kind": "interaction-overview",
+  "nodes": [{ "id": "start", "type": "initial" }, { "id": "login", "type": "interaction-use", "name": "Login" }, { "id": "end", "type": "final" }],
+  "flows": [{ "from": "start", "to": "login" }, { "from": "login", "to": "end" }] }
+```
+
+Checklist and rules: [`docs/kinds/interaction-overview.md`](docs/kinds/interaction-overview.md).
+Examples: [`examples/interaction-overview/`](examples/interaction-overview/).
+
 ## Errors
 
 Errors are one JSON object on stderr; no output file is written or changed.
@@ -153,7 +192,8 @@ include `USAGE`, `INVALID_JSON`, `INVALID_ENCODING`, `INPUT_TOO_LARGE`,
 example: markup safety, everything inside the canvas, no node overlap (containment
 allowed), no label overlapping a node, label or line, end labels near and
 unambiguous at their end, edges ending on node borders, arrowheads present at the
-right end and pointing inward, every input text drawn literally, minimum font size
+right end and pointing inward, message arrows parallel to and beside their own
+link and pointing at the receiver, every input text drawn literally, minimum font size
 11 px, text inside its box. Own-engine SVGs carry `data-uml-*` attributes so gates
 are exact; PlantUML SVGs are checked best-effort. `npm run gallery` renders every
 example to SVG and PNG with an `index.html` overview.

@@ -100,6 +100,9 @@ Copy the structure of `src/kinds/class/layout.ts` and `draw.ts`.
 | Packages / containers | `measurePackageTab()` + `drawPackage()`; give ELK a compound node with `padding.top` >= tab height |
 | Diagram frame | when `title` is set: `measureFrameHeading()` + `drawFrame(canvas, kind.frameKeyword, title, bounds)` |
 | Layout | `layout(nodes, edges, { direction })` from `src/engine/elk.ts`: sizes, compound `children`, fixed-side `ports` (a shared port gives generalization trees; a port as wide as an end's labels and marker keeps neighbours apart), edge labels `center`/`head`/`tail` |
+| Ports at given points | `LayoutPort.position` (relative to the node) switches the node to FIXED_POS, e.g. diamond vertices, the bottom of an initial dot |
+| Undirected graphs | `stressCenters()` from `src/engine/stress.ts` (ELK Stress, deterministic): node centers only, route the edges yourself (see `src/kinds/communication/layout.ts` for grid snapping) |
+| Message arrows beside a line | `drawMessageArrow()` (`data-uml-role="message-arrow"`, checked by the `message-arrows` gate); give its labels the same `data-uml-group` |
 | Self-loops | never give them to ELK: `planSelfLoops()` before layout (node `reserveRight`, min height), `selfLoopRoute()` after |
 | Lines and arrowheads | `drawEdge({ points, style, sourceMarker, targetMarker, ... })`; markers: `hollow-triangle`, `filled-triangle`, `open-arrow`, `hollow-diamond`, `filled-diamond`, `cross`, `circle-plus`, `none` |
 | Edge labels | `placeLabels()` with obstacles (node rects, marker boxes, all segments, labelled `ends`); end labels with `at: 'source'|'target'`, center labels with ELK's suggestion |
@@ -159,7 +162,8 @@ The QA gates (`src/qa/gates.ts`, all must pass): `safe-markup`, `inside-canvas`,
 `node-overlap` (containment allowed), `label-overlap`, `label-edge-crossing`,
 `label-proximity` (end labels near and unambiguous), `edge-endpoints` (on borders,
 no edge through other nodes), `markers` (present, at the end, pointing inward, not
-touching other markers), `literal-text`, `min-font-size` (11 px), `text-fits`.
+touching other markers), `message-arrows` (parallel to and beside their own link,
+pointing at the receiver, labels next to them), `literal-text`, `min-font-size` (11 px), `text-fits`.
 
 ## 6. Gallery and visual review
 
