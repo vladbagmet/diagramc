@@ -1,0 +1,47 @@
+{
+  "kind": "composite-structure",
+  "title": "Build agent",
+  "elements": [
+    { "id": "agent", "type": "class", "name": "BuildAgent",
+      "ports": [
+        { "id": "pJobs", "name": "jobs", "type": "JobFeed" },
+        { "id": "pArtifacts", "name": "artifacts", "type": "BlobStore", "conjugated": true },
+        { "id": "pLogs", "name": "logs", "type": "LogSink" },
+        { "id": "pMetrics", "name": "metrics", "type": "Prometheus" }
+      ],
+      "parts": [
+        { "id": "poller", "name": "poller", "type": "JobPoller", "ports": [{ "id": "pollIn", "name": "in" }] },
+        { "id": "sched", "name": "scheduler", "type": "LocalScheduler" },
+        { "id": "exec", "name": "executors", "type": "Executor", "multiplicity": "1..4",
+          "parts": [
+            { "id": "ws", "name": "workspace", "type": "Workspace" },
+            { "id": "shell", "name": "shell", "type": "ShellRunner" }
+          ],
+          "ports": [{ "id": "execCtl", "name": "ctl" }] },
+        { "id": "cache", "name": "cache", "type": "LayerCache", "aggregation": "shared" },
+        { "id": "uploader", "name": "uploader", "type": "ArtifactUploader" },
+        { "id": "logger", "name": "logger", "type": "LogForwarder" },
+        { "id": "stats", "name": "stats", "type": "StatsCollector" }
+      ],
+      "collaborationUses": [
+        { "id": "pc", "name": "queue", "collaboration": "prodcons", "bindings": [{ "role": "producer", "part": "poller" }, { "role": "consumer", "part": "sched" }] }
+      ] },
+    { "id": "prodcons", "type": "collaboration", "name": "ProducerConsumer",
+      "roles": [{ "id": "producer", "name": "producer", "type": "Producer" }, { "id": "consumer", "name": "consumer", "type": "Consumer" }] },
+    { "id": "n1", "type": "note", "text": "Executors share the layer cache.", "attachedTo": ["cache"] }
+  ],
+  "relationships": [
+    { "type": "connector", "from": "pJobs", "to": "pollIn" },
+    { "type": "connector", "from": "poller", "to": "sched", "name": "enqueue" },
+    { "type": "connector", "from": "sched", "to": "execCtl", "name": "dispatch", "toEnd": { "multiplicity": "1..4" } },
+    { "type": "connector", "from": "exec", "to": "cache", "fromEnd": { "multiplicity": "*" }, "toEnd": { "multiplicity": "1" } },
+    { "type": "connector", "from": "exec", "to": "uploader" },
+    { "type": "connector", "from": "uploader", "to": "pArtifacts" },
+    { "type": "connector", "from": "exec", "to": "logger", "name": "stdout" },
+    { "type": "connector", "from": "logger", "to": "pLogs" },
+    { "type": "connector", "from": "stats", "to": "pMetrics" },
+    { "type": "connector", "from": "sched", "to": "stats", "association": "reports" },
+    { "type": "connector", "from": "producer", "to": "consumer", "name": "channel" },
+    { "type": "connector", "from": "ws", "to": "shell", "name": "cwd" }
+  ]
+}

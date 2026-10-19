@@ -1,0 +1,32 @@
+{
+  "kind": "package",
+  "title": "CI platform modules",
+  "elements": [
+    { "id": "ci", "type": "package", "name": "ci", "members": ["api", "scheduler", "runner", "storage"] },
+    { "id": "api", "type": "package", "name": "ci.api", "members": ["pipelineCtl", "webhook"] },
+    { "id": "pipelineCtl", "type": "class", "name": "PipelineController" },
+    { "id": "webhook", "type": "class", "name": "WebhookHandler" },
+    { "id": "scheduler", "type": "package", "name": "ci.scheduler", "members": ["queue", "planner"] },
+    { "id": "queue", "type": "interface", "name": "JobQueue" },
+    { "id": "planner", "type": "class", "name": "StagePlanner" },
+    { "id": "runner", "type": "package", "name": "ci.runner", "members": ["executor", "status"] },
+    { "id": "executor", "type": "class", "name": "JobExecutor" },
+    { "id": "status", "type": "enumeration", "name": "JobStatus" },
+    { "id": "storage", "type": "package", "name": "ci.storage", "stereotypes": ["subsystem"] },
+    { "id": "k8s", "type": "package", "name": "kubernetes-client", "stereotypes": ["library"] },
+    { "id": "git", "type": "package", "name": "git", "stereotypes": ["library"] },
+    { "id": "common", "type": "package", "name": "common" },
+    { "id": "n1", "type": "note", "text": "Runners never call the API package directly.", "attachedTo": ["runner"] }
+  ],
+  "relationships": [
+    { "type": "import", "from": "api", "to": "scheduler" },
+    { "type": "dependency", "from": "pipelineCtl", "to": "queue", "keyword": "use" },
+    { "type": "dependency", "from": "executor", "to": "queue", "keyword": "use" },
+    { "type": "import", "from": "runner", "to": "k8s" },
+    { "type": "access", "from": "api", "to": "git" },
+    { "type": "import", "from": "runner", "to": "storage" },
+    { "type": "import", "from": "scheduler", "to": "status" },
+    { "type": "merge", "from": "ci", "to": "common" },
+    { "type": "dependency", "from": "webhook", "to": "git", "keyword": "call", "name": "clones" }
+  ]
+}

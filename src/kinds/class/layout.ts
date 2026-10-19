@@ -74,5 +74,5 @@ export function classDiagramSpec(model: ClassDiagram): DiagramSpec {
     if (!isNote(e)) continue;
     for (const target of e.attachedTo ?? []) edges.push({ id: `${e.id}->${target}`, type: 'note-anchor', source: e.id, target, style: 'dashed', sourceMarker: 'none', targetMarker: 'none' });
   }
-  return { kind: 'class', frameKeyword: 'class', title: model.title, nodes: model.elements.map(node), edges, directions: ['DOWN'] };
+  return { kind: 'class', frameKeyword: 'class', title: model.title, nodes: model.elements.map(node), edges, directions: ['DOWN', 'RIGHT'] };
 }

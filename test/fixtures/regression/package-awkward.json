@@ -1,0 +1,33 @@
+{
+  "kind": "package",
+  "title": "Deep nesting and parallel relationships",
+  "elements": [
+    { "id": "l1", "type": "package", "name": "org", "members": ["l2", "nA"] },
+    { "id": "l2", "type": "package", "name": "org.example", "members": ["l3"] },
+    { "id": "l3", "type": "package", "name": "org.example.enterprise", "members": ["l4"] },
+    { "id": "l4", "type": "package", "name": "org.example.enterprise.customerrelationshipmanagement", "stereotypes": ["framework", "generated"], "members": ["l5", "cls"] },
+    { "id": "l5", "type": "package", "name": "internal", "members": ["deep", "nB"] },
+    { "id": "deep", "type": "class", "name": "DeeplyNestedServiceLocatorFactoryBean", "abstract": true },
+    { "id": "cls", "type": "interface", "name": "Repository" },
+    { "id": "other", "type": "package", "name": "other" },
+    { "id": "lib", "type": "package", "name": "a package name that is much longer than its contents would ever need" },
+    { "id": "owned", "type": "class", "name": "Helper" },
+    { "id": "owned2", "type": "class", "name": "Helper2" },
+    { "id": "nA", "type": "note", "text": "A note nested in org.", "attachedTo": ["l2"] },
+    { "id": "nB", "type": "note", "text": "A note nested deep inside.", "attachedTo": ["deep"] },
+    { "id": "nC", "type": "note", "text": "Top-level note attached to four things.", "attachedTo": ["other", "lib", "deep", "l4"] }
+  ],
+  "relationships": [
+    { "type": "import", "from": "other", "to": "lib" },
+    { "type": "access", "from": "other", "to": "lib" },
+    { "type": "merge", "from": "other", "to": "lib" },
+    { "type": "dependency", "from": "other", "to": "lib", "keyword": "trace" },
+    { "type": "dependency", "from": "lib", "to": "other", "keyword": "use", "name": "callback" },
+    { "type": "import", "from": "l5", "to": "lib" },
+    { "type": "import", "from": "other", "to": "deep" },
+    { "type": "dependency", "from": "deep", "to": "cls", "keyword": "use" },
+    { "type": "containment", "from": "other", "to": "owned" },
+    { "type": "containment", "from": "other", "to": "owned2" },
+    { "type": "import", "from": "l2", "to": "other" }
+  ]
+}

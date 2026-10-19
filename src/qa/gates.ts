@@ -2,6 +2,7 @@ import { theme } from '../core/theme.js';
 import { boundsOfPoints, center, contains, direction, distance, distanceToBorder, distanceToEllipse, distanceToRect, inflate, overlapArea, segmentDistance, segmentIntersectsRect, union, type Point, type Rect } from '../engine/geometry.js';
 import { distanceToOutline } from '../engine/clip.js';
 import { inspectSvg, type Scene } from './inspect.js';
+import { collinearOverlap, LABEL_CLEARANCE, rectSegmentDistance } from '../engine/labels.js';
 import { interactionGates } from './plantuml-interaction.js';
 
 /**
@@ -14,8 +15,18 @@ export interface QaReport { ok: boolean; renderer: Scene['renderer']; gates: Gat
 
 export const GATES = [
   'safe-markup', 'inside-canvas', 'node-overlap', 'label-overlap', 'label-edge-crossing', 'label-proximity',
-  'edge-endpoints', 'markers', 'message-arrows', 'literal-text', 'min-font-size', 'text-fits', 'ports',
+  'edge-endpoints', 'end-spacing', 'route-length', 'markers', 'message-arrows', 'literal-text', 'min-font-size', 'text-fits', 'ports',
 ] as const;
+
+/** Minimum gap between a label and a node border it does not overlap (labels must not touch outlines). */
+export const LABEL_BORDER_CLEARANCE = LABEL_CLEARANCE;
+/** A center label must lie within this distance of its own line. */
+export const CENTER_LABEL_REACH = 24;
+/** Routes may be at most this factor longer than the Manhattan gap between their ends' nodes, plus ROUTE_SLACK px. */
+export const ROUTE_FACTOR = 3;
+export const ROUTE_SLACK = 200;
+/** Minimum distance between two different edge ends on one side of a node (parallel line spacing). */
+export const MIN_END_SPACING = theme.spacing.edgeEdge;
 
 function distanceToSegment(p: { x: number; y: number }, a: { x: number; y: number }, b: { x: number; y: number }): number {
   const dx = b.x - a.x, dy = b.y - a.y, len = dx * dx + dy * dy;
@@ -102,8 +113,17 @@ export function runGates(scene: Scene, expectedTexts: readonly string[] = []): Q
       const enclosing = edge ? new Set([...endAncestors(edge.source), ...endAncestors(edge.target)])
         : label.owner !== undefined && nodeById.has(label.owner) ? endAncestors(label.owner) : new Set<string>();
       for (const n of scene.nodes) {
-        if (overlapArea(label.bounds, n.bounds) <= 0.5) continue;
-        if (enclosing.has(n.id) && contains(n.bounds, label.bounds) && !(n.tab && overlapArea(label.bounds, n.tab) > 0.5)) continue;
+        if (overlapArea(label.bounds, n.bounds) <= 0.5) {
+          // Outside the node: keep a little air between the label and the outline.
+          const gap = gapBetween(label.bounds, n.bounds);
+          if (engine && label.owner !== n.id && gap < LABEL_BORDER_CLEARANCE - 0.25) fail(`label ${snippet(label.content)} is ${gap.toFixed(1)}px from the border of ${n.id} (min ${LABEL_BORDER_CLEARANCE})`);
+          continue;
+        }
+        if (enclosing.has(n.id) && contains(n.bounds, label.bounds) && !(n.tab && overlapArea(label.bounds, n.tab) > 0.5)) {
+          const inner = Math.min(label.bounds.x - n.bounds.x, label.bounds.y - n.bounds.y, n.bounds.x + n.bounds.width - label.bounds.x - label.bounds.width, n.bounds.y + n.bounds.height - label.bounds.y - label.bounds.height);
+          if (engine && inner < LABEL_BORDER_CLEARANCE - 0.25) fail(`label ${snippet(label.content)} is ${inner.toFixed(1)}px from the border of ${n.id} (min ${LABEL_BORDER_CLEARANCE})`);
+          continue;
+        }
         fail(`label ${snippet(label.content)} overlaps node ${n.id}`);
       }
       for (const t of scene.texts) if (t.role !== 'label' && overlapArea(label.bounds, t.bounds) > 0.5) fail(`label ${snippet(label.content)} overlaps text ${snippet(t.content)}`);
@@ -139,14 +159,37 @@ export function runGates(scene: Scene, expectedTexts: readonly string[] = []): Q
       const rival = ends.find(o => !(o.edge === label.owner && o.end === label.end) && distanceToRect(o.p, label.bounds) < near - 2);
       if (rival) fail(`end label ${snippet(label.content)} of ${label.owner} is closer to an end of ${rival.edge} than to its own`);
     }
+    // A center label (name, keyword) must sit next to its own line, clearly nearer
+    // to it than to any other line, or a reader cannot tell which line it names.
+    const segmentsOf = (e: Scene['edges'][number]) => e.points.slice(1).map((q, k) => [e.points[k]!, q] as const);
+    for (const label of labels) {
+      // Message labels belong to their message arrow (checked by message-arrows).
+      if (label.end || label.group !== undefined || label.owner === undefined) continue;
+      const own = edgeById.get(label.owner);
+      if (!own) continue;
+      const box = label.bounds;
+      const ownSegments = segmentsOf(own);
+      const near = Math.min(...ownSegments.map(([a, b]) => rectSegmentDistance(box, a, b)));
+      if (near > CENTER_LABEL_REACH) { fail(`label ${snippet(label.content)} is ${near.toFixed(1)}px from its line ${own.id}`); continue; }
+      for (const other of scene.edges) {
+        // A note anchored to this line ends on it by design.
+        if (other.id === own.id || other.source === own.id || other.target === own.id) continue;
+        // Segments shared with the own line (a generalization trunk) do not compete.
+        const d = Math.min(Infinity, ...segmentsOf(other).filter(([a, b]) => !ownSegments.some(([c, e]) => collinearOverlap(a, b, c, e))).map(([a, b]) => rectSegmentDistance(box, a, b)));
+        if (d < near + 3) { fail(`label ${snippet(label.content)} of ${own.id} is ${d.toFixed(1)}px from ${other.id} but ${near.toFixed(1)}px from its own line`); break; }
+      }
+    }
   }, !exactEdges);
 
   gate('edge-endpoints', fail => {
-    // Container types whose own texts (name and behaviors at the top) edges must not
-    // cross. Packages are not listed yet: profile diagrams still route lines over
-    // package tabs (known issue, see docs/kinds/state-machine.md).
-    const guarded = new Set(['composite-state', 'subject']);
-    const nodeTexts = scene.texts.filter(t => t.role === 'text' && t.node && guarded.has(nodeById.get(t.node)?.type ?? ''));
+    // Texts of containers (a package's tab, a component's or composite state's name
+    // and keywords, a subject's name) must not be crossed by any line, including
+    // lines that end on the container itself. Ports and points on a border do not
+    // make their owner a container.
+    const containers = new Set<string>();
+    for (const n of scene.nodes) if (n.parent !== undefined && n.type !== 'port' && n.borderOf === undefined) containers.add(n.parent);
+    for (const n of scene.nodes) if (n.type === 'composite-state' || n.type === 'subject' || n.tab) containers.add(n.id);
+    const nodeTexts = scene.texts.filter(t => t.role === 'text' && t.node && containers.has(t.node));
     for (const e of scene.edges) {
       if (e.points.length < 2) { fail(`edge ${e.id} has fewer than two points`); continue; }
       for (const [end, id, p] of [['source', e.source, e.points[0]!], ['target', e.target, e.points.at(-1)!]] as const) {
@@ -168,20 +211,61 @@ export function runGates(scene: Scene, expectedTexts: readonly string[] = []): Q
       }
       for (let k = 1; k < e.points.length; k++) {
         const a = e.points[k - 1]!, b = e.points[k]!;
+        // An end on another edge (a note anchored to a relationship) has no node: nothing encloses it.
+        const encloses = (n: Scene['nodes'][number], id: string): boolean => { const end = nodeById.get(id); return !!end && contains(n.bounds, end.bounds); };
         for (const n of scene.nodes) {
-          if (n.id === e.source || n.id === e.target || contains(n.bounds, nodeById.get(e.source)?.bounds ?? n.bounds) || contains(n.bounds, nodeById.get(e.target)?.bounds ?? n.bounds)) continue;
+          if (n.id === e.source || n.id === e.target || encloses(n, e.source) || encloses(n, e.target)) continue;
           // A node on the border of an end node (entry/exit point) may be touched by that end's lines.
           if (n.borderOf !== undefined && (n.borderOf === e.source || n.borderOf === e.target)) continue;
           if (segmentIntersectsRect(a, b, inflate(n.bounds, -1))) fail(`edge ${e.id} passes through node ${n.id}`);
         }
         // Lines crossing into a container must not run over its texts (a composite state's name).
         for (const t of nodeTexts) {
-          if (t.node === e.source || t.node === e.target) continue;
           if (segmentIntersectsRect(a, b, inflate(t.bounds, -1))) { fail(`edge ${e.id} crosses text ${snippet(t.content)} of ${t.node}`); break; }
         }
       }
     }
   }, !exactEdges);
+
+  gate('end-spacing', fail => {
+    // Different lines ending on one node keep apart (two arrowheads side by side plus
+    // a gap), or they read as one line. Ends meeting at exactly one point are
+    // deliberate (a shared generalization arrowhead, a port, a pseudostate vertex).
+    const ends = scene.edges.flatMap(e => e.points.length < 2 || e.source === e.target ? [] : [
+      { edge: e.id, node: e.source, p: e.points[0]!, marker: e.sourceMarker },
+      { edge: e.id, node: e.target, p: e.points.at(-1)!, marker: e.targetMarker },
+    ]).filter(o => nodeById.has(o.node));
+    const half = (marker: string): number => marker === 'none' ? 0 : markerBox({ marker, tip: { x: 0, y: 0 }, direction: { x: 1, y: 0 } }).height / 2;
+    /** Side of the node's bounds an end lies on (ends on different sides never compete). */
+    const side = (node: string, p: Point): number => {
+      const r = nodeById.get(node)!.bounds;
+      const d = [Math.abs(p.y - r.y), Math.abs(p.x - r.x - r.width), Math.abs(p.y - r.y - r.height), Math.abs(p.x - r.x)];
+      return d.indexOf(Math.min(...d));
+    };
+    ends.forEach((a, i) => {
+      for (const b of ends.slice(i + 1)) {
+        if (a.node !== b.node || a.edge === b.edge || side(a.node, a.p) !== side(b.node, b.p)) continue;
+        const d = distance(a.p, b.p);
+        const min = Math.max(MIN_END_SPACING, half(a.marker) + half(b.marker) + 6);
+        if (d > 0.5 && d < min - 0.25) fail(`ends of ${a.edge} and ${b.edge} on ${a.node} are ${d.toFixed(1)}px apart (min ${min.toFixed(0)})`);
+      }
+    });
+  }, !engine);
+
+  gate('route-length', fail => {
+    // A route much longer than the gap between its nodes is a detour around the
+    // diagram (an edge going "up" that leaves downward, a note anchor crossing the page).
+    for (const e of scene.edges) {
+      if (e.source === e.target || e.points.length < 2) continue;
+      const a = nodeById.get(e.source)?.bounds ?? boundsOfPoints([e.points[0]!]);
+      const b = nodeById.get(e.target)?.bounds ?? boundsOfPoints([e.points.at(-1)!]);
+      if (contains(a, b) || contains(b, a)) continue;
+      const gap = Math.max(0, b.x - a.x - a.width, a.x - b.x - b.width) + Math.max(0, b.y - a.y - a.height, a.y - b.y - b.height);
+      const length = e.points.slice(1).reduce((sum, q, k) => sum + distance(e.points[k]!, q), 0);
+      const limit = ROUTE_FACTOR * gap + ROUTE_SLACK;
+      if (length > limit) fail(`edge ${e.id} is ${length.toFixed(0)}px long for a ${gap.toFixed(0)}px gap (limit ${limit.toFixed(0)})`);
+    }
+  }, !engine);
 
   gate('markers', fail => {
     for (const e of scene.edges) {
@@ -194,6 +278,9 @@ export function runGates(scene: Scene, expectedTexts: readonly string[] = []): Q
         const found = scene.markers.find(m => m.marker === marker && distance(m.tip, tip) <= 0.5);
         if (!found) { fail(`edge ${e.id}: no ${marker} at its ${end} end (${tip.x}, ${tip.y})`); continue; }
         if (found.direction.x * into.x + found.direction.y * into.y < 0.99) fail(`edge ${e.id}: ${marker} at its ${end} end points the wrong way`);
+        // The end segment must be straight under the whole marker, plus room for a rounded bend.
+        const need = markerBox({ marker, tip: { x: 0, y: 0 }, direction: { x: 1, y: 0 } }).width + (e.points.length > 2 ? theme.spacing.bendRadius : 0);
+        if (engine && distance(from, tip) < need - 0.25) fail(`edge ${e.id}: ${marker} at its ${end} end sits on a ${distance(from, tip).toFixed(1)}px segment (needs ${need.toFixed(0)}px straight)`);
       }
     }
     // Distinct markers must not touch (identical shared markers are drawn once).
@@ -265,6 +352,7 @@ export function runGates(scene: Scene, expectedTexts: readonly string[] = []): Q
 
   gate('text-fits', fail => {
     for (const t of scene.texts) {
+      for (const problem of t.badBreaks) fail(`text ${snippet(t.content)}: ${problem}`);
       if (t.role === 'frame-label' && scene.frameHeading) {
         if (!contains(scene.frameHeading, t.bounds, 0.5)) fail(`frame heading text ${snippet(t.content)} is wider than its pentagon`);
         continue;

@@ -5,6 +5,8 @@ import type { FontMetrics, TextStyle } from './fonts.js';
 import { direction, simplify, union, type Point, type Rect } from './geometry.js';
 import { placeLabels, type LabelRequest } from './labels.js';
 import { drawPackageNode, measurePackage, packageTabRect, type MeasuredPackage, type PackageHeader } from './packages.js';
+import { repairRoutes, type RepairNode } from './repair.js';
+import { chooseLayout, countCrossings, LAYOUT_VARIANTS, routesLength, type LayoutVariant } from './aspect.js';
 import { planSelfLoops, selfLoopRoute, type SelfLoopPlan } from './selfloops.js';
 import { baselineOffset, drawBox, drawFrame, drawNote, measureBox, measureFrameHeading, measureNote, type Compartment, type MeasuredBox } from './shapes.js';
 import { Canvas, el, num } from './svg.js';
@@ -69,8 +71,17 @@ export interface DiagramSpec {
   title?: string | undefined;
   nodes: DiagramNodeSpec[];
   edges: DiagramEdgeSpec[];
-  /** Layout directions to try; the most compact result (closest to a landscape page) wins. Default DOWN. */
+  /**
+   * Layout directions to try, the conventional one first; the most readable result
+   * wins (see src/engine/aspect.ts). Default DOWN.
+   */
   directions?: Direction[];
+  /**
+   * Also try ELK graph wrapping (long layer sequences folded into rows). Off by
+   * default: wrapped layouts get long lines from the end of one row back to the
+   * start of the next, which rarely beats another direction.
+   */
+  wrap?: boolean;
 }
 
 interface SceneNode { spec: DiagramNodeSpec; parent?: string | undefined; bounds: Rect; box?: MeasuredBox; rows?: string[]; pkg?: MeasuredPackage }
@@ -245,7 +256,12 @@ export async function layoutDiagram(spec: DiagramSpec, metrics: FontMetrics): Pr
     }))));
   }
 
-  const attempt = async (dir: Direction): Promise<{ result: LayoutResult; dir: Direction }> => {
+  /**
+   * One layout run in direction `dir`; `variant`: see LAYOUT_VARIANTS in
+   * src/engine/aspect.ts. Edges that ELK sends against the direction (cycles)
+   * leave their fixed-side port the wrong way; repairRoutes reroutes them.
+   */
+  const attempt = async (dir: Direction, variant: LayoutVariant): Promise<{ result: LayoutResult; dir: Direction }> => {
     const side = sides(dir);
     const ports = new Map<string, LayoutPort[]>();
     // Compound nodes get no ports: ELK's hierarchical layout fails on some port
@@ -318,7 +334,8 @@ export async function layoutDiagram(spec: DiagramSpec, metrics: FontMetrics): Pr
         directionPriority: e.priority ?? (e.tree || e.reversed ? 10 : 1),
       };
     });
-    let result = await layout(spec.nodes.map(n => toLayout(n.id)), edges, { direction: dir });
+    const options = { direction: dir, elk: LAYOUT_VARIANTS[variant] };
+    let result = await layout(spec.nodes.map(n => toLayout(n.id)), edges, options);
     for (let pass = 0; pass < 3; pass++) {
       let changed = false;
       for (const [id, pkg] of packages) {
@@ -328,19 +345,20 @@ export async function layoutDiagram(spec: DiagramSpec, metrics: FontMetrics): Pr
         changed = true;
       }
       if (!changed) break;
-      result = await layout(spec.nodes.map(n => toLayout(n.id)), edges, { direction: dir });
+      result = await layout(spec.nodes.map(n => toLayout(n.id)), edges, options);
     }
     return { result, dir };
   };
 
-  // Try each direction; keep the one that fits a landscape page best.
-  let best: { result: LayoutResult; dir: Direction } | undefined, bestScore = Infinity;
-  for (const dir of spec.directions ?? ['DOWN']) {
-    const candidate = await attempt(dir);
-    const score = Math.max(candidate.result.width / 1.5, candidate.result.height);
-    if (score < bestScore - 1) { best = candidate; bestScore = score; }
-  }
-  const result = best!.result;
+  // Try each direction (and variants); keep the most readable result.
+  // The kind's first direction is its convention; others must be clearly better,
+  // the more so the more of the diagram is a hierarchy (generalizations, extensions).
+  const hierarchy = spec.edges.filter(e => e.tree || e.reversed).length / Math.max(1, spec.edges.filter(e => e.type !== 'note-anchor').length);
+  const best = await chooseLayout(spec.directions ?? ['DOWN'], attempt, ({ result: r }) => {
+    const lines = [...r.edges.values()].map(e => e.points);
+    return { width: r.width, height: r.height, crossings: countCrossings(lines), edgeLength: routesLength(lines) };
+  }, { penalty: i => i ? 0.15 + 0.6 * hierarchy : 0, wrap: !!spec.wrap });
+  const result = best.result;
   const rects = new Map<string, Rect>([...all.keys()].map(id => {
     const r = result.nodes.get(id)!, pkg = packages.get(id);
     // Leaf packages were laid out as their body: add the tab back on top.
@@ -370,6 +388,22 @@ export async function layoutDiagram(spec: DiagramSpec, metrics: FontMetrics): Pr
     route = fitToTab([...route].reverse(), tabs.get(e.target), rects.get(e.target)!).reverse();
     routes.set(e.id, route);
   }
+
+  // Repair routes that cross texts or nodes, detour, crowd other ends or bend under a marker.
+  const repairNodes: RepairNode[] = [...all.keys()].map(id => {
+    const r = rects.get(id)!, tab = tabs.get(id);
+    return {
+      id, parent: all.get(id)!.parent, container: !!all.get(id)!.spec.children?.length,
+      rect: tab ? { x: r.x, y: r.y + tab.height, width: r.width, height: r.height - tab.height } : r,
+      texts: tab ? [tab] : [],
+    };
+  });
+  const repaired = repairRoutes(repairNodes, plans.map(p => ({
+    id: p.spec.id, source: p.spec.source, target: p.spec.target, route: routes.get(p.spec.id)!,
+    sourceMarker: p.spec.sourceMarker, targetMarker: p.spec.targetMarker,
+    group: p.spec.tree ? `${p.spec.type}@${p.spec.target}` : undefined,
+  })));
+  for (const id of repaired.changed) routes.set(id, repaired.routes.get(id)!);
 
   // Tree edges into one shared port draw their arrowhead once.
   const drawnTips = new Set<string>();
@@ -414,7 +448,7 @@ export async function layoutDiagram(spec: DiagramSpec, metrics: FontMetrics): Pr
     p.ends.forEach((l, k) => {
       const id = `${e.id}::end${k}`;
       const marker = l.end === 'source' ? e.sourceMarker : e.targetMarker;
-      const suggested = result.edges.get(e.id)?.labels.get(id);
+      const suggested = repaired.changed.has(e.id) ? undefined : result.edges.get(e.id)?.labels.get(id);
       const inside = e.source === e.target ? { onlySide: l.end === 'source' ? -1 as const : 1 as const } : {};
       requests.push({
         owner: e.id, lines: [{ text: l.text }], widths: [l.width], end: l.end, anchor: l.end === 'source' ? route[0]! : route.at(-1)!,
@@ -426,14 +460,15 @@ export async function layoutDiagram(spec: DiagramSpec, metrics: FontMetrics): Pr
     if (!p.center) continue;
     const e = p.spec, id = `${e.id}::center`;
     const w = Math.max(...p.center.widths), h = p.center.lines.length * lineHeight;
-    const suggested = result.edges.get(e.id)?.labels.get(id);
-    requests.push({ owner: e.id, lines: p.center.lines, widths: p.center.widths, request: { id, width: w, height: h, route: routes.get(e.id)!, at: 'center', suggestion: suggested && { x: suggested.x + 2, y: suggested.y, width: w, height: h } } });
+    const suggested = repaired.changed.has(e.id) ? undefined : result.edges.get(e.id)?.labels.get(id);
+    requests.push({ owner: e.id, lines: p.center.lines, widths: p.center.widths, request: { id, owner: e.id, width: w, height: h, route: routes.get(e.id)!, at: 'center', suggestion: suggested && { x: suggested.x + 2, y: suggested.y, width: w, height: h } } });
   }
   const labelledEnds = plans.flatMap(p => [...new Set(p.ends.map(l => l.end))].map(end => end === 'source' ? routes.get(p.spec.id)![0]! : routes.get(p.spec.id)!.at(-1)!));
+  const lineOwners = plans.map(p => ({ owner: p.spec.id, points: routes.get(p.spec.id)! }));
   const placedRects: Rect[] = [];
   const labels: SceneLabel[] = [];
   for (const r of requests) {
-    const placed = placeLabels([r.request], { rects: [...baseRects, ...placedRects, ...foreign.get(r.owner)!], segments, ends: labelledEnds }).get(r.request.id);
+    const placed = placeLabels([r.request], { rects: [...baseRects, ...placedRects, ...foreign.get(r.owner)!], segments, ends: labelledEnds, lines: lineOwners }).get(r.request.id);
     if (!placed) continue;
     placedRects.push(placed);
     labels.push({ owner: r.owner, rect: placed, lines: r.lines, widths: r.widths, ...(r.end ? { end: r.end, anchor: r.anchor! } : {}) });

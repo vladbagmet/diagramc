@@ -78,6 +78,11 @@ export const theme = {
   size: {
     minNodeWidth: 96,
     maxNameWidth: 260,
+    /**
+     * A single word (no spaces) up to this wide stays whole on one line, widening
+     * its box beyond maxNameWidth; longer words break at camelCase and punctuation.
+     */
+    maxTokenWidth: 420,
     maxNoteWidth: 220,
     /** Arrowhead dimensions (length along the line, half of the width across it). */
     triangle: { length: 14, halfWidth: 8 },

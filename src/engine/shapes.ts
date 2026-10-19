@@ -38,9 +38,12 @@ const EMPTY_COMPARTMENT = 10;
 export function measureBox(metrics: FontMetrics, compartments: readonly Compartment[], minWidth: number = theme.size.minNodeWidth): MeasuredBox {
   const { padX, padY, headerPadY } = theme.spacing;
   let width = minWidth;
+  // Lines that are never wrapped (members) set the box width first; wrapped lines
+  // (names) then use all of it, so a name only wraps when the box is narrower.
+  for (const c of compartments) for (const line of c.lines) if (!line.wrap) width = Math.max(width, Math.ceil(metrics.measure(line.text, line.style) + 2 * padX));
   const measured = compartments.map(c => {
     const lines = c.lines.map((line): MeasuredLine => {
-      const rows = line.wrap ? wrapText(metrics, line.text, line.style, line.wrap) : [line.text];
+      const rows = line.wrap ? wrapText(metrics, line.text, line.style, Math.max(line.wrap, width - 2 * padX)) : [line.text];
       const widths = rows.map(r => metrics.measure(r.trimEnd(), line.style));
       for (const w of widths) width = Math.max(width, Math.ceil(w + 2 * padX));
       return { ...line, rows, widths, lineHeight: metrics.lineHeight(line.style.size) };

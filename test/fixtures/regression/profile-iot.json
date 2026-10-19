@@ -1,0 +1,33 @@
+{
+  "kind": "profile",
+  "title": "IoT modelling profile",
+  "elements": [
+    { "id": "iot", "type": "profile", "name": "IoT", "members": ["device", "sensor", "actuator", "gateway", "protocol", "secure", "proto", "unit"] },
+    { "id": "device", "type": "stereotype", "name": "Device", "abstract": true, "attributes": [{ "name": "vendor", "type": "String" }, { "name": "powerMw", "type": "Integer", "multiplicity": "0..1" }] },
+    { "id": "sensor", "type": "stereotype", "name": "Sensor", "attributes": [{ "name": "unit", "type": "Unit" }, { "name": "sampleHz", "type": "Real", "default": "1.0" }] },
+    { "id": "actuator", "type": "stereotype", "name": "Actuator" },
+    { "id": "gateway", "type": "stereotype", "name": "Gateway", "attributes": [{ "name": "uplink", "type": "ProtocolKind", "default": "MQTT" }] },
+    { "id": "protocol", "type": "stereotype", "name": "Protocol", "attributes": [{ "name": "kind", "type": "ProtocolKind" }] },
+    { "id": "secure", "type": "stereotype", "name": "Secured", "attributes": [{ "name": "tls", "type": "Boolean", "default": "true" }] },
+    { "id": "proto", "type": "enumeration", "name": "ProtocolKind", "literals": ["MQTT", "CoAP", "HTTP", "LoRaWAN"] },
+    { "id": "unit", "type": "enumeration", "name": "Unit", "literals": ["CELSIUS", "PERCENT", "LUX"] },
+    { "id": "mcClass", "type": "metaclass", "name": "Class" },
+    { "id": "mcComp", "type": "metaclass", "name": "Component" },
+    { "id": "mcAssoc", "type": "metaclass", "name": "Association" },
+    { "id": "mcPort", "type": "metaclass", "name": "Port" },
+    { "id": "home", "type": "package", "name": "SmartHome", "members": ["thermo"] },
+    { "id": "thermo", "type": "class", "name": "Thermometer", "stereotypes": ["Sensor"] },
+    { "id": "n1", "type": "note", "text": "Every device class must carry exactly one of the concrete device stereotypes.", "attachedTo": ["device"] }
+  ],
+  "relationships": [
+    { "type": "extension", "from": "device", "to": "mcClass" },
+    { "type": "generalization", "from": "sensor", "to": "device" },
+    { "type": "generalization", "from": "actuator", "to": "device" },
+    { "type": "generalization", "from": "gateway", "to": "device" },
+    { "type": "extension", "from": "gateway", "to": "mcComp", "required": true },
+    { "type": "extension", "from": "protocol", "to": "mcAssoc" },
+    { "type": "extension", "from": "secure", "to": "mcPort" },
+    { "type": "extension", "from": "secure", "to": "mcAssoc" },
+    { "type": "apply", "from": "home", "to": "iot" }
+  ]
+}
