@@ -76,7 +76,7 @@ function drawNode(canvas: Canvas, entry: OverviewSceneNode): string {
         ], id));
       }
       for (const arrow of f.arrows) {
-        parts.push(drawEdge({ id: arrow.id, type: 'message', source: arrow.source, target: arrow.target, points: arrow.points.map(p => ({ x: ox + p.x, y: oy + p.y })), style: arrow.style, sourceMarker: 'none', targetMarker: arrow.marker }));
+        parts.push(drawEdge({ id: arrow.id, type: 'message', source: arrow.source, target: arrow.target, points: arrow.points.map(p => ({ x: ox + p.x, y: oy + p.y })), style: arrow.style, sourceMarker: 'none', targetMarker: arrow.marker, triangleSize: theme.size.messageTriangle }));
         parts.push(canvas.lines(arrow.rows, arrow.labelX.map(x => ox + x), oy + arrow.labelTop + base, lh, { ...FRAGMENT_TEXT, fill: theme.color.edgeText, role: 'text', owner: arrow.id, halo: true }));
       }
       return group(id, node.type, b, parts);
