@@ -18,7 +18,8 @@ export interface PlantUmlBackend<M> {
   readonly name: 'plantuml';
   /** Value PlantUML writes to `data-diagram-type` on the root <svg>, e.g. "CLASS" or "SEQUENCE". */
   readonly diagramType: string;
-  toPlantUml(model: M): string;
+  /** May be async (e.g. to measure text for wrapping). Runs only after full validation. */
+  toPlantUml(model: M): string | Promise<string>;
   /**
    * Optional fix-up of PlantUML's SVG where its drawing deviates from UML
    * notation. Runs before font embedding and the QA gates; it may only adjust

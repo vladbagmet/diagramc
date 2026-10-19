@@ -1,0 +1,767 @@
+[
+ {
+  "name": "single action",
+  "doc": {
+   "kind": "activity",
+   "nodes": [
+    {
+     "id": "i",
+     "type": "initial"
+    },
+    {
+     "id": "a",
+     "type": "action",
+     "name": "A"
+    },
+    {
+     "id": "f",
+     "type": "activityFinal"
+    }
+   ],
+   "edges": [
+    {
+     "type": "control",
+     "from": "i",
+     "to": "a"
+    },
+    {
+     "type": "control",
+     "from": "a",
+     "to": "f"
+    }
+   ]
+  }
+ },
+ {
+  "name": "decision with merge",
+  "doc": {
+   "kind": "activity",
+   "nodes": [
+    {
+     "id": "i",
+     "type": "initial"
+    },
+    {
+     "id": "d",
+     "type": "decision"
+    },
+    {
+     "id": "x",
+     "type": "action",
+     "name": "X"
+    },
+    {
+     "id": "y",
+     "type": "action",
+     "name": "Y"
+    },
+    {
+     "id": "m",
+     "type": "merge"
+    },
+    {
+     "id": "f",
+     "type": "activityFinal"
+    }
+   ],
+   "edges": [
+    {
+     "type": "control",
+     "from": "i",
+     "to": "d"
+    },
+    {
+     "type": "control",
+     "from": "d",
+     "to": "x",
+     "guard": "yes"
+    },
+    {
+     "type": "control",
+     "from": "d",
+     "to": "y",
+     "guard": "no"
+    },
+    {
+     "type": "control",
+     "from": "x",
+     "to": "m"
+    },
+    {
+     "type": "control",
+     "from": "y",
+     "to": "m"
+    },
+    {
+     "type": "control",
+     "from": "m",
+     "to": "f"
+    }
+   ]
+  }
+ },
+ {
+  "name": "decision with an empty branch",
+  "doc": {
+   "kind": "activity",
+   "nodes": [
+    {
+     "id": "i",
+     "type": "initial"
+    },
+    {
+     "id": "d",
+     "type": "decision"
+    },
+    {
+     "id": "x",
+     "type": "action",
+     "name": "X"
+    },
+    {
+     "id": "m",
+     "type": "merge"
+    },
+    {
+     "id": "f",
+     "type": "activityFinal"
+    }
+   ],
+   "edges": [
+    {
+     "type": "control",
+     "from": "i",
+     "to": "d"
+    },
+    {
+     "type": "control",
+     "from": "d",
+     "to": "x",
+     "guard": "a"
+    },
+    {
+     "type": "control",
+     "from": "d",
+     "to": "m",
+     "guard": "else"
+    },
+    {
+     "type": "control",
+     "from": "x",
+     "to": "m"
+    },
+    {
+     "type": "control",
+     "from": "m",
+     "to": "f"
+    }
+   ]
+  }
+ },
+ {
+  "name": "three-way decision",
+  "doc": {
+   "kind": "activity",
+   "nodes": [
+    {
+     "id": "i",
+     "type": "initial"
+    },
+    {
+     "id": "d",
+     "type": "decision"
+    },
+    {
+     "id": "x",
+     "type": "action",
+     "name": "X"
+    },
+    {
+     "id": "y",
+     "type": "action",
+     "name": "Y"
+    },
+    {
+     "id": "z",
+     "type": "action",
+     "name": "Z"
+    },
+    {
+     "id": "m",
+     "type": "merge"
+    },
+    {
+     "id": "f",
+     "type": "activityFinal"
+    }
+   ],
+   "edges": [
+    {
+     "type": "control",
+     "from": "i",
+     "to": "d"
+    },
+    {
+     "type": "control",
+     "from": "d",
+     "to": "x",
+     "guard": "a"
+    },
+    {
+     "type": "control",
+     "from": "d",
+     "to": "y",
+     "guard": "b"
+    },
+    {
+     "type": "control",
+     "from": "d",
+     "to": "z",
+     "guard": "c"
+    },
+    {
+     "type": "control",
+     "from": "x",
+     "to": "m"
+    },
+    {
+     "type": "control",
+     "from": "y",
+     "to": "m"
+    },
+    {
+     "type": "control",
+     "from": "z",
+     "to": "m"
+    },
+    {
+     "type": "control",
+     "from": "m",
+     "to": "f"
+    }
+   ]
+  }
+ },
+ {
+  "name": "decision whose other branch terminates (no merge)",
+  "doc": {
+   "kind": "activity",
+   "nodes": [
+    {
+     "id": "i",
+     "type": "initial"
+    },
+    {
+     "id": "d",
+     "type": "decision"
+    },
+    {
+     "id": "x",
+     "type": "action",
+     "name": "X"
+    },
+    {
+     "id": "y",
+     "type": "action",
+     "name": "Y"
+    },
+    {
+     "id": "ff",
+     "type": "flowFinal"
+    },
+    {
+     "id": "z",
+     "type": "action",
+     "name": "Z"
+    },
+    {
+     "id": "f",
+     "type": "activityFinal"
+    }
+   ],
+   "edges": [
+    {
+     "type": "control",
+     "from": "i",
+     "to": "d"
+    },
+    {
+     "type": "control",
+     "from": "d",
+     "to": "x",
+     "guard": "ok"
+    },
+    {
+     "type": "control",
+     "from": "d",
+     "to": "y",
+     "guard": "fail"
+    },
+    {
+     "type": "control",
+     "from": "y",
+     "to": "ff"
+    },
+    {
+     "type": "control",
+     "from": "x",
+     "to": "z"
+    },
+    {
+     "type": "control",
+     "from": "z",
+     "to": "f"
+    }
+   ]
+  }
+ },
+ {
+  "name": "fork and join",
+  "doc": {
+   "kind": "activity",
+   "nodes": [
+    {
+     "id": "i",
+     "type": "initial"
+    },
+    {
+     "id": "k",
+     "type": "fork"
+    },
+    {
+     "id": "x",
+     "type": "action",
+     "name": "X"
+    },
+    {
+     "id": "y",
+     "type": "action",
+     "name": "Y"
+    },
+    {
+     "id": "j",
+     "type": "join"
+    },
+    {
+     "id": "f",
+     "type": "activityFinal"
+    }
+   ],
+   "edges": [
+    {
+     "type": "control",
+     "from": "i",
+     "to": "k"
+    },
+    {
+     "type": "control",
+     "from": "k",
+     "to": "x"
+    },
+    {
+     "type": "control",
+     "from": "k",
+     "to": "y"
+    },
+    {
+     "type": "control",
+     "from": "x",
+     "to": "j"
+    },
+    {
+     "type": "control",
+     "from": "y",
+     "to": "j"
+    },
+    {
+     "type": "control",
+     "from": "j",
+     "to": "f"
+    }
+   ]
+  }
+ },
+ {
+  "name": "while loop (test first)",
+  "doc": {
+   "kind": "activity",
+   "nodes": [
+    {
+     "id": "i",
+     "type": "initial"
+    },
+    {
+     "id": "m",
+     "type": "merge"
+    },
+    {
+     "id": "d",
+     "type": "decision"
+    },
+    {
+     "id": "x",
+     "type": "action",
+     "name": "Work"
+    },
+    {
+     "id": "f",
+     "type": "activityFinal"
+    }
+   ],
+   "edges": [
+    {
+     "type": "control",
+     "from": "i",
+     "to": "m"
+    },
+    {
+     "type": "control",
+     "from": "m",
+     "to": "d"
+    },
+    {
+     "type": "control",
+     "from": "d",
+     "to": "x",
+     "guard": "more"
+    },
+    {
+     "type": "control",
+     "from": "x",
+     "to": "m"
+    },
+    {
+     "type": "control",
+     "from": "d",
+     "to": "f",
+     "guard": "done"
+    }
+   ]
+  }
+ },
+ {
+  "name": "repeat loop (test after)",
+  "doc": {
+   "kind": "activity",
+   "nodes": [
+    {
+     "id": "i",
+     "type": "initial"
+    },
+    {
+     "id": "m",
+     "type": "merge"
+    },
+    {
+     "id": "x",
+     "type": "action",
+     "name": "Work"
+    },
+    {
+     "id": "d",
+     "type": "decision"
+    },
+    {
+     "id": "f",
+     "type": "activityFinal"
+    }
+   ],
+   "edges": [
+    {
+     "type": "control",
+     "from": "i",
+     "to": "m"
+    },
+    {
+     "type": "control",
+     "from": "m",
+     "to": "x"
+    },
+    {
+     "type": "control",
+     "from": "x",
+     "to": "d"
+    },
+    {
+     "type": "control",
+     "from": "d",
+     "to": "m",
+     "guard": "again"
+    },
+    {
+     "type": "control",
+     "from": "d",
+     "to": "f",
+     "guard": "done"
+    }
+   ]
+  }
+ },
+ {
+  "name": "loop with an action on the returning flow",
+  "doc": {
+   "kind": "activity",
+   "nodes": [
+    {
+     "id": "i",
+     "type": "initial"
+    },
+    {
+     "id": "m",
+     "type": "merge"
+    },
+    {
+     "id": "x",
+     "type": "action",
+     "name": "Try"
+    },
+    {
+     "id": "d",
+     "type": "decision"
+    },
+    {
+     "id": "w",
+     "type": "action",
+     "name": "Wait"
+    },
+    {
+     "id": "f",
+     "type": "activityFinal"
+    }
+   ],
+   "edges": [
+    {
+     "type": "control",
+     "from": "i",
+     "to": "m"
+    },
+    {
+     "type": "control",
+     "from": "m",
+     "to": "x"
+    },
+    {
+     "type": "control",
+     "from": "x",
+     "to": "d"
+    },
+    {
+     "type": "control",
+     "from": "d",
+     "to": "w",
+     "guard": "failed"
+    },
+    {
+     "type": "control",
+     "from": "w",
+     "to": "m"
+    },
+    {
+     "type": "control",
+     "from": "d",
+     "to": "f",
+     "guard": "ok"
+    }
+   ]
+  }
+ },
+ {
+  "name": "object flow through an object node with state",
+  "doc": {
+   "kind": "activity",
+   "nodes": [
+    {
+     "id": "i",
+     "type": "initial"
+    },
+    {
+     "id": "a",
+     "type": "action",
+     "name": "Make"
+    },
+    {
+     "id": "o",
+     "type": "object",
+     "name": "Order",
+     "state": "new"
+    },
+    {
+     "id": "b",
+     "type": "action",
+     "name": "Use"
+    },
+    {
+     "id": "f",
+     "type": "activityFinal"
+    }
+   ],
+   "edges": [
+    {
+     "type": "control",
+     "from": "i",
+     "to": "a"
+    },
+    {
+     "type": "object",
+     "from": "a",
+     "to": "o"
+    },
+    {
+     "type": "object",
+     "from": "o",
+     "to": "b"
+    },
+    {
+     "type": "control",
+     "from": "b",
+     "to": "f"
+    }
+   ]
+  }
+ },
+ {
+  "name": "signals, call behavior and a note",
+  "doc": {
+   "kind": "activity",
+   "nodes": [
+    {
+     "id": "i",
+     "type": "initial"
+    },
+    {
+     "id": "s",
+     "type": "sendSignal",
+     "name": "Ping"
+    },
+    {
+     "id": "r",
+     "type": "acceptEvent",
+     "name": "Pong"
+    },
+    {
+     "id": "c",
+     "type": "callBehavior",
+     "name": "Handle pong",
+     "note": "Calls another activity."
+    },
+    {
+     "id": "f",
+     "type": "flowFinal"
+    }
+   ],
+   "edges": [
+    {
+     "type": "control",
+     "from": "i",
+     "to": "s"
+    },
+    {
+     "type": "control",
+     "from": "s",
+     "to": "r"
+    },
+    {
+     "type": "control",
+     "from": "r",
+     "to": "c"
+    },
+    {
+     "type": "control",
+     "from": "c",
+     "to": "f"
+    }
+   ]
+  }
+ },
+ {
+  "name": "partitions",
+  "doc": {
+   "kind": "activity",
+   "partitions": [
+    {
+     "id": "p",
+     "name": "Left"
+    },
+    {
+     "id": "q",
+     "name": "Right"
+    }
+   ],
+   "nodes": [
+    {
+     "id": "i",
+     "type": "initial",
+     "partition": "p"
+    },
+    {
+     "id": "a",
+     "type": "action",
+     "name": "A",
+     "partition": "p"
+    },
+    {
+     "id": "b",
+     "type": "action",
+     "name": "B",
+     "partition": "q"
+    },
+    {
+     "id": "f",
+     "type": "activityFinal",
+     "partition": "q"
+    }
+   ],
+   "edges": [
+    {
+     "type": "control",
+     "from": "i",
+     "to": "a"
+    },
+    {
+     "type": "control",
+     "from": "a",
+     "to": "b"
+    },
+    {
+     "type": "control",
+     "from": "b",
+     "to": "f"
+    }
+   ]
+  }
+ },
+ {
+  "name": "unicode and long names",
+  "doc": {
+   "kind": "activity",
+   "title": "Ünïcode 🚀",
+   "nodes": [
+    {
+     "id": "i",
+     "type": "initial"
+    },
+    {
+     "id": "a",
+     "type": "action",
+     "name": "Überprüfen 注文 🚀 very long action name very long action name very long action name"
+    },
+    {
+     "id": "f",
+     "type": "activityFinal"
+    }
+   ],
+   "edges": [
+    {
+     "type": "control",
+     "from": "i",
+     "to": "a"
+    },
+    {
+     "type": "control",
+     "from": "a",
+     "to": "f"
+    }
+   ]
+  }
+ }
+]

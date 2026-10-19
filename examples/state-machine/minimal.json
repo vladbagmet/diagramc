@@ -1,0 +1,15 @@
+{
+  "kind": "state-machine",
+  "elements": [
+    { "id": "start", "type": "initial" },
+    { "id": "off", "type": "state", "name": "Off" },
+    { "id": "on", "type": "state", "name": "On" },
+    { "id": "end", "type": "final" }
+  ],
+  "transitions": [
+    { "from": "start", "to": "off" },
+    { "from": "off", "to": "on", "trigger": "switchOn" },
+    { "from": "on", "to": "off", "trigger": "switchOff" },
+    { "from": "off", "to": "end", "trigger": "unplug" }
+  ]
+}

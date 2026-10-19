@@ -1,0 +1,1719 @@
+[
+ {
+  "name": "unknown property",
+  "expect": {
+   "code": "SCHEMA_INVALID",
+   "path": "/elements/0/subject"
+  },
+  "doc": {
+   "kind": "use-case",
+   "elements": [
+    {
+     "id": "a",
+     "type": "actor",
+     "name": "User",
+     "subject": "x"
+    },
+    {
+     "id": "u",
+     "type": "useCase",
+     "name": "Do work",
+     "extensionPoints": [
+      "step"
+     ]
+    },
+    {
+     "id": "v",
+     "type": "useCase",
+     "name": "Helper"
+    },
+    {
+     "id": "w",
+     "type": "useCase",
+     "name": "Extra"
+    }
+   ],
+   "relationships": [
+    {
+     "type": "association",
+     "from": "a",
+     "to": "u"
+    },
+    {
+     "type": "include",
+     "from": "u",
+     "to": "v"
+    },
+    {
+     "type": "extend",
+     "from": "w",
+     "to": "u",
+     "extensionPoint": "step"
+    }
+   ]
+  }
+ },
+ {
+  "name": "unknown element type",
+  "expect": {
+   "code": "SCHEMA_INVALID",
+   "path": "/elements/0"
+  },
+  "doc": {
+   "kind": "use-case",
+   "elements": [
+    {
+     "id": "a",
+     "type": "person",
+     "name": "User"
+    },
+    {
+     "id": "u",
+     "type": "useCase",
+     "name": "Do work",
+     "extensionPoints": [
+      "step"
+     ]
+    },
+    {
+     "id": "v",
+     "type": "useCase",
+     "name": "Helper"
+    },
+    {
+     "id": "w",
+     "type": "useCase",
+     "name": "Extra"
+    }
+   ],
+   "relationships": [
+    {
+     "type": "association",
+     "from": "a",
+     "to": "u"
+    },
+    {
+     "type": "include",
+     "from": "u",
+     "to": "v"
+    },
+    {
+     "type": "extend",
+     "from": "w",
+     "to": "u",
+     "extensionPoint": "step"
+    }
+   ]
+  }
+ },
+ {
+  "name": "extend without extension point",
+  "expect": {
+   "code": "SCHEMA_INVALID",
+   "path": "/relationships/2/extensionPoint"
+  },
+  "doc": {
+   "kind": "use-case",
+   "elements": [
+    {
+     "id": "a",
+     "type": "actor",
+     "name": "User"
+    },
+    {
+     "id": "u",
+     "type": "useCase",
+     "name": "Do work",
+     "extensionPoints": [
+      "step"
+     ]
+    },
+    {
+     "id": "v",
+     "type": "useCase",
+     "name": "Helper"
+    },
+    {
+     "id": "w",
+     "type": "useCase",
+     "name": "Extra"
+    }
+   ],
+   "relationships": [
+    {
+     "type": "association",
+     "from": "a",
+     "to": "u"
+    },
+    {
+     "type": "include",
+     "from": "u",
+     "to": "v"
+    },
+    {
+     "type": "extend",
+     "from": "w",
+     "to": "u"
+    }
+   ]
+  }
+ },
+ {
+  "name": "condition on an include",
+  "expect": {
+   "code": "SCHEMA_INVALID",
+   "path": "/relationships/1/condition"
+  },
+  "doc": {
+   "kind": "use-case",
+   "elements": [
+    {
+     "id": "a",
+     "type": "actor",
+     "name": "User"
+    },
+    {
+     "id": "u",
+     "type": "useCase",
+     "name": "Do work",
+     "extensionPoints": [
+      "step"
+     ]
+    },
+    {
+     "id": "v",
+     "type": "useCase",
+     "name": "Helper"
+    },
+    {
+     "id": "w",
+     "type": "useCase",
+     "name": "Extra"
+    }
+   ],
+   "relationships": [
+    {
+     "type": "association",
+     "from": "a",
+     "to": "u"
+    },
+    {
+     "type": "include",
+     "from": "u",
+     "to": "v",
+     "condition": "x"
+    },
+    {
+     "type": "extend",
+     "from": "w",
+     "to": "u",
+     "extensionPoint": "step"
+    }
+   ]
+  }
+ },
+ {
+  "name": "bad multiplicity syntax",
+  "expect": {
+   "code": "SCHEMA_INVALID",
+   "path": "/relationships/0/toEnd/multiplicity"
+  },
+  "doc": {
+   "kind": "use-case",
+   "elements": [
+    {
+     "id": "a",
+     "type": "actor",
+     "name": "User"
+    },
+    {
+     "id": "u",
+     "type": "useCase",
+     "name": "Do work",
+     "extensionPoints": [
+      "step"
+     ]
+    },
+    {
+     "id": "v",
+     "type": "useCase",
+     "name": "Helper"
+    },
+    {
+     "id": "w",
+     "type": "useCase",
+     "name": "Extra"
+    }
+   ],
+   "relationships": [
+    {
+     "type": "association",
+     "from": "a",
+     "to": "u",
+     "toEnd": {
+      "multiplicity": "many"
+     }
+    },
+    {
+     "type": "include",
+     "from": "u",
+     "to": "v"
+    },
+    {
+     "type": "extend",
+     "from": "w",
+     "to": "u",
+     "extensionPoint": "step"
+    }
+   ]
+  }
+ },
+ {
+  "name": "blank name",
+  "expect": {
+   "code": "INVALID_TEXT",
+   "path": "/elements/1/name"
+  },
+  "doc": {
+   "kind": "use-case",
+   "elements": [
+    {
+     "id": "a",
+     "type": "actor",
+     "name": "User"
+    },
+    {
+     "id": "u",
+     "type": "useCase",
+     "name": "  ",
+     "extensionPoints": [
+      "step"
+     ]
+    },
+    {
+     "id": "v",
+     "type": "useCase",
+     "name": "Helper"
+    },
+    {
+     "id": "w",
+     "type": "useCase",
+     "name": "Extra"
+    }
+   ],
+   "relationships": [
+    {
+     "type": "association",
+     "from": "a",
+     "to": "u"
+    },
+    {
+     "type": "include",
+     "from": "u",
+     "to": "v"
+    },
+    {
+     "type": "extend",
+     "from": "w",
+     "to": "u",
+     "extensionPoint": "step"
+    }
+   ]
+  }
+ },
+ {
+  "name": "duplicate ID",
+  "expect": {
+   "code": "DUPLICATE_ID",
+   "path": "/elements/2/id"
+  },
+  "doc": {
+   "kind": "use-case",
+   "elements": [
+    {
+     "id": "a",
+     "type": "actor",
+     "name": "User"
+    },
+    {
+     "id": "u",
+     "type": "useCase",
+     "name": "Do work",
+     "extensionPoints": [
+      "step"
+     ]
+    },
+    {
+     "id": "u",
+     "type": "useCase",
+     "name": "Helper"
+    },
+    {
+     "id": "w",
+     "type": "useCase",
+     "name": "Extra"
+    }
+   ],
+   "relationships": [
+    {
+     "type": "association",
+     "from": "a",
+     "to": "u"
+    },
+    {
+     "type": "include",
+     "from": "u",
+     "to": "v"
+    },
+    {
+     "type": "extend",
+     "from": "w",
+     "to": "u",
+     "extensionPoint": "step"
+    }
+   ]
+  }
+ },
+ {
+  "name": "unknown relationship end",
+  "expect": {
+   "code": "MISSING_REFERENCE",
+   "path": "/relationships/0/to"
+  },
+  "doc": {
+   "kind": "use-case",
+   "elements": [
+    {
+     "id": "a",
+     "type": "actor",
+     "name": "User"
+    },
+    {
+     "id": "u",
+     "type": "useCase",
+     "name": "Do work",
+     "extensionPoints": [
+      "step"
+     ]
+    },
+    {
+     "id": "v",
+     "type": "useCase",
+     "name": "Helper"
+    },
+    {
+     "id": "w",
+     "type": "useCase",
+     "name": "Extra"
+    }
+   ],
+   "relationships": [
+    {
+     "type": "association",
+     "from": "a",
+     "to": "nope"
+    },
+    {
+     "type": "include",
+     "from": "u",
+     "to": "v"
+    },
+    {
+     "type": "extend",
+     "from": "w",
+     "to": "u",
+     "extensionPoint": "step"
+    }
+   ]
+  }
+ },
+ {
+  "name": "unknown subject",
+  "expect": {
+   "code": "MISSING_REFERENCE",
+   "path": "/elements/1/subject"
+  },
+  "doc": {
+   "kind": "use-case",
+   "elements": [
+    {
+     "id": "a",
+     "type": "actor",
+     "name": "User"
+    },
+    {
+     "id": "u",
+     "type": "useCase",
+     "name": "Do work",
+     "extensionPoints": [
+      "step"
+     ],
+     "subject": "nope"
+    },
+    {
+     "id": "v",
+     "type": "useCase",
+     "name": "Helper"
+    },
+    {
+     "id": "w",
+     "type": "useCase",
+     "name": "Extra"
+    }
+   ],
+   "relationships": [
+    {
+     "type": "association",
+     "from": "a",
+     "to": "u"
+    },
+    {
+     "type": "include",
+     "from": "u",
+     "to": "v"
+    },
+    {
+     "type": "extend",
+     "from": "w",
+     "to": "u",
+     "extensionPoint": "step"
+    }
+   ]
+  }
+ },
+ {
+  "name": "subject that is not a subject",
+  "expect": {
+   "code": "INVALID_SUBJECT",
+   "path": "/elements/1/subject"
+  },
+  "doc": {
+   "kind": "use-case",
+   "elements": [
+    {
+     "id": "a",
+     "type": "actor",
+     "name": "User"
+    },
+    {
+     "id": "u",
+     "type": "useCase",
+     "name": "Do work",
+     "extensionPoints": [
+      "step"
+     ],
+     "subject": "a"
+    },
+    {
+     "id": "v",
+     "type": "useCase",
+     "name": "Helper"
+    },
+    {
+     "id": "w",
+     "type": "useCase",
+     "name": "Extra"
+    }
+   ],
+   "relationships": [
+    {
+     "type": "association",
+     "from": "a",
+     "to": "u"
+    },
+    {
+     "type": "include",
+     "from": "u",
+     "to": "v"
+    },
+    {
+     "type": "extend",
+     "from": "w",
+     "to": "u",
+     "extensionPoint": "step"
+    }
+   ]
+  }
+ },
+ {
+  "name": "note attached to a note",
+  "expect": {
+   "code": "INVALID_ATTACHMENT",
+   "path": "/elements/5/attachedTo/0"
+  },
+  "doc": {
+   "kind": "use-case",
+   "elements": [
+    {
+     "id": "a",
+     "type": "actor",
+     "name": "User"
+    },
+    {
+     "id": "u",
+     "type": "useCase",
+     "name": "Do work",
+     "extensionPoints": [
+      "step"
+     ]
+    },
+    {
+     "id": "v",
+     "type": "useCase",
+     "name": "Helper"
+    },
+    {
+     "id": "w",
+     "type": "useCase",
+     "name": "Extra"
+    },
+    {
+     "id": "n1",
+     "type": "note",
+     "text": "x"
+    },
+    {
+     "id": "n2",
+     "type": "note",
+     "text": "y",
+     "attachedTo": [
+      "n1"
+     ]
+    }
+   ],
+   "relationships": [
+    {
+     "type": "association",
+     "from": "a",
+     "to": "u"
+    },
+    {
+     "type": "include",
+     "from": "u",
+     "to": "v"
+    },
+    {
+     "type": "extend",
+     "from": "w",
+     "to": "u",
+     "extensionPoint": "step"
+    }
+   ]
+  }
+ },
+ {
+  "name": "note in a relationship",
+  "expect": {
+   "code": "NOTE_IN_RELATIONSHIP",
+   "path": "/relationships/3/to"
+  },
+  "doc": {
+   "kind": "use-case",
+   "elements": [
+    {
+     "id": "a",
+     "type": "actor",
+     "name": "User"
+    },
+    {
+     "id": "u",
+     "type": "useCase",
+     "name": "Do work",
+     "extensionPoints": [
+      "step"
+     ]
+    },
+    {
+     "id": "v",
+     "type": "useCase",
+     "name": "Helper"
+    },
+    {
+     "id": "w",
+     "type": "useCase",
+     "name": "Extra"
+    },
+    {
+     "id": "n",
+     "type": "note",
+     "text": "x"
+    }
+   ],
+   "relationships": [
+    {
+     "type": "association",
+     "from": "a",
+     "to": "u"
+    },
+    {
+     "type": "include",
+     "from": "u",
+     "to": "v"
+    },
+    {
+     "type": "extend",
+     "from": "w",
+     "to": "u",
+     "extensionPoint": "step"
+    },
+    {
+     "type": "association",
+     "from": "a",
+     "to": "n"
+    }
+   ]
+  }
+ },
+ {
+  "name": "subject in a relationship",
+  "expect": {
+   "code": "SUBJECT_IN_RELATIONSHIP",
+   "path": "/relationships/3/to"
+  },
+  "doc": {
+   "kind": "use-case",
+   "elements": [
+    {
+     "id": "a",
+     "type": "actor",
+     "name": "User"
+    },
+    {
+     "id": "u",
+     "type": "useCase",
+     "name": "Do work",
+     "extensionPoints": [
+      "step"
+     ]
+    },
+    {
+     "id": "v",
+     "type": "useCase",
+     "name": "Helper"
+    },
+    {
+     "id": "w",
+     "type": "useCase",
+     "name": "Extra"
+    },
+    {
+     "id": "s",
+     "type": "subject",
+     "name": "S"
+    }
+   ],
+   "relationships": [
+    {
+     "type": "association",
+     "from": "a",
+     "to": "u"
+    },
+    {
+     "type": "include",
+     "from": "u",
+     "to": "v"
+    },
+    {
+     "type": "extend",
+     "from": "w",
+     "to": "u",
+     "extensionPoint": "step"
+    },
+    {
+     "type": "association",
+     "from": "a",
+     "to": "s"
+    }
+   ]
+  }
+ },
+ {
+  "name": "association between two actors",
+  "expect": {
+   "code": "INVALID_ASSOCIATION",
+   "path": "/relationships/3/to"
+  },
+  "doc": {
+   "kind": "use-case",
+   "elements": [
+    {
+     "id": "a",
+     "type": "actor",
+     "name": "User"
+    },
+    {
+     "id": "u",
+     "type": "useCase",
+     "name": "Do work",
+     "extensionPoints": [
+      "step"
+     ]
+    },
+    {
+     "id": "v",
+     "type": "useCase",
+     "name": "Helper"
+    },
+    {
+     "id": "w",
+     "type": "useCase",
+     "name": "Extra"
+    },
+    {
+     "id": "b",
+     "type": "actor",
+     "name": "B"
+    }
+   ],
+   "relationships": [
+    {
+     "type": "association",
+     "from": "a",
+     "to": "u"
+    },
+    {
+     "type": "include",
+     "from": "u",
+     "to": "v"
+    },
+    {
+     "type": "extend",
+     "from": "w",
+     "to": "u",
+     "extensionPoint": "step"
+    },
+    {
+     "type": "association",
+     "from": "a",
+     "to": "b"
+    }
+   ]
+  }
+ },
+ {
+  "name": "association between two use cases",
+  "expect": {
+   "code": "INVALID_ASSOCIATION",
+   "path": "/relationships/3/from"
+  },
+  "doc": {
+   "kind": "use-case",
+   "elements": [
+    {
+     "id": "a",
+     "type": "actor",
+     "name": "User"
+    },
+    {
+     "id": "u",
+     "type": "useCase",
+     "name": "Do work",
+     "extensionPoints": [
+      "step"
+     ]
+    },
+    {
+     "id": "v",
+     "type": "useCase",
+     "name": "Helper"
+    },
+    {
+     "id": "w",
+     "type": "useCase",
+     "name": "Extra"
+    }
+   ],
+   "relationships": [
+    {
+     "type": "association",
+     "from": "a",
+     "to": "u"
+    },
+    {
+     "type": "include",
+     "from": "u",
+     "to": "v"
+    },
+    {
+     "type": "extend",
+     "from": "w",
+     "to": "u",
+     "extensionPoint": "step"
+    },
+    {
+     "type": "association",
+     "from": "u",
+     "to": "v"
+    }
+   ]
+  }
+ },
+ {
+  "name": "include from an actor",
+  "expect": {
+   "code": "INVALID_INCLUDE",
+   "path": "/relationships/3/from"
+  },
+  "doc": {
+   "kind": "use-case",
+   "elements": [
+    {
+     "id": "a",
+     "type": "actor",
+     "name": "User"
+    },
+    {
+     "id": "u",
+     "type": "useCase",
+     "name": "Do work",
+     "extensionPoints": [
+      "step"
+     ]
+    },
+    {
+     "id": "v",
+     "type": "useCase",
+     "name": "Helper"
+    },
+    {
+     "id": "w",
+     "type": "useCase",
+     "name": "Extra"
+    }
+   ],
+   "relationships": [
+    {
+     "type": "association",
+     "from": "a",
+     "to": "u"
+    },
+    {
+     "type": "include",
+     "from": "u",
+     "to": "v"
+    },
+    {
+     "type": "extend",
+     "from": "w",
+     "to": "u",
+     "extensionPoint": "step"
+    },
+    {
+     "type": "include",
+     "from": "a",
+     "to": "v"
+    }
+   ]
+  }
+ },
+ {
+  "name": "extend into an actor",
+  "expect": {
+   "code": "INVALID_EXTEND",
+   "path": "/relationships/3/to"
+  },
+  "doc": {
+   "kind": "use-case",
+   "elements": [
+    {
+     "id": "a",
+     "type": "actor",
+     "name": "User"
+    },
+    {
+     "id": "u",
+     "type": "useCase",
+     "name": "Do work",
+     "extensionPoints": [
+      "step"
+     ]
+    },
+    {
+     "id": "v",
+     "type": "useCase",
+     "name": "Helper"
+    },
+    {
+     "id": "w",
+     "type": "useCase",
+     "name": "Extra"
+    }
+   ],
+   "relationships": [
+    {
+     "type": "association",
+     "from": "a",
+     "to": "u"
+    },
+    {
+     "type": "include",
+     "from": "u",
+     "to": "v"
+    },
+    {
+     "type": "extend",
+     "from": "w",
+     "to": "u",
+     "extensionPoint": "step"
+    },
+    {
+     "type": "extend",
+     "from": "w",
+     "to": "a",
+     "extensionPoint": "step"
+    }
+   ]
+  }
+ },
+ {
+  "name": "extend points the wrong way (base to extension)",
+  "expect": {
+   "code": "UNKNOWN_EXTENSION_POINT",
+   "path": "/relationships/2/extensionPoint"
+  },
+  "doc": {
+   "kind": "use-case",
+   "elements": [
+    {
+     "id": "a",
+     "type": "actor",
+     "name": "User"
+    },
+    {
+     "id": "u",
+     "type": "useCase",
+     "name": "Do work",
+     "extensionPoints": [
+      "step"
+     ]
+    },
+    {
+     "id": "v",
+     "type": "useCase",
+     "name": "Helper"
+    },
+    {
+     "id": "w",
+     "type": "useCase",
+     "name": "Extra"
+    }
+   ],
+   "relationships": [
+    {
+     "type": "association",
+     "from": "a",
+     "to": "u"
+    },
+    {
+     "type": "include",
+     "from": "u",
+     "to": "v"
+    },
+    {
+     "type": "extend",
+     "from": "u",
+     "to": "w",
+     "extensionPoint": "step"
+    }
+   ]
+  }
+ },
+ {
+  "name": "extend names an undeclared extension point",
+  "expect": {
+   "code": "UNKNOWN_EXTENSION_POINT",
+   "path": "/relationships/2/extensionPoint"
+  },
+  "doc": {
+   "kind": "use-case",
+   "elements": [
+    {
+     "id": "a",
+     "type": "actor",
+     "name": "User"
+    },
+    {
+     "id": "u",
+     "type": "useCase",
+     "name": "Do work",
+     "extensionPoints": [
+      "step"
+     ]
+    },
+    {
+     "id": "v",
+     "type": "useCase",
+     "name": "Helper"
+    },
+    {
+     "id": "w",
+     "type": "useCase",
+     "name": "Extra"
+    }
+   ],
+   "relationships": [
+    {
+     "type": "association",
+     "from": "a",
+     "to": "u"
+    },
+    {
+     "type": "include",
+     "from": "u",
+     "to": "v"
+    },
+    {
+     "type": "extend",
+     "from": "w",
+     "to": "u",
+     "extensionPoint": "other"
+    }
+   ]
+  }
+ },
+ {
+  "name": "duplicate extension point",
+  "expect": {
+   "code": "DUPLICATE_EXTENSION_POINT",
+   "path": "/elements/1/extensionPoints/1"
+  },
+  "doc": {
+   "kind": "use-case",
+   "elements": [
+    {
+     "id": "a",
+     "type": "actor",
+     "name": "User"
+    },
+    {
+     "id": "u",
+     "type": "useCase",
+     "name": "Do work",
+     "extensionPoints": [
+      "step",
+      "step"
+     ]
+    },
+    {
+     "id": "v",
+     "type": "useCase",
+     "name": "Helper"
+    },
+    {
+     "id": "w",
+     "type": "useCase",
+     "name": "Extra"
+    }
+   ],
+   "relationships": [
+    {
+     "type": "association",
+     "from": "a",
+     "to": "u"
+    },
+    {
+     "type": "include",
+     "from": "u",
+     "to": "v"
+    },
+    {
+     "type": "extend",
+     "from": "w",
+     "to": "u",
+     "extensionPoint": "step"
+    }
+   ]
+  }
+ },
+ {
+  "name": "include cycle",
+  "expect": {
+   "code": "INCLUDE_CYCLE",
+   "path": "/relationships/3"
+  },
+  "doc": {
+   "kind": "use-case",
+   "elements": [
+    {
+     "id": "a",
+     "type": "actor",
+     "name": "User"
+    },
+    {
+     "id": "u",
+     "type": "useCase",
+     "name": "Do work",
+     "extensionPoints": [
+      "step"
+     ]
+    },
+    {
+     "id": "v",
+     "type": "useCase",
+     "name": "Helper"
+    },
+    {
+     "id": "w",
+     "type": "useCase",
+     "name": "Extra"
+    }
+   ],
+   "relationships": [
+    {
+     "type": "association",
+     "from": "a",
+     "to": "u"
+    },
+    {
+     "type": "include",
+     "from": "u",
+     "to": "v"
+    },
+    {
+     "type": "extend",
+     "from": "w",
+     "to": "u",
+     "extensionPoint": "step"
+    },
+    {
+     "type": "include",
+     "from": "v",
+     "to": "u"
+    }
+   ]
+  }
+ },
+ {
+  "name": "self include",
+  "expect": {
+   "code": "INCLUDE_CYCLE",
+   "path": "/relationships/3"
+  },
+  "doc": {
+   "kind": "use-case",
+   "elements": [
+    {
+     "id": "a",
+     "type": "actor",
+     "name": "User"
+    },
+    {
+     "id": "u",
+     "type": "useCase",
+     "name": "Do work",
+     "extensionPoints": [
+      "step"
+     ]
+    },
+    {
+     "id": "v",
+     "type": "useCase",
+     "name": "Helper"
+    },
+    {
+     "id": "w",
+     "type": "useCase",
+     "name": "Extra"
+    }
+   ],
+   "relationships": [
+    {
+     "type": "association",
+     "from": "a",
+     "to": "u"
+    },
+    {
+     "type": "include",
+     "from": "u",
+     "to": "v"
+    },
+    {
+     "type": "extend",
+     "from": "w",
+     "to": "u",
+     "extensionPoint": "step"
+    },
+    {
+     "type": "include",
+     "from": "v",
+     "to": "v"
+    }
+   ]
+  }
+ },
+ {
+  "name": "extend cycle",
+  "expect": {
+   "code": "EXTEND_CYCLE",
+   "path": "/relationships/3"
+  },
+  "doc": {
+   "kind": "use-case",
+   "elements": [
+    {
+     "id": "a",
+     "type": "actor",
+     "name": "User"
+    },
+    {
+     "id": "u",
+     "type": "useCase",
+     "name": "Do work",
+     "extensionPoints": [
+      "step"
+     ]
+    },
+    {
+     "id": "v",
+     "type": "useCase",
+     "name": "Helper"
+    },
+    {
+     "id": "w",
+     "type": "useCase",
+     "name": "Extra",
+     "extensionPoints": [
+      "back"
+     ]
+    }
+   ],
+   "relationships": [
+    {
+     "type": "association",
+     "from": "a",
+     "to": "u"
+    },
+    {
+     "type": "include",
+     "from": "u",
+     "to": "v"
+    },
+    {
+     "type": "extend",
+     "from": "w",
+     "to": "u",
+     "extensionPoint": "step"
+    },
+    {
+     "type": "extend",
+     "from": "u",
+     "to": "w",
+     "extensionPoint": "back"
+    }
+   ]
+  }
+ },
+ {
+  "name": "duplicate include",
+  "expect": {
+   "code": "DUPLICATE_RELATIONSHIP",
+   "path": "/relationships/3"
+  },
+  "doc": {
+   "kind": "use-case",
+   "elements": [
+    {
+     "id": "a",
+     "type": "actor",
+     "name": "User"
+    },
+    {
+     "id": "u",
+     "type": "useCase",
+     "name": "Do work",
+     "extensionPoints": [
+      "step"
+     ]
+    },
+    {
+     "id": "v",
+     "type": "useCase",
+     "name": "Helper"
+    },
+    {
+     "id": "w",
+     "type": "useCase",
+     "name": "Extra"
+    }
+   ],
+   "relationships": [
+    {
+     "type": "association",
+     "from": "a",
+     "to": "u"
+    },
+    {
+     "type": "include",
+     "from": "u",
+     "to": "v"
+    },
+    {
+     "type": "extend",
+     "from": "w",
+     "to": "u",
+     "extensionPoint": "step"
+    },
+    {
+     "type": "include",
+     "from": "u",
+     "to": "v"
+    }
+   ]
+  }
+ },
+ {
+  "name": "generalization between an actor and a use case",
+  "expect": {
+   "code": "INVALID_GENERALIZATION",
+   "path": "/relationships/3/to"
+  },
+  "doc": {
+   "kind": "use-case",
+   "elements": [
+    {
+     "id": "a",
+     "type": "actor",
+     "name": "User"
+    },
+    {
+     "id": "u",
+     "type": "useCase",
+     "name": "Do work",
+     "extensionPoints": [
+      "step"
+     ]
+    },
+    {
+     "id": "v",
+     "type": "useCase",
+     "name": "Helper"
+    },
+    {
+     "id": "w",
+     "type": "useCase",
+     "name": "Extra"
+    }
+   ],
+   "relationships": [
+    {
+     "type": "association",
+     "from": "a",
+     "to": "u"
+    },
+    {
+     "type": "include",
+     "from": "u",
+     "to": "v"
+    },
+    {
+     "type": "extend",
+     "from": "w",
+     "to": "u",
+     "extensionPoint": "step"
+    },
+    {
+     "type": "generalization",
+     "from": "a",
+     "to": "u"
+    }
+   ]
+  }
+ },
+ {
+  "name": "generalization cycle",
+  "expect": {
+   "code": "INHERITANCE_CYCLE",
+   "path": "/relationships/4"
+  },
+  "doc": {
+   "kind": "use-case",
+   "elements": [
+    {
+     "id": "a",
+     "type": "actor",
+     "name": "User"
+    },
+    {
+     "id": "u",
+     "type": "useCase",
+     "name": "Do work",
+     "extensionPoints": [
+      "step"
+     ]
+    },
+    {
+     "id": "v",
+     "type": "useCase",
+     "name": "Helper"
+    },
+    {
+     "id": "w",
+     "type": "useCase",
+     "name": "Extra"
+    },
+    {
+     "id": "b",
+     "type": "actor",
+     "name": "B"
+    }
+   ],
+   "relationships": [
+    {
+     "type": "association",
+     "from": "a",
+     "to": "u"
+    },
+    {
+     "type": "include",
+     "from": "u",
+     "to": "v"
+    },
+    {
+     "type": "extend",
+     "from": "w",
+     "to": "u",
+     "extensionPoint": "step"
+    },
+    {
+     "type": "generalization",
+     "from": "a",
+     "to": "b"
+    },
+    {
+     "type": "generalization",
+     "from": "b",
+     "to": "a"
+    }
+   ]
+  }
+ },
+ {
+  "name": "invalid multiplicity bounds",
+  "expect": {
+   "code": "INVALID_MULTIPLICITY",
+   "path": "/relationships/0/toEnd/multiplicity"
+  },
+  "doc": {
+   "kind": "use-case",
+   "elements": [
+    {
+     "id": "a",
+     "type": "actor",
+     "name": "User"
+    },
+    {
+     "id": "u",
+     "type": "useCase",
+     "name": "Do work",
+     "extensionPoints": [
+      "step"
+     ]
+    },
+    {
+     "id": "v",
+     "type": "useCase",
+     "name": "Helper"
+    },
+    {
+     "id": "w",
+     "type": "useCase",
+     "name": "Extra"
+    }
+   ],
+   "relationships": [
+    {
+     "type": "association",
+     "from": "a",
+     "to": "u",
+     "toEnd": {
+      "multiplicity": "3..1"
+     }
+    },
+    {
+     "type": "include",
+     "from": "u",
+     "to": "v"
+    },
+    {
+     "type": "extend",
+     "from": "w",
+     "to": "u",
+     "extensionPoint": "step"
+    }
+   ]
+  }
+ },
+ {
+  "name": "note attached to an unknown element",
+  "expect": {
+   "code": "MISSING_REFERENCE",
+   "path": "/elements/4/attachedTo/0"
+  },
+  "doc": {
+   "kind": "use-case",
+   "elements": [
+    {
+     "id": "a",
+     "type": "actor",
+     "name": "User"
+    },
+    {
+     "id": "u",
+     "type": "useCase",
+     "name": "Do work",
+     "extensionPoints": [
+      "step"
+     ]
+    },
+    {
+     "id": "v",
+     "type": "useCase",
+     "name": "Helper"
+    },
+    {
+     "id": "w",
+     "type": "useCase",
+     "name": "Extra"
+    },
+    {
+     "id": "n",
+     "type": "note",
+     "text": "x",
+     "attachedTo": [
+      "nope"
+     ]
+    }
+   ],
+   "relationships": [
+    {
+     "type": "association",
+     "from": "a",
+     "to": "u"
+    },
+    {
+     "type": "include",
+     "from": "u",
+     "to": "v"
+    },
+    {
+     "type": "extend",
+     "from": "w",
+     "to": "u",
+     "extensionPoint": "step"
+    }
+   ]
+  }
+ },
+ {
+  "name": "self extend",
+  "expect": {
+   "code": "EXTEND_CYCLE",
+   "path": "/relationships/3"
+  },
+  "doc": {
+   "kind": "use-case",
+   "elements": [
+    {
+     "id": "a",
+     "type": "actor",
+     "name": "User"
+    },
+    {
+     "id": "u",
+     "type": "useCase",
+     "name": "Do work",
+     "extensionPoints": [
+      "step"
+     ]
+    },
+    {
+     "id": "v",
+     "type": "useCase",
+     "name": "Helper"
+    },
+    {
+     "id": "w",
+     "type": "useCase",
+     "name": "Extra"
+    }
+   ],
+   "relationships": [
+    {
+     "type": "association",
+     "from": "a",
+     "to": "u"
+    },
+    {
+     "type": "include",
+     "from": "u",
+     "to": "v"
+    },
+    {
+     "type": "extend",
+     "from": "w",
+     "to": "u",
+     "extensionPoint": "step"
+    },
+    {
+     "type": "extend",
+     "from": "u",
+     "to": "u",
+     "extensionPoint": "step"
+    }
+   ]
+  }
+ },
+ {
+  "name": "unknown kind",
+  "expect": {
+   "code": "UNKNOWN_KIND",
+   "path": "/kind"
+  },
+  "doc": {
+   "kind": "usecase",
+   "elements": [
+    {
+     "id": "a",
+     "type": "actor",
+     "name": "User"
+    },
+    {
+     "id": "u",
+     "type": "useCase",
+     "name": "Do work",
+     "extensionPoints": [
+      "step"
+     ]
+    },
+    {
+     "id": "v",
+     "type": "useCase",
+     "name": "Helper"
+    },
+    {
+     "id": "w",
+     "type": "useCase",
+     "name": "Extra"
+    }
+   ],
+   "relationships": [
+    {
+     "type": "association",
+     "from": "a",
+     "to": "u"
+    },
+    {
+     "type": "include",
+     "from": "u",
+     "to": "v"
+    },
+    {
+     "type": "extend",
+     "from": "w",
+     "to": "u",
+     "extensionPoint": "step"
+    }
+   ]
+  }
+ }
+]

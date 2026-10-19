@@ -62,3 +62,48 @@ export function skinParams(): string[] {
 export function plantUmlDocument(body: readonly string[], options: { layout?: 'smetana' } = {}): string {
   return ['@startuml', ...(options.layout === 'smetana' ? ['!pragma layout smetana'] : []), ...skinParams(), ...body, '@enduml', ''].join('\n');
 }
+
+/** Stroke color that marks call behavior actions in PlantUML output, for the rake post-processor. */
+export const CALL_BEHAVIOR_MARK = '#334156';
+
+/**
+ * Activity-diagram (new activity syntax) skinparams from the theme: rounded
+ * actions (only actions; frames and notes stay square; decisions are always
+ * emitted without condition text, so they are plain diamonds), theme-colored bars, start and end nodes and swimlanes. Call
+ * behavior actions get a marker stroke and room on the right for the rake icon
+ * the activity kind draws after rendering.
+ */
+export function activitySkinParams(): string[] {
+  const { color, font, stroke } = theme;
+  return [
+    `skinparam activityBarColor ${color.edge}`,
+    `skinparam activityStartColor ${color.text}`,
+    `skinparam activityEndColor ${color.text}`,
+    `skinparam activityDiamondBackgroundColor ${color.nodeFill}`,
+    `skinparam activityDiamondBorderColor ${color.nodeStroke}`,
+    `skinparam swimlaneBorderColor ${color.frameStroke}`,
+    `skinparam swimlaneBorderThickness ${stroke.frame}`,
+    `skinparam swimlaneTitleFontSize ${font.size.name}`,
+    'skinparam swimlaneTitleFontStyle bold',
+    '<style>',
+    'mainframe {',
+    `  LineColor ${color.frameStroke}`,
+    `  LineThickness ${stroke.frame}`,
+    '}',
+    'activityDiagram {',
+    '  circle {',
+    `    BackgroundColor ${color.text}`,
+    `    LineColor ${color.text}`,
+    '  }',
+    '  activity {',
+    '    HorizontalAlignment center',
+    `    RoundCorner ${2 * theme.size.actionRadius}`,
+    '  }',
+    '  .callBehavior {',
+    `    LineColor ${CALL_BEHAVIOR_MARK}`,
+    '    Padding 10 36 10 10',
+    '  }',
+    '}',
+    '</style>',
+  ];
+}

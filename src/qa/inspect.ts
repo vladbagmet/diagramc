@@ -1,6 +1,7 @@
 import { loadFonts, type FontMetrics } from '../engine/fonts.js';
 import { union, type Point, type Rect } from '../engine/geometry.js';
 import { parseXml, textContent, walk, type XmlElement } from './xml.js';
+import { readPlantUmlActivity } from './plantuml-activity.js';
 import { readSequence, readTiming, type Interaction } from './plantuml-interaction.js';
 
 /**
@@ -13,8 +14,10 @@ export interface InspectedNode {
   type: string;
   bounds: Rect;
   parent?: string;
-  /** Outline when it is not the bounds rectangle (data-uml-shape), e.g. "ellipse". */
+  /** Outline when it is not the bounds rectangle (data-uml-shape), e.g. "ellipse" or "diamond". */
   shape?: string;
+  /** Node whose border this node sits on (data-uml-border-of); overlapping it is intended. */
+  borderOf?: string;
   /** Provided-interface ball (data-uml-ball="cx,cy,r"). */
   ball?: { x: number; y: number; r: number };
   /** Required-interface socket (data-uml-socket="cx,cy,r,ux,uy"); `u` points out of its opening. */
@@ -57,6 +60,8 @@ export interface Scene {
   frameHeading?: Rect;
   /** Markup that must never appear (scripts, links, foreign content, event handlers). */
   unsafe: string[];
+  /** True when edges, markers and labels were read exactly, so the edge gates can run. */
+  exactEdges?: boolean;
   /** PlantUML interaction diagrams (sequence, timing): lifelines and messages for the message-endpoints gate. */
   interaction?: Interaction;
   /** Gates normally evaluated only on own-engine output that this PlantUML scene supplies exact data for. */
@@ -134,6 +139,7 @@ export async function inspectSvg(svg: string): Promise<Scene> {
   if (renderer === 'engine') readEngine(root, scene);
   else if (root.attrs['data-diagram-type'] === 'SEQUENCE') readSequence(root, scene);
   else if (root.attrs['data-diagram-type'] === 'TIMING') readTiming(root, scene);
+  else if (root.attrs['data-diagram-type'] === 'ACTIVITY') readPlantUmlActivity(root, scene);
   else readPlantUml(root, scene);
   return scene;
 }
@@ -178,6 +184,7 @@ function readEngine(root: XmlElement, scene: Scene): void {
         id: a['data-uml-id'] ?? '', type: a['data-uml-type'] ?? '', bounds: rect4(a['data-uml-bounds'])!,
         ...(a['data-uml-parent'] ? { parent: a['data-uml-parent'] } : {}),
         ...(a['data-uml-shape'] ? { shape: a['data-uml-shape'] } : {}),
+        ...(a['data-uml-border-of'] ? { borderOf: a['data-uml-border-of'] } : {}),
         ...(ball.length === 3 ? { ball: { x: ball[0]!, y: ball[1]!, r: ball[2]! } } : {}),
         ...(a['data-uml-tab'] ? { tab: rect4(a['data-uml-tab'])! } : {}),
         ...(socket.length === 5 ? { socket: { x: socket[0]!, y: socket[1]!, r: socket[2]!, u: { x: socket[3]!, y: socket[4]! } } } : {}),

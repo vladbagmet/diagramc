@@ -86,6 +86,18 @@ export const theme = {
     cross: { offset: 12, half: 5 },
     circlePlus: { radius: 6.5 },
     noteFold: 10,
+    /** Corner radius of activity actions (rounded rectangles). */
+    actionRadius: 12,
+    /** Rake symbol of call behavior actions (UML 16.3.4). */
+    rake: { width: 12, height: 12 },
+    /** State machine vertices (diameters and sizes in px). */
+    state: {
+      radius: 10, initial: 18, final: 24, finalInner: 12, choice: 26, junction: 12, history: 28,
+      point: 14, terminate: 18, bar: 6, barMin: 72,
+    },
+    /** Stick figure of an actor, and the minimum ellipse of a use case. */
+    actor: { width: 30, height: 52 },
+    useCase: { minWidth: 120, minHeight: 46 },
     packageTab: { minWidth: 48, height: 20 },
     /** Side of a port square, centered on its owner's border. */
     port: 12,

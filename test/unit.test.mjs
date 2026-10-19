@@ -176,7 +176,7 @@ test('CLI help, version, usage and machine-readable read/parse/encoding failures
     assert.equal(result.stderr.trim().split('\n').length, 1);
   }
 });
-test('CLI validate, schema and kinds print JSON on stdout', () => {
+test('CLI validate, schema and kinds print JSON on stdout', async () => {
   let result = cli(['validate', '-'], { input: JSON.stringify(minimalV2) });
   assert.equal(result.status, 0, result.stderr);
   assert.deepEqual(JSON.parse(result.stdout), { valid: true, kind: 'class', version: 2 });
@@ -200,6 +200,9 @@ test('CLI validate, schema and kinds print JSON on stdout', () => {
     assert.deepEqual(listed.find(k => k.kind === kind)?.backends, ['engine'], kind);
     assert.equal(JSON.parse(cli(['schema', kind]).stdout).properties.kind.const, kind);
   }
+  assert.deepEqual(listed.find(k => k.kind === 'activity')?.backends, ['plantuml']);
+  for (const kind of ['state-machine', 'use-case']) assert.deepEqual(listed.find(k => k.kind === kind)?.backends, ['engine'], kind);
+  for (const kind of ['activity', 'state-machine', 'use-case']) assert.equal(JSON.parse(cli(['schema', kind]).stdout).properties.kind.const, kind);
 });
 test('invalid input never spawns renderer or creates/replaces output', async t => {
   const dir = await workspace(t), out = join(dir, 'out.svg'), marker = join(dir, 'spawned');

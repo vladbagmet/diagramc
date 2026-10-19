@@ -1,0 +1,47 @@
+{
+  "kind": "state-machine",
+  "title": "Media player",
+  "elements": [
+    { "id": "init", "type": "initial" },
+    { "id": "idle", "type": "state", "name": "Idle", "entry": "show library" },
+    {
+      "id": "active", "type": "state", "name": "Active", "exit": "save position",
+      "regions": [
+        {
+          "name": "playback",
+          "elements": [
+            { "id": "pInit", "type": "initial" },
+            { "id": "hist", "type": "shallowHistory" },
+            { "id": "playing", "type": "state", "name": "Playing", "doActivity": "decode stream", "internal": [{ "trigger": "volume(v)", "effect": "setVolume(v)" }] },
+            { "id": "paused", "type": "state", "name": "Paused" }
+          ]
+        },
+        {
+          "name": "network",
+          "elements": [
+            { "id": "nInit", "type": "initial" },
+            { "id": "online", "type": "state", "name": "Online" },
+            { "id": "buffering", "type": "state", "name": "Buffering", "entry": "start timer" }
+          ]
+        }
+      ]
+    },
+    { "id": "stopped", "type": "choice" },
+    { "id": "done", "type": "final" },
+    { "id": "n1", "type": "note", "text": "Resuming returns to the last playback state (shallow history).", "attachedTo": ["hist"] }
+  ],
+  "transitions": [
+    { "from": "init", "to": "idle" },
+    { "from": "idle", "to": "active", "trigger": "play" },
+    { "from": "pInit", "to": "playing" },
+    { "from": "hist", "to": "playing" },
+    { "from": "playing", "to": "paused", "trigger": "pause" },
+    { "from": "paused", "to": "playing", "trigger": "resume" },
+    { "from": "nInit", "to": "online" },
+    { "from": "online", "to": "buffering", "trigger": "lowBuffer" },
+    { "from": "buffering", "to": "online", "trigger": "bufferFull", "guard": "size > 2 MB" },
+    { "from": "active", "to": "stopped", "trigger": "stop" },
+    { "from": "stopped", "to": "idle", "guard": "playlist empty" },
+    { "from": "stopped", "to": "done", "guard": "else", "effect": "release decoder" }
+  ]
+}

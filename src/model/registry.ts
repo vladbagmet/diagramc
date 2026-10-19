@@ -10,6 +10,9 @@ import { deploymentKind } from '../kinds/deployment/index.js';
 import { compositeStructureKind } from '../kinds/composite-structure/index.js';
 import { sequenceKind } from '../kinds/sequence/index.js';
 import { timingKind } from '../kinds/timing/index.js';
+import { activityKind } from '../kinds/activity/index.js';
+import { stateMachineKind } from '../kinds/state-machine/index.js';
+import { useCaseKind } from '../kinds/use-case/index.js';
 
 /**
  * Every diagram kind the CLI knows, in `uml kinds` order. To add a kind, create
@@ -28,6 +31,9 @@ export const kinds: readonly KindDefinition[] = [
   compositeStructureKind,
   sequenceKind,
   timingKind,
+  activityKind,
+  stateMachineKind,
+  useCaseKind,
 ];
 
 export function findKind(name: string): KindDefinition | undefined {

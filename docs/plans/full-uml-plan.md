@@ -25,8 +25,8 @@ Date: 2026-10-19. Starting point: the class-diagram MVP (TypeScript CLI, JSON mo
 | Sequence | PlantUML | Dedicated, mature sequence engine (no graph layout involved) |
 | Timing | PlantUML | Dedicated timing engine |
 | Activity | PlantUML (new activity syntax) | Dedicated engine, swimlanes, fork/join, decision/merge |
-| State machine | PlantUML | Composite states and regions supported. Must pass the same quality gates; if it fails them on nesting fixtures, move it to the own engine |
-| Use case | PlantUML | Simple notation. Same rule as state machine: fails the gates, moves to own engine |
+| State machine | Own (ELK, compound) | Moved from PlantUML in chunk 5: Smetana dropped orthogonal regions and failed the gates ([decision 0002](../decisions/0002-state-machine-and-use-case-backend.md)) |
+| Use case | Own (ELK, compound) | Moved from PlantUML in chunk 5: Smetana failed the gates ([decision 0002](../decisions/0002-state-machine-and-use-case-backend.md)) |
 
 Information flow (StarUML extra) is out of scope.
 
@@ -91,7 +91,7 @@ A kind is done only when all of these pass. These are hard gates, not aspiration
 | 2 | Component, deployment, composite structure | Own |
 | 3 | Communication, interaction overview | Own |
 | 4 | Sequence, timing | PlantUML |
-| 5 | Activity, state machine, use case | PlantUML |
+| 5 | Activity, state machine, use case | PlantUML (activity); own (state machine, use case, see decision 0002) |
 
 Each chunk delivers, per kind: schema, validator, renderer, notation checklist, positive/negative fixtures, examples, gallery PNGs, and passing gates. Chunks touch only `src/kinds/<kind>/`, their docs, their tests, and one registry line, so merges stay simple. A chunk that needs a change in `engine/` or `qa/` makes it small, tests it, and says so in its report.
 

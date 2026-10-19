@@ -113,3 +113,30 @@ export function round2(n: number): number {
   const r = Math.round(n * 100) / 100;
   return Object.is(r, -0) ? 0 : r;
 }
+
+/**
+ * Removes small jogs (an inner segment shorter than `min` between two parallel
+ * segments) from an orthogonal route by sliding one neighbour onto the other's
+ * line. End points only move along their node's border: an end segment is moved
+ * only if its end stays within its node's side (inset by `inset`).
+ */
+export function straightenJogs(route: readonly Point[], ends: { source: Rect; target: Rect }, min = 8, inset = 10): Point[] {
+  let pts = route.map(p => ({ ...p }));
+  const within = (r: Rect, p: Point, horizontalJog: boolean): boolean => horizontalJog
+    ? p.x >= r.x + inset && p.x <= r.x + r.width - inset
+    : p.y >= r.y + inset && p.y <= r.y + r.height - inset;
+  for (let i = 1; i + 2 < pts.length; i++) {
+    const a = pts[i]!, b = pts[i + 1]!;
+    if (distance(a, b) >= min) continue;
+    const horizontal = Math.abs(a.y - b.y) < 0.01;
+    const key = horizontal ? 'x' : 'y';
+    const next = pts[i + 2]!, prev = pts[i - 1]!;
+    const movedNext = { ...next, [key]: a[key] }, movedPrev = { ...prev, [key]: b[key] };
+    if (i + 2 < pts.length - 1 || within(ends.target, movedNext, horizontal)) { pts[i + 2] = movedNext; pts[i + 1] = { ...a }; }
+    else if (i - 1 > 0 || within(ends.source, movedPrev, horizontal)) { pts[i - 1] = movedPrev; pts[i] = { ...b }; }
+    else continue;
+    pts = simplify(pts);
+    i = 0;
+  }
+  return pts;
+}

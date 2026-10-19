@@ -62,15 +62,21 @@ export interface NodeData {
   id: string;
   type: string;
   parent?: string | undefined;
+  /** Outline for the edge-endpoint gate when it is not the bounding rectangle. */
+  shape?: 'ellipse' | 'diamond' | undefined;
+  /** ID of the node on whose border this one sits (entry/exit points); overlapping it is intended. */
+  borderOf?: string | undefined;
   /** Extra data-uml-* attributes for QA (e.g. data-uml-shape="ellipse"). */
   extra?: Record<string, string> | undefined;
 }
 
-/** The mandatory data-uml-* attributes of a node group. */
+/** The mandatory data-uml-* attributes of a node group (shapes and kinds with their own node drawings). */
 export function nodeAttributes(data: NodeData, bounds: Rect): Record<string, string> {
   return {
     'data-uml-role': 'node', 'data-uml-id': data.id, 'data-uml-type': data.type,
     ...(data.parent ? { 'data-uml-parent': data.parent } : {}),
+    ...(data.shape ? { 'data-uml-shape': data.shape } : {}),
+    ...(data.borderOf ? { 'data-uml-border-of': data.borderOf } : {}),
     'data-uml-bounds': `${num(bounds.x)} ${num(bounds.y)} ${num(bounds.width)} ${num(bounds.height)}`,
     ...data.extra,
   };

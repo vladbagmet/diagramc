@@ -178,3 +178,83 @@ test('QA gate message-arrows: accepts a well-placed arrow and catches each defec
   // Owned by a link that does not connect sender and receiver.
   assert.deepEqual(failed(await checkSvg(doc(a + c + link + arrow({ x: 167, y: 30 }, { x: 203, y: 30 }, { target: 'a' }) + label(167, 18)))), ['message-arrows']);
 });
+
+// Additions for state machine and use case diagrams (chunk 5).
+test('elkjs adapter: compound minimum size, fixed-size nodes, captions below and polyline routing', async () => {
+  // A compound node is at least as wide as its own header (elkjs swaps the axes for vertical layouts).
+  const compound = await layout(
+    [{ id: 'a', width: 80, height: 40 }, { id: 'c', width: 300, height: 60, minimumSize: true, padding: { top: 60, left: 12, bottom: 12, right: 12 }, children: [{ id: 'x', width: 60, height: 40 }, { id: 'y', width: 60, height: 40 }] }],
+    [{ id: 'e1', source: 'a', target: 'y' }, { id: 'e2', source: 'x', target: 'y' }], options);
+  assert.ok(compound.nodes.get('c').width >= 300);
+  // Fixed-size symbols keep their size although ports would grow them.
+  const fixed = await layout([{ id: 'p', width: 12, height: 12, fixedSize: true, ports: [{ id: 'p:n', side: 'NORTH' }, { id: 'p:w', side: 'WEST' }, { id: 'p:e', side: 'EAST' }] }, { id: 'q', width: 60, height: 30 }, { id: 'r', width: 60, height: 30 }],
+    [{ id: 'e1', source: 'p:w', target: 'q' }, { id: 'e2', source: 'p:e', target: 'r' }], options);
+  assert.deepEqual([fixed.nodes.get('p').width, fixed.nodes.get('p').height], [12, 12]);
+  const p = fixed.nodes.get('p'), west = fixed.ports.get('p:w');
+  assert.ok(Math.abs(west.y - (p.y + 6)) < 0.01 && Math.abs(west.x - p.x) < 0.01, 'single port centered on its side');
+  // A caption below keeps neighbours away; polyline routing gives slanted segments.
+  const captioned = await layout([{ id: 'actor', width: 30, height: 50, labelBelow: { width: 140, height: 20 } }, { id: 'u1', width: 100, height: 40 }, { id: 'u2', width: 100, height: 40 }],
+    [{ id: 'e1', source: 'actor', target: 'u1' }, { id: 'e2', source: 'actor', target: 'u2' }], { direction: 'RIGHT', routing: 'polyline' });
+  const actor = captioned.nodes.get('actor');
+  const caption = { x: actor.x + 15 - 70, y: actor.y + 50, width: 140, height: 20 };
+  for (const id of ['u1', 'u2']) assert.ok(!overlaps(caption, captioned.nodes.get(id)), `caption clear of ${id}`);
+  assert.ok([...captioned.edges.values()].some(e => e.points.slice(1).some((q, k) => q.x !== e.points[k].x && q.y !== e.points[k].y)), 'a slanted segment');
+});
+
+test('clip: route ends move onto ellipse and diamond outlines', async () => {
+  const { clipRoute, distanceToOutline } = await import('../dist/engine/clip.js');
+  const box = { x: 0, y: 0, width: 100, height: 40 };
+  for (const shape of ['ellipse', 'diamond']) {
+    for (const route of [[{ x: 50, y: -30 }, { x: 50, y: 0 }], [{ x: -40, y: 30 }, { x: 0, y: 30 }], [{ x: 200, y: -100 }, { x: 100, y: 10 }]]) {
+      const end = clipRoute(route, 'target', box, shape).at(-1);
+      assert.ok(distanceToOutline(end, box, shape) < 0.01, `${shape} ${JSON.stringify(route)} -> ${JSON.stringify(end)}`);
+      const start = clipRoute([...route].reverse(), 'source', box, shape)[0];
+      assert.ok(distanceToOutline(start, box, shape) < 0.01);
+    }
+  }
+  assert.deepEqual(clipRoute([{ x: 50, y: -30 }, { x: 50, y: 0 }], 'target', box, 'rect'), [{ x: 50, y: -30 }, { x: 50, y: 0 }]);
+});
+
+test('QA gates: shaped outlines, border nodes, edges ending on edges, labels inside containers, lines over texts', async () => {
+  const shaped = (id, x, y, w, h, shape) => `<g data-uml-role="node" data-uml-id="${id}" data-uml-type="x" data-uml-shape="${shape}" data-uml-bounds="${x} ${y} ${w} ${h}"><ellipse cx="${x + w / 2}" cy="${y + h / 2}" rx="${w / 2}" ry="${h / 2}"/></g>`;
+  const line = (id, s, t, pts) => `<g data-uml-role="edge" data-uml-id="${id}" data-uml-type="t" data-uml-source="${s}" data-uml-target="${t}" data-uml-source-marker="none" data-uml-target-marker="none" data-uml-points="${pts}"><path d="M0,0"/></g>`;
+  const u = shaped('u', 200, 100, 100, 40, 'ellipse');
+  const a = node('a', 20, 100, 60, 40);
+  // On the ellipse: passes; on the bounding box only: fails.
+  assert.deepEqual(failed(await checkSvg(doc(a + u + line('e', 'a', 'u', '80,120 200,120')))), []);
+  assert.deepEqual(failed(await checkSvg(doc(a + u + line('e', 'a', 'u', '80,101 205,101')))), ['edge-endpoints']);
+  // A note anchor may end on another edge, but must lie on it.
+  assert.deepEqual(failed(await checkSvg(doc(a + u + line('e', 'a', 'u', '80,120 200,120') + node('n', 100, 20, 60, 30) + line('n1', 'n', 'e', '130,50 130,120')))), []);
+  assert.deepEqual(failed(await checkSvg(doc(a + u + line('e', 'a', 'u', '80,120 200,120') + node('n', 100, 20, 60, 30) + line('n1', 'n', 'e', '130,50 130,110')))), ['edge-endpoints']);
+  // A node on its parent's border (entry/exit point) may overlap it; an unrelated node may not.
+  const parent = node('p', 20, 160, 200, 100).replace('data-uml-type="class"', 'data-uml-type="composite-state"');
+  const point = '<g data-uml-role="node" data-uml-id="pt" data-uml-type="entryPoint" data-uml-parent="p" data-uml-shape="ellipse" data-uml-border-of="p" data-uml-bounds="13 193 14 14"><circle cx="20" cy="200" r="7"/></g>';
+  assert.deepEqual(failed(await checkSvg(doc(parent + point))), []);
+  assert.deepEqual(failed(await checkSvg(doc(parent + point.replace(' data-uml-parent="p"', '').replace(' data-uml-border-of="p"', '')))), ['node-overlap']);
+  // Labels may sit inside a container (a node with children), not on its texts.
+  const child = '<g data-uml-role="node" data-uml-id="k" data-uml-type="x" data-uml-parent="p" data-uml-bounds="150 220 40 20"><rect x="150" y="220" width="40" height="20"/></g>';
+  const title = '<text x="30" y="175" font-size="13" data-uml-role="text" data-uml-owner="p">Container</text>';
+  const inner = '<text x="60" y="240" font-size="12" data-uml-role="label" data-uml-owner="k">inside</text>';
+  const onTitle = '<text x="40" y="176" font-size="12" data-uml-role="label" data-uml-owner="k">on title</text>';
+  const wrap = (body, t) => body.replace('</g>', `${t}</g>`);
+  assert.deepEqual(failed(await checkSvg(doc(wrap(parent, title) + child + inner))), []);
+  assert.deepEqual(failed(await checkSvg(doc(wrap(parent, title) + child + onTitle))), ['label-overlap']);
+  // A line into a container must not run over the container's texts.
+  const outside = node('o', 300, 20, 60, 30);
+  assert.deepEqual(failed(await checkSvg(doc(wrap(parent, title) + child + outside + line('x', 'o', 'k', '330,50 330,150 60,150 60,230 150,230')))), ['edge-endpoints']);
+});
+
+test('geometry: small jogs in orthogonal routes are straightened, ends stay on their borders', async () => {
+  const { straightenJogs } = await import('../dist/engine/geometry.js');
+  const source = { x: 100, y: 0, width: 100, height: 40 }, target = { x: 90, y: 200, width: 100, height: 40 };
+  const route = [{ x: 155, y: 40 }, { x: 155, y: 80 }, { x: 158, y: 80 }, { x: 158, y: 150 }, { x: 152, y: 150 }, { x: 152, y: 200 }];
+  const straight = straightenJogs(route, { source, target });
+  assert.equal(straight.length, 2);
+  assert.equal(straight[0].x, straight[1].x);
+  assert.deepEqual([straight[0].y, straight[1].y], [40, 200]);
+  // An end that would leave its node's side is not moved; the other side moves instead.
+  const narrow = { x: 150, y: 200, width: 12, height: 40 };
+  const kept = straightenJogs([{ x: 120, y: 40 }, { x: 120, y: 100 }, { x: 125, y: 100 }, { x: 125, y: 200 }], { source, target: narrow }, 8, 0);
+  assert.deepEqual(kept.at(-1), { x: 125, y: 200 });
+  assert.equal(kept.length, 2);
+});

@@ -1,0 +1,754 @@
+[
+ {
+  "name": "simple states",
+  "doc": {
+   "kind": "state-machine",
+   "elements": [
+    {
+     "id": "i",
+     "type": "initial"
+    },
+    {
+     "id": "a",
+     "type": "state",
+     "name": "A"
+    },
+    {
+     "id": "b",
+     "type": "state",
+     "name": "B"
+    },
+    {
+     "id": "f",
+     "type": "final"
+    }
+   ],
+   "transitions": [
+    {
+     "from": "i",
+     "to": "a"
+    },
+    {
+     "from": "a",
+     "to": "b",
+     "trigger": "go"
+    },
+    {
+     "from": "b",
+     "to": "f"
+    }
+   ]
+  }
+ },
+ {
+  "name": "state behaviors and internal transitions",
+  "doc": {
+   "kind": "state-machine",
+   "elements": [
+    {
+     "id": "i",
+     "type": "initial"
+    },
+    {
+     "id": "a",
+     "type": "state",
+     "name": "Busy",
+     "entry": "start",
+     "doActivity": "work",
+     "exit": "stop",
+     "internal": [
+      {
+       "trigger": "tick",
+       "guard": "n > 0",
+       "effect": "count"
+      }
+     ]
+    }
+   ],
+   "transitions": [
+    {
+     "from": "i",
+     "to": "a"
+    }
+   ]
+  }
+ },
+ {
+  "name": "transition label trigger [guard] / effect",
+  "doc": {
+   "kind": "state-machine",
+   "elements": [
+    {
+     "id": "a",
+     "type": "state",
+     "name": "A"
+    },
+    {
+     "id": "b",
+     "type": "state",
+     "name": "B"
+    }
+   ],
+   "transitions": [
+    {
+     "from": "a",
+     "to": "b",
+     "trigger": "evt(x)",
+     "guard": "x > 1",
+     "effect": "log(x)"
+    }
+   ]
+  }
+ },
+ {
+  "name": "self-transitions",
+  "doc": {
+   "kind": "state-machine",
+   "elements": [
+    {
+     "id": "i",
+     "type": "initial"
+    },
+    {
+     "id": "a",
+     "type": "state",
+     "name": "A"
+    }
+   ],
+   "transitions": [
+    {
+     "from": "i",
+     "to": "a"
+    },
+    {
+     "from": "a",
+     "to": "a",
+     "trigger": "again"
+    },
+    {
+     "from": "a",
+     "to": "a",
+     "trigger": "refresh",
+     "guard": "stale"
+    }
+   ]
+  }
+ },
+ {
+  "name": "composite state with one region",
+  "doc": {
+   "kind": "state-machine",
+   "elements": [
+    {
+     "id": "i",
+     "type": "initial"
+    },
+    {
+     "id": "c",
+     "type": "state",
+     "name": "C",
+     "regions": [
+      {
+       "elements": [
+        {
+         "id": "ci",
+         "type": "initial"
+        },
+        {
+         "id": "x",
+         "type": "state",
+         "name": "X"
+        },
+        {
+         "id": "cf",
+         "type": "final"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "z",
+     "type": "state",
+     "name": "Z"
+    }
+   ],
+   "transitions": [
+    {
+     "from": "i",
+     "to": "c"
+    },
+    {
+     "from": "ci",
+     "to": "x"
+    },
+    {
+     "from": "x",
+     "to": "cf",
+     "trigger": "done"
+    },
+    {
+     "from": "c",
+     "to": "z"
+    }
+   ]
+  }
+ },
+ {
+  "name": "orthogonal regions",
+  "doc": {
+   "kind": "state-machine",
+   "elements": [
+    {
+     "id": "c",
+     "type": "state",
+     "name": "C",
+     "regions": [
+      {
+       "name": "left",
+       "elements": [
+        {
+         "id": "i1",
+         "type": "initial"
+        },
+        {
+         "id": "x",
+         "type": "state",
+         "name": "X"
+        }
+       ]
+      },
+      {
+       "name": "right",
+       "elements": [
+        {
+         "id": "i2",
+         "type": "initial"
+        },
+        {
+         "id": "y",
+         "type": "state",
+         "name": "Y"
+        }
+       ]
+      },
+      {
+       "elements": [
+        {
+         "id": "w",
+         "type": "state",
+         "name": "W"
+        }
+       ]
+      }
+     ]
+    }
+   ],
+   "transitions": [
+    {
+     "from": "i1",
+     "to": "x"
+    },
+    {
+     "from": "i2",
+     "to": "y"
+    }
+   ]
+  }
+ },
+ {
+  "name": "fork and join into regions",
+  "doc": {
+   "kind": "state-machine",
+   "elements": [
+    {
+     "id": "i",
+     "type": "initial"
+    },
+    {
+     "id": "k",
+     "type": "fork"
+    },
+    {
+     "id": "c",
+     "type": "state",
+     "name": "C",
+     "regions": [
+      {
+       "elements": [
+        {
+         "id": "x",
+         "type": "state",
+         "name": "X"
+        }
+       ]
+      },
+      {
+       "elements": [
+        {
+         "id": "y",
+         "type": "state",
+         "name": "Y"
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "id": "j",
+     "type": "join"
+    },
+    {
+     "id": "z",
+     "type": "state",
+     "name": "Z"
+    }
+   ],
+   "transitions": [
+    {
+     "from": "i",
+     "to": "k"
+    },
+    {
+     "from": "k",
+     "to": "x"
+    },
+    {
+     "from": "k",
+     "to": "y"
+    },
+    {
+     "from": "x",
+     "to": "j"
+    },
+    {
+     "from": "y",
+     "to": "j"
+    },
+    {
+     "from": "j",
+     "to": "z"
+    }
+   ]
+  }
+ },
+ {
+  "name": "choice and junction",
+  "doc": {
+   "kind": "state-machine",
+   "elements": [
+    {
+     "id": "i",
+     "type": "initial"
+    },
+    {
+     "id": "ch",
+     "type": "choice"
+    },
+    {
+     "id": "a",
+     "type": "state",
+     "name": "A"
+    },
+    {
+     "id": "b",
+     "type": "state",
+     "name": "B"
+    },
+    {
+     "id": "jn",
+     "type": "junction"
+    },
+    {
+     "id": "c",
+     "type": "state",
+     "name": "C"
+    }
+   ],
+   "transitions": [
+    {
+     "from": "i",
+     "to": "ch"
+    },
+    {
+     "from": "ch",
+     "to": "a",
+     "guard": "x > 0"
+    },
+    {
+     "from": "ch",
+     "to": "b",
+     "guard": "else"
+    },
+    {
+     "from": "a",
+     "to": "jn"
+    },
+    {
+     "from": "b",
+     "to": "jn"
+    },
+    {
+     "from": "jn",
+     "to": "c"
+    }
+   ]
+  }
+ },
+ {
+  "name": "shallow and deep history",
+  "doc": {
+   "kind": "state-machine",
+   "elements": [
+    {
+     "id": "o",
+     "type": "state",
+     "name": "Outside"
+    },
+    {
+     "id": "c",
+     "type": "state",
+     "name": "C",
+     "regions": [
+      {
+       "elements": [
+        {
+         "id": "h",
+         "type": "shallowHistory"
+        },
+        {
+         "id": "dh",
+         "type": "deepHistory"
+        },
+        {
+         "id": "x",
+         "type": "state",
+         "name": "X"
+        }
+       ]
+      }
+     ]
+    }
+   ],
+   "transitions": [
+    {
+     "from": "o",
+     "to": "h",
+     "trigger": "resume"
+    },
+    {
+     "from": "h",
+     "to": "x"
+    },
+    {
+     "from": "o",
+     "to": "dh",
+     "trigger": "deepResume"
+    }
+   ]
+  }
+ },
+ {
+  "name": "entry and exit points",
+  "doc": {
+   "kind": "state-machine",
+   "elements": [
+    {
+     "id": "o",
+     "type": "state",
+     "name": "Outside"
+    },
+    {
+     "id": "c",
+     "type": "state",
+     "name": "C",
+     "regions": [
+      {
+       "elements": [
+        {
+         "id": "x",
+         "type": "state",
+         "name": "X"
+        }
+       ]
+      }
+     ],
+     "connectionPoints": [
+      {
+       "id": "en",
+       "type": "entryPoint",
+       "name": "in"
+      },
+      {
+       "id": "ex",
+       "type": "exitPoint",
+       "name": "out"
+      }
+     ]
+    },
+    {
+     "id": "z",
+     "type": "state",
+     "name": "Z"
+    }
+   ],
+   "transitions": [
+    {
+     "from": "o",
+     "to": "en"
+    },
+    {
+     "from": "en",
+     "to": "x"
+    },
+    {
+     "from": "x",
+     "to": "ex",
+     "trigger": "fail"
+    },
+    {
+     "from": "ex",
+     "to": "z"
+    }
+   ]
+  }
+ },
+ {
+  "name": "submachine state with connection points",
+  "doc": {
+   "kind": "state-machine",
+   "elements": [
+    {
+     "id": "o",
+     "type": "state",
+     "name": "Outside"
+    },
+    {
+     "id": "s",
+     "type": "state",
+     "name": "Checkout",
+     "submachine": "CheckoutMachine",
+     "connectionPoints": [
+      {
+       "id": "en",
+       "type": "entryPoint"
+      }
+     ]
+    }
+   ],
+   "transitions": [
+    {
+     "from": "o",
+     "to": "en"
+    }
+   ]
+  }
+ },
+ {
+  "name": "terminate and note",
+  "doc": {
+   "kind": "state-machine",
+   "elements": [
+    {
+     "id": "i",
+     "type": "initial"
+    },
+    {
+     "id": "a",
+     "type": "state",
+     "name": "A"
+    },
+    {
+     "id": "t",
+     "type": "terminate"
+    },
+    {
+     "id": "n",
+     "type": "note",
+     "text": "Ends the machine.",
+     "attachedTo": [
+      "t"
+     ]
+    }
+   ],
+   "transitions": [
+    {
+     "from": "i",
+     "to": "a"
+    },
+    {
+     "from": "a",
+     "to": "t",
+     "trigger": "kill"
+    }
+   ]
+  }
+ },
+ {
+  "name": "transition from outside into a nested state",
+  "doc": {
+   "kind": "state-machine",
+   "elements": [
+    {
+     "id": "i",
+     "type": "initial"
+    },
+    {
+     "id": "a",
+     "type": "state",
+     "name": "Outside"
+    },
+    {
+     "id": "c",
+     "type": "state",
+     "name": "C",
+     "regions": [
+      {
+       "elements": [
+        {
+         "id": "ci",
+         "type": "initial"
+        },
+        {
+         "id": "x",
+         "type": "state",
+         "name": "Inner X"
+        },
+        {
+         "id": "y",
+         "type": "state",
+         "name": "Inner Y"
+        }
+       ]
+      }
+     ],
+     "entry": "start"
+    },
+    {
+     "id": "z",
+     "type": "state",
+     "name": "After"
+    }
+   ],
+   "transitions": [
+    {
+     "from": "i",
+     "to": "a"
+    },
+    {
+     "from": "a",
+     "to": "y",
+     "trigger": "jump"
+    },
+    {
+     "from": "ci",
+     "to": "x"
+    },
+    {
+     "from": "x",
+     "to": "y",
+     "trigger": "next"
+    },
+    {
+     "from": "y",
+     "to": "z",
+     "trigger": "leave"
+    },
+    {
+     "from": "z",
+     "to": "x",
+     "trigger": "back"
+    },
+    {
+     "from": "c",
+     "to": "a",
+     "trigger": "abort"
+    }
+   ]
+  }
+ },
+ {
+  "name": "three levels of nesting",
+  "doc": {
+   "kind": "state-machine",
+   "elements": [
+    {
+     "id": "a",
+     "type": "state",
+     "name": "A",
+     "regions": [
+      {
+       "elements": [
+        {
+         "id": "b",
+         "type": "state",
+         "name": "B",
+         "regions": [
+          {
+           "elements": [
+            {
+             "id": "c",
+             "type": "state",
+             "name": "C",
+             "regions": [
+              {
+               "elements": [
+                {
+                 "id": "ci",
+                 "type": "initial"
+                },
+                {
+                 "id": "d",
+                 "type": "state",
+                 "name": "D"
+                }
+               ]
+              }
+             ]
+            }
+           ]
+          }
+         ]
+        }
+       ]
+      }
+     ]
+    }
+   ],
+   "transitions": [
+    {
+     "from": "ci",
+     "to": "d"
+    }
+   ]
+  }
+ },
+ {
+  "name": "unicode and long names",
+  "doc": {
+   "kind": "state-machine",
+   "title": "Ünïcode 🚀",
+   "elements": [
+    {
+     "id": "a",
+     "type": "state",
+     "name": "Überprüfung 注文 🚀 with a really quite long state name that wraps"
+    },
+    {
+     "id": "b",
+     "type": "state",
+     "name": "B"
+    }
+   ],
+   "transitions": [
+    {
+     "from": "a",
+     "to": "b",
+     "trigger": "a very long trigger name",
+     "guard": "an equally long guard condition text",
+     "effect": "and a long effect"
+    }
+   ]
+  }
+ }
+]

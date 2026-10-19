@@ -1,0 +1,469 @@
+{
+  "kind": "state-machine",
+  "title": "Vending machine controller",
+  "elements": [
+    {
+      "id": "init",
+      "type": "initial"
+    },
+    {
+      "id": "boot",
+      "type": "state",
+      "name": "Booting",
+      "doActivity": "self test"
+    },
+    {
+      "id": "select",
+      "type": "state",
+      "name": "Selecting",
+      "exit": "log select",
+      "regions": [
+        {
+          "name": "selecting 1",
+          "elements": [
+            {
+              "id": "select0i",
+              "type": "initial"
+            },
+            {
+              "id": "select0s0",
+              "type": "state",
+              "name": "Browse",
+              "entry": "enter browse"
+            },
+            {
+              "id": "select0s1",
+              "type": "state",
+              "name": "Highlight"
+            },
+            {
+              "id": "select0s2",
+              "type": "state",
+              "name": "Confirm"
+            },
+            {
+              "id": "select0f",
+              "type": "final"
+            }
+          ]
+        },
+        {
+          "name": "selecting 2",
+          "elements": [
+            {
+              "id": "select1i",
+              "type": "initial"
+            },
+            {
+              "id": "select1s0",
+              "type": "state",
+              "name": "Idle display",
+              "entry": "enter idle display"
+            },
+            {
+              "id": "select1s1",
+              "type": "state",
+              "name": "Promo"
+            },
+            {
+              "id": "select1s2",
+              "type": "state",
+              "name": "Clock"
+            },
+            {
+              "id": "select1f",
+              "type": "final"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "pay",
+      "type": "state",
+      "name": "Paying",
+      "exit": "log pay",
+      "regions": [
+        {
+          "name": "paying 1",
+          "elements": [
+            {
+              "id": "pay0i",
+              "type": "initial"
+            },
+            {
+              "id": "pay0s0",
+              "type": "state",
+              "name": "Await coins",
+              "entry": "enter await coins"
+            },
+            {
+              "id": "pay0s1",
+              "type": "state",
+              "name": "Count"
+            },
+            {
+              "id": "pay0s2",
+              "type": "state",
+              "name": "Validate"
+            },
+            {
+              "id": "pay0f",
+              "type": "final"
+            }
+          ]
+        },
+        {
+          "name": "paying 2",
+          "elements": [
+            {
+              "id": "pay1i",
+              "type": "initial"
+            },
+            {
+              "id": "pay1s0",
+              "type": "state",
+              "name": "Card idle",
+              "entry": "enter card idle"
+            },
+            {
+              "id": "pay1s1",
+              "type": "state",
+              "name": "Card read"
+            },
+            {
+              "id": "pay1s2",
+              "type": "state",
+              "name": "Authorize"
+            },
+            {
+              "id": "pay1f",
+              "type": "final"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "vend",
+      "type": "state",
+      "name": "Vending",
+      "exit": "log vend",
+      "regions": [
+        {
+          "elements": [
+            {
+              "id": "vend0i",
+              "type": "initial"
+            },
+            {
+              "id": "vend0s0",
+              "type": "state",
+              "name": "Rotate",
+              "entry": "enter rotate"
+            },
+            {
+              "id": "vend0s1",
+              "type": "state",
+              "name": "Drop"
+            },
+            {
+              "id": "vend0s2",
+              "type": "state",
+              "name": "Detect"
+            },
+            {
+              "id": "vend0f",
+              "type": "final"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "change",
+      "type": "state",
+      "name": "Returning change",
+      "exit": "log change",
+      "regions": [
+        {
+          "elements": [
+            {
+              "id": "change0i",
+              "type": "initial"
+            },
+            {
+              "id": "change0s0",
+              "type": "state",
+              "name": "Compute",
+              "entry": "enter compute"
+            },
+            {
+              "id": "change0s1",
+              "type": "state",
+              "name": "Dispense"
+            },
+            {
+              "id": "change0s2",
+              "type": "state",
+              "name": "Verify"
+            },
+            {
+              "id": "change0f",
+              "type": "final"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "fault",
+      "type": "choice"
+    },
+    {
+      "id": "service",
+      "type": "state",
+      "name": "Service mode",
+      "entry": "lock door",
+      "internal": [
+        {
+          "trigger": "diagnose",
+          "effect": "runDiagnostics"
+        }
+      ]
+    },
+    {
+      "id": "outOfOrder",
+      "type": "state",
+      "name": "Out of order"
+    },
+    {
+      "id": "off",
+      "type": "final"
+    }
+  ],
+  "transitions": [
+    {
+      "from": "init",
+      "to": "boot"
+    },
+    {
+      "from": "select0s0",
+      "to": "select0s1",
+      "trigger": "step000"
+    },
+    {
+      "from": "select0s1",
+      "to": "select0s2",
+      "trigger": "step001"
+    },
+    {
+      "from": "select0i",
+      "to": "select0s0"
+    },
+    {
+      "from": "select0s2",
+      "to": "select0s0",
+      "trigger": "reset",
+      "guard": "retries < 3"
+    },
+    {
+      "from": "select1s0",
+      "to": "select1s1",
+      "trigger": "step010"
+    },
+    {
+      "from": "select1s1",
+      "to": "select1s2",
+      "trigger": "step011"
+    },
+    {
+      "from": "select1i",
+      "to": "select1s0"
+    },
+    {
+      "from": "select1s2",
+      "to": "select1s0",
+      "trigger": "reset",
+      "guard": "retries < 4"
+    },
+    {
+      "from": "select0s2",
+      "to": "select0f",
+      "trigger": "done"
+    },
+    {
+      "from": "select1s2",
+      "to": "select1f",
+      "trigger": "done"
+    },
+    {
+      "from": "boot",
+      "to": "select",
+      "trigger": "ready"
+    },
+    {
+      "from": "pay0s0",
+      "to": "pay0s1",
+      "trigger": "step100"
+    },
+    {
+      "from": "pay0s1",
+      "to": "pay0s2",
+      "trigger": "step101"
+    },
+    {
+      "from": "pay0i",
+      "to": "pay0s0"
+    },
+    {
+      "from": "pay0s2",
+      "to": "pay0s0",
+      "trigger": "reset",
+      "guard": "retries < 3"
+    },
+    {
+      "from": "pay1s0",
+      "to": "pay1s1",
+      "trigger": "step110"
+    },
+    {
+      "from": "pay1s1",
+      "to": "pay1s2",
+      "trigger": "step111"
+    },
+    {
+      "from": "pay1i",
+      "to": "pay1s0"
+    },
+    {
+      "from": "pay1s2",
+      "to": "pay1s0",
+      "trigger": "reset",
+      "guard": "retries < 4"
+    },
+    {
+      "from": "pay0s2",
+      "to": "pay0f",
+      "trigger": "done"
+    },
+    {
+      "from": "pay1s2",
+      "to": "pay1f",
+      "trigger": "done"
+    },
+    {
+      "from": "select",
+      "to": "pay",
+      "trigger": "completed"
+    },
+    {
+      "from": "vend0s0",
+      "to": "vend0s1",
+      "trigger": "step200"
+    },
+    {
+      "from": "vend0s1",
+      "to": "vend0s2",
+      "trigger": "step201"
+    },
+    {
+      "from": "vend0i",
+      "to": "vend0s0"
+    },
+    {
+      "from": "vend0s2",
+      "to": "vend0s0",
+      "trigger": "reset",
+      "guard": "retries < 3"
+    },
+    {
+      "from": "vend0s2",
+      "to": "vend0f",
+      "trigger": "done"
+    },
+    {
+      "from": "pay",
+      "to": "vend",
+      "trigger": "completed"
+    },
+    {
+      "from": "change0s0",
+      "to": "change0s1",
+      "trigger": "step300"
+    },
+    {
+      "from": "change0s1",
+      "to": "change0s2",
+      "trigger": "step301"
+    },
+    {
+      "from": "change0i",
+      "to": "change0s0"
+    },
+    {
+      "from": "change0s2",
+      "to": "change0s0",
+      "trigger": "reset",
+      "guard": "retries < 3"
+    },
+    {
+      "from": "change0s2",
+      "to": "change0f",
+      "trigger": "done"
+    },
+    {
+      "from": "vend",
+      "to": "change",
+      "trigger": "completed"
+    },
+    {
+      "from": "change",
+      "to": "boot",
+      "trigger": "completed",
+      "effect": "resetTotals"
+    },
+    {
+      "from": "pay",
+      "to": "fault",
+      "trigger": "jam"
+    },
+    {
+      "from": "vend",
+      "to": "fault",
+      "trigger": "jam"
+    },
+    {
+      "from": "fault",
+      "to": "service",
+      "guard": "technician present"
+    },
+    {
+      "from": "fault",
+      "to": "outOfOrder",
+      "guard": "else",
+      "effect": "alert operator"
+    },
+    {
+      "from": "service",
+      "to": "boot",
+      "trigger": "restart"
+    },
+    {
+      "from": "outOfOrder",
+      "to": "service",
+      "trigger": "keySwitch"
+    },
+    {
+      "from": "outOfOrder",
+      "to": "off",
+      "trigger": "powerOff"
+    },
+    {
+      "from": "service",
+      "to": "service",
+      "trigger": "tick",
+      "guard": "timer running"
+    }
+  ]
+}

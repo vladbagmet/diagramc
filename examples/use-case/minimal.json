@@ -1,0 +1,10 @@
+{
+  "kind": "use-case",
+  "elements": [
+    { "id": "customer", "type": "actor", "name": "Customer" },
+    { "id": "withdraw", "type": "useCase", "name": "Withdraw cash" }
+  ],
+  "relationships": [
+    { "type": "association", "from": "customer", "to": "withdraw" }
+  ]
+}

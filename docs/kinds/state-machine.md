@@ -1,0 +1,85 @@
+# State machine diagram: notation checklist
+
+Backend: own engine (see [docs/decisions/0002-state-machine-and-use-case-backend.md](../decisions/0002-state-machine-and-use-case-backend.md)
+for why not PlantUML). Frame keyword: `stm`. Schema: `uml schema state-machine`.
+Code: `src/kinds/state-machine/`. UML references are to UML 2.5.1 (formal/17-12-05).
+
+Tests referenced below: `sm` = `test/state-machine.test.mjs`, `engine` =
+`test/engine.test.mjs`; fixtures in `test/fixtures/state-machine/`. Every fixture and
+example passes every QA gate.
+
+## Supported constructs
+
+| Construct | JSON | UML 2.5.1 notation | Proof |
+|---|---|---|---|
+| Simple state | `type: "state"` | Rounded rectangle, name centered (14.2.4) | sm: "UML 2.5.1 notation of states, pseudostates and transitions" (`rx="10"`) |
+| Entry, do, exit behaviors | `entry`, `doActivity`, `exit` | `entry / ...`, `do / ...`, `exit / ...` in a compartment below the name (14.2.4) | sm: notation test; fixture "state behaviors and internal transitions" |
+| Internal transitions | `internal[]` | `trigger [guard] / effect` in the same compartment | sm: `edit / updateLines` |
+| Composite state | `regions` (one) | Rounded rectangle, name compartment, a line, then the nested vertices (14.2.4) | sm: `composite-state`; fixture "composite state with one region" |
+| Orthogonal regions | `regions` (several), optional region `name` | Regions stacked top to bottom, separated by dashed lines; names in italics at the region's top left | sm: one dashed separator, italic `payment` |
+| Submachine state | `submachine` | `name : Submachine` (14.2.4) | sm: `Invoice : Billing`, type `submachine-state` |
+| Entry point / exit point | `connectionPoints[]` | Small circle / circle with a cross on the state's border (entry left, exit right), name beside it (14.2.4) | sm: points centered on the composite's border; fixture "entry and exit points" |
+| Initial pseudostate | `type: "initial"` | Filled circle (14.2.4) | sm: filled circle, ellipse outline |
+| Final state | `type: "final"` | Circle around a filled circle | sm: two circles |
+| Choice | `type: "choice"` | Hollow diamond; outgoing transitions leave at its vertices | sm notation example; fixture "choice and junction" |
+| Junction | `type: "junction"` | Small filled circle | sm: smaller than the initial pseudostate |
+| Fork / join | `type: "fork"` / `"join"` | Filled bar | sm: bar |
+| Shallow / deep history | `type: "shallowHistory"` / `"deepHistory"` | Circle with H / H* | sm: `H*` |
+| Terminate | `type: "terminate"` | A cross | sm: cross path |
+| Transition | `transitions[]` | Solid line, open arrowhead at the target, label `trigger [guard] / effect` (14.2.4) | sm: every transition `open-arrow` at the target, labels |
+| Self-transition | `from` = `to` | Loop on the state's right side, label right of the loop | fixture "self-transitions" |
+| Transition into a nested state | `to` inside a composite | Line enters the composite below its name (never over its texts) | fixture "transition from outside into a nested state"; engine: "lines over texts" gate |
+| Note | `type: "note"`, `attachedTo` | Folded-corner rectangle, dashed line to each annotated vertex; laid out inside the innermost composite holding its targets | sm: dashed `note-anchor` |
+| Diagram frame | `title` | Pentagon heading **stm** name (Annex A) | sm: frame label |
+
+Lines end exactly on the outlines of circles and diamonds (`src/engine/clip.ts`;
+the edge-endpoints gate reads `data-uml-shape`), pseudostates keep their size
+(`fixedSize`), and short jogs are straightened (`straightenJogs`).
+
+## Semantic rules
+
+| Code | Rule | Negative fixture (path) |
+|---|---|---|
+| DUPLICATE_ID | IDs unique at every depth (vertices, connection points, regions, transitions) | `/elements/2/id` |
+| MISSING_REFERENCE | transition ends and note attachments exist | `/transitions/1/to`, `/elements/4/attachedTo/0` |
+| INVALID_ATTACHMENT | notes attach to vertices, not to notes or connection points | `/elements/5/attachedTo/0`, `/elements/2/attachedTo/0` |
+| NOTE_IN_TRANSITION | transitions connect vertices only | `/transitions/3/from` |
+| MULTIPLE_INITIAL | at most one initial pseudostate per region | `/elements/4` |
+| INITIAL_OUTGOING | an initial pseudostate has exactly one outgoing transition | `/elements/0` |
+| INITIAL_HAS_INCOMING | no transition into an initial pseudostate | `/transitions/3/to` |
+| INITIAL_TRANSITION_TRIGGER, INITIAL_TRANSITION_GUARD | the initial transition has no trigger and no guard | `/transitions/0/trigger`, `/transitions/0/guard` |
+| FINAL_STATE_HAS_OUTGOING, TERMINATE_HAS_OUTGOING | no transitions leave final states or terminate | `/transitions/3/from` |
+| TRIGGER_ON_PSEUDOSTATE_TRANSITION | only transitions leaving states have triggers | `/transitions/4/trigger` |
+| CHOICE_WITHOUT_GUARD | a choice has a guard on at least one outgoing transition | `/elements/4` |
+| CHOICE_DEGREE, JUNCTION_DEGREE, FORK_DEGREE, JOIN_DEGREE, HISTORY_DEGREE | incoming and outgoing counts of pseudostates | `/elements/4`, `/elements/0/regions/0/elements/0` |
+| GUARD_ON_FORK_OR_JOIN | no guards on transitions leaving a fork or entering a join | `/transitions/4/guard` |
+| HISTORY_AT_TOP_LEVEL, MULTIPLE_HISTORY | history only inside composite states, at most one of each kind per region | `/elements/4`, `/elements/0/regions/0/elements/1` |
+| PSEUDOSTATE_SELF_TRANSITION | only states have self-transitions | `/transitions/3` |
+| TRANSITION_ACROSS_REGIONS | no transition between orthogonal regions of the same state | `/transitions/0` |
+| INVALID_ENTRY_POINT_TRANSITION, INVALID_EXIT_POINT_TRANSITION | entry points lead inside their state, exit points lead outside | `/transitions/0/to`, `/transitions/0/from` |
+| CONNECTION_POINT_ON_SIMPLE_STATE | entry/exit points only on composite or submachine states | `/elements/1/connectionPoints` |
+| SUBMACHINE_WITH_REGIONS | a state is a submachine state or a composite state, not both | `/elements/1/submachine` |
+| NESTING_TOO_DEEP | at most six levels of nesting | see `invalid.json` |
+| SCHEMA_INVALID, INVALID_TEXT | shared rules (unknown properties, names on pseudostates, empty regions, notes inside regions) | see `invalid.json` |
+
+## Unsupported (rejected by the schema)
+
+- Entry and exit points on the state machine's own frame, connection point
+  references on submachine states drawn as separate symbols (submachine states take
+  `connectionPoints` directly).
+- Protocol state machines (`[pre] event / [post]`), state invariants, deferred
+  events, local vs external transition kinds (all transitions are drawn external).
+- Transition-oriented notation (signal send/receive symbols on transitions).
+- The optional submachine icon and composite-state icon (decorations only).
+
+## Known limitations
+
+- Orthogonal regions are always stacked vertically (horizontal dashed separators);
+  side-by-side regions are not offered.
+- Layout is ELK layered, top-down, with depth-first cycle breaking so the main flow
+  starts at the top. Strongly cyclic machines can still get long return lines.
+- Transitions from outside into a nested vertex enter the composite through its top;
+  when the composite's name fills the header they detour around its side.
+- The lines-over-container-texts check of the edge-endpoints gate is enabled for
+  composite states and subjects only: profile diagrams (chunk 1) still route lines
+  over package tabs and would fail it.

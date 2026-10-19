@@ -107,6 +107,9 @@ Copy the structure of `src/kinds/class/layout.ts` and `draw.ts`.
 | Message arrows beside a line | `drawMessageArrow()` (`data-uml-role="message-arrow"`, checked by the `message-arrows` gate); give its labels the same `data-uml-group` |
 | Ports, interfaces, nesting, 3D nodes, ellipses | `src/kinds/structure/` (a kind-neutral graph of nested nodes, ports, lollipops, sockets and assemblies, laid out left to right, used by component, deployment and composite structure) and its symbols in `src/engine/symbols.ts`. Fixed port positions: `LayoutPort.position`; a compound node wider than its children: `minimumSize` |
 | Self-loops | never give them to ELK: `planSelfLoops()` before layout (node `reserveRight`, min height), `selfLoopRoute()` after |
+| Circles, ellipses, diamonds | `clipRoute()` from `src/engine/clip.ts` moves route ends onto the outline; declare `shape: 'ellipse' | 'diamond'` in the node data so the edge-endpoints gate checks the outline. Small symbols with ports: `fixedSize` keeps their size |
+| Nested states, entry/exit points | compound nodes with `minimumSize` (vertical layouts are handled), nodes on a border with `parent` = the owner (and `borderOf`), lines kept off container texts (`src/kinds/state-machine/layout.ts`) |
+| Captions, slanted lines | `labelBelow` reserves room under a node (actor names); `routing: 'polyline'` gives slanted segments, whose labels `placeLabels()` pushes off the line; `straightenJogs()` removes small jogs from orthogonal routes |
 | Lines and arrowheads | `drawEdge({ points, style, sourceMarker, targetMarker, ... })`; markers: `hollow-triangle`, `filled-triangle`, `open-arrow`, `hollow-diamond`, `filled-diamond`, `cross`, `circle-plus`, `none` |
 | Edge labels | `placeLabels()` with obstacles (node rects, marker boxes, all segments, labelled `ends`); end labels with `at: 'source'|'target'`, center labels with ELK's suggestion |
 | Writing SVG | `Canvas` (`text`, `lines`, layers `frame/edges/nodes/labels`), `el()`. Only whitelisted elements and attributes exist; display text is escaped |
@@ -136,10 +139,21 @@ drawn at the end with the direction of the last segment; labels never sit on lin
   (e.g. `SEQUENCE`); the runner rejects other output.
 - The runner (SECURE profile, no shell, time/size limits) and font embedding are
   applied automatically by `src/render.ts`.
+- `toPlantUml` may be async (the activity kind measures note text to wrap it).
+- `postProcess(svg, model)` (optional) fixes PlantUML's SVG where its notation
+  deviates from UML before fonts are embedded. It may only rewrite PlantUML's own
+  primitives (the activity kind turns filled arrowheads into open ones, removes
+  mid-line arrowheads, draws the call behavior rake, moves crossed guards); it never
+  inserts input text. Mark shapes it must find with a kind-specific style from
+  theme tokens (e.g. `CALL_BEHAVIOR_MARK` in `skin.ts`).
 - QA on PlantUML output is best-effort (`src/qa/inspect.ts` reads `g.entity` and
   `g.link` groups). If your diagram type uses other groups (sequence: participants,
-  messages), extend `readPlantUml` generically and test it. Gates that cannot be
-  evaluated are reported as skipped, never as passed silently.
+  messages), extend `readPlantUml` generically and test it. Diagram types with a
+  flat SVG get their own reader, dispatched on `data-diagram-type` (activity:
+  `src/qa/plantuml-activity.ts`, which classifies shapes by theme color and chains
+  flow lines into edges); a reader that recovers exact edge geometry sets
+  `scene.exactEdges`, and then every gate runs. Gates that cannot be evaluated are
+  reported as skipped, never as passed silently.
 
 ## 5. Tests (all mandatory)
 
