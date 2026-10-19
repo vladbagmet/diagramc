@@ -71,11 +71,12 @@ test('UML notation: lollipops, sockets and ball-and-socket assemblies face outwa
     const lines = s.edges.filter(e => e.target === j.id);
     assert.equal(lines.length, 2);
     const required = lines.find(e => e.type === 'assembly-required'), provided = lines.find(e => e.type === 'assembly-provided');
-    // Requirer meets the socket's back, provider enters through the opening; both on one horizontal axis.
-    assert.equal(required.points.at(-1).x, j.socket.x - j.socket.r * j.socket.u.x);
-    assert.equal(provided.points.at(-1).x, j.socket.x + j.socket.r * j.socket.u.x);
-    assert.equal(required.points.at(-1).y, j.socket.y);
-    assert.equal(provided.points.at(-1).y, j.socket.y);
+    // Requirer meets the socket's back, provider enters through the opening; both on the socket's axis
+    // (horizontal left to right, vertical top to bottom).
+    for (const axis of ['x', 'y']) {
+      assert.ok(Math.abs(required.points.at(-1)[axis] - (j.socket[axis] - j.socket.r * j.socket.u[axis])) < 0.01);
+      assert.ok(Math.abs(provided.points.at(-1)[axis] - (j.socket[axis] + j.socket.r * j.socket.u[axis])) < 0.01);
+    }
   }
   // The IHealth lollipop: provided by the "events" port, outside Backend.
   const health = balls.find(b => b.id === 'beEvents::provides::iHealth');
@@ -144,4 +145,36 @@ test('the published component schema describes the contract', async () => {
   assert.equal(schema.properties.kind.const, 'component');
   assert.deepEqual(schema.definitions.relationship.oneOf.map(b => b.properties.type.const), ['assembly', 'delegation', 'realization', 'usage', 'manifest', 'dependency']);
   assert.equal(componentKind.frameKeyword, 'cmp');
+});
+
+test('layout: a medium model that runs far left to right is laid out top to bottom when that reads better (B-14)', async () => {
+  const { svg } = await scene(await readFile(join(root, 'test/fixtures/regression/component-c1-ridesharing.json'), 'utf8'));
+  const [, w, h] = /width="([\d.]+)" height="([\d.]+)"/.exec(svg).map(Number);
+  assert.ok(Math.max(w / h, h / w) < 2.5, `aspect ${w}x${h}`);
+});
+
+/** Bounding boxes of the drawn component and artifact icons. */
+function iconBoxes(svg) {
+  return [...svg.matchAll(/<g data-uml-role="icon"[^>]*>(.*?)<\/g>/g)].map(m => {
+    const rects = [...m[1].matchAll(/<rect x="([\d.-]+)" y="([\d.-]+)" width="([\d.]+)" height="([\d.]+)"/g)].map(r => r.slice(1).map(Number));
+    return {
+      x: Math.min(...rects.map(r => r[0])), y: Math.min(...rects.map(r => r[1])),
+      right: Math.max(...rects.map(r => r[0] + r[2])), bottom: Math.max(...rects.map(r => r[1] + r[3])),
+    };
+  });
+}
+
+test('layout: port squares keep clear of the component icon in the top-right corner', async () => {
+  for (const doc of [await example('stress.json'), await readFile(join(root, 'test/fixtures/regression/component-c1-ridesharing.json'), 'utf8')]) {
+    const { svg, scene: s } = await scene(doc);
+    const ports = s.nodes.filter(n => n.type === 'port').map(n => n.bounds);
+    const icons = iconBoxes(svg);
+    assert.ok(icons.length >= 5);
+    for (const i of icons) {
+      for (const p of ports) {
+        const apart = p.x > i.right + 2 || p.x + p.width < i.x - 2 || p.y > i.bottom + 2 || p.y + p.height < i.y - 2;
+        assert.ok(apart, `port at ${p.x},${p.y} touches the icon at ${i.x},${i.y}`);
+      }
+    }
+  }
 });

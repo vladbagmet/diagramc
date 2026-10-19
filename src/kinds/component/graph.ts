@@ -115,7 +115,7 @@ export function componentGraph(model: ComponentDiagram): StructGraph {
   });
 
   return {
-    kind: 'component', frameKeyword: 'cmp', title: model.title,
+    kind: 'component', frameKeyword: 'cmp', title: model.title, directions: ['RIGHT', 'DOWN'],
     nodes: model.elements.flatMap(e => node(e) ?? []),
     edges, assemblies,
     anchors: model.elements.flatMap(e => e.type === 'note' ? (e.attachedTo ?? []).map(target => ({ note: e.id, target })) : []),

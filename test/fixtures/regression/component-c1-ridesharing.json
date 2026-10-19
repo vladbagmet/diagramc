@@ -1,0 +1,50 @@
+{
+  "kind": "component",
+  "title": "Ride sharing backend",
+  "elements": [
+    { "id": "IRides", "type": "interface", "name": "IRides" },
+    { "id": "IMatch", "type": "interface", "name": "IMatching" },
+    { "id": "IPrice", "type": "interface", "name": "IPricing" },
+    { "id": "IPay", "type": "interface", "name": "IPayments" },
+    { "id": "INotify", "type": "interface", "name": "INotify" },
+    { "id": "ILocation", "type": "interface", "name": "ILocation", "operations": [
+      { "name": "nearestDrivers", "parameters": [{ "name": "at", "type": "GeoPoint" }, { "name": "radiusKm", "type": "Float" }], "returnType": "Driver[*]" } ] },
+    { "id": "riderApp", "type": "component", "name": "Rider App", "stereotypes": ["mobile"], "requires": ["IRides"] },
+    { "id": "driverApp", "type": "component", "name": "Driver App", "stereotypes": ["mobile"], "requires": ["IRides"] },
+    { "id": "gateway", "type": "component", "name": "API Gateway",
+      "ports": [
+        { "id": "gwIn", "name": "public", "provides": ["IRides"] },
+        { "id": "gwOut", "name": "internal", "requires": ["IRides"] }
+      ] },
+    { "id": "trips", "type": "component", "name": "Trip Service",
+      "ports": [
+        { "id": "tripsApi", "name": "api", "type": "REST", "provides": ["IRides"] },
+        { "id": "tripsOut", "name": "deps", "requires": ["IMatch", "IPay"] }
+      ],
+      "elements": [
+        { "id": "tripCtl", "type": "class", "name": "TripController", "provides": ["IRides"] },
+        { "id": "tripRepo", "type": "class", "name": "TripRepository" }
+      ] },
+    { "id": "matching", "type": "component", "name": "Matching Service", "provides": ["IMatch"], "requires": ["IPrice", "ILocation"] },
+    { "id": "pricing", "type": "component", "name": "Pricing Engine", "provides": ["IPrice"] },
+    { "id": "location", "type": "component", "name": "Location Tracker" },
+    { "id": "payments", "type": "component", "name": "Payment Service", "provides": ["IPay"], "requires": ["INotify"] },
+    { "id": "notif", "type": "component", "name": "Notification Hub", "stereotypes": ["external"], "provides": ["INotify"] },
+    { "id": "jar", "type": "artifact", "name": "trip-service.jar" },
+    { "id": "n1", "type": "note", "text": "Surge multiplier is recomputed every 30 seconds per city zone.", "attachedTo": ["pricing"] }
+  ],
+  "relationships": [
+    { "type": "assembly", "from": "riderApp", "to": "gwIn", "interface": "IRides" },
+    { "type": "assembly", "from": "driverApp", "to": "gwIn", "interface": "IRides" },
+    { "type": "assembly", "from": "gwOut", "to": "tripsApi", "interface": "IRides" },
+    { "type": "delegation", "from": "tripsApi", "to": "tripCtl" },
+    { "type": "assembly", "from": "tripsOut", "to": "matching", "interface": "IMatch" },
+    { "type": "assembly", "from": "tripsOut", "to": "payments", "interface": "IPay" },
+    { "type": "assembly", "from": "matching", "to": "pricing", "interface": "IPrice" },
+    { "type": "realization", "from": "location", "to": "ILocation" },
+    { "type": "usage", "from": "matching", "to": "ILocation" },
+    { "type": "assembly", "from": "payments", "to": "notif", "interface": "INotify" },
+    { "type": "manifest", "from": "jar", "to": "trips" },
+    { "type": "dependency", "from": "tripCtl", "to": "tripRepo", "keyword": "use" }
+  ]
+}

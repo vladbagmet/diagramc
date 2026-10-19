@@ -1,13 +1,13 @@
 import { theme } from '../../core/theme.js';
 import type { LineStyle, Marker } from '../../engine/edges.js';
-import { layout, type LayoutEdge, type LayoutLabel, type LayoutNode, type LayoutPort, type Side } from '../../engine/elk.js';
+import { layout, type Direction, type LayoutEdge, type LayoutLabel, type LayoutNode, type LayoutPort, type Side } from '../../engine/elk.js';
 import type { FontMetrics, TextStyle } from '../../engine/fonts.js';
 import { contains, direction, distance, inflate, overlaps, segmentIntersectsRect, simplify, union, type Point, type Rect } from '../../engine/geometry.js';
 import { placeLabels, type LabelRequest } from '../../engine/labels.js';
 import { measureBox, measureFrameHeading, measureNote, type Compartment, type MeasuredBox } from '../../engine/shapes.js';
 import { ballBounds, socketBounds } from '../../engine/symbols.js';
 import { wrapText } from '../../engine/text.js';
-import { chooseLayout, countCrossings, routesLength } from '../../engine/aspect.js';
+import { chooseLayout, countCrossings, LAYOUT_VARIANTS, routesLength, type LayoutVariant } from '../../engine/aspect.js';
 import { repairRoutes, type RepairNode } from '../../engine/repair.js';
 import { guillemets, type StructAssembly, type StructEdge, type StructGraph, type StructNode, type StructStub } from './graph.js';
 
@@ -94,6 +94,10 @@ const CENTER_LABEL_WIDTH = 180;
 const NODE_SPACING = 30;
 const LAYER_SPACING = 44;
 const LABEL_GAP = 3;
+/** Room at the right end of a top border kept for the icon in the corner. */
+const ICON_ROOM = 30;
+/** A conventional layout within this size is kept (see layoutStructure). */
+const SMALL_LAYOUT = { width: 1000, height: 1000 };
 /** Inner padding of containers; sides with ports get more for delegation stubs. */
 const PAD = { side: 20, portSide: 34, bottom: 18, belowHeader: 14 };
 
@@ -168,11 +172,21 @@ interface Level {
 
 /**
  * Lays out a structure graph. The graph's `directions` (default RIGHT only) are
- * tried in order and the most readable result wins (src/engine/aspect.ts).
+ * tried in order and the most readable result wins (src/engine/aspect.ts). A
+ * conventional layout that fits SMALL_LAYOUT is kept: it reads at full scale,
+ * whatever its aspect ratio.
  */
 export async function layoutStructure(graph: StructGraph, metrics: FontMetrics): Promise<StructScene> {
   const directions = graph.directions ?? ['RIGHT'];
-  return chooseLayout(directions, dir => layoutIn(graph, metrics, dir === 'DOWN' ? 'DOWN' : 'RIGHT'), scene => {
+  const runs = new Map<string, Promise<StructScene>>();
+  const run = (dir: Direction, variant: LayoutVariant): Promise<StructScene> => {
+    const key = `${dir} ${variant}`;
+    if (!runs.has(key)) runs.set(key, layoutIn(graph, metrics, dir === 'DOWN' ? 'DOWN' : 'RIGHT', variant));
+    return runs.get(key)!;
+  };
+  const first = await run(directions[0]!, 'plain');
+  if (directions.length === 1 || (first.width <= SMALL_LAYOUT.width && first.height <= SMALL_LAYOUT.height)) return first;
+  return chooseLayout(directions, run, scene => {
     const lines = scene.edges.map(e => e.points);
     return { width: scene.width, height: scene.height, crossings: countCrossings(lines), edgeLength: routesLength(lines) };
   });
@@ -184,7 +198,7 @@ export async function layoutStructure(graph: StructGraph, metrics: FontMetrics):
  * `S()` maps a logical side to the real one, and `main`/`cross` name the real axes
  * along and across the layout direction.
  */
-async function layoutIn(graph: StructGraph, metrics: FontMetrics, dir: 'RIGHT' | 'DOWN'): Promise<StructScene> {
+async function layoutIn(graph: StructGraph, metrics: FontMetrics, dir: 'RIGHT' | 'DOWN', variant: LayoutVariant = 'plain'): Promise<StructScene> {
   const down = dir === 'DOWN';
   const S = (side: Side): Side => down ? ({ EAST: 'SOUTH', WEST: 'NORTH', NORTH: 'WEST', SOUTH: 'EAST' } as const)[side] : side;
   const main = down ? 'y' as const : 'x' as const, cross = down ? 'x' as const : 'y' as const;
@@ -332,6 +346,10 @@ async function layoutIn(graph: StructGraph, metrics: FontMetrics, dir: 'RIGHT' |
     for (const end of ['source', 'target'] as const) {
       const endpoint = end === 'source' ? p.source : p.target;
       if (portOwner.has(endpoint) || info.get(endpoint)?.isolatedRoot !== undefined || endPorts.has(`${p.id}\u0000${end}`)) continue;
+      // Top to bottom, ELK 0.11 fails on fixed-side ports of a container with lines
+      // crossing its border (TypeError in the hierarchical port placement): such ends
+      // attach to the container itself, whose port spacing keeps them apart.
+      if (down && info.get(endpoint)?.node.children?.length) continue;
       const marker = markerExtent(end === 'source' ? p.sourceMarker : p.targetMarker);
       const labelled = p.ends.some(e => e.end === end);
       if (!marker.length && !labelled) continue;
@@ -507,7 +525,7 @@ async function layoutIn(graph: StructGraph, metrics: FontMetrics, dir: 'RIGHT' |
       });
     }
 
-    const options = { direction: dir, nodeSpacing: NODE_SPACING, layerSpacing: LAYER_SPACING };
+    const options = { direction: dir, nodeSpacing: NODE_SPACING, layerSpacing: LAYER_SPACING, ...(rootContainer === undefined ? { elk: LAYOUT_VARIANTS[variant] } : {}) };
     // ELK 0.11 fails on some hierarchy-crossing lines (a note anchor or role binding into
     // a nested part, with many ports on a container, top to bottom): lay out without
     // the hierarchy-crossing anchors and bindings then; repairRoutes routes them.
@@ -728,26 +746,43 @@ async function layoutIn(graph: StructGraph, metrics: FontMetrics, dir: 'RIGHT' |
     if (x.kind !== 'port' || x.parent === undefined) continue;
     const owner = rects.get(x.parent)!, text = repairNodes.find(n => n.id === x.parent)?.texts?.[0];
     if (!text || Math.abs(x.center.y - owner.y) > 0.5 || x.center.x < text.x - portSize || x.center.x > text.x + text.width + portSize) continue;
-    if (symbols.some(y => y.kind !== 'port' && stubOwner.get(y.id)?.owner === x.id) || graph.assemblies.some(a => a.requirer === x.id || a.provider === x.id)) continue;
+    // Beside the name on the side the port is nearer to, clear of the icon in the top-right corner.
     const right = text.x + text.width + portSize + 4, left = text.x - portSize - 4;
-    const to = right + portSize <= owner.x + owner.width ? right : left;
-    if (to - portSize < owner.x) continue;
+    const rightFits = right + portSize / 2 <= owner.x + owner.width - ICON_ROOM, leftFits = left - portSize / 2 >= owner.x + 4;
+    const preferRight = x.center.x >= text.x + text.width / 2;
+    const to = (preferRight && rightFits) || !leftFits ? right : left;
+    if (!(to === right ? rightFits : leftFits)) continue;
     const dx = to - x.center.x;
+    const headerBottom = text.y + text.height;
+    /** The route from the port with its first (vertical) segment moved by dx: a jog below the name inside, halfway outside. */
+    const shifted = (route: readonly Point[]): Point[] => {
+      const r = route.map(q => ({ ...q }));
+      const [a, b] = [r[0]!, r[1]!];
+      if (Math.abs(a.x - b.x) > 0.5) { r[0] = { x: a.x + dx, y: a.y }; return r; }
+      const inward = b.y > a.y;
+      const y = inward ? Math.min(headerBottom + 4, (a.y + b.y) / 2) : (a.y + b.y) / 2;
+      return simplify([{ x: a.x + dx, y: a.y }, { x: a.x + dx, y }, { x: a.x, y }, ...r.slice(1)]);
+    };
+    // Lollipops and sockets of the port move with it, so their stems stay straight.
+    const stubs = symbols.filter(y => y.kind !== 'port' && stubOwner.get(y.id)?.owner === x.id);
     x.center = { x: to, y: x.center.y };
     x.bounds = translateRect(x.bounds, { x: dx, y: 0 });
+    for (const s of stubs) {
+      s.center = translatePoint(s.center, { x: dx, y: 0 });
+      s.bounds = translateRect(s.bounds, { x: dx, y: 0 });
+      for (const l of fixedLabels) if (l.owner === s.id) l.rect = translateRect(l.rect, { x: dx, y: 0 });
+      const route = routes.get(`${s.id}::stem`);
+      if (route) routes.set(`${s.id}::stem`, route.map(q => translatePoint(q, { x: dx, y: 0 })));
+      const n = repairNodes.find(m => m.id === s.id);
+      if (n) { n.rect = s.bounds; n.texts = fixedLabels.filter(l => l.owner === s.id).map(l => l.rect); }
+    }
     const node = repairNodes.find(n => n.id === x.id);
     if (node) node.rect = x.bounds;
     for (const p of plans) {
       const route = routes.get(p.id);
-      if (!route) continue;
-      for (const reversed of [false, true]) {
-        if ((reversed ? p.target : p.source) !== x.id) continue;
-        const r = reversed ? [...route].reverse() : route.map(q => ({ ...q }));
-        if (r.length === 2) r.splice(1, 0, { x: r[0]!.x + dx, y: (r[0]!.y + r[1]!.y) / 2 }, { x: r[1]!.x, y: (r[0]!.y + r[1]!.y) / 2 });
-        else if (Math.abs(r[0]!.x - r[1]!.x) < 0.5) r[1] = { x: r[1]!.x + dx, y: r[1]!.y };
-        r[0] = { x: r[0]!.x + dx, y: r[0]!.y };
-        routes.set(p.id, simplify(reversed ? r.reverse() : r));
-      }
+      if (!route || stubs.some(s => p.id === `${s.id}::stem`)) continue;
+      if (p.source === x.id) routes.set(p.id, shifted(route));
+      else if (p.target === x.id) routes.set(p.id, shifted([...route].reverse()).reverse());
     }
   }
   // Ports, interface symbols and ellipses keep their attachment points (and directions).
