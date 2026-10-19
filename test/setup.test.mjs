@@ -4,6 +4,7 @@ import { createHash } from 'node:crypto';
 import { mkdir, readFile, writeFile, readdir, access } from 'node:fs/promises';
 import { mkdirSync, writeFileSync, readFileSync, chmodSync } from 'node:fs';
 import { join, dirname } from 'node:path';
+import { spawnSync } from 'node:child_process';
 import { setupRenderer, downloadVerified } from '../scripts/setup-renderer.mjs';
 import { workspace } from './helpers.mjs';
 
@@ -55,9 +56,14 @@ test('setup repairs interrupted extraction, is idempotent and recovers a broken 
   const manifest = JSON.parse(await readFile(join(root, 'renderer.json'), 'utf8'));
   assert.equal(manifest.plantuml, '1.2025.10');
   assert.equal(manifest.temurin, '21.0.11+10');
+  assert.equal(manifest.fonts, 'Inter 4.1');
+  const fonts = join(root, 'runtime', 'jdk-21.0.11+10-jre', 'Contents', 'Home', 'lib', 'fonts');
+  assert.deepEqual((await readdir(fonts)).sort(), ['Inter-Bold.ttf', 'Inter-BoldItalic.ttf', 'Inter-Italic.ttf', 'Inter-Regular.ttf']);
+  await writeFile(join(fonts, 'Inter-Bold.ttf'), 'corrupt');
   assert.equal(state.extractions, 1);
   await setupRenderer(options);
   assert.equal(state.extractions, 1);
+  assert.notEqual(await readFile(join(fonts, 'Inter-Bold.ttf'), 'utf8'), 'corrupt', 'setup repairs installed fonts');
   await writeFile(join(root, manifest.java), 'broken');
   await setupRenderer(options);
   assert.equal(state.extractions, 2);
@@ -105,7 +111,10 @@ test('downloads verify cached bytes, replace corrupt caches and preserve files o
   await writeFile(path, 'corrupt cache');
   await assert.rejects(get(async () => new Response('bad bytes')), /SHA-256 mismatch/);
   assert.equal(await readFile(path, 'utf8'), 'corrupt cache');
-  await assert.rejects(get(async () => new Response('', { status: 503 })), /HTTP 503/);
+  let cancelled = false;
+  const errorBody = new ReadableStream({ cancel() { cancelled = true; } });
+  await assert.rejects(get(async () => new Response(errorBody, { status: 503 })), /HTTP 503/);
+  assert.equal(cancelled, true);
   await get(async (_, options) => { assert.ok(options.signal); return new Response(good); });
   assert.deepEqual(await readFile(path), good);
   assert.deepEqual(await readdir(root), ['artifact']);
@@ -129,4 +138,24 @@ test('interrupted and over-limit downloads clean up staging files without clobbe
   }), /exceeds 128 MiB/);
   assert.equal(await readFile(path, 'utf8'), 'original');
   assert.deepEqual(await readdir(root), ['artifact']);
+});
+
+test('cached checksum readers close before tool checks and allow the setup process to exit', async t => {
+  const root = await workspace(t), bytes = Buffer.alloc(4 * 1024 * 1024, 42);
+  await writeFile(join(root, 'cached'), bytes);
+  const code = `
+    import { spawnSync } from 'node:child_process';
+    import { downloadVerified } from ${JSON.stringify(new URL('../scripts/setup-renderer.mjs', import.meta.url).href)};
+    for (let i = 0; i < 2; i++) await downloadVerified(${JSON.stringify(root)}, 'https://example.invalid', 'cached', ${JSON.stringify(sha(bytes))}, {
+      fetchImpl: () => { throw new Error('must use cache'); }, log: () => {},
+    });
+    const check = spawnSync(process.execPath, ['--version'], { encoding: 'utf8', timeout: 2000 });
+    if (check.status !== 0) throw new Error('tool check failed');
+    console.log('ready');
+  `;
+  for (let i = 0; i < 8; i++) {
+    const child = spawnSync(process.execPath, ['--input-type=module', '-e', code], { encoding: 'utf8', timeout: 5000 });
+    assert.equal(child.status, 0, `attempt ${i + 1}: ${child.error?.message ?? child.stderr}`);
+    assert.equal(child.stdout, 'ready\n');
+  }
 });
