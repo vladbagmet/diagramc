@@ -194,7 +194,7 @@ export async function layoutStateMachine(model: StateMachineDiagram, metrics: Fo
       const single = e.regions.length === 1 && e.regions[0]!.name === undefined;
       const loop = loopPlans.get(e.id);
       return {
-        id: e.id, width: Math.max(header.width, 60), height: header.height + 2 * PAD,
+        id: e.id, width: Math.max(header.width, 60), height: header.height + 2 * PAD, minimumSize: true,
         ...(loop ? { reserveRight: loop.reserveRight } : {}),
         padding: single ? { top: header.height + PAD, left: PAD, bottom: PAD, right: PAD } : { top: header.height, left: 0, bottom: 0, right: 0 },
         children: single ? inside(e.id, e.regions[0]!.elements).map(toNode) : e.regions.map(regionNode),

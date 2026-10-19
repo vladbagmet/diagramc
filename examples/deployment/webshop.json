@@ -1,0 +1,35 @@
+{
+  "kind": "deployment",
+  "title": "Web shop production",
+  "elements": [
+    { "id": "browser", "type": "device", "name": "Customer PC",
+      "elements": [{ "id": "web", "type": "executionEnvironment", "name": "Web Browser",
+        "elements": [{ "id": "spa", "type": "artifact", "name": "storefront.js" }] }] },
+    { "id": "phone", "type": "device", "name": "Phone", "stereotypes": ["mobile"],
+      "elements": [{ "id": "apk", "type": "artifact", "name": "shop.apk" }] },
+    { "id": "lb", "type": "device", "name": "Load Balancer" },
+    { "id": "app", "type": "node", "name": "App Server",
+      "elements": [
+        { "id": "jvm", "type": "executionEnvironment", "name": "JVM 21",
+          "elements": [
+            { "id": "jar", "type": "artifact", "name": "ordering.jar" },
+            { "id": "spec", "type": "deploymentSpecification", "name": "ordering.yaml",
+              "properties": [{ "name": "threads", "type": "Integer", "value": "64" }, { "name": "profile", "value": "prod" }] }
+          ] }
+      ] },
+    { "id": "db", "type": "device", "name": "Database Server",
+      "elements": [{ "id": "pg", "type": "executionEnvironment", "name": "PostgreSQL 16" }] },
+    { "id": "schema", "type": "artifact", "name": "schema.sql" },
+    { "id": "ordering", "type": "component", "name": "Ordering" },
+    { "id": "n1", "type": "note", "text": "Two app servers in production; one shown.", "attachedTo": ["app"] }
+  ],
+  "relationships": [
+    { "type": "communicationPath", "from": "browser", "to": "lb", "protocol": "HTTPS", "fromEnd": { "multiplicity": "*" }, "toEnd": { "multiplicity": "1" } },
+    { "type": "communicationPath", "from": "phone", "to": "lb", "protocol": "HTTPS", "fromEnd": { "multiplicity": "*" }, "toEnd": { "multiplicity": "1" } },
+    { "type": "communicationPath", "from": "lb", "to": "app", "protocol": "HTTP", "fromEnd": { "multiplicity": "1" }, "toEnd": { "multiplicity": "2" } },
+    { "type": "communicationPath", "from": "app", "to": "db", "protocol": "JDBC", "name": "orders" },
+    { "type": "deploy", "from": "schema", "to": "pg" },
+    { "type": "manifest", "from": "jar", "to": "ordering" },
+    { "type": "dependency", "from": "spec", "to": "jar", "keyword": "configures" }
+  ]
+}

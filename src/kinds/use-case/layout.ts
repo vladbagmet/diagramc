@@ -91,7 +91,7 @@ export async function layoutUseCaseDiagram(model: UseCaseDiagram, metrics: FontM
         for (const t of wrapText(metrics, e.name, { ...NAME, bold: true }, theme.size.maxNameWidth)) rows.push({ text: t, style: { ...NAME, bold: true }, width: Math.ceil(metrics.measure(t.trimEnd(), { ...NAME, bold: true })), group: 1 });
         subjectRows.set(e.id, rows);
         const header = rows.reduce((sum, r) => sum + metrics.lineHeight(r.style.size), 0) + 2 * theme.spacing.headerPadY;
-        return { id: e.id, width: Math.max(...rows.map(r => r.width)) + 2 * theme.spacing.padX, height: header + 20, padding: { top: header + 8, left: 24, bottom: 24, right: 24 }, children: [] };
+        return { id: e.id, width: Math.max(...rows.map(r => r.width)) + 2 * theme.spacing.padX, height: header + 20, padding: { top: header + 8, left: 24, bottom: 24, right: 24 }, children: [], minimumSize: true };
       }
     }
   };

@@ -1,0 +1,12 @@
+{
+  "kind": "interaction-overview",
+  "nodes": [
+    { "id": "start", "type": "initial" },
+    { "id": "login", "type": "interaction-use", "name": "Login" },
+    { "id": "end", "type": "final" }
+  ],
+  "flows": [
+    { "from": "start", "to": "login" },
+    { "from": "login", "to": "end" }
+  ]
+}

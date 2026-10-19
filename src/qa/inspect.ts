@@ -13,13 +13,21 @@ export interface InspectedNode {
   type: string;
   bounds: Rect;
   parent?: string;
-  /** Outline when it is not the bounding rectangle (data-uml-shape). */
-  shape?: 'ellipse' | 'diamond';
+  /** Outline when it is not the bounds rectangle (data-uml-shape), e.g. "ellipse" or "diamond". */
+  shape?: string;
   /** Node whose border this node sits on (data-uml-border-of); overlapping it is intended. */
   borderOf?: string;
+  /** Provided-interface ball (data-uml-ball="cx,cy,r"). */
+  ball?: { x: number; y: number; r: number };
+  /** Required-interface socket (data-uml-socket="cx,cy,r,ux,uy"); `u` points out of its opening. */
+  socket?: { x: number; y: number; r: number; u: Point };
+  /** The tab of a package (data-uml-tab); the node's outline is then the tab plus the body below it. */
+  tab?: Rect;
 }
 export interface InspectedEdge { id: string; type: string; source: string; target: string; points: Point[]; sourceMarker: string; targetMarker: string }
 export interface InspectedMarker { marker: string; end: string; tip: Point; direction: Point }
+/** A free-standing message arrow beside a link (communication diagrams). */
+export interface InspectedArrow { owner: string; group: string; source: string; target: string; marker: string; from: Point; to: Point; dashed: boolean }
 export interface InspectedText {
   content: string;
   size: number;
@@ -34,6 +42,8 @@ export interface InspectedText {
   node?: string;
   end?: string;
   anchor?: Point;
+  /** data-uml-group: ties message labels to their message arrow. */
+  group?: string;
 }
 export interface Scene {
   renderer: 'engine' | 'plantuml' | 'unknown';
@@ -42,6 +52,7 @@ export interface Scene {
   nodes: InspectedNode[];
   edges: InspectedEdge[];
   markers: InspectedMarker[];
+  arrows: InspectedArrow[];
   texts: InspectedText[];
   /** All coordinates of drawing primitives (best effort), for the canvas gate. */
   extents: Rect[];
@@ -103,7 +114,7 @@ export async function inspectSvg(svg: string): Promise<Scene> {
   const view = numbers(root.attrs.viewBox);
   const viewBox = view.length === 4 ? { x: view[0]!, y: view[1]!, width: view[2]!, height: view[3]! } : { x: 0, y: 0, width: Number.parseFloat(root.attrs.width ?? '0'), height: Number.parseFloat(root.attrs.height ?? '0') };
   const renderer = root.attrs['data-uml-renderer'] === 'engine' ? 'engine' : root.attrs['data-diagram-type'] ? 'plantuml' : 'unknown';
-  const scene: Scene = { renderer, ...(root.attrs['data-uml-kind'] ? { kind: root.attrs['data-uml-kind'] } : {}), viewBox, nodes: [], edges: [], markers: [], texts: [], extents: [], unsafe: [] };
+  const scene: Scene = { renderer, ...(root.attrs['data-uml-kind'] ? { kind: root.attrs['data-uml-kind'] } : {}), viewBox, nodes: [], edges: [], markers: [], arrows: [], texts: [], extents: [], unsafe: [] };
 
   for (const { element, ancestors } of walk(root)) {
     if (UNSAFE_TAGS.has(element.tag)) scene.unsafe.push(`<${element.tag}>`);
@@ -153,6 +164,7 @@ function readText(element: XmlElement, ancestors: XmlElement[], metrics: FontMet
     ...(owner ? { node: owner.attrs['data-uml-id'] ?? owner.attrs['data-entity'] ?? '' } : {}),
     ...(element.attrs['data-uml-end'] ? { end: element.attrs['data-uml-end'] } : {}),
     ...(element.attrs['data-uml-anchor'] ? { anchor: point(element.attrs['data-uml-anchor'])! } : {}),
+    ...(element.attrs['data-uml-group'] ? { group: element.attrs['data-uml-group'] } : {}),
   };
 }
 
@@ -160,17 +172,27 @@ function readEngine(root: XmlElement, scene: Scene): void {
   for (const { element } of walk(root)) {
     const a = element.attrs;
     if (a['data-uml-role'] === 'node') {
-      const shape = a['data-uml-shape'] === 'ellipse' || a['data-uml-shape'] === 'diamond' ? a['data-uml-shape'] : undefined;
+      const ball = numbers(a['data-uml-ball']), socket = numbers(a['data-uml-socket']);
       scene.nodes.push({
         id: a['data-uml-id'] ?? '', type: a['data-uml-type'] ?? '', bounds: rect4(a['data-uml-bounds'])!,
         ...(a['data-uml-parent'] ? { parent: a['data-uml-parent'] } : {}),
-        ...(shape ? { shape } : {}),
+        ...(a['data-uml-shape'] ? { shape: a['data-uml-shape'] } : {}),
         ...(a['data-uml-border-of'] ? { borderOf: a['data-uml-border-of'] } : {}),
+        ...(ball.length === 3 ? { ball: { x: ball[0]!, y: ball[1]!, r: ball[2]! } } : {}),
+        ...(a['data-uml-tab'] ? { tab: rect4(a['data-uml-tab'])! } : {}),
+        ...(socket.length === 5 ? { socket: { x: socket[0]!, y: socket[1]!, r: socket[2]!, u: { x: socket[3]!, y: socket[4]! } } } : {}),
       });
     } else if (a['data-uml-role'] === 'edge') {
       scene.edges.push({
         id: a['data-uml-id'] ?? '', type: a['data-uml-type'] ?? '', source: a['data-uml-source'] ?? '', target: a['data-uml-target'] ?? '',
         points: pointList(a['data-uml-points']), sourceMarker: a['data-uml-source-marker'] ?? 'none', targetMarker: a['data-uml-target-marker'] ?? 'none',
+      });
+    } else if (a['data-uml-role'] === 'message-arrow') {
+      const [from, to] = pointList(a['data-uml-points']);
+      const path = element.children.find((c): c is XmlElement => typeof c !== 'string' && c.tag === 'path');
+      scene.arrows.push({
+        owner: a['data-uml-owner'] ?? '', group: a['data-uml-group'] ?? '', source: a['data-uml-source'] ?? '', target: a['data-uml-target'] ?? '',
+        marker: a['data-uml-marker'] ?? 'none', from: from!, to: to!, dashed: !!path?.attrs['stroke-dasharray'],
       });
     } else if (a['data-uml-role'] === 'marker') {
       scene.markers.push({ marker: a['data-uml-marker'] ?? '', end: a['data-uml-end'] ?? '', tip: point(a['data-uml-tip'])!, direction: point(a['data-uml-direction'])! });
@@ -181,6 +203,7 @@ function readEngine(root: XmlElement, scene: Scene): void {
   }
   for (const n of scene.nodes) scene.extents.push(n.bounds);
   for (const e of scene.edges) for (const p of e.points) scene.extents.push({ ...p, width: 0, height: 0 });
+  for (const a of scene.arrows) for (const p of [a.from, a.to]) scene.extents.push({ ...p, width: 0, height: 0 });
 }
 
 /** Best effort: entity groups give nodes, primitives give extents. */

@@ -136,3 +136,40 @@ export function drawEdge(spec: EdgeSpec): string {
     spec.drawTargetMarker === false ? '' : markerShape(spec.targetMarker, points.at(-1)!, targetDir, 'target'),
   ].filter(Boolean));
 }
+
+export interface MessageArrowSpec {
+  /** Edge (link) the arrow annotates. */
+  owner: string;
+  /** Groups the arrow with its labels (data-uml-group on both). */
+  group: string;
+  /** Sender and receiver of the messages the arrow stands for. */
+  source: string;
+  target: string;
+  /** Tail and tip of the arrow. */
+  from: Point;
+  to: Point;
+  style: LineStyle;
+  marker: Marker;
+}
+
+/**
+ * A short free-standing arrow beside a line, pointing in the direction of the
+ * messages listed next to it (UML communication diagrams). It is not an edge:
+ * it carries data-uml-role="message-arrow" and its owner's ID, and the QA gate
+ * `message-arrows` checks that it is parallel to, and near, its owner's line.
+ */
+export function drawMessageArrow(spec: MessageArrowSpec): string {
+  const u = direction(spec.from, spec.to);
+  const line = trimEnd([spec.from, spec.to], inset(spec.marker));
+  return el('g', {
+    'data-uml-role': 'message-arrow', 'data-uml-owner': spec.owner, 'data-uml-group': spec.group,
+    'data-uml-source': spec.source, 'data-uml-target': spec.target,
+    'data-uml-marker': spec.marker, 'data-uml-points': pointsAttr([spec.from, spec.to]),
+  }, [
+    el('path', {
+      d: `M${pt(line[0]!)} L${pt(line[1]!)}`, fill: 'none', stroke: theme.color.edge, 'stroke-width': theme.stroke.edge,
+      'stroke-dasharray': spec.style === 'dashed' ? theme.stroke.shortDash : undefined,
+    }),
+    markerShape(spec.marker, spec.to, u, 'target'),
+  ].filter(Boolean));
+}

@@ -1,0 +1,9 @@
+{
+  "kind": "profile",
+  "elements": [
+    { "id": "persistence", "type": "profile", "name": "Persistence", "members": ["entity", "class"] },
+    { "id": "entity", "type": "stereotype", "name": "Entity", "attributes": [{ "name": "table", "type": "String" }] },
+    { "id": "class", "type": "metaclass", "name": "Class" }
+  ],
+  "relationships": [{ "type": "extension", "from": "entity", "to": "class" }]
+}

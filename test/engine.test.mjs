@@ -4,9 +4,10 @@ import { layout } from '../dist/engine/elk.js';
 import { loadFonts, fontFaceCss } from '../dist/engine/fonts.js';
 import { wrapText } from '../dist/engine/text.js';
 import { el, Canvas } from '../dist/engine/svg.js';
-import { drawEdge } from '../dist/engine/edges.js';
+import { drawEdge, drawMessageArrow } from '../dist/engine/edges.js';
 import { planSelfLoops, selfLoopRoute } from '../dist/engine/selfloops.js';
-import { distanceToBorder, contains, overlaps } from '../dist/engine/geometry.js';
+import { distanceToBorder, contains, overlaps, segmentDistance, distanceToSegment } from '../dist/engine/geometry.js';
+import { stressCenters } from '../dist/engine/stress.js';
 import { checkSvg } from '../dist/qa/index.js';
 
 const options = { direction: 'DOWN' };
@@ -127,11 +128,62 @@ test('QA gates pass a clean drawing and catch each defect class', async () => {
   assert.deepEqual(failed(await checkSvg(doc(a + b + edge + endLabel))), ['label-proximity']);
 });
 
+test('elkjs: FIXED_POS ports pin flows to given points (diamond vertices)', async () => {
+  const diamond = { id: 'd', width: 32, height: 32, ports: [
+    { id: 'd:N', side: 'NORTH', position: { x: 16, y: 0 } }, { id: 'd:S', side: 'SOUTH', position: { x: 16, y: 32 } },
+    { id: 'd:E', side: 'EAST', position: { x: 32, y: 16 } }, { id: 'd:W', side: 'WEST', position: { x: 0, y: 16 } }] };
+  const result = await layout([{ id: 'top', width: 80, height: 30 }, diamond, { id: 'l', width: 80, height: 30 }, { id: 'r', width: 80, height: 30 }],
+    [{ id: 'in', source: 'top', target: 'd:N' }, { id: 'left', source: 'd:W', target: 'l' }, { id: 'right', source: 'd:E', target: 'r' }], options);
+  const d = result.nodes.get('d');
+  assert.deepEqual(result.edges.get('in').points.at(-1), { x: d.x + 16, y: d.y });
+  assert.deepEqual(result.edges.get('left').points[0], { x: d.x, y: d.y + 16 });
+  assert.deepEqual(result.edges.get('right').points[0], { x: d.x + 32, y: d.y + 16 });
+});
+
+test('stress placement: deterministic, linked nodes about the desired distance apart', async () => {
+  const nodes = ['a', 'b', 'c', 'd'].map(id => ({ id, width: 100, height: 40 }));
+  const edges = [{ source: 'a', target: 'b' }, { source: 'b', target: 'c' }, { source: 'c', target: 'a' }, { source: 'c', target: 'd' }];
+  const first = await stressCenters(nodes, edges, { edgeLength: 200 });
+  assert.deepEqual(await stressCenters(nodes, edges, { edgeLength: 200 }), first);
+  for (const { source, target } of edges) {
+    const p = first.get(source), q = first.get(target);
+    const d = Math.hypot(p.x - q.x, p.y - q.y);
+    assert.ok(d > 120 && d < 300, `${source}-${target} ${d}`);
+  }
+});
+
+test('geometry: segment distances', () => {
+  assert.equal(segmentDistance({ x: 0, y: 0 }, { x: 10, y: 10 }, { x: 0, y: 10 }, { x: 10, y: 0 }), 0, 'crossing');
+  assert.equal(segmentDistance({ x: 0, y: 0 }, { x: 10, y: 0 }, { x: 0, y: 5 }, { x: 10, y: 5 }), 5, 'parallel');
+  assert.equal(distanceToSegment({ x: 20, y: 0 }, { x: 0, y: 0 }, { x: 10, y: 0 }), 10, 'beyond the end');
+});
+
+test('QA gate message-arrows: accepts a well-placed arrow and catches each defect', async () => {
+  const a = node('a', 20, 20, 100, 50), c = node('c', 250, 20, 100, 50);
+  const link = drawEdge({ id: 'l', type: 'link', source: 'a', target: 'c', points: [{ x: 120, y: 45 }, { x: 250, y: 45 }], style: 'solid', sourceMarker: 'none', targetMarker: 'none' });
+  const arrow = (from, to, extra = {}) => drawMessageArrow({ owner: 'l', group: 'g', source: 'a', target: 'c', from, to, style: 'solid', marker: 'filled-triangle', ...extra });
+  const label = (x, y) => `<text x="${x}" y="${y}" font-size="12" data-uml-role="label" data-uml-owner="l" data-uml-group="g">1: m()</text>`;
+  const ok = arrow({ x: 167, y: 30 }, { x: 203, y: 30 });
+  assert.deepEqual(failed(await checkSvg(doc(a + c + link + ok + label(167, 18)))), []);
+  // Points against the message direction (a -> c is left to right here).
+  assert.deepEqual(failed(await checkSvg(doc(a + c + link + arrow({ x: 203, y: 30 }, { x: 167, y: 30 }) + label(167, 18)))), ['message-arrows']);
+  // Too far from its link.
+  assert.deepEqual(failed(await checkSvg(doc(a + c + link + arrow({ x: 167, y: 140 }, { x: 203, y: 140 }) + label(167, 128)))), ['message-arrows']);
+  // Not parallel to its link.
+  assert.deepEqual(failed(await checkSvg(doc(a + c + link + arrow({ x: 167, y: 10 }, { x: 203, y: 30 }) + label(140, 16)))), ['message-arrows']);
+  // On top of its link.
+  assert.deepEqual(failed(await checkSvg(doc(a + c + link + arrow({ x: 167, y: 45 }, { x: 203, y: 45 }) + label(167, 25)))), ['message-arrows']);
+  // Labels far from their arrow.
+  assert.deepEqual(failed(await checkSvg(doc(a + c + link + ok + label(167, 120)))), ['message-arrows']);
+  // Owned by a link that does not connect sender and receiver.
+  assert.deepEqual(failed(await checkSvg(doc(a + c + link + arrow({ x: 167, y: 30 }, { x: 203, y: 30 }, { target: 'a' }) + label(167, 18)))), ['message-arrows']);
+});
+
 // Additions for state machine and use case diagrams (chunk 5).
 test('elkjs adapter: compound minimum size, fixed-size nodes, captions below and polyline routing', async () => {
   // A compound node is at least as wide as its own header (elkjs swaps the axes for vertical layouts).
   const compound = await layout(
-    [{ id: 'a', width: 80, height: 40 }, { id: 'c', width: 300, height: 60, padding: { top: 60, left: 12, bottom: 12, right: 12 }, children: [{ id: 'x', width: 60, height: 40 }, { id: 'y', width: 60, height: 40 }] }],
+    [{ id: 'a', width: 80, height: 40 }, { id: 'c', width: 300, height: 60, minimumSize: true, padding: { top: 60, left: 12, bottom: 12, right: 12 }, children: [{ id: 'x', width: 60, height: 40 }, { id: 'y', width: 60, height: 40 }] }],
     [{ id: 'e1', source: 'a', target: 'y' }, { id: 'e2', source: 'x', target: 'y' }], options);
   assert.ok(compound.nodes.get('c').width >= 300);
   // Fixed-size symbols keep their size although ports would grow them.
@@ -174,16 +226,16 @@ test('QA gates: shaped outlines, border nodes, edges ending on edges, labels ins
   // A note anchor may end on another edge, but must lie on it.
   assert.deepEqual(failed(await checkSvg(doc(a + u + line('e', 'a', 'u', '80,120 200,120') + node('n', 100, 20, 60, 30) + line('n1', 'n', 'e', '130,50 130,120')))), []);
   assert.deepEqual(failed(await checkSvg(doc(a + u + line('e', 'a', 'u', '80,120 200,120') + node('n', 100, 20, 60, 30) + line('n1', 'n', 'e', '130,50 130,110')))), ['edge-endpoints']);
-  // A node on its parent's border may overlap it.
-  const parent = node('p', 20, 160, 200, 100);
+  // A node on its parent's border (entry/exit point) may overlap it; an unrelated node may not.
+  const parent = node('p', 20, 160, 200, 100).replace('data-uml-type="class"', 'data-uml-type="composite-state"');
   const point = '<g data-uml-role="node" data-uml-id="pt" data-uml-type="entryPoint" data-uml-parent="p" data-uml-shape="ellipse" data-uml-border-of="p" data-uml-bounds="13 193 14 14"><circle cx="20" cy="200" r="7"/></g>';
   assert.deepEqual(failed(await checkSvg(doc(parent + point))), []);
-  assert.deepEqual(failed(await checkSvg(doc(parent + point.replace(' data-uml-border-of="p"', '')))), ['node-overlap']);
+  assert.deepEqual(failed(await checkSvg(doc(parent + point.replace(' data-uml-parent="p"', '').replace(' data-uml-border-of="p"', '')))), ['node-overlap']);
   // Labels may sit inside a container (a node with children), not on its texts.
   const child = '<g data-uml-role="node" data-uml-id="k" data-uml-type="x" data-uml-parent="p" data-uml-bounds="150 220 40 20"><rect x="150" y="220" width="40" height="20"/></g>';
   const title = '<text x="30" y="175" font-size="13" data-uml-role="text" data-uml-owner="p">Container</text>';
-  const inner = '<text x="60" y="240" font-size="12" data-uml-role="label" data-uml-owner="e">inside</text>';
-  const onTitle = '<text x="40" y="176" font-size="12" data-uml-role="label" data-uml-owner="e">on title</text>';
+  const inner = '<text x="60" y="240" font-size="12" data-uml-role="label" data-uml-owner="k">inside</text>';
+  const onTitle = '<text x="40" y="176" font-size="12" data-uml-role="label" data-uml-owner="k">on title</text>';
   const wrap = (body, t) => body.replace('</g>', `${t}</g>`);
   assert.deepEqual(failed(await checkSvg(doc(wrap(parent, title) + child + inner))), []);
   assert.deepEqual(failed(await checkSvg(doc(wrap(parent, title) + child + onTitle))), ['label-overlap']);

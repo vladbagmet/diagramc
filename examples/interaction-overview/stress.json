@@ -1,0 +1,666 @@
+{
+  "kind": "interaction-overview",
+  "title": "Onboarding (stress)",
+  "lifelines": [
+    ":Client",
+    ":Backend"
+  ],
+  "nodes": [
+    {
+      "id": "start",
+      "type": "initial"
+    },
+    {
+      "id": "register-retry",
+      "type": "merge"
+    },
+    {
+      "id": "register",
+      "type": "interaction-use",
+      "name": "Register"
+    },
+    {
+      "id": "register-ok",
+      "type": "decision"
+    },
+    {
+      "id": "register-again",
+      "type": "interaction-use",
+      "name": "ExplainRegisterError"
+    },
+    {
+      "id": "register-next",
+      "type": "merge"
+    },
+    {
+      "id": "register-skip",
+      "type": "interaction-use",
+      "name": "SkipRegister"
+    },
+    {
+      "id": "verifyemail-retry",
+      "type": "merge"
+    },
+    {
+      "id": "verifyemail",
+      "type": "interaction",
+      "name": "VerifyEmail",
+      "lifelines": [
+        {
+          "id": "verifyemail-a",
+          "type": "Client"
+        },
+        {
+          "id": "verifyemail-b",
+          "type": "VerifyEmailService"
+        }
+      ],
+      "messages": [
+        {
+          "from": "verifyemail-a",
+          "to": "verifyemail-b",
+          "name": "request",
+          "arguments": [
+            "data"
+          ]
+        },
+        {
+          "from": "verifyemail-b",
+          "to": "verifyemail-b",
+          "name": "validate"
+        },
+        {
+          "from": "verifyemail-b",
+          "to": "verifyemail-a",
+          "name": "result",
+          "sort": "reply"
+        }
+      ]
+    },
+    {
+      "id": "verifyemail-ok",
+      "type": "decision"
+    },
+    {
+      "id": "verifyemail-again",
+      "type": "interaction-use",
+      "name": "ExplainVerifyEmailError"
+    },
+    {
+      "id": "verifyemail-next",
+      "type": "merge"
+    },
+    {
+      "id": "verifyemail-skip",
+      "type": "interaction-use",
+      "name": "SkipVerifyEmail"
+    },
+    {
+      "id": "collectprofile-retry",
+      "type": "merge"
+    },
+    {
+      "id": "collectprofile",
+      "type": "interaction-use",
+      "name": "CollectProfile"
+    },
+    {
+      "id": "collectprofile-ok",
+      "type": "decision"
+    },
+    {
+      "id": "collectprofile-again",
+      "type": "interaction-use",
+      "name": "ExplainCollectProfileError"
+    },
+    {
+      "id": "collectprofile-next",
+      "type": "merge"
+    },
+    {
+      "id": "collectprofile-skip",
+      "type": "interaction-use",
+      "name": "SkipCollectProfile"
+    },
+    {
+      "id": "checkidentity-retry",
+      "type": "merge"
+    },
+    {
+      "id": "checkidentity",
+      "type": "interaction-use",
+      "name": "CheckIdentity",
+      "arguments": [
+        "user"
+      ]
+    },
+    {
+      "id": "checkidentity-ok",
+      "type": "decision"
+    },
+    {
+      "id": "checkidentity-again",
+      "type": "interaction-use",
+      "name": "ExplainCheckIdentityError"
+    },
+    {
+      "id": "checkidentity-reject",
+      "type": "interaction-use",
+      "name": "RejectApplicant"
+    },
+    {
+      "id": "checkidentity-stop",
+      "type": "flow-final"
+    },
+    {
+      "id": "checkidentity-next",
+      "type": "merge"
+    },
+    {
+      "id": "checkidentity-skip",
+      "type": "interaction-use",
+      "name": "SkipCheckIdentity"
+    },
+    {
+      "id": "chooseplan-retry",
+      "type": "merge"
+    },
+    {
+      "id": "chooseplan",
+      "type": "interaction",
+      "name": "ChoosePlan",
+      "lifelines": [
+        {
+          "id": "chooseplan-a",
+          "type": "Client"
+        },
+        {
+          "id": "chooseplan-b",
+          "type": "ChoosePlanService"
+        }
+      ],
+      "messages": [
+        {
+          "from": "chooseplan-a",
+          "to": "chooseplan-b",
+          "name": "request",
+          "arguments": [
+            "data"
+          ]
+        },
+        {
+          "from": "chooseplan-b",
+          "to": "chooseplan-b",
+          "name": "validate"
+        },
+        {
+          "from": "chooseplan-b",
+          "to": "chooseplan-a",
+          "name": "result",
+          "sort": "reply"
+        }
+      ]
+    },
+    {
+      "id": "chooseplan-ok",
+      "type": "decision"
+    },
+    {
+      "id": "chooseplan-again",
+      "type": "interaction-use",
+      "name": "ExplainChoosePlanError"
+    },
+    {
+      "id": "chooseplan-next",
+      "type": "merge"
+    },
+    {
+      "id": "chooseplan-skip",
+      "type": "interaction-use",
+      "name": "SkipChoosePlan"
+    },
+    {
+      "id": "takepayment-retry",
+      "type": "merge"
+    },
+    {
+      "id": "takepayment",
+      "type": "interaction-use",
+      "name": "TakePayment",
+      "arguments": [
+        "user"
+      ]
+    },
+    {
+      "id": "takepayment-ok",
+      "type": "decision"
+    },
+    {
+      "id": "takepayment-again",
+      "type": "interaction-use",
+      "name": "ExplainTakePaymentError"
+    },
+    {
+      "id": "parallel",
+      "type": "fork"
+    },
+    {
+      "id": "invoice",
+      "type": "interaction-use",
+      "name": "SendInvoice"
+    },
+    {
+      "id": "crm",
+      "type": "interaction-use",
+      "name": "UpdateCrm"
+    },
+    {
+      "id": "ledger",
+      "type": "interaction-use",
+      "name": "PostToLedger"
+    },
+    {
+      "id": "parallel-done",
+      "type": "join"
+    },
+    {
+      "id": "provisionaccount-retry",
+      "type": "merge"
+    },
+    {
+      "id": "provisionaccount",
+      "type": "interaction-use",
+      "name": "ProvisionAccount"
+    },
+    {
+      "id": "provisionaccount-ok",
+      "type": "decision"
+    },
+    {
+      "id": "provisionaccount-again",
+      "type": "interaction-use",
+      "name": "ExplainProvisionAccountError"
+    },
+    {
+      "id": "provisionaccount-next",
+      "type": "merge"
+    },
+    {
+      "id": "provisionaccount-skip",
+      "type": "interaction-use",
+      "name": "SkipProvisionAccount"
+    },
+    {
+      "id": "welcome-retry",
+      "type": "merge"
+    },
+    {
+      "id": "welcome",
+      "type": "interaction",
+      "name": "Welcome",
+      "lifelines": [
+        {
+          "id": "welcome-a",
+          "type": "Client"
+        },
+        {
+          "id": "welcome-b",
+          "type": "WelcomeService"
+        }
+      ],
+      "messages": [
+        {
+          "from": "welcome-a",
+          "to": "welcome-b",
+          "name": "request",
+          "arguments": [
+            "data"
+          ]
+        },
+        {
+          "from": "welcome-b",
+          "to": "welcome-b",
+          "name": "validate"
+        },
+        {
+          "from": "welcome-b",
+          "to": "welcome-a",
+          "name": "result",
+          "sort": "reply"
+        }
+      ]
+    },
+    {
+      "id": "welcome-ok",
+      "type": "decision"
+    },
+    {
+      "id": "welcome-again",
+      "type": "interaction-use",
+      "name": "ExplainWelcomeError"
+    },
+    {
+      "id": "welcome-next",
+      "type": "merge"
+    },
+    {
+      "id": "welcome-skip",
+      "type": "interaction-use",
+      "name": "SkipWelcome"
+    },
+    {
+      "id": "end",
+      "type": "final"
+    }
+  ],
+  "flows": [
+    {
+      "from": "start",
+      "to": "register-retry"
+    },
+    {
+      "from": "register-retry",
+      "to": "register"
+    },
+    {
+      "from": "register",
+      "to": "register-ok"
+    },
+    {
+      "from": "register-ok",
+      "to": "register-again",
+      "guard": "invalid"
+    },
+    {
+      "from": "register-again",
+      "to": "register-retry"
+    },
+    {
+      "from": "register-ok",
+      "to": "register-next",
+      "guard": "valid"
+    },
+    {
+      "from": "register-ok",
+      "to": "register-skip",
+      "guard": "skipped"
+    },
+    {
+      "from": "register-skip",
+      "to": "register-next"
+    },
+    {
+      "from": "register-next",
+      "to": "verifyemail-retry"
+    },
+    {
+      "from": "verifyemail-retry",
+      "to": "verifyemail"
+    },
+    {
+      "from": "verifyemail",
+      "to": "verifyemail-ok"
+    },
+    {
+      "from": "verifyemail-ok",
+      "to": "verifyemail-again",
+      "guard": "invalid"
+    },
+    {
+      "from": "verifyemail-again",
+      "to": "verifyemail-retry"
+    },
+    {
+      "from": "verifyemail-ok",
+      "to": "verifyemail-next",
+      "guard": "valid"
+    },
+    {
+      "from": "verifyemail-ok",
+      "to": "verifyemail-skip",
+      "guard": "skipped"
+    },
+    {
+      "from": "verifyemail-skip",
+      "to": "verifyemail-next"
+    },
+    {
+      "from": "verifyemail-next",
+      "to": "collectprofile-retry"
+    },
+    {
+      "from": "collectprofile-retry",
+      "to": "collectprofile"
+    },
+    {
+      "from": "collectprofile",
+      "to": "collectprofile-ok"
+    },
+    {
+      "from": "collectprofile-ok",
+      "to": "collectprofile-again",
+      "guard": "invalid"
+    },
+    {
+      "from": "collectprofile-again",
+      "to": "collectprofile-retry"
+    },
+    {
+      "from": "collectprofile-ok",
+      "to": "collectprofile-next",
+      "guard": "valid"
+    },
+    {
+      "from": "collectprofile-ok",
+      "to": "collectprofile-skip",
+      "guard": "skipped"
+    },
+    {
+      "from": "collectprofile-skip",
+      "to": "collectprofile-next"
+    },
+    {
+      "from": "collectprofile-next",
+      "to": "checkidentity-retry"
+    },
+    {
+      "from": "checkidentity-retry",
+      "to": "checkidentity"
+    },
+    {
+      "from": "checkidentity",
+      "to": "checkidentity-ok"
+    },
+    {
+      "from": "checkidentity-ok",
+      "to": "checkidentity-again",
+      "guard": "invalid"
+    },
+    {
+      "from": "checkidentity-again",
+      "to": "checkidentity-retry"
+    },
+    {
+      "from": "checkidentity-ok",
+      "to": "checkidentity-reject",
+      "guard": "fraud suspected"
+    },
+    {
+      "from": "checkidentity-reject",
+      "to": "checkidentity-stop"
+    },
+    {
+      "from": "checkidentity-ok",
+      "to": "checkidentity-next",
+      "guard": "valid"
+    },
+    {
+      "from": "checkidentity-ok",
+      "to": "checkidentity-skip",
+      "guard": "skipped"
+    },
+    {
+      "from": "checkidentity-skip",
+      "to": "checkidentity-next"
+    },
+    {
+      "from": "checkidentity-next",
+      "to": "chooseplan-retry"
+    },
+    {
+      "from": "chooseplan-retry",
+      "to": "chooseplan"
+    },
+    {
+      "from": "chooseplan",
+      "to": "chooseplan-ok"
+    },
+    {
+      "from": "chooseplan-ok",
+      "to": "chooseplan-again",
+      "guard": "invalid"
+    },
+    {
+      "from": "chooseplan-again",
+      "to": "chooseplan-retry"
+    },
+    {
+      "from": "chooseplan-ok",
+      "to": "chooseplan-next",
+      "guard": "valid"
+    },
+    {
+      "from": "chooseplan-ok",
+      "to": "chooseplan-skip",
+      "guard": "skipped"
+    },
+    {
+      "from": "chooseplan-skip",
+      "to": "chooseplan-next"
+    },
+    {
+      "from": "chooseplan-next",
+      "to": "takepayment-retry"
+    },
+    {
+      "from": "takepayment-retry",
+      "to": "takepayment"
+    },
+    {
+      "from": "takepayment",
+      "to": "takepayment-ok"
+    },
+    {
+      "from": "takepayment-ok",
+      "to": "takepayment-again",
+      "guard": "invalid"
+    },
+    {
+      "from": "takepayment-again",
+      "to": "takepayment-retry"
+    },
+    {
+      "from": "takepayment-ok",
+      "to": "parallel",
+      "guard": "valid"
+    },
+    {
+      "from": "parallel",
+      "to": "invoice"
+    },
+    {
+      "from": "parallel",
+      "to": "crm"
+    },
+    {
+      "from": "parallel",
+      "to": "ledger"
+    },
+    {
+      "from": "invoice",
+      "to": "parallel-done"
+    },
+    {
+      "from": "crm",
+      "to": "parallel-done"
+    },
+    {
+      "from": "ledger",
+      "to": "parallel-done"
+    },
+    {
+      "from": "parallel-done",
+      "to": "provisionaccount-retry"
+    },
+    {
+      "from": "provisionaccount-retry",
+      "to": "provisionaccount"
+    },
+    {
+      "from": "provisionaccount",
+      "to": "provisionaccount-ok"
+    },
+    {
+      "from": "provisionaccount-ok",
+      "to": "provisionaccount-again",
+      "guard": "invalid"
+    },
+    {
+      "from": "provisionaccount-again",
+      "to": "provisionaccount-retry"
+    },
+    {
+      "from": "provisionaccount-ok",
+      "to": "provisionaccount-next",
+      "guard": "valid"
+    },
+    {
+      "from": "provisionaccount-ok",
+      "to": "provisionaccount-skip",
+      "guard": "skipped"
+    },
+    {
+      "from": "provisionaccount-skip",
+      "to": "provisionaccount-next"
+    },
+    {
+      "from": "provisionaccount-next",
+      "to": "welcome-retry"
+    },
+    {
+      "from": "welcome-retry",
+      "to": "welcome"
+    },
+    {
+      "from": "welcome",
+      "to": "welcome-ok"
+    },
+    {
+      "from": "welcome-ok",
+      "to": "welcome-again",
+      "guard": "invalid"
+    },
+    {
+      "from": "welcome-again",
+      "to": "welcome-retry"
+    },
+    {
+      "from": "welcome-ok",
+      "to": "welcome-next",
+      "guard": "valid"
+    },
+    {
+      "from": "welcome-ok",
+      "to": "welcome-skip",
+      "guard": "skipped"
+    },
+    {
+      "from": "welcome-skip",
+      "to": "welcome-next"
+    },
+    {
+      "from": "welcome-next",
+      "to": "end"
+    }
+  ]
+}

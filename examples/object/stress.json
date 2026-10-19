@@ -1,0 +1,1041 @@
+{
+ "kind": "object",
+ "title": "Company snapshot",
+ "classifiers": [
+  {
+   "name": "Company",
+   "attributes": [
+    "name"
+   ]
+  },
+  {
+   "name": "Office",
+   "attributes": [
+    "city"
+   ]
+  },
+  {
+   "name": "Department",
+   "attributes": [
+    "budget"
+   ]
+  },
+  {
+   "name": "Employee",
+   "attributes": [
+    "grade"
+   ]
+  },
+  {
+   "name": "Project",
+   "attributes": [
+    "code"
+   ]
+  }
+ ],
+ "elements": [
+  {
+   "id": "acme",
+   "type": "instance",
+   "name": "acme",
+   "classifier": "Company",
+   "slots": [
+    {
+     "feature": "name",
+     "value": "\"Acme B.V.\""
+    }
+   ]
+  },
+  {
+   "id": "sales",
+   "type": "instance",
+   "name": "sales",
+   "classifier": "Department",
+   "slots": [
+    {
+     "feature": "budget",
+     "value": "15k"
+    }
+   ]
+  },
+  {
+   "id": "ops",
+   "type": "instance",
+   "name": "ops",
+   "classifier": "Department",
+   "slots": [
+    {
+     "feature": "budget",
+     "value": "31k"
+    }
+   ]
+  },
+  {
+   "id": "dev",
+   "type": "instance",
+   "name": "dev",
+   "classifier": "Department",
+   "slots": [
+    {
+     "feature": "budget",
+     "value": "31k"
+    }
+   ]
+  },
+  {
+   "id": "hr",
+   "type": "instance",
+   "name": "hr",
+   "classifier": "Department",
+   "slots": [
+    {
+     "feature": "budget",
+     "value": "84k"
+    }
+   ]
+  },
+  {
+   "id": "ann",
+   "type": "instance",
+   "name": "ann",
+   "classifier": "Employee",
+   "slots": [
+    {
+     "feature": "grade",
+     "value": "1"
+    }
+   ]
+  },
+  {
+   "id": "bob",
+   "type": "instance",
+   "name": "bob",
+   "classifier": "Employee",
+   "slots": [
+    {
+     "feature": "grade",
+     "value": "2"
+    }
+   ]
+  },
+  {
+   "id": "cai",
+   "type": "instance",
+   "name": "cai",
+   "classifier": "Employee",
+   "slots": [
+    {
+     "feature": "grade",
+     "value": "3"
+    }
+   ]
+  },
+  {
+   "id": "dee",
+   "type": "instance",
+   "name": "dee",
+   "classifier": "Employee",
+   "slots": [
+    {
+     "feature": "grade",
+     "value": "4"
+    }
+   ]
+  },
+  {
+   "id": "eli",
+   "type": "instance",
+   "name": "eli",
+   "classifier": "Employee",
+   "slots": [
+    {
+     "feature": "grade",
+     "value": "5"
+    }
+   ]
+  },
+  {
+   "id": "fay",
+   "type": "instance",
+   "name": "fay",
+   "classifier": "Employee",
+   "slots": [
+    {
+     "feature": "grade",
+     "value": "1"
+    }
+   ]
+  },
+  {
+   "id": "gus",
+   "type": "instance",
+   "name": "gus",
+   "classifier": "Employee",
+   "slots": [
+    {
+     "feature": "grade",
+     "value": "2"
+    }
+   ]
+  },
+  {
+   "id": "hal",
+   "type": "instance",
+   "name": "hal",
+   "classifier": "Employee",
+   "slots": [
+    {
+     "feature": "grade",
+     "value": "3"
+    }
+   ]
+  },
+  {
+   "id": "ivy",
+   "type": "instance",
+   "name": "ivy",
+   "classifier": "Employee",
+   "slots": [
+    {
+     "feature": "grade",
+     "value": "4"
+    }
+   ]
+  },
+  {
+   "id": "jon",
+   "type": "instance",
+   "name": "jon",
+   "classifier": "Employee",
+   "slots": [
+    {
+     "feature": "grade",
+     "value": "5"
+    }
+   ]
+  },
+  {
+   "id": "kim",
+   "type": "instance",
+   "name": "kim",
+   "classifier": "Employee",
+   "slots": [
+    {
+     "feature": "grade",
+     "value": "1"
+    }
+   ]
+  },
+  {
+   "id": "lea",
+   "type": "instance",
+   "name": "lea",
+   "classifier": "Employee",
+   "slots": [
+    {
+     "feature": "grade",
+     "value": "2"
+    }
+   ]
+  },
+  {
+   "id": "max",
+   "type": "instance",
+   "name": "max",
+   "classifier": "Employee",
+   "slots": [
+    {
+     "feature": "grade",
+     "value": "3"
+    }
+   ]
+  },
+  {
+   "id": "ned",
+   "type": "instance",
+   "name": "ned",
+   "classifier": "Employee",
+   "slots": [
+    {
+     "feature": "grade",
+     "value": "4"
+    }
+   ]
+  },
+  {
+   "id": "ola",
+   "type": "instance",
+   "name": "ola",
+   "classifier": "Employee",
+   "slots": [
+    {
+     "feature": "grade",
+     "value": "5"
+    }
+   ]
+  },
+  {
+   "id": "pam",
+   "type": "instance",
+   "name": "pam",
+   "classifier": "Employee",
+   "slots": [
+    {
+     "feature": "grade",
+     "value": "1"
+    }
+   ]
+  },
+  {
+   "id": "rik",
+   "type": "instance",
+   "name": "rik",
+   "classifier": "Employee",
+   "slots": [
+    {
+     "feature": "grade",
+     "value": "2"
+    }
+   ]
+  },
+  {
+   "id": "sam",
+   "type": "instance",
+   "name": "sam",
+   "classifier": "Employee",
+   "slots": [
+    {
+     "feature": "grade",
+     "value": "3"
+    }
+   ]
+  },
+  {
+   "id": "tes",
+   "type": "instance",
+   "name": "tes",
+   "classifier": "Employee",
+   "slots": [
+    {
+     "feature": "grade",
+     "value": "4"
+    }
+   ]
+  },
+  {
+   "id": "uri",
+   "type": "instance",
+   "name": "uri",
+   "classifier": "Employee",
+   "slots": [
+    {
+     "feature": "grade",
+     "value": "5"
+    }
+   ]
+  },
+  {
+   "id": "pr0",
+   "type": "instance",
+   "name": "pr0",
+   "classifier": "Project",
+   "slots": [
+    {
+     "feature": "code",
+     "value": "\"P-100\""
+    }
+   ]
+  },
+  {
+   "id": "pr1",
+   "type": "instance",
+   "name": "pr1",
+   "classifier": "Project",
+   "slots": [
+    {
+     "feature": "code",
+     "value": "\"P-101\""
+    }
+   ]
+  },
+  {
+   "id": "pr2",
+   "type": "instance",
+   "name": "pr2",
+   "classifier": "Project",
+   "slots": [
+    {
+     "feature": "code",
+     "value": "\"P-102\""
+    }
+   ]
+  },
+  {
+   "id": "pr3",
+   "type": "instance",
+   "name": "pr3",
+   "classifier": "Project",
+   "slots": [
+    {
+     "feature": "code",
+     "value": "\"P-103\""
+    }
+   ]
+  },
+  {
+   "id": "pr4",
+   "type": "instance",
+   "name": "pr4",
+   "classifier": "Project",
+   "slots": [
+    {
+     "feature": "code",
+     "value": "\"P-104\""
+    }
+   ]
+  },
+  {
+   "id": "pr5",
+   "type": "instance",
+   "name": "pr5",
+   "classifier": "Project",
+   "slots": [
+    {
+     "feature": "code",
+     "value": "\"P-105\""
+    }
+   ]
+  },
+  {
+   "id": "pr6",
+   "type": "instance",
+   "name": "pr6",
+   "classifier": "Project",
+   "slots": [
+    {
+     "feature": "code",
+     "value": "\"P-106\""
+    }
+   ]
+  },
+  {
+   "id": "pr7",
+   "type": "instance",
+   "name": "pr7",
+   "classifier": "Project",
+   "slots": [
+    {
+     "feature": "code",
+     "value": "\"P-107\""
+    }
+   ]
+  },
+  {
+   "id": "pr8",
+   "type": "instance",
+   "name": "pr8",
+   "classifier": "Project",
+   "slots": [
+    {
+     "feature": "code",
+     "value": "\"P-108\""
+    }
+   ]
+  },
+  {
+   "id": "pr9",
+   "type": "instance",
+   "name": "pr9",
+   "classifier": "Project",
+   "slots": [
+    {
+     "feature": "code",
+     "value": "\"P-109\""
+    }
+   ]
+  },
+  {
+   "id": "pr10",
+   "type": "instance",
+   "name": "pr10",
+   "classifier": "Project",
+   "slots": [
+    {
+     "feature": "code",
+     "value": "\"P-110\""
+    }
+   ]
+  },
+  {
+   "id": "pr11",
+   "type": "instance",
+   "name": "pr11",
+   "classifier": "Project",
+   "slots": [
+    {
+     "feature": "code",
+     "value": "\"P-111\""
+    }
+   ]
+  },
+  {
+   "id": "utrecht",
+   "type": "instance",
+   "classifier": "Office",
+   "slots": [
+    {
+     "feature": "city",
+     "value": "\"Utrecht\""
+    }
+   ]
+  },
+  {
+   "id": "delft",
+   "type": "instance",
+   "classifier": "Office",
+   "slots": [
+    {
+     "feature": "city",
+     "value": "\"Delft\""
+    }
+   ]
+  },
+  {
+   "id": "leiden",
+   "type": "instance",
+   "classifier": "Office",
+   "slots": [
+    {
+     "feature": "city",
+     "value": "\"Leiden\""
+    }
+   ]
+  }
+ ],
+ "relationships": [
+  {
+   "type": "link",
+   "from": "acme",
+   "to": "sales",
+   "toEnd": {
+    "role": "departments"
+   }
+  },
+  {
+   "type": "link",
+   "from": "sales",
+   "to": "utrecht",
+   "toEnd": {
+    "role": "office",
+    "navigable": true
+   }
+  },
+  {
+   "type": "link",
+   "from": "acme",
+   "to": "ops",
+   "toEnd": {
+    "role": "departments"
+   }
+  },
+  {
+   "type": "link",
+   "from": "ops",
+   "to": "delft",
+   "toEnd": {
+    "role": "office",
+    "navigable": true
+   }
+  },
+  {
+   "type": "link",
+   "from": "acme",
+   "to": "dev",
+   "toEnd": {
+    "role": "departments"
+   }
+  },
+  {
+   "type": "link",
+   "from": "dev",
+   "to": "utrecht",
+   "toEnd": {
+    "role": "office",
+    "navigable": true
+   }
+  },
+  {
+   "type": "link",
+   "from": "acme",
+   "to": "hr",
+   "toEnd": {
+    "role": "departments"
+   }
+  },
+  {
+   "type": "link",
+   "from": "hr",
+   "to": "leiden",
+   "toEnd": {
+    "role": "office",
+    "navigable": true
+   }
+  },
+  {
+   "type": "link",
+   "from": "ann",
+   "to": "sales",
+   "association": "manages",
+   "toEnd": {
+    "role": "unit",
+    "navigable": true
+   }
+  },
+  {
+   "type": "link",
+   "from": "sales",
+   "to": "bob",
+   "toEnd": {
+    "role": "staff"
+   }
+  },
+  {
+   "type": "link",
+   "from": "sales",
+   "to": "cai",
+   "toEnd": {
+    "role": "staff"
+   }
+  },
+  {
+   "type": "link",
+   "from": "sales",
+   "to": "dee",
+   "toEnd": {
+    "role": "staff"
+   }
+  },
+  {
+   "type": "link",
+   "from": "sales",
+   "to": "eli",
+   "toEnd": {
+    "role": "staff"
+   }
+  },
+  {
+   "type": "link",
+   "from": "fay",
+   "to": "ops",
+   "association": "manages",
+   "toEnd": {
+    "role": "unit",
+    "navigable": true
+   }
+  },
+  {
+   "type": "link",
+   "from": "ops",
+   "to": "gus",
+   "toEnd": {
+    "role": "staff"
+   }
+  },
+  {
+   "type": "link",
+   "from": "ops",
+   "to": "hal",
+   "toEnd": {
+    "role": "staff"
+   }
+  },
+  {
+   "type": "link",
+   "from": "ops",
+   "to": "ivy",
+   "toEnd": {
+    "role": "staff"
+   }
+  },
+  {
+   "type": "link",
+   "from": "ops",
+   "to": "jon",
+   "toEnd": {
+    "role": "staff"
+   }
+  },
+  {
+   "type": "link",
+   "from": "kim",
+   "to": "dev",
+   "association": "manages",
+   "toEnd": {
+    "role": "unit",
+    "navigable": true
+   }
+  },
+  {
+   "type": "link",
+   "from": "dev",
+   "to": "lea",
+   "toEnd": {
+    "role": "staff"
+   }
+  },
+  {
+   "type": "link",
+   "from": "dev",
+   "to": "max",
+   "toEnd": {
+    "role": "staff"
+   }
+  },
+  {
+   "type": "link",
+   "from": "dev",
+   "to": "ned",
+   "toEnd": {
+    "role": "staff"
+   }
+  },
+  {
+   "type": "link",
+   "from": "dev",
+   "to": "ola",
+   "toEnd": {
+    "role": "staff"
+   }
+  },
+  {
+   "type": "link",
+   "from": "pam",
+   "to": "hr",
+   "association": "manages",
+   "toEnd": {
+    "role": "unit",
+    "navigable": true
+   }
+  },
+  {
+   "type": "link",
+   "from": "hr",
+   "to": "rik",
+   "toEnd": {
+    "role": "staff"
+   }
+  },
+  {
+   "type": "link",
+   "from": "hr",
+   "to": "sam",
+   "toEnd": {
+    "role": "staff"
+   }
+  },
+  {
+   "type": "link",
+   "from": "hr",
+   "to": "tes",
+   "toEnd": {
+    "role": "staff"
+   }
+  },
+  {
+   "type": "link",
+   "from": "hr",
+   "to": "uri",
+   "toEnd": {
+    "role": "staff"
+   }
+  },
+  {
+   "type": "link",
+   "from": "ann",
+   "to": "pr0",
+   "toEnd": {
+    "role": "works on",
+    "navigable": true
+   }
+  },
+  {
+   "type": "link",
+   "from": "bob",
+   "to": "pr7",
+   "toEnd": {
+    "role": "works on",
+    "navigable": true
+   }
+  },
+  {
+   "type": "link",
+   "from": "cai",
+   "to": "pr2",
+   "toEnd": {
+    "role": "works on",
+    "navigable": true
+   }
+  },
+  {
+   "type": "link",
+   "from": "dee",
+   "to": "pr9",
+   "toEnd": {
+    "role": "works on",
+    "navigable": true
+   }
+  },
+  {
+   "type": "link",
+   "from": "eli",
+   "to": "pr4",
+   "toEnd": {
+    "role": "works on",
+    "navigable": true
+   }
+  },
+  {
+   "type": "link",
+   "from": "fay",
+   "to": "pr11",
+   "toEnd": {
+    "role": "works on",
+    "navigable": true
+   }
+  },
+  {
+   "type": "link",
+   "from": "gus",
+   "to": "pr6",
+   "toEnd": {
+    "role": "works on",
+    "navigable": true
+   }
+  },
+  {
+   "type": "link",
+   "from": "hal",
+   "to": "pr1",
+   "toEnd": {
+    "role": "works on",
+    "navigable": true
+   }
+  },
+  {
+   "type": "link",
+   "from": "ivy",
+   "to": "pr8",
+   "toEnd": {
+    "role": "works on",
+    "navigable": true
+   }
+  },
+  {
+   "type": "link",
+   "from": "jon",
+   "to": "pr3",
+   "toEnd": {
+    "role": "works on",
+    "navigable": true
+   }
+  },
+  {
+   "type": "link",
+   "from": "kim",
+   "to": "pr10",
+   "toEnd": {
+    "role": "works on",
+    "navigable": true
+   }
+  },
+  {
+   "type": "link",
+   "from": "lea",
+   "to": "pr5",
+   "toEnd": {
+    "role": "works on",
+    "navigable": true
+   }
+  },
+  {
+   "type": "link",
+   "from": "max",
+   "to": "pr0",
+   "toEnd": {
+    "role": "works on",
+    "navigable": true
+   }
+  },
+  {
+   "type": "link",
+   "from": "ned",
+   "to": "pr7",
+   "toEnd": {
+    "role": "works on",
+    "navigable": true
+   }
+  },
+  {
+   "type": "link",
+   "from": "ola",
+   "to": "pr2",
+   "toEnd": {
+    "role": "works on",
+    "navigable": true
+   }
+  },
+  {
+   "type": "link",
+   "from": "pam",
+   "to": "pr9",
+   "toEnd": {
+    "role": "works on",
+    "navigable": true
+   }
+  },
+  {
+   "type": "link",
+   "from": "rik",
+   "to": "pr4",
+   "toEnd": {
+    "role": "works on",
+    "navigable": true
+   }
+  },
+  {
+   "type": "link",
+   "from": "sam",
+   "to": "pr11",
+   "toEnd": {
+    "role": "works on",
+    "navigable": true
+   }
+  },
+  {
+   "type": "link",
+   "from": "tes",
+   "to": "pr6",
+   "toEnd": {
+    "role": "works on",
+    "navigable": true
+   }
+  },
+  {
+   "type": "link",
+   "from": "uri",
+   "to": "pr1",
+   "toEnd": {
+    "role": "works on",
+    "navigable": true
+   }
+  },
+  {
+   "type": "link",
+   "from": "pr0",
+   "to": "cai",
+   "association": "ledBy",
+   "toEnd": {
+    "role": "lead"
+   }
+  },
+  {
+   "type": "link",
+   "from": "pr1",
+   "to": "fay",
+   "association": "ledBy",
+   "toEnd": {
+    "role": "lead"
+   }
+  },
+  {
+   "type": "link",
+   "from": "pr2",
+   "to": "ivy",
+   "association": "ledBy",
+   "toEnd": {
+    "role": "lead"
+   }
+  },
+  {
+   "type": "link",
+   "from": "pr3",
+   "to": "lea",
+   "association": "ledBy",
+   "toEnd": {
+    "role": "lead"
+   }
+  },
+  {
+   "type": "link",
+   "from": "pr4",
+   "to": "ola",
+   "association": "ledBy",
+   "toEnd": {
+    "role": "lead"
+   }
+  },
+  {
+   "type": "link",
+   "from": "pr5",
+   "to": "sam",
+   "association": "ledBy",
+   "toEnd": {
+    "role": "lead"
+   }
+  },
+  {
+   "type": "link",
+   "from": "pr6",
+   "to": "ann",
+   "association": "ledBy",
+   "toEnd": {
+    "role": "lead"
+   }
+  },
+  {
+   "type": "link",
+   "from": "pr7",
+   "to": "dee",
+   "association": "ledBy",
+   "toEnd": {
+    "role": "lead"
+   }
+  },
+  {
+   "type": "link",
+   "from": "pr8",
+   "to": "gus",
+   "association": "ledBy",
+   "toEnd": {
+    "role": "lead"
+   }
+  },
+  {
+   "type": "link",
+   "from": "pr9",
+   "to": "jon",
+   "association": "ledBy",
+   "toEnd": {
+    "role": "lead"
+   }
+  },
+  {
+   "type": "link",
+   "from": "pr10",
+   "to": "max",
+   "association": "ledBy",
+   "toEnd": {
+    "role": "lead"
+   }
+  },
+  {
+   "type": "link",
+   "from": "pr11",
+   "to": "pam",
+   "association": "ledBy",
+   "toEnd": {
+    "role": "lead"
+   }
+  }
+ ]
+}

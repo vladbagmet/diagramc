@@ -1,5 +1,13 @@
 import type { KindDefinition } from './kind.js';
 import { classKind } from '../kinds/class/index.js';
+import { objectKind } from '../kinds/object/index.js';
+import { packageKind } from '../kinds/package/index.js';
+import { profileKind } from '../kinds/profile/index.js';
+import { communicationKind } from '../kinds/communication/index.js';
+import { interactionOverviewKind } from '../kinds/interaction-overview/index.js';
+import { componentKind } from '../kinds/component/index.js';
+import { deploymentKind } from '../kinds/deployment/index.js';
+import { compositeStructureKind } from '../kinds/composite-structure/index.js';
 import { activityKind } from '../kinds/activity/index.js';
 import { stateMachineKind } from '../kinds/state-machine/index.js';
 import { useCaseKind } from '../kinds/use-case/index.js';
@@ -11,6 +19,14 @@ import { useCaseKind } from '../kinds/use-case/index.js';
  */
 export const kinds: readonly KindDefinition[] = [
   classKind,
+  objectKind,
+  packageKind,
+  profileKind,
+  communicationKind,
+  interactionOverviewKind,
+  componentKind,
+  deploymentKind,
+  compositeStructureKind,
   activityKind,
   stateMachineKind,
   useCaseKind,

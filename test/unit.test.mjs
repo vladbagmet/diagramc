@@ -192,11 +192,17 @@ test('CLI validate, schema and kinds print JSON on stdout', async () => {
   assert.equal(result.status, 0);
   assert.equal(JSON.parse(result.stdout).properties.kind.const, 'class');
   result = cli(['kinds']);
-  // Every registered kind is listed, class first (other kinds are added by their chunks).
-  const { kinds } = await import('../dist/model/registry.js');
-  assert.deepEqual(JSON.parse(result.stdout).map(k => k.kind), kinds.map(k => k.kind));
-  assert.equal(JSON.parse(result.stdout)[0].kind, 'class');
-  assert.deepEqual(JSON.parse(result.stdout)[0].backends, ['engine', 'plantuml']);
+  const listed = JSON.parse(result.stdout);
+  assert.equal(listed[0].kind, 'class');
+  assert.deepEqual(listed[0].backends, ['engine', 'plantuml']);
+  for (const kind of ['object', 'package', 'profile']) assert.ok(listed.some(k => k.kind === kind), kind);
+  for (const kind of ['communication', 'interaction-overview', 'component', 'deployment', 'composite-structure']) {
+    assert.deepEqual(listed.find(k => k.kind === kind)?.backends, ['engine'], kind);
+    assert.equal(JSON.parse(cli(['schema', kind]).stdout).properties.kind.const, kind);
+  }
+  assert.deepEqual(listed.find(k => k.kind === 'activity')?.backends, ['plantuml']);
+  for (const kind of ['state-machine', 'use-case']) assert.deepEqual(listed.find(k => k.kind === kind)?.backends, ['engine'], kind);
+  for (const kind of ['activity', 'state-machine', 'use-case']) assert.equal(JSON.parse(cli(['schema', kind]).stdout).properties.kind.const, kind);
 });
 test('invalid input never spawns renderer or creates/replaces output', async t => {
   const dir = await workspace(t), out = join(dir, 'out.svg'), marker = join(dir, 'spawned');
