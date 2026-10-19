@@ -380,7 +380,9 @@ export async function layoutStructure(graph: StructGraph, metrics: FontMetrics):
         const sides = new Set(ports.map(p => p.side));
         const children = [...(n.children ?? []).map(build), ...symbols.map(buildSymbol)];
         return {
-          id: n.id, width: header.width + extraDepth, height: header.height + extraDepth + 40, children,
+          id: n.id, width: header.width + extraDepth, height: header.height + extraDepth + 40, children, minimumSize: true,
+          // Lines crossing the border keep the same distance as parallel lines.
+          portSpacing: theme.spacing.edgeEdge,
           padding: { top: header.height + extraDepth + PAD.belowHeader, bottom: PAD.bottom, left: sides.has('WEST') ? PAD.portSide : PAD.side, right: (sides.has('EAST') ? PAD.portSide : PAD.side) + extraDepth },
           ...(ports.length ? { ports } : {}),
         };
@@ -392,8 +394,8 @@ export async function layoutStructure(graph: StructGraph, metrics: FontMetrics):
     const buildSymbol = (s: SymbolPlan): LayoutNode => {
       const { width, height, cy } = symbolBox(s);
       const ports: LayoutPort[] = s.kind === 'joint'
-        ? [{ id: `${s.id}::in`, side: 'WEST', position: cy }, { id: `${s.id}::out`, side: 'EAST', position: cy }]
-        : [{ id: `${s.id}::port`, side: s.side === 'WEST' ? 'EAST' : 'WEST', position: cy }];
+        ? [{ id: `${s.id}::in`, side: 'WEST', position: { x: 0, y: cy } }, { id: `${s.id}::out`, side: 'EAST', position: { x: width, y: cy } }]
+        : s.side === 'WEST' ? [{ id: `${s.id}::port`, side: 'EAST', position: { x: width, y: cy } }] : [{ id: `${s.id}::port`, side: 'WEST', position: { x: 0, y: cy } }];
       return { id: s.id, width, height, ports };
     };
 
@@ -442,7 +444,7 @@ export async function layoutStructure(graph: StructGraph, metrics: FontMetrics):
       });
     }
 
-    const result = await layout(elkNodes, elkEdges, { direction: 'RIGHT', nodeSpacing: NODE_SPACING, layerSpacing: LAYER_SPACING, portSpacing: theme.spacing.edgeEdge });
+    const result = await layout(elkNodes, elkEdges, { direction: 'RIGHT', nodeSpacing: NODE_SPACING, layerSpacing: LAYER_SPACING });
 
     const rects = new Map<string, Rect>();
     for (const [id, r] of result.nodes) if (info.has(id)) rects.set(id, r);

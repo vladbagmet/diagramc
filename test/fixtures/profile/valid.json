@@ -1,0 +1,31 @@
+[
+  { "name": "single metaclass", "doc": { "kind": "profile", "elements": [{ "id": "m", "type": "metaclass", "name": "Class" }] } },
+  { "name": "empty profile", "doc": { "kind": "profile", "elements": [{ "id": "p", "type": "profile", "name": "P" }] } },
+  { "name": "every relationship type", "doc": { "kind": "profile", "elements": [
+      { "id": "p", "type": "profile", "name": "P", "members": ["s", "t"] }, { "id": "s", "type": "stereotype", "name": "S", "abstract": true }, { "id": "t", "type": "stereotype", "name": "T" },
+      { "id": "m", "type": "metaclass", "name": "Class" }, { "id": "app", "type": "package", "name": "App" }],
+    "relationships": [
+      { "id": "ext", "type": "extension", "from": "s", "to": "m", "required": true }, { "id": "gen", "type": "generalization", "from": "t", "to": "s" },
+      { "id": "apply", "type": "apply", "from": "app", "to": "p" }, { "id": "ref", "type": "reference", "from": "p", "to": "m" }] } },
+  { "name": "several stereotypes extending one metaclass", "doc": { "kind": "profile", "elements": [
+      { "id": "m", "type": "metaclass", "name": "Component" },
+      { "id": "a", "type": "stereotype", "name": "A" }, { "id": "b", "type": "stereotype", "name": "B" }, { "id": "c", "type": "stereotype", "name": "C" }],
+    "relationships": [{ "type": "extension", "from": "a", "to": "m" }, { "type": "extension", "from": "b", "to": "m", "required": true }, { "type": "extension", "from": "c", "to": "m" }] } },
+  { "name": "one stereotype extending two metaclasses", "doc": { "kind": "profile", "elements": [
+      { "id": "p", "type": "profile", "name": "Audit", "members": ["s", "m1", "m2"] },
+      { "id": "s", "type": "stereotype", "name": "Audited", "attributes": [{ "name": "level", "type": "Integer", "multiplicity": "1", "default": "3" }] },
+      { "id": "m1", "type": "metaclass", "name": "Class" }, { "id": "m2", "type": "metaclass", "name": "Operation" }],
+    "relationships": [{ "type": "extension", "from": "s", "to": "m1" }, { "type": "extension", "from": "s", "to": "m2" }] } },
+  { "name": "profile nested in a package and applied by a sibling", "doc": { "kind": "profile", "elements": [
+      { "id": "lib", "type": "package", "name": "Library", "members": ["p", "model"] },
+      { "id": "p", "type": "profile", "name": "P", "members": ["s"] }, { "id": "s", "type": "stereotype", "name": "S" },
+      { "id": "model", "type": "package", "name": "Model", "members": ["c"] }, { "id": "c", "type": "class", "name": "Invoice", "stereotypes": ["S"] },
+      { "id": "n", "type": "note", "text": "The model applies P.", "attachedTo": ["model"] }],
+    "relationships": [{ "type": "apply", "from": "model", "to": "p" }] } },
+  { "name": "long and Unicode text", "doc": { "kind": "profile", "title": "Prófïle 🚀", "elements": [
+      { "id": "p", "type": "profile", "name": "VeryLongProfileNameThatShouldStillFitInsideItsOwnTabWithoutClipping", "members": ["s", "e"] },
+      { "id": "s", "type": "stereotype", "name": "注釈", "attributes": [{ "name": "<b>tag</b>", "type": "&amp;", "default": "\"{x}\"" }] },
+      { "id": "e", "type": "enumeration", "name": "Kind", "literals": ["  spaced  ", "ü"] },
+      { "id": "m", "type": "metaclass", "name": "Property" }],
+    "relationships": [{ "type": "extension", "from": "s", "to": "m" }] } }
+]

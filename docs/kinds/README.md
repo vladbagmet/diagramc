@@ -99,8 +99,13 @@ Copy the structure of `src/kinds/class/layout.ts` and `draw.ts`.
 | Notes | `measureNote()` + `drawNote()`; anchor lines: `drawEdge` with `style: 'dashed'`, both markers `none`, type `note-anchor` |
 | Packages / containers | `measurePackageTab()` + `drawPackage()`; give ELK a compound node with `padding.top` >= tab height |
 | Diagram frame | when `title` is set: `measureFrameHeading()` + `drawFrame(canvas, kind.frameKeyword, title, bounds)` |
+| Whole node/edge diagram | `renderDiagram(spec)` in `src/engine/diagram.ts`: boxes, notes and packages (nested through `children`), edges with markers, end and center labels, tree and reversed edges, self-loops, frame. Object, package and profile kinds are thin mappings onto it |
+| Packages | `measurePackage()` + `drawPackageNode()` in `src/engine/packages.ts` (tab with `data-uml-tab`; name in the tab for containers, in the body otherwise) |
 | Layout | `layout(nodes, edges, { direction })` from `src/engine/elk.ts`: sizes, compound `children`, fixed-side `ports` (a shared port gives generalization trees; a port as wide as an end's labels and marker keeps neighbours apart), edge labels `center`/`head`/`tail` |
-| Ports, interfaces, nesting, 3D nodes, ellipses | `src/kinds/structure/` (a kind-neutral graph of nested nodes, ports, lollipops, sockets and assemblies, laid out left to right, used by component, deployment and composite structure) and its symbols in `src/engine/symbols.ts` |
+| Ports at given points | `LayoutPort.position` (relative to the node) switches the node to FIXED_POS, e.g. diamond vertices, the bottom of an initial dot |
+| Undirected graphs | `stressCenters()` from `src/engine/stress.ts` (ELK Stress, deterministic): node centers only, route the edges yourself (see `src/kinds/communication/layout.ts` for grid snapping) |
+| Message arrows beside a line | `drawMessageArrow()` (`data-uml-role="message-arrow"`, checked by the `message-arrows` gate); give its labels the same `data-uml-group` |
+| Ports, interfaces, nesting, 3D nodes, ellipses | `src/kinds/structure/` (a kind-neutral graph of nested nodes, ports, lollipops, sockets and assemblies, laid out left to right, used by component, deployment and composite structure) and its symbols in `src/engine/symbols.ts`. Fixed port positions: `LayoutPort.position`; a compound node wider than its children: `minimumSize` |
 | Self-loops | never give them to ELK: `planSelfLoops()` before layout (node `reserveRight`, min height), `selfLoopRoute()` after |
 | Lines and arrowheads | `drawEdge({ points, style, sourceMarker, targetMarker, ... })`; markers: `hollow-triangle`, `filled-triangle`, `open-arrow`, `hollow-diamond`, `filled-diamond`, `cross`, `circle-plus`, `none` |
 | Edge labels | `placeLabels()` with obstacles (node rects, marker boxes, all segments, labelled `ends`); end labels with `at: 'source'|'target'`, center labels with ELK's suggestion |
@@ -158,15 +163,18 @@ In `test/<kind>.test.mjs` (Java-free) or `test/integration/<kind>.test.mjs`
 
 The QA gates (`src/qa/gates.ts`, all must pass): `safe-markup`, `inside-canvas`,
 `node-overlap` (containment allowed; a port may straddle its owner's border),
-`label-overlap` (labels may lie inside a container's body, never on a leaf node or
-on any text), `label-edge-crossing`, `label-proximity` (end labels near and
-unambiguous), `edge-endpoints` (on borders, on the ellipse for
-`data-uml-shape="ellipse"` nodes, no edge through other nodes), `markers` (present,
-at the end, pointing inward, not touching other markers), `literal-text`,
-`min-font-size` (11 px), `text-fits`, `ports` (ports centered on their owner's
-border; lollipops and sockets outside their owner, facing outward; ball-and-socket
-joints concentric with the requiring line at the socket's back and the providing
-line through its opening, on one axis; interface names next to their symbol).
+`label-overlap` (a label may lie inside a container that encloses an end of its own
+edge, or a container of the port or symbol it names, clear of package tabs; never on
+a leaf node or on any text), `label-edge-crossing`, `label-proximity` (end labels
+near and unambiguous), `edge-endpoints` (on borders, on the tab or body of a package,
+on the ellipse for `data-uml-shape="ellipse"` nodes, no edge through other nodes),
+`markers` (present, at the end, pointing inward, not touching other markers),
+`message-arrows` (parallel to and beside their own link, pointing at the receiver,
+labels next to them), `literal-text`, `min-font-size` (11 px), `text-fits`, `ports`
+(ports centered on their owner's border with their names next to them; lollipops and
+sockets outside their owner, facing outward; ball-and-socket joints concentric with
+the requiring line at the socket's back and the providing line through its opening,
+on one axis; interface names next to their symbol).
 
 ## 6. Gallery and visual review
 

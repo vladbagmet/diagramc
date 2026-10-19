@@ -78,11 +78,24 @@ export function nodeAttributes(data: NodeData, bounds: Rect): Record<string, str
 
 /**
  * Draws a compartment box at `bounds` (width from `measureBox`; height may be
- * larger, the last compartment absorbs the extra space).
+ * larger, the last compartment absorbs the extra space). `behind` is drawn first
+ * inside the node group (e.g. the back rectangle of a multi-object) and `outline`
+ * replaces `bounds` as the node's QA bounds when the shape is larger than the box.
  */
-export function drawBox(canvas: Canvas, box: MeasuredBox, bounds: Rect, data: NodeData, options: { dashed?: boolean; decorations?: readonly string[]; middle?: boolean } = {}): string {
+export interface BoxOptions {
+  dashed?: boolean;
+  /** QA bounds when the shape is larger than the box (e.g. a multi-object's back rectangle). */
+  outline?: Rect;
+  /** Drawn first, under the box (e.g. the back rectangle of a multi-object). */
+  behind?: readonly string[];
+  /** Drawn last, over the box (e.g. a component or artifact icon). */
+  above?: readonly string[];
+  /** A box that is only a name compartment centers its lines vertically. */
+  middle?: boolean;
+}
+export function drawBox(canvas: Canvas, box: MeasuredBox, bounds: Rect, data: NodeData, options: BoxOptions = {}): string {
   const { padX, padY, headerPadY } = theme.spacing;
-  const parts: string[] = [el('rect', {
+  const parts: string[] = [...options.behind ?? [], el('rect', {
     x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height,
     fill: theme.color.nodeFill, stroke: theme.color.nodeStroke, 'stroke-width': theme.stroke.node,
     'stroke-dasharray': options.dashed ? theme.stroke.dash : undefined,
@@ -95,7 +108,6 @@ export function drawBox(canvas: Canvas, box: MeasuredBox, bounds: Rect, data: No
       parts.push(el('rect', { x: bounds.x + inset, y: y + inset, width: bounds.width - 2 * inset, height: height - inset, fill: theme.color.nodeHeaderFill }));
     }
     if (index > 0) parts.push(el('line', { x1: bounds.x, y1: y, x2: bounds.x + bounds.width, y2: y, stroke: theme.color.nodeStroke, 'stroke-width': theme.stroke.compartment }));
-    // `middle`: a box that is only a name compartment centers its lines vertically.
     const slack = options.middle && box.compartments.length === 1 ? Math.max(0, (height - c.height) / 2) : 0;
     let rowTop = y + (c.header ? headerPadY : padY) + slack;
     for (const line of c.lines) {
@@ -114,8 +126,8 @@ export function drawBox(canvas: Canvas, box: MeasuredBox, bounds: Rect, data: No
     }
     y += height;
   });
-  parts.push(...options.decorations ?? []);
-  return el('g', nodeAttributes(data, bounds), parts);
+  parts.push(...options.above ?? []);
+  return el('g', nodeAttributes(data, options.outline ?? bounds), parts);
 }
 
 /** Size of a note holding `text`, wrapped to the theme's note width. */

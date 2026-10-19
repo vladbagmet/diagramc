@@ -27,26 +27,46 @@ export interface LayoutPort {
    */
   width?: number;
   /**
-   * Fixed position of the port's middle along its side, in px from the node's
-   * top (WEST/EAST) or left (NORTH/SOUTH) edge. When any port of a node has a
-   * position, all of its ports must have one (ELK FIXED_POS).
+   * Fixed position of the port's middle relative to the node's top-left corner.
+   * When any port of a node has a position, the node uses FIXED_POS port
+   * constraints (e.g. the four vertices of a decision diamond, which are the only
+   * points of a diamond on its bounding box).
    */
-  position?: number;
+  position?: Point;
 }
 export interface LayoutNode {
   id: string;
   width: number;
   height: number;
   /**
-   * Nested nodes (compound node). The node's size is then computed by ELK;
-   * `width` and `height` act as its minimum size (e.g. a header wider than the children).
+   * Nested nodes (compound node). The node's size is then computed by ELK from its
+   * children and padding; `width` and `height` are ignored (ELK 0.11 does not
+   * apply a minimum size to compound nodes; widen them through `padding`).
    */
   children?: LayoutNode[];
+  /**
+   * Compound nodes only: treat `width` and `height` as the minimum size (e.g. a
+   * name compartment wider than the children). Applied with ELK's MINIMUM_SIZE
+   * node size constraint, which ELK 0.11 does honor for compound nodes when it is
+   * set explicitly (test/engine-structure.test.mjs).
+   */
+  minimumSize?: boolean;
   /** Inner padding of a compound node (room for a package tab, a name compartment...). */
   padding?: { top: number; left: number; bottom: number; right: number };
   ports?: LayoutPort[];
   /** Free space to keep at the right of the node (self-loops and their labels). */
   reserveRight?: number;
+  /**
+   * Free space to keep above the node's top-left corner (a package tab): the node
+   * itself is then only the part edges attach to (the package body).
+   */
+  reserveTop?: { width: number; height: number };
+  /**
+   * Minimum distance between edge attachment points on this node's sides. For a
+   * compound node this also spaces the points where edges cross its border
+   * (ELK creates hidden ports there), so arrowheads ending on it do not touch.
+   */
+  portSpacing?: number;
 }
 export interface LayoutLabel { id: string; width: number; height: number; placement: 'center' | 'head' | 'tail' }
 export interface LayoutEdge {
@@ -62,8 +82,6 @@ export interface LayoutOptions {
   direction: Direction;
   nodeSpacing?: number;
   layerSpacing?: number;
-  /** Gap between neighbouring ports on a side (default 6), also between lines crossing a compound node's border. */
-  portSpacing?: number;
 }
 export interface LayoutResult {
   width: number;
@@ -78,36 +96,55 @@ const ElkConstructor = ((ElkModule as unknown as { default?: unknown }).default 
 const elk = new ElkConstructor();
 
 export async function layout(nodes: readonly LayoutNode[], edges: readonly LayoutEdge[], options: LayoutOptions): Promise<LayoutResult> {
-  const toElk = (node: LayoutNode): ElkNode => ({
+  // Spacing applies per graph level: compound nodes (packages) need it too, or
+  // their children are laid out with ELK's tight defaults.
+  const spacing = {
+    'elk.spacing.nodeNode': String(options.nodeSpacing ?? theme.spacing.nodeNode),
+    'elk.layered.spacing.nodeNodeBetweenLayers': String(options.layerSpacing ?? theme.spacing.layer),
+    'elk.spacing.edgeNode': '18',
+    'elk.layered.spacing.edgeNodeBetweenLayers': '26',
+    'elk.spacing.edgeEdge': String(theme.spacing.edgeEdge),
+    'elk.layered.spacing.edgeEdgeBetweenLayers': String(theme.spacing.edgeEdge),
+    'elk.spacing.edgeLabel': String(theme.spacing.edgeLabel + 2),
+    'elk.spacing.labelLabel': '4',
+  };
+  const toElk = (node: LayoutNode, nested = false): ElkNode => ({
     id: node.id,
     ...(node.children?.length ? {} : { width: node.width, height: node.height }),
-    ...(node.children?.length ? { children: node.children.map(toElk) } : {}),
+    ...(node.children?.length ? { children: node.children.map(c => toElk(c, true)) } : {}),
     ...(node.ports?.length ? { ports: node.ports.map(p => {
       const horizontal = p.side === 'NORTH' || p.side === 'SOUTH';
       const width = horizontal ? p.width ?? 0 : 0, height = horizontal ? 0 : p.width ?? 0;
-      const fixed = p.position === undefined ? {} : horizontal
-        ? { x: p.position - width / 2, y: p.side === 'NORTH' ? 0 : node.height }
-        : { x: p.side === 'WEST' ? 0 : node.width, y: p.position - height / 2 };
-      return { id: p.id, width, height, ...fixed, layoutOptions: { 'elk.port.side': p.side } };
+      return {
+        id: p.id, width, height, layoutOptions: { 'elk.port.side': p.side },
+        ...(p.position ? { x: p.position.x - width / 2, y: p.position.y - height / 2 } : {}),
+      };
     }) } : {}),
     // An invisible outside label reserves room right of the node. Its text must not
     // be empty: ELK ignores empty labels when computing node margins.
-    ...(node.reserveRight ? { labels: [{ id: `${node.id}::reserve`, text: 'reserved', width: node.reserveRight, height: Math.max(1, node.height - 2), layoutOptions: { 'elk.nodeLabels.placement': '[OUTSIDE, H_RIGHT, V_CENTER]' } }] } : {}),
+    ...(node.reserveRight || node.reserveTop ? { labels: [
+      ...(node.reserveRight ? [{ id: `${node.id}::reserve`, text: 'reserved', width: node.reserveRight, height: Math.max(1, node.height - 2), layoutOptions: { 'elk.nodeLabels.placement': '[OUTSIDE, H_RIGHT, V_CENTER]' } }] : []),
+      ...(node.reserveTop ? [{ id: `${node.id}::reserve-top`, text: 'reserved', width: node.reserveTop.width, height: node.reserveTop.height, layoutOptions: { 'elk.nodeLabels.placement': '[OUTSIDE, H_LEFT, V_TOP]' } }] : []),
+    ] } : {}),
     layoutOptions: {
-      ...(node.children?.length && (node.width || node.height) ? {
+      ...(node.children?.length ? spacing : {}),
+      ...(node.children?.length && node.minimumSize ? {
         'elk.nodeSize.constraints': '[MINIMUM_SIZE]',
         'elk.nodeSize.minimum': `(${node.width}, ${node.height})`,
       } : {}),
       ...(node.ports?.length ? {
-        'elk.portConstraints': node.ports.some(p => p.position !== undefined) ? 'FIXED_POS' : 'FIXED_SIDE',
+        'elk.portConstraints': node.ports.some(p => p.position) ? 'FIXED_POS' : 'FIXED_SIDE',
         // Grow the node if its ports need more room than its content.
         'elk.nodeSize.constraints': '[PORTS, MINIMUM_SIZE]',
         'elk.nodeSize.minimum': `(${node.width}, ${node.height})`,
-        'elk.spacing.portPort': String(options.portSpacing ?? 6),
+        'elk.spacing.portPort': '6',
+        // Inside a compound node, an individual override: otherwise the parent's
+        // port spacing would also size this node's sides (see LayoutNode.portSpacing).
+        ...(nested ? { 'elk.spacing.individual': 'org.eclipse.elk.spacing.portPort:6' } : {}),
       } : {}),
+      ...(node.portSpacing ? { 'elk.spacing.portPort': String(node.portSpacing) } : {}),
       ...(node.padding ? { 'elk.padding': `[top=${node.padding.top},left=${node.padding.left},bottom=${node.padding.bottom},right=${node.padding.right}]` } : {}),
       'elk.spacing.labelNode': '0',
-      ...(options.portSpacing !== undefined ? { 'elk.spacing.portPort': String(options.portSpacing) } : {}),
     },
   });
   const graph: ElkNode = {
@@ -119,14 +156,7 @@ export async function layout(nodes: readonly LayoutNode[], edges: readonly Layou
       'elk.hierarchyHandling': 'INCLUDE_CHILDREN',
       'elk.randomSeed': '1',
       'elk.padding': '[top=0,left=0,bottom=0,right=0]',
-      'elk.spacing.nodeNode': String(options.nodeSpacing ?? theme.spacing.nodeNode),
-      'elk.layered.spacing.nodeNodeBetweenLayers': String(options.layerSpacing ?? theme.spacing.layer),
-      'elk.spacing.edgeNode': '18',
-      'elk.layered.spacing.edgeNodeBetweenLayers': '26',
-      'elk.spacing.edgeEdge': String(theme.spacing.edgeEdge),
-      'elk.layered.spacing.edgeEdgeBetweenLayers': String(theme.spacing.edgeEdge),
-      'elk.spacing.edgeLabel': String(theme.spacing.edgeLabel + 2),
-      'elk.spacing.labelLabel': '4',
+      ...spacing,
       'elk.edgeLabels.inline': 'false',
       'elk.layered.edgeLabels.sideSelection': 'SMART_DOWN',
       'elk.layered.nodePlacement.strategy': 'BRANDES_KOEPF',
@@ -137,7 +167,7 @@ export async function layout(nodes: readonly LayoutNode[], edges: readonly Layou
       'elk.separateConnectedComponents': 'true',
       'elk.spacing.componentComponent': String(options.nodeSpacing ?? theme.spacing.nodeNode),
     },
-    children: nodes.map(toElk),
+    children: nodes.map(n => toElk(n)),
     edges: edges.map((e): ElkExtendedEdge => ({
       id: e.id, sources: [e.source], targets: [e.target],
       labels: (e.labels ?? []).map((l): ElkLabel => ({

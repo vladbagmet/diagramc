@@ -150,6 +150,103 @@ Examples: [`examples/composite-structure/`](examples/composite-structure/).
 [`examples/v1/`](examples/v1/)) keep working as class diagrams; members are drawn
 verbatim and error paths refer to the v1 document.
 
+### Object diagrams
+
+Instance specifications drawn `name : Classifier` underlined (`: Classifier` for
+an anonymous instance, `name` when the classifier is not shown), with a slots
+compartment (`feature = value`, `feature : Type = value`), and `link`s between
+them: solid lines with an underlined `name : association`, role names and
+navigability per end. Optional `classifiers` declarations make the validator check
+classifier names and slot features. Links are laid out from the instance listed
+first to the one listed later.
+
+```json
+{ "kind": "object", "elements": [
+    { "id": "ann", "type": "instance", "name": "ann", "classifier": "Customer", "slots": [{ "feature": "name", "value": "\"Ann\"" }] },
+    { "id": "o1", "type": "instance", "classifier": "Order" } ],
+  "relationships": [{ "type": "link", "from": "ann", "to": "o1", "association": "places", "toEnd": { "role": "orders", "navigable": true } }] }
+```
+
+Checklist: [`docs/kinds/object.md`](docs/kinds/object.md). Examples: [`examples/object/`](examples/object/).
+
+### Package diagrams
+
+Packages as tab folders, nested through `members` (name in the tab when the
+package shows contents, in the body otherwise), name-only classifiers and notes.
+Relationships: `import` and `access` (from the importing package to a package or
+classifier), `merge` (from the receiving to the merged package), `dependency`
+(client to supplier, optional «keyword»), `containment` (from the owner, circle-plus,
+an alternative to nesting). An element has one owner; ownership is acyclic.
+
+```json
+{ "kind": "package", "elements": [
+    { "id": "app", "type": "package", "name": "app", "members": ["main"] },
+    { "id": "main", "type": "class", "name": "Main" },
+    { "id": "util", "type": "package", "name": "util" } ],
+  "relationships": [{ "type": "import", "from": "app", "to": "util" }] }
+```
+
+Checklist: [`docs/kinds/package.md`](docs/kinds/package.md). Examples: [`examples/package/`](examples/package/).
+
+### Profile diagrams
+
+`profile`s (packages with «profile»), `stereotype`s with tag definitions as
+attributes (abstract ones in italics), `metaclass`es, enumerations for tag types,
+and packages and classes that use the profile. Relationships: `extension` (from a
+stereotype to a metaclass, filled triangle, `required: true` adds {required}),
+`generalization` between stereotypes, `apply` (from a package to a profile) and
+`reference` (from a profile to a metaclass or metamodel package). Metaclasses are
+drawn above their stereotypes.
+
+```json
+{ "kind": "profile", "elements": [
+    { "id": "p", "type": "profile", "name": "Persistence", "members": ["entity", "class"] },
+    { "id": "entity", "type": "stereotype", "name": "Entity", "attributes": [{ "name": "table", "type": "String" }] },
+    { "id": "class", "type": "metaclass", "name": "Class" } ],
+  "relationships": [{ "type": "extension", "from": "entity", "to": "class" }] }
+```
+
+Checklist: [`docs/kinds/profile.md`](docs/kinds/profile.md). Examples: [`examples/profile/`](examples/profile/).
+
+### Communication diagrams
+
+`lifelines` (rectangles `name : Type`, optional selector, multi-object stacks),
+undirected `links` between them, and `messages` that travel on links: `from` is
+the sender, `to` the receiver, `sequence` a decimal number (`1`, `1.2`, `2a`).
+Each message is listed beside its link with an arrow toward the receiver (filled
+for synchronous, open for asynchronous, dashed for replies), with optional guard,
+iteration, arguments, assignment and return value. A nested message (`1.2`) is
+sent by the receiver of its parent (`1`); every message needs a link (a self-link
+for self-messages).
+
+```json
+{ "kind": "communication",
+  "lifelines": [{ "id": "c", "name": "client", "type": "Client" }, { "id": "s", "type": "Server" }],
+  "links": [{ "from": "c", "to": "s" }],
+  "messages": [{ "sequence": "1", "from": "c", "to": "s", "name": "ping", "arguments": [] }] }
+```
+
+Checklist and rules: [`docs/kinds/communication.md`](docs/kinds/communication.md).
+Examples: [`examples/communication/`](examples/communication/).
+
+### Interaction overview diagrams
+
+A top-down control flow: `nodes` of type `initial`, `final`, `flow-final`,
+`decision`, `merge`, `fork`, `join`, `interaction-use` (a `ref` frame naming
+another interaction) and `interaction` (an inline `sd` frame with its own
+lifelines and messages), connected by `flows` from `from` to `to`. Flows leaving a
+decision carry a `guard`. Optional `lifelines` go into the frame heading. Exactly
+one initial node; every node reachable; every path ends in a final node.
+
+```json
+{ "kind": "interaction-overview",
+  "nodes": [{ "id": "start", "type": "initial" }, { "id": "login", "type": "interaction-use", "name": "Login" }, { "id": "end", "type": "final" }],
+  "flows": [{ "from": "start", "to": "login" }, { "from": "login", "to": "end" }] }
+```
+
+Checklist and rules: [`docs/kinds/interaction-overview.md`](docs/kinds/interaction-overview.md).
+Examples: [`examples/interaction-overview/`](examples/interaction-overview/).
+
 ## Errors
 
 Errors are one JSON object on stderr; no output file is written or changed.
@@ -196,10 +293,12 @@ include `USAGE`, `INVALID_JSON`, `INVALID_ENCODING`, `INPUT_TOO_LARGE`,
 `src/qa` inspects rendered SVGs and enforces hard gates on every fixture and
 example: markup safety, everything inside the canvas, no node overlap (containment
 allowed), no label overlapping a node, label or line, end labels near and
-unambiguous at their end, edges ending on node borders, arrowheads present at the
-right end and pointing inward, every input text drawn literally, minimum font size
-11 px, text inside its box, ports on their owner's border and interface symbols
-facing outward with aligned ball-and-socket joints. Own-engine SVGs carry `data-uml-*` attributes so gates
+unambiguous at their end, edges ending on node borders (a package's tab or body, an
+ellipse's outline), arrowheads present at the right end and pointing inward, message
+arrows parallel to and beside their own link and pointing at the receiver, every input
+text drawn literally, minimum font size 11 px, text inside its box, ports on their
+owner's border and interface symbols facing outward with aligned ball-and-socket
+joints. Own-engine SVGs carry `data-uml-*` attributes so gates
 are exact; PlantUML SVGs are checked best-effort. `npm run gallery` renders every
 example to SVG and PNG with an `index.html` overview.
 
