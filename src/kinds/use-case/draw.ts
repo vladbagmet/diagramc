@@ -51,7 +51,7 @@ export async function drawUseCaseDiagram(scene: UseCaseScene, metrics: FontMetri
     canvas.labels.push(rowsAt(canvas, a.caption.rows, cx, a.caption.rect.y + 2, a.actor.id, 'label'));
   }
 
-  for (const n of scene.notes) canvas.nodes.push(drawNote(canvas, n.rows, n.bounds, { id: n.id, type: 'note', parent: n.parent }));
+  for (const n of scene.notes) canvas.nodes.push(drawNote(canvas, n.rows, n.bounds, { id: n.id, type: 'note', parent: n.parent }, n.starts));
 
   for (const label of scene.labels) {
     const size = theme.font.size.label, lh = metrics.lineHeight(size);

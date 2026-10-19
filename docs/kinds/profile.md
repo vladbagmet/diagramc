@@ -25,7 +25,7 @@ Tests referenced below: `profile` = `test/profile.test.mjs`, `engine` =
 | Profile application | `type: "apply"`, from = package, to = profile | Dashed line, open arrowhead at the profile, «apply» (12.3.4) | profile: same test |
 | Metaclass / metamodel reference | `type: "reference"`, from = profile, to = metaclass or package | Dashed line, open arrowhead, «reference» (12.3.4) | profile: same test |
 | Nesting | `members` on profiles and packages | Members inside the body, name and keyword in the tab (12.2.4) | profile: `data-uml-parent` check; fixture "profile nested in a package..." |
-| Note (comment) | `type: "note"`, `attachedTo` | Rectangle with folded corner, dashed anchor lines (7.2.4) | example `ejb` |
+| Note (comment) | `type: "note"`, `attachedTo` | Rectangle with folded corner, thin dotted anchor lines (7.2.4) | example `ejb` |
 | Diagram frame | `title` | Frame with pentagon heading `profile <title>` (Annex A) | profile: frame heading check |
 
 ## Semantic rules
@@ -62,8 +62,10 @@ Tests referenced below: `profile` = `test/profile.test.mjs`, `engine` =
 
 ## Known limitations
 
-- Layout is always top-down (metaclasses above their stereotypes, as in the UML
-  figures); a profile with many cross-cutting extensions (the stress example) gets
-  wide and its extension lines cross.
+- Layout is top-down (metaclasses above their stereotypes, as in the UML figures),
+  optionally wrapped; a profile with many cross-cutting extensions (the stress
+  example) gets wide, and an extension from the far right profile to a metaclass on
+  the left runs across the top. Metaclasses without extensions are placed as
+  separate components at the top.
 - The frame keyword `profile` is not in Annex A's (non-exhaustive) list; it names
   the diagram kind.

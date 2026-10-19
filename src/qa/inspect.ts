@@ -1,5 +1,7 @@
 import { loadFonts, type FontMetrics } from '../engine/fonts.js';
 import { union, type Point, type Rect } from '../engine/geometry.js';
+import { wordPieces } from '../engine/text.js';
+import { theme } from '../core/theme.js';
 import { parseXml, textContent, walk, type XmlElement } from './xml.js';
 import { readPlantUmlActivity } from './plantuml-activity.js';
 import { readSequence, readTiming, type Interaction } from './plantuml-interaction.js';
@@ -36,6 +38,14 @@ export interface InspectedText {
   italic: boolean;
   /** One box per line (tspans), in px. */
   lines: Rect[];
+  /** Text of each line (tspans), in order. */
+  rows: string[];
+  /**
+   * Line breaks that split a word where no break opportunity is (between two
+   * letters of "Classifier"), or lines holding only punctuation. A break inside a
+   * word is acceptable only within a piece too long for any line (see wordPieces).
+   */
+  badBreaks: string[];
   bounds: Rect;
   role?: string;
   owner?: string;
@@ -144,6 +154,32 @@ export async function inspectSvg(svg: string): Promise<Scene> {
   return scene;
 }
 
+/** See InspectedText.badBreaks. */
+function badBreaks(rows: readonly string[], style: { size: number; bold: boolean; italic: boolean }, metrics: FontMetrics, starts: ReadonlySet<number>): string[] {
+  const out: string[] = [];
+  // A row that is a whole logical line (data-uml-starts) may be punctuation, e.g. a name "]]>".
+  rows.forEach((row, i) => {
+    if (rows.length > 1 && /^[\p{P}\p{S}]+$/u.test(row.trim()) && !(starts.has(i) && (starts.has(i + 1) || i === rows.length - 1))) out.push(`line ${JSON.stringify(row)} holds only punctuation`);
+  });
+  for (let i = 1; i < rows.length; i++) {
+    if (starts.has(i)) continue;
+    const before = rows[i - 1]!, after = rows[i]!;
+    if (/\s$/u.test(before) || /^\s/u.test(after) || !before || !after) continue;
+    const head = before.match(/\S+$/u)![0], tail = after.match(/^\S+/u)![0];
+    // Is the boundary between two pieces of the word? Then it is a proper break.
+    let at = 0, proper = false, piece = '';
+    for (const p of wordPieces(head + tail)) {
+      if (at === head.length) proper = true;
+      if (at < head.length && at + p.length > head.length) piece = p;
+      at += p.length;
+    }
+    if (proper) continue;
+    if (metrics.measure(piece, style) > theme.size.maxTokenWidth) continue;
+    out.push(`"${head}|${tail}" breaks a word`);
+  }
+  return out;
+}
+
 function readText(element: XmlElement, ancestors: XmlElement[], metrics: FontMetrics, renderer: Scene['renderer']): InspectedText {
   const size = Number.parseFloat(element.attrs['font-size'] ?? '16');
   const bold = /^(?:bold|[6-9]00)$/u.test(element.attrs['font-weight'] ?? '');
@@ -157,6 +193,7 @@ function readText(element: XmlElement, ancestors: XmlElement[], metrics: FontMet
   };
   const spans = element.children.filter((c): c is XmlElement => typeof c !== 'string' && c.tag === 'tspan');
   const content = textContent(element);
+  const rows = spans.length ? spans.map(s => textContent(s)) : [content];
   const lines = spans.length
     ? spans.map(s => box(Number(s.attrs.x), Number(s.attrs.y), textContent(s), undefined, element.attrs['text-anchor']))
     : [box(Number(element.attrs.x), Number(element.attrs.y), content, renderer === 'plantuml' ? element.attrs.textLength : undefined, element.attrs['text-anchor'])];
@@ -165,7 +202,7 @@ function readText(element: XmlElement, ancestors: XmlElement[], metrics: FontMet
   const plantRole = renderer === 'plantuml' ? (owner ? 'text' : ancestors.some(a => a.attrs.class === 'link') ? 'label' : undefined) : undefined;
   return {
     content: renderer === 'plantuml' ? content.replace(/^​|​$/gu, '') : content,
-    size, bold, italic, lines, bounds: union(lines),
+    size, bold, italic, lines, rows, badBreaks: badBreaks(rows, style, metrics, new Set((element.attrs['data-uml-starts'] ?? '0').split(' ').map(Number))), bounds: union(lines),
     ...(element.attrs['data-uml-role'] ? { role: element.attrs['data-uml-role'] } : plantRole ? { role: plantRole } : {}),
     ...(element.attrs['data-uml-owner'] ? { owner: element.attrs['data-uml-owner'] } : {}),
     ...(owner ? { node: owner.attrs['data-uml-id'] ?? owner.attrs['data-entity'] ?? '' } : {}),

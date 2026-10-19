@@ -1,0 +1,67 @@
+{
+  "kind": "class",
+  "title": "Library lending",
+  "elements": [
+    { "id": "person", "type": "class", "name": "Person", "abstract": true,
+      "attributes": [
+        { "name": "name", "type": "String", "visibility": "protected" },
+        { "name": "email", "type": "String", "visibility": "protected" }
+      ] },
+    { "id": "member", "type": "class", "name": "Member",
+      "attributes": [
+        { "name": "memberNo", "type": "String", "visibility": "private", "readOnly": true },
+        { "name": "joined", "type": "Date", "visibility": "private" }
+      ],
+      "operations": [
+        { "name": "borrow", "visibility": "public", "parameters": [{ "name": "copy", "type": "Copy" }], "returnType": "Loan" },
+        { "name": "canBorrow", "visibility": "public", "returnType": "Boolean", "query": true }
+      ] },
+    { "id": "librarian", "type": "class", "name": "Librarian",
+      "attributes": [{ "name": "staffId", "type": "String", "visibility": "private" }] },
+    { "id": "library", "type": "class", "name": "Library",
+      "attributes": [{ "name": "name", "type": "String", "visibility": "private" }] },
+    { "id": "book", "type": "class", "name": "Book",
+      "attributes": [
+        { "name": "isbn", "type": "ISBN", "visibility": "private" },
+        { "name": "title", "type": "String", "visibility": "private" },
+        { "name": "year", "type": "Integer", "visibility": "private" }
+      ] },
+    { "id": "author", "type": "class", "name": "Author",
+      "attributes": [{ "name": "name", "type": "String", "visibility": "private" }] },
+    { "id": "copy", "type": "class", "name": "Copy",
+      "attributes": [
+        { "name": "barcode", "type": "String", "visibility": "private" },
+        { "name": "status", "type": "CopyStatus", "visibility": "private", "default": "AVAILABLE" }
+      ] },
+    { "id": "loan", "type": "class", "name": "Loan",
+      "attributes": [
+        { "name": "due", "type": "Date", "visibility": "private" },
+        { "name": "returned", "type": "Date", "visibility": "private", "multiplicity": "0..1" },
+        { "name": "/overdue", "type": "Boolean", "visibility": "public" }
+      ],
+      "operations": [
+        { "name": "close", "visibility": "public" },
+        { "name": "fine", "visibility": "public", "returnType": "Money", "query": true }
+      ] },
+    { "id": "status", "type": "enumeration", "name": "CopyStatus", "literals": ["AVAILABLE", "ON_LOAN", "LOST", "REPAIR"] },
+    { "id": "notifier", "type": "interface", "name": "Notifier",
+      "operations": [{ "name": "send", "visibility": "public", "parameters": [{ "name": "to", "type": "Member" }, { "name": "msg", "type": "String" }] }] },
+    { "id": "email", "type": "class", "name": "EmailNotifier" },
+    { "id": "isbn", "type": "datatype", "name": "ISBN", "attributes": [{ "name": "value", "type": "String" }] },
+    { "id": "n1", "type": "note", "text": "A member may hold at most 5 open loans.", "attachedTo": ["member"] }
+  ],
+  "relationships": [
+    { "type": "generalization", "from": "member", "to": "person" },
+    { "type": "generalization", "from": "librarian", "to": "person" },
+    { "type": "composition", "from": "library", "to": "copy", "fromEnd": { "multiplicity": "1" }, "toEnd": { "role": "holdings", "multiplicity": "*" } },
+    { "type": "aggregation", "from": "library", "to": "librarian", "toEnd": { "role": "staff", "multiplicity": "1..*" } },
+    { "type": "association", "from": "book", "to": "author", "name": "writtenBy", "fromEnd": { "role": "works", "multiplicity": "*" }, "toEnd": { "role": "authors", "multiplicity": "1..*", "navigable": true } },
+    { "type": "association", "from": "copy", "to": "book", "fromEnd": { "multiplicity": "*" }, "toEnd": { "multiplicity": "1", "navigable": true } },
+    { "type": "association", "from": "member", "to": "loan", "fromEnd": { "role": "borrower", "multiplicity": "1" }, "toEnd": { "role": "loans", "multiplicity": "0..5" } },
+    { "type": "association", "from": "loan", "to": "copy", "fromEnd": { "multiplicity": "0..1" }, "toEnd": { "multiplicity": "1", "navigable": true } },
+    { "type": "association", "from": "copy", "to": "status", "toEnd": { "role": "status", "multiplicity": "1", "navigable": true } },
+    { "type": "realization", "from": "email", "to": "notifier" },
+    { "type": "dependency", "from": "loan", "to": "notifier", "keyword": "use" },
+    { "type": "dependency", "from": "book", "to": "isbn" }
+  ]
+}

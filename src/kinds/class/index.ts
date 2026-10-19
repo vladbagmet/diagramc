@@ -3,8 +3,8 @@ import { loadFonts } from '../../engine/fonts.js';
 import type { ClassDiagram } from './model.js';
 import { classSchema } from './schema.js';
 import { validateClassDiagram } from './validate.js';
-import { layoutClassDiagram } from './layout.js';
-import { drawClassDiagram } from './draw.js';
+import { classDiagramSpec } from './layout.js';
+import { renderDiagram } from '../../engine/diagram.js';
 import { classToPlantUml } from './to-plantuml.js';
 import { classV1 } from './v1.js';
 
@@ -20,7 +20,7 @@ export const classKind: KindDefinition<ClassDiagram> = {
       name: 'engine',
       async render(model) {
         const metrics = await loadFonts();
-        return drawClassDiagram(await layoutClassDiagram(model, metrics), metrics);
+        return renderDiagram(classDiagramSpec(model), metrics);
       },
     },
     { name: 'plantuml', diagramType: 'CLASS', toPlantUml: classToPlantUml },

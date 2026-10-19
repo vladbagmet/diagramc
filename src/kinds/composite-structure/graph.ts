@@ -73,7 +73,7 @@ export function compositeStructureGraph(model: CompositeStructureDiagram): Struc
     edges.push({ id, type: 'connector', source: r.from, target: r.to, style: 'solid', sourceMarker: 'none', targetMarker: 'none', ...(name !== undefined ? { name } : {}), ends });
   });
   return {
-    kind: 'composite-structure', frameKeyword: 'class', title: model.title, nodes, edges, assemblies: [],
+    kind: 'composite-structure', frameKeyword: 'class', title: model.title, nodes, edges, assemblies: [], directions: ['RIGHT', 'DOWN'],
     // A note on a role points at its collaboration's ellipse (roles are laid out inside it).
     anchors: model.elements.flatMap(e => e.type === 'note' ? [...new Set((e.attachedTo ?? []).map(target => roleOwner.get(target) ?? target))].map(target => ({ note: e.id, target })) : []),
   };

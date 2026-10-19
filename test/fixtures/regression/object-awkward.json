@@ -1,0 +1,247 @@
+{
+ "kind": "object",
+ "title": "Awkward object snapshot",
+ "elements": [
+  {
+   "id": "a",
+   "type": "instance",
+   "name": "primaryReplicationCoordinatorInstanceForEuropeWest",
+   "classifier": "DistributedConsensusReplicationCoordinator",
+   "stereotypes": [
+    "singleton",
+    "managed"
+   ],
+   "slots": [
+    {
+     "feature": "configurationParameterNumber0",
+     "value": "\"xxxxxxxxxx\""
+    },
+    {
+     "feature": "configurationParameterNumber1",
+     "type": "String",
+     "value": "\"xxxxxxxxxxxxxx\""
+    },
+    {
+     "feature": "configurationParameterNumber2",
+     "value": "\"xxxxxxxxxxxxxxxxxx\""
+    },
+    {
+     "feature": "configurationParameterNumber3",
+     "type": "String",
+     "value": "\"xxxxxxxxxxxxxxxxxxxxxx\""
+    },
+    {
+     "feature": "configurationParameterNumber4",
+     "value": "\"xxxxxxxxxxxxxxxxxxxxxxxxxx\""
+    },
+    {
+     "feature": "configurationParameterNumber5",
+     "type": "String",
+     "value": "\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\""
+    },
+    {
+     "feature": "configurationParameterNumber6",
+     "value": "\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\""
+    },
+    {
+     "feature": "configurationParameterNumber7",
+     "type": "String",
+     "value": "\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\""
+    },
+    {
+     "feature": "configurationParameterNumber8",
+     "value": "\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\""
+    },
+    {
+     "feature": "configurationParameterNumber9",
+     "type": "String",
+     "value": "\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\""
+    },
+    {
+     "feature": "configurationParameterNumber10",
+     "value": "\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\""
+    },
+    {
+     "feature": "configurationParameterNumber11",
+     "type": "String",
+     "value": "\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\""
+    },
+    {
+     "feature": "configurationParameterNumber12",
+     "value": "\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\""
+    },
+    {
+     "feature": "configurationParameterNumber13",
+     "type": "String",
+     "value": "\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\""
+    }
+   ]
+  },
+  {
+   "id": "b",
+   "type": "instance",
+   "name": "b",
+   "classifier": "Node"
+  },
+  {
+   "id": "c",
+   "type": "instance",
+   "name": "c",
+   "classifier": "Node",
+   "slots": [
+    {
+     "feature": "id",
+     "value": "3"
+    }
+   ]
+  },
+  {
+   "id": "d",
+   "type": "instance",
+   "classifier": "Node"
+  },
+  {
+   "id": "e",
+   "type": "instance",
+   "name": "lonely"
+  },
+  {
+   "id": "n1",
+   "type": "note",
+   "text": "Note on a",
+   "attachedTo": [
+    "a"
+   ]
+  },
+  {
+   "id": "n2",
+   "type": "note",
+   "text": "Note on b and c",
+   "attachedTo": [
+    "b",
+    "c"
+   ]
+  },
+  {
+   "id": "n3",
+   "type": "note",
+   "text": "Note on the lonely instance which has neither classifier nor links.",
+   "attachedTo": [
+    "e"
+   ]
+  }
+ ],
+ "relationships": [
+  {
+   "id": "l1",
+   "type": "link",
+   "from": "a",
+   "to": "b",
+   "name": "l1",
+   "association": "leads",
+   "fromEnd": {
+    "role": "leader"
+   },
+   "toEnd": {
+    "role": "follower",
+    "navigable": true
+   }
+  },
+  {
+   "type": "link",
+   "from": "a",
+   "to": "b",
+   "association": "replicatesTo",
+   "toEnd": {
+    "role": "replica",
+    "navigable": true
+   }
+  },
+  {
+   "type": "link",
+   "from": "b",
+   "to": "a",
+   "association": "heartbeats",
+   "fromEnd": {
+    "role": "sender"
+   },
+   "toEnd": {
+    "role": "receiver",
+    "navigable": true
+   }
+  },
+  {
+   "type": "link",
+   "from": "a",
+   "to": "b",
+   "name": "backup",
+   "fromEnd": {
+    "navigable": false
+   },
+   "toEnd": {
+    "navigable": true
+   }
+  },
+  {
+   "type": "link",
+   "from": "b",
+   "to": "b",
+   "association": "retries",
+   "fromEnd": {
+    "role": "self"
+   },
+   "toEnd": {
+    "role": "again"
+   }
+  },
+  {
+   "type": "link",
+   "from": "b",
+   "to": "b",
+   "association": "pings"
+  },
+  {
+   "type": "link",
+   "from": "c",
+   "to": "c",
+   "name": "loop",
+   "association": "selfCheck",
+   "fromEnd": {
+    "role": "checker"
+   },
+   "toEnd": {
+    "role": "checked"
+   }
+  },
+  {
+   "type": "link",
+   "from": "b",
+   "to": "c",
+   "association": "peer"
+  },
+  {
+   "type": "link",
+   "from": "c",
+   "to": "d",
+   "association": "peer"
+  },
+  {
+   "type": "link",
+   "from": "d",
+   "to": "b",
+   "association": "peer"
+  },
+  {
+   "type": "link",
+   "from": "a",
+   "to": "d",
+   "association": "aVeryLongAssociationNameThatShouldBeWrappedOrAtLeastPlacedSensibly",
+   "fromEnd": {
+    "role": "coordinatorOfAllTheNodesEverywhere"
+   },
+   "toEnd": {
+    "role": "subordinateNodeWithAVeryLongRoleName"
+   }
+  }
+ ]
+}

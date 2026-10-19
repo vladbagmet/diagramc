@@ -106,12 +106,16 @@ Copy the structure of `src/kinds/class/layout.ts` and `draw.ts`.
 | Undirected graphs | `stressCenters()` from `src/engine/stress.ts` (ELK Stress, deterministic): node centers only, route the edges yourself (see `src/kinds/communication/layout.ts` for grid snapping) |
 | Message arrows beside a line | `drawMessageArrow()` (`data-uml-role="message-arrow"`, checked by the `message-arrows` gate); give its labels the same `data-uml-group` |
 | Ports, interfaces, nesting, 3D nodes, ellipses | `src/kinds/structure/` (a kind-neutral graph of nested nodes, ports, lollipops, sockets and assemblies, laid out left to right, used by component, deployment and composite structure) and its symbols in `src/engine/symbols.ts`. Fixed port positions: `LayoutPort.position`; a compound node wider than its children: `minimumSize` |
-| Self-loops | never give them to ELK: `planSelfLoops()` before layout (node `reserveRight`, min height), `selfLoopRoute()` after |
+| Self-loops | never give them to ELK: `planSelfLoops()` before layout (node `reserveRight`, `reserveAbove`, `reserveBelow`, min height), `selfLoopRoute()` after. Loops sit on the top-right corner, then the bottom-right corner, then nest on the right side; their end labels go inside the loop (`onlySide` -1 source, 1 target) |
+| Layout direction and aspect | `chooseLayout(directions, run, measure, { penalty, wrap })` from `src/engine/aspect.ts`: runs the plain layered layout per direction (conventional one first), adds `narrow` layering when it is wider than 16:9 across the direction and (opt-in) ELK `wrap` when it runs too long, and keeps the best `layoutScore` (size, distance from the 4:3..16:9 band, crossings, line length, a penalty for unconventional directions). Pass `LAYOUT_VARIANTS[variant]` as `elk` options to `layout()`. `renderDiagram` (`DiagramSpec.directions`, `wrap`) and the structure layout (`StructGraph.directions`) already use it |
+| Route repair | after layout, `repairRoutes(nodes, edges, options)` from `src/engine/repair.ts` checks each route against the gates' rules and reroutes the ones that cross nodes or container texts (give containers' names and tabs as `texts`), detour (target above source), crowd another end on the same side, or bend under a marker, then shortens needless loops. Ends on ports, symbols, ellipses or shared arrowheads stay put (`fixedSource`/`fixedTarget`, `group`). Optional `labelFits`/`labelSpacing` spread bundled lines whose center label has no clean spot; `force` routes edges ELK could not lay out. The router itself is `routeOrthogonal()` in `src/engine/router.ts` |
 | Circles, ellipses, diamonds | `clipRoute()` from `src/engine/clip.ts` moves route ends onto the outline; declare `shape: 'ellipse' | 'diamond'` in the node data so the edge-endpoints gate checks the outline. Small symbols with ports: `fixedSize` keeps their size |
 | Nested states, entry/exit points | compound nodes with `minimumSize` (vertical layouts are handled), nodes on a border with `parent` = the owner (and `borderOf`), lines kept off container texts (`src/kinds/state-machine/layout.ts`) |
 | Captions, slanted lines | `labelBelow` reserves room under a node (actor names); `routing: 'polyline'` gives slanted segments, whose labels `placeLabels()` pushes off the line; `straightenJogs()` removes small jogs from orthogonal routes |
-| Lines and arrowheads | `drawEdge({ points, style, sourceMarker, targetMarker, ... })`; markers: `hollow-triangle`, `filled-triangle`, `open-arrow`, `hollow-diamond`, `filled-diamond`, `cross`, `circle-plus`, `none` |
-| Edge labels | `placeLabels()` with obstacles (node rects, marker boxes, all segments, labelled `ends`); end labels with `at: 'source'|'target'`, center labels with ELK's suggestion |
+| Lines and arrowheads | `drawEdge({ points, style, sourceMarker, targetMarker, ... })`; markers: `hollow-triangle`, `filled-triangle`, `open-arrow`, `hollow-diamond`, `filled-diamond`, `cross`, `circle-plus`, `none`. An edge of type `note-anchor` is drawn thin, dotted and lighter (`theme.color.anchor`, `theme.stroke.anchor`, `anchorDash`) whatever its style. Bends are never rounded under an open arrowhead or cross; give every end with a marker a straight end segment of at least the marker length plus `bendRadius` (gate `markers`). `markerLength()`/`markerHalf()` give marker sizes. Message arrows beside a line use `theme.size.messageTriangle` |
+| Edge labels | `placeLabels()` with obstacles (node rects, marker boxes, all segments, labelled `ends`); end labels with `at: 'source'|'target'`, center labels with ELK's suggestion (drop it for rerouted edges). Give center labels `owner` and the obstacles `lines` (every route by owner): spots as near to another line as to the own line are avoided (gate `label-proximity`). Labels keep `LABEL_CLEARANCE` (3 px) from nodes. `labelFits()` tells whether a label has a clean spot on a route |
+| Text wrapping | `wrapText(metrics, text, style, maxWidth, { maxTokenWidth })`: words up to `theme.size.maxTokenWidth` stay whole (the box grows), longer ones break at camelCase, `.`, `_`, `-`, `/`, `(`, `,` and guillemets (`wordPieces`), punctuation never stands alone. `measureBox` wraps names to the box's real content width. One `<text>` holding several logical lines (keyword above name) marks them with `startsData(starts)` so the wrap check judges only real wraps |
+| Ends on ellipses | `spreadEllipseEnds(routes, rect, ends)` from `src/engine/clip.ts` keeps ends on one ellipse apart (polyline routes) |
 | Writing SVG | `Canvas` (`text`, `lines`, layers `frame/edges/nodes/labels`), `el()`. Only whitelisted elements and attributes exist; display text is escaped |
 
 Mandatory `data-uml-*` attributes (the shapes and `drawEdge` add them for you):
@@ -179,16 +183,31 @@ The QA gates (`src/qa/gates.ts`, all must pass): `safe-markup`, `inside-canvas`,
 `node-overlap` (containment allowed; a port may straddle its owner's border),
 `label-overlap` (a label may lie inside a container that encloses an end of its own
 edge, or a container of the port or symbol it names, clear of package tabs; never on
-a leaf node or on any text), `label-edge-crossing`, `label-proximity` (end labels
-near and unambiguous), `edge-endpoints` (on borders, on the tab or body of a package,
-on the ellipse for `data-uml-shape="ellipse"` nodes, no edge through other nodes),
-`markers` (present, at the end, pointing inward, not touching other markers),
+a leaf node or on any text; at least 3 px from node borders), `label-edge-crossing`,
+`label-proximity` (end labels near and unambiguous; center labels within 24 px of
+their line and clearly nearer to it than to any other line), `edge-endpoints` (on
+borders, on the tab or body of a package, on the ellipse for
+`data-uml-shape="ellipse"` nodes, no edge through other nodes, no line over the
+texts of any container: tabs, component and node names, composite headers),
+`end-spacing` (ends on one side of a node at least the line spacing apart, more
+with arrowheads; one shared point is allowed), `route-length` (no route longer than
+3x the gap between its nodes plus 200 px), `markers` (present, at the end, pointing
+inward, not touching other markers, on a straight end segment as long as the marker
+plus a bend),
 `message-arrows` (parallel to and beside their own link, pointing at the receiver,
-labels next to them), `literal-text`, `min-font-size` (11 px), `text-fits`, `ports`
+labels next to them), `literal-text`, `min-font-size` (11 px), `text-fits` (inside
+the node; no word broken between letters where it has a break opportunity, no line
+of punctuation alone), `ports`
 (ports centered on their owner's border with their names next to them; lollipops and
 sockets outside their owner, facing outward; ball-and-socket joints concentric with
 the requiring line at the socket's back and the providing line through its opening,
-on one axis; interface names next to their symbol).
+on one axis; interface names next to their symbol). `end-spacing` and `route-length`
+judge layout choices only the own engine makes (`ENGINE_ONLY_GATES`); PlantUML output
+reports them as skipped.
+
+Reviewer models that exposed layout defects live in `test/fixtures/regression/`
+(`test/regression.test.mjs` runs every gate on each). Add a model there for every
+layout defect you fix.
 
 ## 6. Gallery and visual review
 
@@ -231,5 +250,8 @@ Backend: own engine | PlantUML. Frame keyword: `<keyword>`. Schema: `uml schema 
 - Checklist complete, every supported row linked to a passing test.
 - `npm test`, `npm run test:integration` and `npm run gallery` pass.
 - At least three examples (minimal, realistic, stress) and they look right.
+- Own-engine kinds choose their layout with `chooseLayout` and run `repairRoutes`
+  (or the pipelines that do: `renderDiagram`, the structure layout), so the
+  aspect-ratio and routing rules hold on input nobody tuned for.
 - README section for the kind (short: what it draws, an example, the direction
   conventions).

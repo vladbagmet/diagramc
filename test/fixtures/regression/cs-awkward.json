@@ -1,0 +1,313 @@
+{
+ "kind": "composite-structure",
+ "title": "Awkward composite",
+ "elements": [
+  {
+   "id": "sys",
+   "type": "class",
+   "name": "AutonomousVehicleSensorFusionAndPlanningSubsystem",
+   "stereotypes": [
+    "subsystem",
+    "safetyCritical"
+   ],
+   "ports": [
+    {
+     "id": "sp0",
+     "name": "externalPort0",
+     "type": "InterfaceType0",
+     "multiplicity": "1"
+    },
+    {
+     "id": "sp1",
+     "name": "externalPort1",
+     "type": "InterfaceType1",
+     "multiplicity": "0..*"
+    },
+    {
+     "id": "sp2",
+     "name": "externalPort2",
+     "type": "InterfaceType2",
+     "multiplicity": "1"
+    },
+    {
+     "id": "sp3",
+     "name": "externalPort3",
+     "type": "InterfaceType3",
+     "multiplicity": "0..*"
+    },
+    {
+     "id": "sp4",
+     "name": "externalPort4",
+     "type": "InterfaceType4",
+     "multiplicity": "1"
+    },
+    {
+     "id": "sp5",
+     "name": "externalPort5",
+     "type": "InterfaceType5",
+     "multiplicity": "0..*"
+    },
+    {
+     "id": "sp6",
+     "name": "externalPort6",
+     "type": "InterfaceType6",
+     "multiplicity": "1"
+    },
+    {
+     "id": "sp7",
+     "name": "externalPort7",
+     "type": "InterfaceType7",
+     "multiplicity": "0..*"
+    }
+   ],
+   "parts": [
+    {
+     "id": "p1_0",
+     "name": "level1PartWithLongName0",
+     "type": "VeryLongComponentTypeNameForLevel1",
+     "parts": [
+      {
+       "id": "p2_0",
+       "name": "level2PartWithLongName0",
+       "type": "VeryLongComponentTypeNameForLevel2",
+       "parts": [
+        {
+         "id": "p3_0",
+         "name": "level3PartWithLongName0",
+         "type": "VeryLongComponentTypeNameForLevel3",
+         "parts": [
+          {
+           "id": "p4_0",
+           "name": "level4PartWithLongName0",
+           "type": "VeryLongComponentTypeNameForLevel4"
+          }
+         ],
+         "ports": [
+          {
+           "id": "port3_0",
+           "name": "p3",
+           "type": "Bus"
+          }
+         ]
+        }
+       ],
+       "ports": [
+        {
+         "id": "port2_0",
+         "name": "p2",
+         "type": "Bus"
+        }
+       ]
+      }
+     ],
+     "ports": [
+      {
+       "id": "port1_0",
+       "name": "p1",
+       "type": "Bus"
+      }
+     ]
+    },
+    {
+     "id": "a",
+     "name": "lidar",
+     "type": "Lidar",
+     "multiplicity": "2..4"
+    },
+    {
+     "id": "b",
+     "name": "fusion",
+     "type": "FusionEngine"
+    },
+    {
+     "id": "c",
+     "name": "x",
+     "type": "T",
+     "aggregation": "none"
+    }
+   ],
+   "collaborationUses": [
+    {
+     "id": "cu1",
+     "name": "obs",
+     "collaboration": "col",
+     "bindings": [
+      {
+       "role": "r1",
+       "part": "a"
+      },
+      {
+       "role": "r2",
+       "part": "b"
+      },
+      {
+       "role": "r3",
+       "part": "c"
+      }
+     ]
+    },
+    {
+     "id": "cu2",
+     "name": "obs2",
+     "collaboration": "col",
+     "bindings": [
+      {
+       "role": "r1",
+       "part": "b"
+      },
+      {
+       "role": "r2",
+       "part": "a"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "col",
+   "type": "collaboration",
+   "name": "A collaboration with a fairly long name",
+   "roles": [
+    {
+     "id": "r1",
+     "name": "subject",
+     "type": "S"
+    },
+    {
+     "id": "r2",
+     "name": "observer",
+     "type": "O",
+     "multiplicity": "*"
+    },
+    {
+     "id": "r3",
+     "name": "mediator"
+    }
+   ]
+  },
+  {
+   "id": "n1",
+   "type": "note",
+   "text": "note on lidar",
+   "attachedTo": [
+    "a"
+   ]
+  },
+  {
+   "id": "n2",
+   "type": "note",
+   "text": "note on the deepest part",
+   "attachedTo": [
+    "p4_0"
+   ]
+  },
+  {
+   "id": "n3",
+   "type": "note",
+   "text": "note on the collaboration",
+   "attachedTo": [
+    "col"
+   ]
+  },
+  {
+   "id": "n4",
+   "type": "note",
+   "text": "note on the class",
+   "attachedTo": [
+    "sys"
+   ]
+  }
+ ],
+ "relationships": [
+  {
+   "type": "connector",
+   "from": "a",
+   "to": "b",
+   "name": "points",
+   "fromEnd": {
+    "role": "src",
+    "multiplicity": "2..4"
+   },
+   "toEnd": {
+    "role": "sink",
+    "multiplicity": "1"
+   }
+  },
+  {
+   "type": "connector",
+   "from": "a",
+   "to": "b",
+   "name": "timestamps"
+  },
+  {
+   "type": "connector",
+   "from": "a",
+   "to": "b",
+   "name": "health",
+   "association": "Monitors"
+  },
+  {
+   "type": "connector",
+   "from": "b",
+   "to": "a",
+   "name": "calibration"
+  },
+  {
+   "type": "connector",
+   "from": "b",
+   "to": "c"
+  },
+  {
+   "type": "connector",
+   "from": "sp0",
+   "to": "a"
+  },
+  {
+   "type": "connector",
+   "from": "sp1",
+   "to": "b"
+  },
+  {
+   "type": "connector",
+   "from": "sp2",
+   "to": "b"
+  },
+  {
+   "type": "connector",
+   "from": "sp3",
+   "to": "port1_0"
+  },
+  {
+   "type": "connector",
+   "from": "port1_0",
+   "to": "port2_0"
+  },
+  {
+   "type": "connector",
+   "from": "port2_0",
+   "to": "port3_0"
+  },
+  {
+   "type": "connector",
+   "from": "b",
+   "to": "port1_0",
+   "name": "plan"
+  },
+  {
+   "type": "connector",
+   "from": "r1",
+   "to": "r2",
+   "name": "notify"
+  },
+  {
+   "type": "connector",
+   "from": "r2",
+   "to": "r3"
+  },
+  {
+   "type": "connector",
+   "from": "r3",
+   "to": "r1"
+  }
+ ]
+}

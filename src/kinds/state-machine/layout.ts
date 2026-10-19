@@ -5,6 +5,7 @@ import type { FontMetrics, TextStyle } from '../../engine/fonts.js';
 import { inflate, overlapArea, segmentIntersectsRect, simplify, straightenJogs, union, type Point, type Rect } from '../../engine/geometry.js';
 import { placeLabels, type LabelRequest } from '../../engine/labels.js';
 import { planSelfLoops, selfLoopRoute, type SelfLoopPlan } from '../../engine/selfloops.js';
+import { repairRoutes, type RepairNode } from '../../engine/repair.js';
 import { measureBox, measureFrameHeading, measureNote, type Compartment, type MeasuredBox } from '../../engine/shapes.js';
 import { wrapText } from '../../engine/text.js';
 import { behaviorLabel, isNote, isState, type ConnectionPoint, type Element, type Note, type State, type StateMachineDiagram, type Vertex } from './model.js';
@@ -195,7 +196,7 @@ export async function layoutStateMachine(model: StateMachineDiagram, metrics: Fo
       const loop = loopPlans.get(e.id);
       return {
         id: e.id, width: Math.max(header.width, 60), height: header.height + 2 * PAD, minimumSize: true,
-        ...(loop ? { reserveRight: loop.reserveRight } : {}),
+        ...(loop ? { reserveRight: loop.reserveRight, reserveAbove: loop.reserveAbove, reserveBelow: loop.reserveBelow } : {}),
         padding: single ? { top: header.height + PAD, left: PAD, bottom: PAD, right: PAD } : { top: header.height, left: 0, bottom: 0, right: 0 },
         children: single ? inside(e.id, e.regions[0]!.elements).map(toNode) : e.regions.map(regionNode),
         ...withPorts,
@@ -205,7 +206,7 @@ export async function layoutStateMachine(model: StateMachineDiagram, metrics: Fo
       const box = measureBox(metrics, stateCompartments(e), 80);
       boxes.set(e.id, box);
       const loop = loopPlans.get(e.id);
-      return { id: e.id, width: box.width, height: Math.max(box.height, 40, loop?.minHeight ?? 0), ...(loop ? { reserveRight: loop.reserveRight } : {}), ...withPorts };
+      return { id: e.id, width: box.width, height: Math.max(box.height, 40, loop?.minHeight ?? 0), ...(loop ? { reserveRight: loop.reserveRight, reserveAbove: loop.reserveAbove, reserveBelow: loop.reserveBelow } : {}), ...withPorts };
     }
     const size = pseudostateSize(e.type);
     if (e.type === 'fork' || e.type === 'join') {
@@ -285,6 +286,32 @@ export async function layoutStateMachine(model: StateMachineDiagram, metrics: Fo
     sceneEdges.push({ id: a.id, type: 'note-anchor', source: a.note, target: a.target, points: route });
   }
 
+  // Shared route repair (src/engine/repair.ts): lines over composite headers or
+  // through states, detours, crowded ends, arrowheads on short end segments.
+  // Ends on entry and exit points keep their points.
+  const repairNodes: RepairNode[] = [];
+  for (const [id, v] of vertices) {
+    const header = headers.get(id);
+    const r = rect(id);
+    repairNodes.push({ id, rect: r, parent: v.parent, container: !!header, texts: header ? [{ x: r.x, y: r.y, width: r.width, height: header.height }] : [] });
+  }
+  for (const [id, p] of points) repairNodes.push({ id, rect: pointRect(id), parent: vertices.get(p.owner)?.parent });
+  const pinned = (id: string): boolean => points.has(id);
+  const repaired = repairRoutes(repairNodes, sceneEdges.map(e => ({
+    id: e.id, source: e.source, target: e.target, route: e.points,
+    sourceMarker: 'none', targetMarker: e.type === 'note-anchor' ? 'none' : 'open-arrow',
+    fixedSource: pinned(e.source), fixedTarget: pinned(e.target),
+  // Pseudostates are small: aim for the plain line spacing between ends, not more.
+  })), { spacing: theme.spacing.edgeEdge });
+  for (const e of sceneEdges) {
+    if (!repaired.changed.has(e.id)) continue;
+    // New ends on circles and diamonds move onto the outline along their end segment.
+    let route = repaired.routes.get(e.id)!;
+    if (!points.has(e.source)) route = clipRoute(route, 'source', boundsOf(e.source), shapeOf(e.source));
+    if (!points.has(e.target)) route = clipRoute(route, 'target', boundsOf(e.target), shapeOf(e.target));
+    e.points = route;
+  }
+
   // Composite states: header, region separators, region names.
   const composites: StateScene['composites'] = [];
   const simple: StateScene['nodes'] = [];
@@ -322,17 +349,22 @@ export async function layoutStateMachine(model: StateMachineDiagram, metrics: Fo
   for (const c of composites) for (const n of c.regionNames) obstacleRects.push({ x: n.x, y: n.y, width: metrics.measure(n.text, BODY) + 4, height: lineHeight });
   const segments: [Point, Point][] = [];
   for (const e of sceneEdges) e.points.slice(1).forEach((p, k) => segments.push([e.points[k]!, p]));
+  // Composite borders: a label never straddles one.
+  for (const c of composites) {
+    const r = c.bounds, k = [{ x: r.x, y: r.y }, { x: r.x + r.width, y: r.y }, { x: r.x + r.width, y: r.y + r.height }, { x: r.x, y: r.y + r.height }];
+    k.forEach((p, i) => segments.push([p, k[(i + 1) % 4]!]));
+  }
   const requests: LabelRequest[] = [];
   for (const t of transitions) {
     const label = labelOf.get(t.key);
     if (!label) continue;
     const id = `${t.key}::label`;
     const width = Math.max(...label.widths), height = label.lines.length * lineHeight;
-    const suggested = result.edges.get(t.key)?.labels.get(id);
+    const suggested = repaired.changed.has(t.key) ? undefined : result.edges.get(t.key)?.labels.get(id);
     const route = sceneEdges.find(e => e.id === t.key)!.points;
-    requests.push({ id, width, height, route, at: 'center', suggestion: t.from === t.to ? selfLoopLabel(route, width, height) : suggested && { x: suggested.x + 2, y: suggested.y, width, height } });
+    requests.push({ id, owner: t.key, width, height, route, at: 'center', suggestion: t.from === t.to ? selfLoopLabel(route, width, height) : suggested && { x: suggested.x + 2, y: suggested.y, width, height } });
   }
-  const placed = placeLabels(requests, { rects: obstacleRects, segments });
+  const placed = placeLabels(requests, { rects: obstacleRects, segments, lines: sceneEdges.map(e => ({ owner: e.id, points: e.points })) });
   const labels: StateScene['labels'] = [];
   for (const t of transitions) {
     const r = placed.get(`${t.key}::label`);

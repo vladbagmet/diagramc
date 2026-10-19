@@ -1,7 +1,7 @@
 import { theme } from '../../core/theme.js';
 import { drawEdge } from '../../engine/edges.js';
 import type { FontMetrics } from '../../engine/fonts.js';
-import { baselineOffset, drawBox, drawFrame, drawNote } from '../../engine/shapes.js';
+import { baselineOffset, drawBox, drawFrame, drawNote, startsData } from '../../engine/shapes.js';
 import { Canvas, num } from '../../engine/svg.js';
 import { artifactIcon, componentIcon, drawBall, drawEllipse, drawJoint, drawNode3d, drawPort, drawSocket } from '../../engine/symbols.js';
 import type { PlacedNode, StructScene } from './layout.js';
@@ -47,8 +47,8 @@ export async function drawStructure(scene: StructScene, metrics: FontMetrics): P
     const { x, y, width } = label.rect;
     const xs = label.widths.map(w => x + (width - w) / 2);
     canvas.labels.push(canvas.lines(label.lines, xs, y + baselineOffset(metrics, label.style.size, lh), lh, {
-      ...label.style, fill: theme.color.edgeText, role: 'label', owner: label.owner, halo: true,
-      data: label.end ? { 'data-uml-end': label.end, 'data-uml-anchor': `${num(label.anchor!.x)},${num(label.anchor!.y)}` } : {},
+      ...label.style, fill: label.fill ?? theme.color.edgeText, role: 'label', owner: label.owner, halo: true,
+      data: label.end ? { 'data-uml-end': label.end, 'data-uml-anchor': `${num(label.anchor!.x)},${num(label.anchor!.y)}` } : startsData(label.starts),
     }));
   }
   return canvas.finish({ width: scene.width, height: scene.height, kind: scene.kind, title: scene.frame?.title });
