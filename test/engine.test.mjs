@@ -218,6 +218,16 @@ test('QA gate message-arrows: accepts a well-placed arrow and catches each defec
   assert.deepEqual(failed(await checkSvg(doc(a + c + link + arrow({ x: 167, y: 30 }, { x: 203, y: 30 }, { target: 'a' }) + label(167, 18)))), ['message-arrows']);
 });
 
+test('message arrows use the smaller message triangle and declare its size for the gates', async () => {
+  const svg = drawMessageArrow({ owner: 'l', group: 'g', source: 'a', target: 'c', from: { x: 0, y: 0 }, to: { x: 40, y: 0 }, style: 'solid', marker: 'filled-triangle' });
+  assert.match(svg, /data-uml-size="10,4.5"/);
+  // The triangle's base is 10 px behind the tip and 9 px wide.
+  assert.match(svg, /points="40,0 30,4.5 30,-4.5"/);
+  // Relationship edges keep the full-size triangle unless told otherwise.
+  const edge = drawEdge({ id: 'e', type: 't', source: 'a', target: 'b', points: [{ x: 0, y: 0 }, { x: 60, y: 0 }], style: 'solid', sourceMarker: 'none', targetMarker: 'filled-triangle' });
+  assert.doesNotMatch(edge, /data-uml-size/);
+});
+
 // Additions for state machine and use case diagrams (chunk 5).
 test('elkjs adapter: compound minimum size, fixed-size nodes, captions below and polyline routing', async () => {
   // A compound node is at least as wide as its own header (elkjs swaps the axes for vertical layouts).

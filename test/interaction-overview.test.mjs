@@ -48,6 +48,53 @@ test('interaction overview: rendering is byte-identical across runs', async () =
   assert.equal(await render(text), await render(text));
 });
 
+test('interaction overview: branches of a decision part right below it and each guard sits at its own line', async () => {
+  for (const [name, text] of [['stress', await example('stress.json')], ['notation', await example('notation.json')], ['i2-awkward', await readFile(join(root, 'test/fixtures/regression/interaction-overview-i2-awkward.json'), 'utf8')]]) {
+    const scene = await inspectSvg(await render(text));
+    const decisions = new Set(scene.nodes.filter(n => n.type === 'decision').map(n => n.id));
+    const segments = e => e.points.slice(1).map((q, k) => [e.points[k], q]);
+    const overlap = ([a, b], [c, d]) => {
+      if (Math.abs(a.x - b.x) < 0.5 && Math.abs(c.x - d.x) < 0.5 && Math.abs(a.x - c.x) < 0.5) return Math.min(Math.max(a.y, b.y), Math.max(c.y, d.y)) - Math.max(Math.min(a.y, b.y), Math.min(c.y, d.y));
+      if (Math.abs(a.y - b.y) < 0.5 && Math.abs(c.y - d.y) < 0.5 && Math.abs(a.y - c.y) < 0.5) return Math.min(Math.max(a.x, b.x), Math.max(c.x, d.x)) - Math.max(Math.min(a.x, b.x), Math.min(c.x, d.x));
+      return 0;
+    };
+    const branches = scene.edges.filter(e => decisions.has(e.source));
+    // Branches of one decision share at most the short trunk at its vertex and the
+    // line they part along, 14 px off the diamond.
+    const onSplit = ([a, b], r) => (Math.abs(a.y - b.y) < 0.5 && (Math.abs(a.y - r.y - r.height - 14) < 0.5 || Math.abs(r.y - a.y - 14) < 0.5))
+      || (Math.abs(a.x - b.x) < 0.5 && (Math.abs(a.x - r.x - r.width - 14) < 0.5 || Math.abs(r.x - a.x - 14) < 0.5));
+    for (const [i, e] of branches.entries()) for (const f of branches.slice(i + 1)) {
+      if (e.source !== f.source) continue;
+      const r = scene.nodes.find(n => n.id === e.source).bounds;
+      for (const s of segments(e)) for (const t of segments(f)) {
+        if (onSplit(s, r)) continue;
+        assert.ok(overlap(s, t) <= 15, `${name}: ${e.id} and ${f.id} share ${overlap(s, t).toFixed(0)} px`);
+      }
+    }
+    for (const label of scene.texts.filter(t => t.role === 'label' && t.content.startsWith('['))) {
+      const edge = scene.edges.find(e => e.id === label.owner);
+      const [a, b] = edge.points;
+      const box = label.bounds;
+      // Within reach of the start of the branch (after a trunk: where it parts from
+      // the trunk, the second or third point), not near its far end.
+      const from = p => Math.hypot(Math.max(box.x - p.x, 0, p.x - box.x - box.width), Math.max(box.y - p.y, 0, p.y - box.y - box.height));
+      const d = Math.min(...edge.points.slice(0, label.end ? 1 : 3).map(from));
+      assert.ok(d <= 24, `${name}: guard ${label.content} is ${d.toFixed(0)} px from the start of ${edge.id}`);
+      // Guards at a vertex: above a line leaving sideways, right of a line going down.
+      if (!label.end) continue;
+      if (Math.abs(a.y - b.y) < 0.5) assert.ok(box.y + box.height <= a.y + 0.5, `${name}: guard ${label.content} is not above its line`);
+      else if (b.y > a.y) assert.ok(box.x >= a.x - 0.5, `${name}: guard ${label.content} is not right of its line`);
+    }
+  }
+});
+
+test('interaction overview: a loop-back leaves its interaction from the east side', async () => {
+  const scene = await inspectSvg(await render(await example('notation.json')));
+  const loop = scene.edges.find(e => e.source === 'wait');
+  const wait = scene.nodes.find(n => n.id === 'wait').bounds;
+  assert.ok(Math.abs(loop.points[0].x - (wait.x + wait.width)) < 0.5, `loop starts at ${JSON.stringify(loop.points[0])}`);
+});
+
 test('interaction overview: UML notation of control nodes, frames and flows', async () => {
   const svg = await render(await example('notation.json'));
   const scene = await inspectSvg(svg);

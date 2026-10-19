@@ -28,7 +28,11 @@ export interface InspectedNode {
   tab?: Rect;
 }
 export interface InspectedEdge { id: string; type: string; source: string; target: string; points: Point[]; sourceMarker: string; targetMarker: string }
-export interface InspectedMarker { marker: string; end: string; tip: Point; direction: Point }
+export interface InspectedMarker {
+  marker: string; end: string; tip: Point; direction: Point;
+  /** Declared size (data-uml-size) when it differs from the theme's default for the marker. */
+  size?: { length: number; halfWidth: number };
+}
 /** A free-standing message arrow beside a link (communication diagrams). */
 export interface InspectedArrow { owner: string; group: string; source: string; target: string; marker: string; from: Point; to: Point; dashed: boolean }
 export interface InspectedText {
@@ -239,7 +243,8 @@ function readEngine(root: XmlElement, scene: Scene): void {
         marker: a['data-uml-marker'] ?? 'none', from: from!, to: to!, dashed: !!path?.attrs['stroke-dasharray'],
       });
     } else if (a['data-uml-role'] === 'marker') {
-      scene.markers.push({ marker: a['data-uml-marker'] ?? '', end: a['data-uml-end'] ?? '', tip: point(a['data-uml-tip'])!, direction: point(a['data-uml-direction'])! });
+      const size = point(a['data-uml-size']);
+      scene.markers.push({ marker: a['data-uml-marker'] ?? '', end: a['data-uml-end'] ?? '', tip: point(a['data-uml-tip'])!, direction: point(a['data-uml-direction'])!, ...(size ? { size: { length: size.x, halfWidth: size.y } } : {}) });
     } else if (a['data-uml-role'] === 'frame') {
       scene.extents.push(rect4(a['data-uml-bounds'])!);
       scene.frameHeading = rect4(a['data-uml-heading'])!;

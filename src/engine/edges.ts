@@ -40,28 +40,40 @@ export interface EdgeSpec extends EdgeData {
    */
   drawSourceMarker?: boolean;
   drawTargetMarker?: boolean;
+  /**
+   * Size of triangle markers when it is not theme.size.triangle (message
+   * arrows use theme.size.messageTriangle). Declared on the marker as
+   * data-uml-size, so the gates judge the real footprint.
+   */
+  triangleSize?: TriangleSize;
 }
 
+export interface TriangleSize { length: number; halfWidth: number }
+
 /** How far the line must stop short of the end point so it does not show through the marker. */
-function inset(marker: Marker): number {
+function inset(marker: Marker, triangle: TriangleSize = theme.size.triangle): number {
   switch (marker) {
-    case 'hollow-triangle': case 'filled-triangle': return theme.size.triangle.length;
+    case 'hollow-triangle': case 'filled-triangle': return triangle.length;
     case 'hollow-diamond': case 'filled-diamond': return theme.size.diamond.length;
     case 'circle-plus': return theme.size.circlePlus.radius * 2;
     default: return 0;
   }
 }
 
-function markerShape(marker: Marker, tip: Point, u: Point, end: 'source' | 'target'): string {
+function markerShape(marker: Marker, tip: Point, u: Point, end: 'source' | 'target', triangle?: TriangleSize): string {
   if (marker === 'none') return '';
   const n = { x: -u.y, y: u.x };
   const at = (along: number, across: number): Point => ({ x: tip.x - u.x * along + n.x * across, y: tip.y - u.y * along + n.y * across });
   const color = theme.color.edge, width = theme.stroke.edge;
-  const data = { 'data-uml-role': 'marker', 'data-uml-marker': marker, 'data-uml-end': end, 'data-uml-tip': `${num(tip.x)},${num(tip.y)}`, 'data-uml-direction': `${num(u.x)},${num(u.y)}` };
+  const sized = triangle !== undefined && marker.endsWith('triangle');
+  const data = {
+    'data-uml-role': 'marker', 'data-uml-marker': marker, 'data-uml-end': end, 'data-uml-tip': `${num(tip.x)},${num(tip.y)}`, 'data-uml-direction': `${num(u.x)},${num(u.y)}`,
+    ...(sized ? { 'data-uml-size': `${num(triangle.length)},${num(triangle.halfWidth)}` } : {}),
+  };
   const closed = (points: Point[], fill: string) => el('polygon', { points: pointsAttr(points), fill, stroke: color, 'stroke-width': width, 'stroke-linejoin': 'miter', ...data });
   switch (marker) {
     case 'hollow-triangle': case 'filled-triangle': {
-      const { length, halfWidth } = theme.size.triangle;
+      const { length, halfWidth } = triangle ?? theme.size.triangle;
       return closed([tip, at(length, halfWidth), at(length, -halfWidth)], marker === 'filled-triangle' ? color : theme.color.background);
     }
     case 'hollow-diamond': case 'filled-diamond': {
@@ -129,19 +141,20 @@ export function drawEdge(spec: EdgeSpec): string {
   const sourceDir = direction(points[1]!, points[0]!), targetDir = direction(points.at(-2)!, points.at(-1)!);
   // Note anchors (type note-anchor) are drawn thin, dotted and lighter in every kind.
   const anchor = spec.type === 'note-anchor';
-  let line = trimEnd(points, inset(spec.targetMarker));
-  line = [...trimEnd([...line].reverse(), inset(spec.sourceMarker))].reverse();
+  const tri = spec.triangleSize;
+  let line = trimEnd(points, inset(spec.targetMarker, tri));
+  line = [...trimEnd([...line].reverse(), inset(spec.sourceMarker, tri))].reverse();
   return el('g', {
     'data-uml-role': 'edge', 'data-uml-id': spec.id, 'data-uml-type': spec.type,
     'data-uml-source': spec.source, 'data-uml-target': spec.target,
     'data-uml-source-marker': spec.sourceMarker, 'data-uml-target-marker': spec.targetMarker, 'data-uml-points': pointsAttr(points),
   }, [
     el('path', {
-      d: roundedPath(line, theme.spacing.bendRadius, { start: inset(spec.sourceMarker) ? 0 : markerLength(spec.sourceMarker), end: inset(spec.targetMarker) ? 0 : markerLength(spec.targetMarker) }), fill: 'none', stroke: anchor ? theme.color.anchor : theme.color.edge, 'stroke-width': anchor ? theme.stroke.anchor : theme.stroke.edge,
+      d: roundedPath(line, theme.spacing.bendRadius, { start: inset(spec.sourceMarker, tri) ? 0 : markerLength(spec.sourceMarker), end: inset(spec.targetMarker, tri) ? 0 : markerLength(spec.targetMarker) }), fill: 'none', stroke: anchor ? theme.color.anchor : theme.color.edge, 'stroke-width': anchor ? theme.stroke.anchor : theme.stroke.edge,
       'stroke-dasharray': anchor ? theme.stroke.anchorDash : spec.style === 'dashed' ? theme.stroke.dash : undefined, 'stroke-linejoin': 'round', 'stroke-linecap': anchor ? 'round' : undefined,
     }),
-    spec.drawSourceMarker === false ? '' : markerShape(spec.sourceMarker, points[0]!, sourceDir, 'source'),
-    spec.drawTargetMarker === false ? '' : markerShape(spec.targetMarker, points.at(-1)!, targetDir, 'target'),
+    spec.drawSourceMarker === false ? '' : markerShape(spec.sourceMarker, points[0]!, sourceDir, 'source', tri),
+    spec.drawTargetMarker === false ? '' : markerShape(spec.targetMarker, points.at(-1)!, targetDir, 'target', tri),
   ].filter(Boolean));
 }
 
@@ -168,7 +181,9 @@ export interface MessageArrowSpec {
  */
 export function drawMessageArrow(spec: MessageArrowSpec): string {
   const u = direction(spec.from, spec.to);
-  const line = trimEnd([spec.from, spec.to], inset(spec.marker));
+  // Filled heads beside a line are smaller than relationship heads (theme.size.messageTriangle).
+  const tri = theme.size.messageTriangle;
+  const line = trimEnd([spec.from, spec.to], inset(spec.marker, tri));
   return el('g', {
     'data-uml-role': 'message-arrow', 'data-uml-owner': spec.owner, 'data-uml-group': spec.group,
     'data-uml-source': spec.source, 'data-uml-target': spec.target,
@@ -178,7 +193,7 @@ export function drawMessageArrow(spec: MessageArrowSpec): string {
       d: `M${pt(line[0]!)} L${pt(line[1]!)}`, fill: 'none', stroke: theme.color.edge, 'stroke-width': theme.stroke.edge,
       'stroke-dasharray': spec.style === 'dashed' ? theme.stroke.shortDash : undefined,
     }),
-    markerShape(spec.marker, spec.to, u, 'target'),
+    markerShape(spec.marker, spec.to, u, 'target', tri),
   ].filter(Boolean));
 }
 /** Length of a marker along the line. */
