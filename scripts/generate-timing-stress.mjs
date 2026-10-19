@@ -32,7 +32,7 @@ const lifelines = specs.map(([id, name, classifier, notation, states]) => {
   for (const m of messages) { if (m.from === id) times.add(m.fromTime); if (m.to === id) times.add(m.toTime); }
   const step = notation === 'robust' ? 30 : 45;
   for (let t = 20 + Math.floor(next() * step); t < END; t += step + Math.floor(next() * step)) {
-    if (![...times].some(u => Math.abs(u - t) < 5)) times.add(t);
+    if (![...times].some(u => Math.abs(u - t) < 10)) times.add(t);
   }
   const changes = [];
   for (const at of [...times].sort((a, b) => a - b)) {

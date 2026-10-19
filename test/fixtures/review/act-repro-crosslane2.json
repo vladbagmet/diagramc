@@ -1,0 +1,16 @@
+{ "kind": "activity",
+  "partitions": [ { "id": "a", "name": "Lane A" }, { "id": "b", "name": "Lane B" }, { "id": "c", "name": "Lane C" } ],
+  "nodes": [
+    { "id": "i", "type": "initial", "partition": "a" },
+    { "id": "d1", "type": "decision", "partition": "a" },
+    { "id": "x", "type": "action", "name": "X", "partition": "b" },
+    { "id": "y", "type": "action", "name": "Y", "partition": "c" },
+    { "id": "m1", "type": "merge" },
+    { "id": "f", "type": "activityFinal", "partition": "a" } ],
+  "edges": [
+    { "type": "control", "from": "i", "to": "d1" },
+    { "type": "control", "from": "d1", "to": "x", "guard": "p" },
+    { "type": "control", "from": "d1", "to": "y", "guard": "else" },
+    { "type": "control", "from": "x", "to": "m1" },
+    { "type": "control", "from": "y", "to": "m1" },
+    { "type": "control", "from": "m1", "to": "f" } ] }

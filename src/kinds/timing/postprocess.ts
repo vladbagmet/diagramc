@@ -1,5 +1,7 @@
 import { theme } from '../../core/theme.js';
 import { fillFrameHeading } from '../../plantuml/frame.js';
+import type { TimingDiagram } from './model.js';
+import { fixTimingRows } from './rows.js';
 import { overlapArea, segmentIntersectsRect, type Point } from '../../engine/geometry.js';
 
 const NUM = '(-?[\\d.]+)';
@@ -131,6 +133,8 @@ export function placeMessageLabels(svg: string): string {
 }
 
 /** All fix-ups applied to PlantUML's timing SVG. */
-export function postProcessTiming(svg: string): string {
-  return encloseFooter(placeMessageLabels(liftConstraints(fillFrameHeading(svg))));
+export function postProcessTiming(svg: string, model?: TimingDiagram): string {
+  const framed = fillFrameHeading(svg);
+  // With the model, constraints are redrawn in their own bands (rows.ts); without it, only lifted.
+  return encloseFooter(placeMessageLabels(model ? fixTimingRows(framed, model) : liftConstraints(framed)));
 }
