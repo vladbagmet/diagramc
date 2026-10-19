@@ -101,6 +101,50 @@ client to supplier, optional «keyword»), `containment` (from the owner); notes
 Notation checklist, rules and limits: [`docs/kinds/class.md`](docs/kinds/class.md).
 Examples: [`examples/class/`](examples/class/).
 
+### Component diagrams
+
+Components (`«component»` and the component icon), nested components and classes,
+ports (squares on the border), provided interfaces (lollipops) and required
+interfaces (sockets) listed by interface ID in `provides` / `requires`, assembly
+connectors drawn as ball-and-socket joints, delegation connectors from a port to a
+part inside, interfaces as classifiers with `realization` and `usage`, artifacts
+with `manifest`, dependencies and notes. Layout runs left to right: an `assembly`
+goes `from` the requiring port or component `to` the providing one; a
+`delegation` goes from the delegating end to the handling end (outer port to part
+for provided interfaces, part to outer port for required ones).
+
+```json
+{ "kind": "component", "elements": [
+    { "id": "ui", "type": "component", "name": "Web UI", "requires": ["api"] },
+    { "id": "svc", "type": "component", "name": "Orders", "ports": [{ "id": "p", "name": "api", "provides": ["api"] }] },
+    { "id": "api", "type": "interface", "name": "IOrders" } ],
+  "relationships": [{ "type": "assembly", "from": "ui", "to": "p", "interface": "api" }] }
+```
+
+Checklist and rules: [`docs/kinds/component.md`](docs/kinds/component.md).
+Examples: [`examples/component/`](examples/component/).
+
+### Deployment diagrams
+
+Nodes as 3D boxes, devices (`«device»`) and execution environments
+(`«executionEnvironment»`) nested in one another, artifacts and deployment
+specifications deployed by nesting them in a node or with a `deploy` dependency
+(`from` the artifact `to` the node), `manifest` from an artifact to a component,
+communication paths (solid lines with a `«protocol»`, a name and end
+multiplicities), dependencies and notes. Checklist and rules:
+[`docs/kinds/deployment.md`](docs/kinds/deployment.md). Examples:
+[`examples/deployment/`](examples/deployment/).
+
+### Composite structure diagrams
+
+A structured class with its parts (`name : Type [multiplicity]`, dashed when
+`aggregation` is `shared` or `none`), ports on the class and on parts (conjugated
+ports drawn `~Type`), connectors with a name, an association type, end names and
+multiplicities, collaborations (dashed ellipses with roles) and collaboration uses
+whose bindings link roles to parts. Checklist and rules:
+[`docs/kinds/composite-structure.md`](docs/kinds/composite-structure.md).
+Examples: [`examples/composite-structure/`](examples/composite-structure/).
+
 **v1 documents** (the MVP format: `classes` + `relationships`, no `kind`, see
 [`schema/model-v1.schema.json`](schema/model-v1.schema.json) and
 [`examples/v1/`](examples/v1/)) keep working as class diagrams; members are drawn
@@ -154,7 +198,8 @@ example: markup safety, everything inside the canvas, no node overlap (containme
 allowed), no label overlapping a node, label or line, end labels near and
 unambiguous at their end, edges ending on node borders, arrowheads present at the
 right end and pointing inward, every input text drawn literally, minimum font size
-11 px, text inside its box. Own-engine SVGs carry `data-uml-*` attributes so gates
+11 px, text inside its box, ports on their owner's border and interface symbols
+facing outward with aligned ball-and-socket joints. Own-engine SVGs carry `data-uml-*` attributes so gates
 are exact; PlantUML SVGs are checked best-effort. `npm run gallery` renders every
 example to SVG and PNG with an `index.html` overview.
 

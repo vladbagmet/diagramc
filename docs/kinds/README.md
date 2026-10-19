@@ -100,6 +100,7 @@ Copy the structure of `src/kinds/class/layout.ts` and `draw.ts`.
 | Packages / containers | `measurePackageTab()` + `drawPackage()`; give ELK a compound node with `padding.top` >= tab height |
 | Diagram frame | when `title` is set: `measureFrameHeading()` + `drawFrame(canvas, kind.frameKeyword, title, bounds)` |
 | Layout | `layout(nodes, edges, { direction })` from `src/engine/elk.ts`: sizes, compound `children`, fixed-side `ports` (a shared port gives generalization trees; a port as wide as an end's labels and marker keeps neighbours apart), edge labels `center`/`head`/`tail` |
+| Ports, interfaces, nesting, 3D nodes, ellipses | `src/kinds/structure/` (a kind-neutral graph of nested nodes, ports, lollipops, sockets and assemblies, laid out left to right, used by component, deployment and composite structure) and its symbols in `src/engine/symbols.ts` |
 | Self-loops | never give them to ELK: `planSelfLoops()` before layout (node `reserveRight`, min height), `selfLoopRoute()` after |
 | Lines and arrowheads | `drawEdge({ points, style, sourceMarker, targetMarker, ... })`; markers: `hollow-triangle`, `filled-triangle`, `open-arrow`, `hollow-diamond`, `filled-diamond`, `cross`, `circle-plus`, `none` |
 | Edge labels | `placeLabels()` with obstacles (node rects, marker boxes, all segments, labelled `ends`); end labels with `at: 'source'|'target'`, center labels with ELK's suggestion |
@@ -156,10 +157,16 @@ In `test/<kind>.test.mjs` (Java-free) or `test/integration/<kind>.test.mjs`
    every text slot stays literal and produces no active SVG.
 
 The QA gates (`src/qa/gates.ts`, all must pass): `safe-markup`, `inside-canvas`,
-`node-overlap` (containment allowed), `label-overlap`, `label-edge-crossing`,
-`label-proximity` (end labels near and unambiguous), `edge-endpoints` (on borders,
-no edge through other nodes), `markers` (present, at the end, pointing inward, not
-touching other markers), `literal-text`, `min-font-size` (11 px), `text-fits`.
+`node-overlap` (containment allowed; a port may straddle its owner's border),
+`label-overlap` (labels may lie inside a container's body, never on a leaf node or
+on any text), `label-edge-crossing`, `label-proximity` (end labels near and
+unambiguous), `edge-endpoints` (on borders, on the ellipse for
+`data-uml-shape="ellipse"` nodes, no edge through other nodes), `markers` (present,
+at the end, pointing inward, not touching other markers), `literal-text`,
+`min-font-size` (11 px), `text-fits`, `ports` (ports centered on their owner's
+border; lollipops and sockets outside their owner, facing outward; ball-and-socket
+joints concentric with the requiring line at the socket's back and the providing
+line through its opening, on one axis; interface names next to their symbol).
 
 ## 6. Gallery and visual review
 

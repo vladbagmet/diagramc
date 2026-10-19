@@ -442,7 +442,7 @@ export async function layoutStructure(graph: StructGraph, metrics: FontMetrics):
       });
     }
 
-    const result = await layout(elkNodes, elkEdges, { direction: 'RIGHT', nodeSpacing: NODE_SPACING, layerSpacing: LAYER_SPACING });
+    const result = await layout(elkNodes, elkEdges, { direction: 'RIGHT', nodeSpacing: NODE_SPACING, layerSpacing: LAYER_SPACING, portSpacing: theme.spacing.edgeEdge });
 
     const rects = new Map<string, Rect>();
     for (const [id, r] of result.nodes) if (info.has(id)) rects.set(id, r);

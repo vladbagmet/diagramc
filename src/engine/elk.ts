@@ -62,6 +62,8 @@ export interface LayoutOptions {
   direction: Direction;
   nodeSpacing?: number;
   layerSpacing?: number;
+  /** Gap between neighbouring ports on a side (default 6), also between lines crossing a compound node's border. */
+  portSpacing?: number;
 }
 export interface LayoutResult {
   width: number;
@@ -101,10 +103,11 @@ export async function layout(nodes: readonly LayoutNode[], edges: readonly Layou
         // Grow the node if its ports need more room than its content.
         'elk.nodeSize.constraints': '[PORTS, MINIMUM_SIZE]',
         'elk.nodeSize.minimum': `(${node.width}, ${node.height})`,
-        'elk.spacing.portPort': '6',
+        'elk.spacing.portPort': String(options.portSpacing ?? 6),
       } : {}),
       ...(node.padding ? { 'elk.padding': `[top=${node.padding.top},left=${node.padding.left},bottom=${node.padding.bottom},right=${node.padding.right}]` } : {}),
       'elk.spacing.labelNode': '0',
+      ...(options.portSpacing !== undefined ? { 'elk.spacing.portPort': String(options.portSpacing) } : {}),
     },
   });
   const graph: ElkNode = {
