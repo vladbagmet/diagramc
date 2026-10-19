@@ -1,0 +1,555 @@
+{
+ "kind": "composite-structure",
+ "title": "Robot arm controller",
+ "elements": [
+  {
+   "id": "robot",
+   "type": "class",
+   "name": "RobotArmController",
+   "stereotypes": [
+    "subsystem"
+   ],
+   "ports": [
+    {
+     "id": "pCmd",
+     "name": "command",
+     "type": "TaskApi"
+    },
+    {
+     "id": "pEstop",
+     "name": "estop",
+     "type": "Signal",
+     "multiplicity": "2"
+    },
+    {
+     "id": "pCam",
+     "name": "camera",
+     "type": "Usb3"
+    },
+    {
+     "id": "pPower",
+     "name": "power",
+     "type": "Power48V",
+     "conjugated": true
+    }
+   ],
+   "parts": [
+    {
+     "id": "bus",
+     "name": "bus",
+     "type": "CanBus",
+     "ports": [
+      {
+       "id": "busA",
+       "name": "a"
+      },
+      {
+       "id": "busB",
+       "name": "b"
+      }
+     ]
+    },
+    {
+     "id": "planner",
+     "name": "planner",
+     "type": "MotionPlanner",
+     "ports": [
+      {
+       "id": "plIn",
+       "name": "goal",
+       "type": "Pose"
+      },
+      {
+       "id": "plOut",
+       "name": "cmd"
+      }
+     ]
+    },
+    {
+     "id": "safety",
+     "name": "safety",
+     "type": "SafetyMonitor",
+     "multiplicity": "1"
+    },
+    {
+     "id": "log",
+     "name": "log",
+     "type": "EventLog",
+     "aggregation": "shared"
+    },
+    {
+     "id": "clock",
+     "name": "clock",
+     "type": "Clock",
+     "aggregation": "none"
+    },
+    {
+     "id": "shoulder",
+     "name": "shoulder",
+     "type": "JointModule",
+     "ports": [
+      {
+       "id": "shoulderBus",
+       "name": "can"
+      }
+     ],
+     "parts": [
+      {
+       "id": "shoulderMotor",
+       "name": "motor",
+       "type": "ServoMotor"
+      },
+      {
+       "id": "shoulderEnc",
+       "name": "encoder",
+       "type": "Encoder",
+       "multiplicity": "1..2"
+      },
+      {
+       "id": "shoulderPid",
+       "name": "pid",
+       "type": "PidLoop"
+      }
+     ]
+    },
+    {
+     "id": "shoulderLimit",
+     "name": "shoulderLimit",
+     "type": "LimitSwitch",
+     "multiplicity": "2"
+    },
+    {
+     "id": "elbow",
+     "name": "elbow",
+     "type": "JointModule",
+     "ports": [
+      {
+       "id": "elbowBus",
+       "name": "can"
+      }
+     ],
+     "parts": [
+      {
+       "id": "elbowMotor",
+       "name": "motor",
+       "type": "ServoMotor"
+      },
+      {
+       "id": "elbowEnc",
+       "name": "encoder",
+       "type": "Encoder",
+       "multiplicity": "1..2"
+      },
+      {
+       "id": "elbowPid",
+       "name": "pid",
+       "type": "PidLoop"
+      }
+     ]
+    },
+    {
+     "id": "elbowLimit",
+     "name": "elbowLimit",
+     "type": "LimitSwitch",
+     "multiplicity": "2"
+    },
+    {
+     "id": "wrist",
+     "name": "wrist",
+     "type": "JointModule",
+     "ports": [
+      {
+       "id": "wristBus",
+       "name": "can"
+      }
+     ],
+     "parts": [
+      {
+       "id": "wristMotor",
+       "name": "motor",
+       "type": "ServoMotor"
+      },
+      {
+       "id": "wristEnc",
+       "name": "encoder",
+       "type": "Encoder",
+       "multiplicity": "1..2"
+      },
+      {
+       "id": "wristPid",
+       "name": "pid",
+       "type": "PidLoop"
+      }
+     ]
+    },
+    {
+     "id": "wristLimit",
+     "name": "wristLimit",
+     "type": "LimitSwitch",
+     "multiplicity": "2"
+    },
+    {
+     "id": "gripper",
+     "name": "gripper",
+     "type": "Gripper",
+     "ports": [
+      {
+       "id": "grCtl",
+       "name": "ctl"
+      }
+     ]
+    },
+    {
+     "id": "camera",
+     "name": "camera",
+     "type": "StereoCamera",
+     "multiplicity": "0..1",
+     "ports": [
+      {
+       "id": "camOut",
+       "name": "frames",
+       "type": "Image"
+      }
+     ]
+    },
+    {
+     "id": "vision",
+     "name": "vision",
+     "type": "PoseEstimator",
+     "ports": [
+      {
+       "id": "visIn",
+       "name": "frames",
+       "type": "Image",
+       "conjugated": true
+      }
+     ]
+    },
+    {
+     "id": "teach",
+     "name": "pendant",
+     "type": "TeachPendant",
+     "aggregation": "shared"
+    }
+   ],
+   "collaborationUses": [
+    {
+     "id": "obs",
+     "name": "faults",
+     "collaboration": "observer",
+     "bindings": [
+      {
+       "role": "oSubject",
+       "part": "safety"
+      },
+      {
+       "role": "oObserver",
+       "part": "log"
+      }
+     ]
+    },
+    {
+     "id": "loop",
+     "name": "control",
+     "collaboration": "feedback",
+     "bindings": [
+      {
+       "role": "fPlant",
+       "part": "shoulderMotor"
+      },
+      {
+       "role": "fSensor",
+       "part": "shoulderEnc"
+      },
+      {
+       "role": "fController",
+       "part": "shoulderPid"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "observer",
+   "type": "collaboration",
+   "name": "Observer",
+   "roles": [
+    {
+     "id": "oSubject",
+     "name": "subject",
+     "type": "Subject"
+    },
+    {
+     "id": "oObserver",
+     "name": "observer",
+     "type": "Observer",
+     "multiplicity": "*"
+    }
+   ]
+  },
+  {
+   "id": "feedback",
+   "type": "collaboration",
+   "name": "Feedback loop",
+   "roles": [
+    {
+     "id": "fPlant",
+     "name": "plant"
+    },
+    {
+     "id": "fSensor",
+     "name": "sensor"
+    },
+    {
+     "id": "fController",
+     "name": "controller"
+    }
+   ]
+  },
+  {
+   "id": "note",
+   "type": "note",
+   "text": "Every joint module repeats the same internal structure.",
+   "attachedTo": [
+    "elbow"
+   ]
+  }
+ ],
+ "relationships": [
+  {
+   "type": "connector",
+   "from": "shoulderBus",
+   "to": "shoulderPid"
+  },
+  {
+   "type": "connector",
+   "from": "shoulderPid",
+   "to": "shoulderMotor",
+   "name": "drive"
+  },
+  {
+   "type": "connector",
+   "from": "shoulderEnc",
+   "to": "shoulderPid",
+   "name": "feedback",
+   "fromEnd": {
+    "multiplicity": "1..2"
+   },
+   "toEnd": {
+    "multiplicity": "1"
+   }
+  },
+  {
+   "type": "connector",
+   "from": "busA",
+   "to": "shoulderBus",
+   "fromEnd": {
+    "multiplicity": "1"
+   },
+   "toEnd": {
+    "multiplicity": "1"
+   }
+  },
+  {
+   "type": "connector",
+   "from": "shoulderLimit",
+   "to": "safety",
+   "toEnd": {
+    "role": "monitor"
+   }
+  },
+  {
+   "type": "connector",
+   "from": "elbowBus",
+   "to": "elbowPid"
+  },
+  {
+   "type": "connector",
+   "from": "elbowPid",
+   "to": "elbowMotor",
+   "name": "drive"
+  },
+  {
+   "type": "connector",
+   "from": "elbowEnc",
+   "to": "elbowPid",
+   "name": "feedback",
+   "fromEnd": {
+    "multiplicity": "1..2"
+   },
+   "toEnd": {
+    "multiplicity": "1"
+   }
+  },
+  {
+   "type": "connector",
+   "from": "busB",
+   "to": "elbowBus",
+   "fromEnd": {
+    "multiplicity": "1"
+   },
+   "toEnd": {
+    "multiplicity": "1"
+   }
+  },
+  {
+   "type": "connector",
+   "from": "elbowLimit",
+   "to": "safety",
+   "toEnd": {
+    "role": "monitor"
+   }
+  },
+  {
+   "type": "connector",
+   "from": "wristBus",
+   "to": "wristPid"
+  },
+  {
+   "type": "connector",
+   "from": "wristPid",
+   "to": "wristMotor",
+   "name": "drive"
+  },
+  {
+   "type": "connector",
+   "from": "wristEnc",
+   "to": "wristPid",
+   "name": "feedback",
+   "fromEnd": {
+    "multiplicity": "1..2"
+   },
+   "toEnd": {
+    "multiplicity": "1"
+   }
+  },
+  {
+   "type": "connector",
+   "from": "busA",
+   "to": "wristBus",
+   "fromEnd": {
+    "multiplicity": "1"
+   },
+   "toEnd": {
+    "multiplicity": "1"
+   }
+  },
+  {
+   "type": "connector",
+   "from": "wristLimit",
+   "to": "safety",
+   "toEnd": {
+    "role": "monitor"
+   }
+  },
+  {
+   "type": "connector",
+   "from": "camOut",
+   "to": "visIn",
+   "name": "stream",
+   "association": "Video"
+  },
+  {
+   "type": "connector",
+   "from": "vision",
+   "to": "plIn",
+   "name": "targets"
+  },
+  {
+   "type": "connector",
+   "from": "plOut",
+   "to": "busA",
+   "name": "commands"
+  },
+  {
+   "type": "connector",
+   "from": "plOut",
+   "to": "grCtl"
+  },
+  {
+   "type": "connector",
+   "from": "safety",
+   "to": "planner",
+   "name": "halt",
+   "fromEnd": {
+    "role": "guard"
+   },
+   "toEnd": {
+    "role": "subject"
+   }
+  },
+  {
+   "type": "connector",
+   "from": "teach",
+   "to": "planner",
+   "fromEnd": {
+    "multiplicity": "0..1"
+   }
+  },
+  {
+   "type": "connector",
+   "from": "clock",
+   "to": "planner"
+  },
+  {
+   "type": "connector",
+   "from": "clock",
+   "to": "safety"
+  },
+  {
+   "type": "connector",
+   "from": "safety",
+   "to": "log"
+  },
+  {
+   "type": "connector",
+   "from": "planner",
+   "to": "log"
+  },
+  {
+   "type": "connector",
+   "from": "pCmd",
+   "to": "plIn",
+   "name": "tasks"
+  },
+  {
+   "type": "connector",
+   "from": "pEstop",
+   "to": "safety",
+   "toEnd": {
+    "multiplicity": "1"
+   }
+  },
+  {
+   "type": "connector",
+   "from": "pCam",
+   "to": "camOut"
+  },
+  {
+   "type": "connector",
+   "from": "pPower",
+   "to": "bus"
+  },
+  {
+   "type": "connector",
+   "from": "oSubject",
+   "to": "oObserver",
+   "name": "notifies",
+   "toEnd": {
+    "multiplicity": "*"
+   }
+  },
+  {
+   "type": "connector",
+   "from": "fSensor",
+   "to": "fController",
+   "name": "measures"
+  },
+  {
+   "type": "connector",
+   "from": "fController",
+   "to": "fPlant",
+   "name": "actuates"
+  }
+ ]
+}

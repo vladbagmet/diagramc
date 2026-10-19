@@ -200,6 +200,7 @@ export async function layoutStructure(graph: StructGraph, metrics: FontMetrics):
   const votes = new Map<string, number>();
   const vote = (endpoint: string, side: number): void => { votes.set(endpoint, (votes.get(endpoint) ?? 0) + side); };
   for (const p of plans) {
+    if (p.type === 'note-anchor') continue;
     for (const [self, other, isSource] of [[p.source, p.target, true], [p.target, p.source, false]] as const) {
       if (!portOwner.has(self)) continue;
       const inward = inside(ownerNode(other), portOwner.get(self)!);

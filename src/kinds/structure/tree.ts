@@ -68,6 +68,8 @@ export function checkNotes(notes: readonly { note: { id: string; attachedTo?: st
       const at = pointer(path, 'attachedTo', j);
       const target = tree.ref(id, at, diagnostics);
       if (target?.type === 'note') diagnostics.push({ code: 'INVALID_ATTACHMENT', path: at, message: `Note "${note.id}" cannot be attached to another note ("${id}")` });
+      // A port has one attachment point, shared by its connectors; annotate its owner instead.
+      if (target?.type === 'port') diagnostics.push({ code: 'INVALID_ATTACHMENT', path: at, message: `Note "${note.id}" cannot be attached to the port "${id}"; attach it to the port's owner "${target.parent}"` });
     });
   }
 }
