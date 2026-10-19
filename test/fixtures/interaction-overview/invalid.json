@@ -69,7 +69,7 @@
   { "name": "node unreachable from the initial node", "expect": { "code": "UNREACHABLE_NODE", "path": "/nodes/2" },
     "doc": { "kind": "interaction-overview", "nodes": [{ "id": "s", "type": "initial" }, { "id": "e", "type": "final" }, { "id": "e2", "type": "final" }],
       "flows": [{ "from": "s", "to": "e" }] } },
-  { "name": "unknown node type", "expect": { "code": "SCHEMA_INVALID", "path": "/nodes/0" },
+  { "name": "unknown node type", "expect": { "code": "SCHEMA_INVALID", "path": "/nodes/0/type" },
     "doc": { "kind": "interaction-overview", "nodes": [{ "id": "s", "type": "start" }] } },
   { "name": "name on a control node", "expect": { "code": "SCHEMA_INVALID", "path": "/nodes/0/name" },
     "doc": { "kind": "interaction-overview", "nodes": [{ "id": "s", "type": "initial", "name": "Start" }] } },

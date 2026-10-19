@@ -35,11 +35,23 @@ export class UmlError extends Error {
   }
 }
 
-/** Throws the first diagnostic as the error, carrying all of them for agents that fix in bulk. */
+/** Problems spelled out in an error's `message`; all of them are always in `diagnostics`. */
+const SUMMARY_LIMIT = 12;
+
+/**
+ * Throws a validation error carrying every diagnostic. `code` and `path` are the
+ * first problem's; `message` summarises all of them, so an agent that reads only
+ * the message still sees every problem (up to SUMMARY_LIMIT, then a count).
+ * Details live in the diagnostics only, never duplicated at the top level.
+ */
 export function failValidation(diagnostics: readonly Diagnostic[]): never {
   const [first] = diagnostics;
   if (!first) throw new UmlError('INTERNAL_ERROR', 'Validation failed without diagnostics', 3);
-  throw new UmlError(first.code, first.message, 2, first.details, first.path, diagnostics);
+  const message = diagnostics.length === 1 ? first.message
+    : `${diagnostics.length} problems; fix all of them (each is also listed in "diagnostics" with its path): `
+      + diagnostics.slice(0, SUMMARY_LIMIT).map((d, i) => `(${i + 1}) ${d.message}`).join(' ')
+      + (diagnostics.length > SUMMARY_LIMIT ? ` (and ${diagnostics.length - SUMMARY_LIMIT} more in "diagnostics")` : '');
+  throw new UmlError(first.code, message, 2, undefined, first.path, diagnostics);
 }
 
 /** Appends a JSON Pointer segment, escaping `~` and `/` as RFC 6901 requires. */

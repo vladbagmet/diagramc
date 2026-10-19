@@ -55,7 +55,7 @@
     "doc": { "kind": "class", "elements": [{ "id": "a", "type": "class", "name": "A" }], "relationships": [{ "type": "dependency", "from": "a", "to": "a", "toEnd": { "navigable": true } }] } },
   { "name": "multiplicity that is not a range", "expect": { "code": "SCHEMA_INVALID", "path": "/relationships/0/toEnd/multiplicity" },
     "doc": { "kind": "class", "elements": [{ "id": "a", "type": "class", "name": "A" }], "relationships": [{ "type": "association", "from": "a", "to": "a", "toEnd": { "multiplicity": "many" } }] } },
-  { "name": "unknown relationship type", "expect": { "code": "SCHEMA_INVALID", "path": "/relationships/0" },
+  { "name": "unknown relationship type", "expect": { "code": "SCHEMA_INVALID", "path": "/relationships/0/type" },
     "doc": { "kind": "class", "elements": [{ "id": "a", "type": "class", "name": "A" }], "relationships": [{ "type": "inheritance", "from": "a", "to": "a" }] } },
   { "name": "missing elements", "expect": { "code": "SCHEMA_INVALID", "path": "/elements" },
     "doc": { "kind": "class" } },

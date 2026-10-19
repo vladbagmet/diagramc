@@ -24,7 +24,7 @@ export const interactionOverviewSchema = kindSchema({
       properties: {
         id: ref('id', 'Optional ID, used in diagnostics and in the SVG (data-uml-id).'),
         from: ref('id'), to: ref('id'),
-        guard: ref('text', 'Guard without brackets, drawn [guard] near the source. Required on, and only allowed on, flows leaving a decision; "else" is allowed once.'),
+        guard: ref('guard', 'Guard without brackets, drawn [guard] near the source. Required on, and only allowed on, flows leaving a decision; "else" is allowed once.'),
       },
     },
     fragmentLifeline: {

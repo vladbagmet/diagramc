@@ -60,7 +60,7 @@ export function validateUseCaseDiagram(model: UseCaseDiagram): Diagnostic[] {
       case 'association':
         if ((from.type === 'actor') === (to.type === 'actor')) {
           diagnostics.push({ code: 'INVALID_ASSOCIATION', path: pointer(at, from.type === 'actor' ? 'to' : 'from'), message: from.type === 'actor'
-            ? `Actors communicate with use cases, not with other actors ("${r.from}" and "${r.to}"); use a generalization between actors`
+            ? `Actors communicate with use cases, not with other actors ("${r.from}" and "${r.to}"): associate each of them with the use cases they take part in instead (a generalization between the two only if one actor is a kind of the other)`
             : `An association in a use case diagram connects an actor and a use case; "${r.from}" and "${r.to}" are use cases (use «include» or «extend»)` });
         }
         break;

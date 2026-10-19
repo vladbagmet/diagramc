@@ -41,7 +41,7 @@
   "name": "unknown node type",
   "expect": {
    "code": "SCHEMA_INVALID",
-   "path": "/nodes/1"
+   "path": "/nodes/1/type"
   },
   "doc": {
    "kind": "activity",

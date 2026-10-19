@@ -65,7 +65,7 @@ export const useCaseSchema = kindSchema({
         relationship('include', '`from` (the base use case) includes `to` (the included use case): dashed line, open arrowhead at `to`, «include».'),
         relationship('extend', '`from` (the extending use case) extends `to` (the base use case) at `extensionPoint`, declared by `to`: dashed line, open arrowhead at the base, «extend». A `condition` is shown in a note attached to the relationship.', {
           extensionPoint: ref('name', 'Name of one of the extension points of the base use case `to`.'),
-          condition: ref('text', 'Condition under which the extension applies, drawn as `Condition: {condition}` in a note.'),
+          condition: ref('constraint', 'Condition under which the extension applies, drawn as `Condition: {condition}` in a note.'),
         }, ['extensionPoint']),
         relationship('generalization', '`from` is the specific actor (or use case), `to` the general one: solid line, hollow triangle at `to`.'),
       ],
