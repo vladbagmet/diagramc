@@ -8,7 +8,8 @@ import { activityToPlantUml } from '../dist/kinds/activity/to-plantuml.js';
 import { fixActivitySvg } from '../dist/kinds/activity/postprocess.js';
 import { loadFonts } from '../dist/engine/fonts.js';
 import { inspectSvg, runGates } from '../dist/qa/index.js';
-import { root } from './helpers.mjs';
+import { cli, fakeJava, root, workspace } from './helpers.mjs';
+import { existsSync } from 'node:fs';
 
 // Java-free tests of the activity kind: validation, structuring, PlantUML source
 // generation and the SVG post-processor. Real renders: test/integration/activity.test.mjs.
@@ -122,4 +123,16 @@ test('activity: post-processor moves a guard off a crossing line and the QA read
   const report = runGates(scene, ['[guard]']);
   assert.ok(report.ok, JSON.stringify(report.gates.filter(g => !g.ok)));
   assert.ok(report.gates.every(g => !g.skipped), 'no gate is skipped for activity diagrams');
+});
+
+test('activity: validation, structuring included, finishes before Java is ever started', async t => {
+  const dir = await workspace(t), marker = join(dir, 'spawned');
+  const java = await fakeJava(dir, `require('node:fs').writeFileSync(${JSON.stringify(marker)}, 'spawned');`);
+  const env = { ...process.env, UML_JAVA: java, PLANTUML_JAR: 'unused' };
+  const unstructured = (await fixtures('invalid.json')).find(c => c.expect.code === 'UNSTRUCTURED_FLOW').doc;
+  const result = cli(['render', '-', '-o', join(dir, 'out.svg')], { input: JSON.stringify(unstructured), env });
+  assert.equal(result.status, 2);
+  assert.equal(JSON.parse(result.stderr).error.code, 'UNSTRUCTURED_FLOW');
+  assert.ok(!existsSync(marker), 'the renderer was not started');
+  assert.ok(!existsSync(join(dir, 'out.svg')));
 });
