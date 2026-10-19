@@ -1,0 +1,442 @@
+{
+ "kind": "profile",
+ "title": "Platform profiles",
+ "elements": [
+  {
+   "id": "mClass",
+   "type": "metaclass",
+   "name": "Class"
+  },
+  {
+   "id": "mComponent",
+   "type": "metaclass",
+   "name": "Component"
+  },
+  {
+   "id": "mInterface",
+   "type": "metaclass",
+   "name": "Interface"
+  },
+  {
+   "id": "mOperation",
+   "type": "metaclass",
+   "name": "Operation"
+  },
+  {
+   "id": "mProperty",
+   "type": "metaclass",
+   "name": "Property"
+  },
+  {
+   "id": "mPackage",
+   "type": "metaclass",
+   "name": "Package"
+  },
+  {
+   "id": "mDependency",
+   "type": "metaclass",
+   "name": "Dependency"
+  },
+  {
+   "id": "mNode",
+   "type": "metaclass",
+   "name": "Node"
+  },
+  {
+   "id": "persistence",
+   "type": "profile",
+   "name": "Persistence",
+   "members": [
+    "persistence_Entity",
+    "persistence_Embeddable",
+    "persistence_Id",
+    "persistence_Column",
+    "persistence_Table",
+    "persistence_Query",
+    "persistence_Repository",
+    "persistence_Transient"
+   ]
+  },
+  {
+   "id": "persistence_Entity",
+   "type": "stereotype",
+   "name": "Entity",
+   "attributes": [
+    {
+     "name": "name",
+     "type": "String",
+     "multiplicity": "0..1"
+    }
+   ],
+   "abstract": true
+  },
+  {
+   "id": "persistence_Embeddable",
+   "type": "stereotype",
+   "name": "Embeddable"
+  },
+  {
+   "id": "persistence_Id",
+   "type": "stereotype",
+   "name": "Id"
+  },
+  {
+   "id": "persistence_Column",
+   "type": "stereotype",
+   "name": "Column",
+   "attributes": [
+    {
+     "name": "name",
+     "type": "String",
+     "multiplicity": "0..1"
+    }
+   ]
+  },
+  {
+   "id": "persistence_Table",
+   "type": "stereotype",
+   "name": "Table"
+  },
+  {
+   "id": "persistence_Query",
+   "type": "stereotype",
+   "name": "Query"
+  },
+  {
+   "id": "persistence_Repository",
+   "type": "stereotype",
+   "name": "Repository",
+   "attributes": [
+    {
+     "name": "name",
+     "type": "String",
+     "multiplicity": "0..1"
+    }
+   ]
+  },
+  {
+   "id": "persistence_Transient",
+   "type": "stereotype",
+   "name": "Transient"
+  },
+  {
+   "id": "services",
+   "type": "profile",
+   "name": "Services",
+   "members": [
+    "services_Service",
+    "services_Endpoint",
+    "services_Operation",
+    "services_Async",
+    "services_Idempotent",
+    "services_Secured",
+    "services_Facade",
+    "services_Gateway"
+   ]
+  },
+  {
+   "id": "services_Service",
+   "type": "stereotype",
+   "name": "Service",
+   "attributes": [
+    {
+     "name": "name",
+     "type": "String",
+     "multiplicity": "0..1"
+    }
+   ],
+   "abstract": true
+  },
+  {
+   "id": "services_Endpoint",
+   "type": "stereotype",
+   "name": "Endpoint"
+  },
+  {
+   "id": "services_Operation",
+   "type": "stereotype",
+   "name": "Operation"
+  },
+  {
+   "id": "services_Async",
+   "type": "stereotype",
+   "name": "Async",
+   "attributes": [
+    {
+     "name": "name",
+     "type": "String",
+     "multiplicity": "0..1"
+    }
+   ]
+  },
+  {
+   "id": "services_Idempotent",
+   "type": "stereotype",
+   "name": "Idempotent"
+  },
+  {
+   "id": "services_Secured",
+   "type": "stereotype",
+   "name": "Secured"
+  },
+  {
+   "id": "services_Facade",
+   "type": "stereotype",
+   "name": "Facade",
+   "attributes": [
+    {
+     "name": "name",
+     "type": "String",
+     "multiplicity": "0..1"
+    }
+   ]
+  },
+  {
+   "id": "services_Gateway",
+   "type": "stereotype",
+   "name": "Gateway"
+  },
+  {
+   "id": "deployment",
+   "type": "profile",
+   "name": "Deployment",
+   "members": [
+    "deployment_Cluster",
+    "deployment_Pod",
+    "deployment_Container",
+    "deployment_Volume",
+    "deployment_Ingress",
+    "deployment_Secret",
+    "deployment_Config",
+    "deployment_Job"
+   ]
+  },
+  {
+   "id": "deployment_Cluster",
+   "type": "stereotype",
+   "name": "Cluster",
+   "attributes": [
+    {
+     "name": "name",
+     "type": "String",
+     "multiplicity": "0..1"
+    }
+   ],
+   "abstract": true
+  },
+  {
+   "id": "deployment_Pod",
+   "type": "stereotype",
+   "name": "Pod"
+  },
+  {
+   "id": "deployment_Container",
+   "type": "stereotype",
+   "name": "Container"
+  },
+  {
+   "id": "deployment_Volume",
+   "type": "stereotype",
+   "name": "Volume",
+   "attributes": [
+    {
+     "name": "name",
+     "type": "String",
+     "multiplicity": "0..1"
+    }
+   ]
+  },
+  {
+   "id": "deployment_Ingress",
+   "type": "stereotype",
+   "name": "Ingress"
+  },
+  {
+   "id": "deployment_Secret",
+   "type": "stereotype",
+   "name": "Secret"
+  },
+  {
+   "id": "deployment_Config",
+   "type": "stereotype",
+   "name": "Config",
+   "attributes": [
+    {
+     "name": "name",
+     "type": "String",
+     "multiplicity": "0..1"
+    }
+   ]
+  },
+  {
+   "id": "deployment_Job",
+   "type": "stereotype",
+   "name": "Job"
+  },
+  {
+   "id": "uml",
+   "type": "package",
+   "name": "UML"
+  },
+  {
+   "id": "app",
+   "type": "package",
+   "name": "Shop application"
+  }
+ ],
+ "relationships": [
+  {
+   "type": "extension",
+   "from": "persistence_Entity",
+   "to": "mClass"
+  },
+  {
+   "type": "extension",
+   "from": "persistence_Embeddable",
+   "to": "mClass"
+  },
+  {
+   "type": "generalization",
+   "from": "persistence_Id",
+   "to": "persistence_Entity"
+  },
+  {
+   "type": "extension",
+   "from": "persistence_Column",
+   "to": "mProperty",
+   "required": true
+  },
+  {
+   "type": "generalization",
+   "from": "persistence_Table",
+   "to": "persistence_Entity"
+  },
+  {
+   "type": "extension",
+   "from": "persistence_Query",
+   "to": "mOperation"
+  },
+  {
+   "type": "generalization",
+   "from": "persistence_Repository",
+   "to": "persistence_Entity"
+  },
+  {
+   "type": "extension",
+   "from": "persistence_Transient",
+   "to": "mProperty"
+  },
+  {
+   "type": "reference",
+   "from": "persistence",
+   "to": "uml"
+  },
+  {
+   "type": "extension",
+   "from": "services_Service",
+   "to": "mComponent"
+  },
+  {
+   "type": "extension",
+   "from": "services_Endpoint",
+   "to": "mInterface"
+  },
+  {
+   "type": "generalization",
+   "from": "services_Operation",
+   "to": "services_Service"
+  },
+  {
+   "type": "extension",
+   "from": "services_Async",
+   "to": "mOperation",
+   "required": true
+  },
+  {
+   "type": "generalization",
+   "from": "services_Idempotent",
+   "to": "services_Service"
+  },
+  {
+   "type": "extension",
+   "from": "services_Secured",
+   "to": "mComponent"
+  },
+  {
+   "type": "generalization",
+   "from": "services_Facade",
+   "to": "services_Service"
+  },
+  {
+   "type": "extension",
+   "from": "services_Gateway",
+   "to": "mComponent"
+  },
+  {
+   "type": "reference",
+   "from": "services",
+   "to": "uml"
+  },
+  {
+   "type": "extension",
+   "from": "deployment_Cluster",
+   "to": "mNode"
+  },
+  {
+   "type": "extension",
+   "from": "deployment_Pod",
+   "to": "mNode"
+  },
+  {
+   "type": "generalization",
+   "from": "deployment_Container",
+   "to": "deployment_Cluster"
+  },
+  {
+   "type": "extension",
+   "from": "deployment_Volume",
+   "to": "mNode",
+   "required": true
+  },
+  {
+   "type": "generalization",
+   "from": "deployment_Ingress",
+   "to": "deployment_Cluster"
+  },
+  {
+   "type": "extension",
+   "from": "deployment_Secret",
+   "to": "mClass"
+  },
+  {
+   "type": "generalization",
+   "from": "deployment_Config",
+   "to": "deployment_Cluster"
+  },
+  {
+   "type": "extension",
+   "from": "deployment_Job",
+   "to": "mComponent"
+  },
+  {
+   "type": "reference",
+   "from": "deployment",
+   "to": "uml"
+  },
+  {
+   "type": "apply",
+   "from": "app",
+   "to": "persistence"
+  },
+  {
+   "type": "apply",
+   "from": "app",
+   "to": "services"
+  },
+  {
+   "type": "apply",
+   "from": "app",
+   "to": "deployment"
+  }
+ ]
+}
