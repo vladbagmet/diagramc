@@ -2,6 +2,7 @@ import type { KindDefinition } from './kind.js';
 import { classKind } from '../kinds/class/index.js';
 import { activityKind } from '../kinds/activity/index.js';
 import { stateMachineKind } from '../kinds/state-machine/index.js';
+import { useCaseKind } from '../kinds/use-case/index.js';
 
 /**
  * Every diagram kind the CLI knows, in `uml kinds` order. To add a kind, create
@@ -12,6 +13,7 @@ export const kinds: readonly KindDefinition[] = [
   classKind,
   activityKind,
   stateMachineKind,
+  useCaseKind,
 ];
 
 export function findKind(name: string): KindDefinition | undefined {
