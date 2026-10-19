@@ -2,7 +2,7 @@ import { theme } from '../../core/theme.js';
 import { clipRoute, type NodeShape } from '../../engine/clip.js';
 import { layout, type LayoutEdge, type LayoutLabel, type LayoutNode, type LayoutPort, type Side } from '../../engine/elk.js';
 import type { FontMetrics, TextStyle } from '../../engine/fonts.js';
-import { inflate, overlapArea, segmentIntersectsRect, simplify, union, type Point, type Rect } from '../../engine/geometry.js';
+import { inflate, overlapArea, segmentIntersectsRect, simplify, straightenJogs, union, type Point, type Rect } from '../../engine/geometry.js';
 import { placeLabels, type LabelRequest } from '../../engine/labels.js';
 import { planSelfLoops, selfLoopRoute, type SelfLoopPlan } from '../../engine/selfloops.js';
 import { measureBox, measureFrameHeading, measureNote, type Compartment, type MeasuredBox } from '../../engine/shapes.js';
@@ -270,7 +270,9 @@ export async function layoutStateMachine(model: StateMachineDiagram, metrics: Fo
       loopIndex.set(t.from, i + 1);
       route = selfLoopRoute(rect(t.from), loopPlans.get(t.from)!, i);
     } else {
-      route = result.edges.get(t.key)!.points;
+      // Ends on circles and diamonds stay at their side centers; only rectangular ends may slide.
+      const slide = (id: string): Rect => shapeOf(id) === 'rect' && !points.has(id) ? boundsOf(id) : { x: 0, y: 0, width: 0, height: 0 };
+      route = straightenJogs(result.edges.get(t.key)!.points, { source: slide(t.from), target: slide(t.to) });
       route = clipRoute(route, 'source', boundsOf(t.from), shapeOf(t.from));
       route = clipRoute(route, 'target', boundsOf(t.to), shapeOf(t.to));
     }

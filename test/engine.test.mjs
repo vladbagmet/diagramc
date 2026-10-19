@@ -243,3 +243,18 @@ test('QA gates: shaped outlines, border nodes, edges ending on edges, labels ins
   const outside = node('o', 300, 20, 60, 30);
   assert.deepEqual(failed(await checkSvg(doc(wrap(parent, title) + child + outside + line('x', 'o', 'k', '330,50 330,150 60,150 60,230 150,230')))), ['edge-endpoints']);
 });
+
+test('geometry: small jogs in orthogonal routes are straightened, ends stay on their borders', async () => {
+  const { straightenJogs } = await import('../dist/engine/geometry.js');
+  const source = { x: 100, y: 0, width: 100, height: 40 }, target = { x: 90, y: 200, width: 100, height: 40 };
+  const route = [{ x: 155, y: 40 }, { x: 155, y: 80 }, { x: 158, y: 80 }, { x: 158, y: 150 }, { x: 152, y: 150 }, { x: 152, y: 200 }];
+  const straight = straightenJogs(route, { source, target });
+  assert.equal(straight.length, 2);
+  assert.equal(straight[0].x, straight[1].x);
+  assert.deepEqual([straight[0].y, straight[1].y], [40, 200]);
+  // An end that would leave its node's side is not moved; the other side moves instead.
+  const narrow = { x: 150, y: 200, width: 12, height: 40 };
+  const kept = straightenJogs([{ x: 120, y: 40 }, { x: 120, y: 100 }, { x: 125, y: 100 }, { x: 125, y: 200 }], { source, target: narrow }, 8, 0);
+  assert.deepEqual(kept.at(-1), { x: 125, y: 200 });
+  assert.equal(kept.length, 2);
+});
