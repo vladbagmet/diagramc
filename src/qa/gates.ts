@@ -1,6 +1,7 @@
 import { theme } from '../core/theme.js';
 import { contains, direction, distance, distanceToBorder, distanceToRect, inflate, overlapArea, segmentIntersectsRect, type Rect } from '../engine/geometry.js';
 import { inspectSvg, type Scene } from './inspect.js';
+import { interactionGates } from './plantuml-interaction.js';
 
 /**
  * Hard quality gates run on every rendered fixture and example (both backends).
@@ -79,7 +80,7 @@ export function runGates(scene: Scene, expectedTexts: readonly string[] = []): Q
         if (segmentIntersectsRect(e.points[k - 1]!, e.points[k]!, box)) { fail(`label ${snippet(label.content)} crosses edge ${e.id}`); break; }
       }
     }
-  }, !engine);
+  }, !engine && !scene.evaluated?.includes('label-edge-crossing'));
 
   gate('label-proximity', fail => {
     // An end label must sit near its own end and nearer to it than to any other
@@ -164,6 +165,7 @@ export function runGates(scene: Scene, expectedTexts: readonly string[] = []): Q
     }
   });
 
+  gates.push(...interactionGates(scene));
   return { ok: gates.every(g => g.ok), renderer: scene.renderer, gates };
 }
 

@@ -19,6 +19,12 @@ export interface PlantUmlBackend<M> {
   /** Value PlantUML writes to `data-diagram-type` on the root <svg>, e.g. "CLASS" or "SEQUENCE". */
   readonly diagramType: string;
   toPlantUml(model: M): string;
+  /**
+   * Optional fix-up of PlantUML's SVG where its drawing deviates from UML
+   * notation. Runs before font embedding and the QA gates; it may only adjust
+   * geometry and fixed theme styling, never introduce input text or markup.
+   */
+  postProcess?(svg: string, model: M): string;
 }
 
 export type Backend<M> = EngineBackend<M> | PlantUmlBackend<M>;
