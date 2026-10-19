@@ -264,7 +264,10 @@ function refineGrid(ids: readonly string[], pairs: readonly [string, string][], 
       }
     });
     const xs = [...pos.values()].map(p => p.x), ys = [...pos.values()].map(p => p.y);
-    return cost + 0.25 * (Math.max(...xs) - Math.min(...xs) + Math.max(...ys) - Math.min(...ys));
+    // Compact, and not much wider than tall: a cell is about three times wider
+    // than tall on paper, so a grid with more columns than rows is already wide.
+    const width = Math.max(...xs) - Math.min(...xs), height = Math.max(...ys) - Math.min(...ys);
+    return cost + 0.25 * (width + height) + 0.6 * Math.max(0, width - height);
   };
   const move = (id: string, to: Point): void => {
     const from = pos.get(id)!, other = occupant.get(key(to));
