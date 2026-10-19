@@ -58,13 +58,21 @@ export function baselineOffset(metrics: FontMetrics, size: number, lineHeight: n
   return (lineHeight - ascent - descent) / 2 + ascent;
 }
 
-export interface NodeData { id: string; type: string; parent?: string | undefined }
+export interface NodeData {
+  id: string;
+  type: string;
+  parent?: string | undefined;
+  /** Extra data-uml-* attributes for QA (e.g. data-uml-shape="ellipse"). */
+  extra?: Record<string, string> | undefined;
+}
 
-function nodeAttributes(data: NodeData, bounds: Rect): Record<string, string> {
+/** The mandatory data-uml-* attributes of a node group. */
+export function nodeAttributes(data: NodeData, bounds: Rect): Record<string, string> {
   return {
     'data-uml-role': 'node', 'data-uml-id': data.id, 'data-uml-type': data.type,
     ...(data.parent ? { 'data-uml-parent': data.parent } : {}),
     'data-uml-bounds': `${num(bounds.x)} ${num(bounds.y)} ${num(bounds.width)} ${num(bounds.height)}`,
+    ...data.extra,
   };
 }
 
@@ -72,7 +80,7 @@ function nodeAttributes(data: NodeData, bounds: Rect): Record<string, string> {
  * Draws a compartment box at `bounds` (width from `measureBox`; height may be
  * larger, the last compartment absorbs the extra space).
  */
-export function drawBox(canvas: Canvas, box: MeasuredBox, bounds: Rect, data: NodeData, options: { dashed?: boolean } = {}): string {
+export function drawBox(canvas: Canvas, box: MeasuredBox, bounds: Rect, data: NodeData, options: { dashed?: boolean; decorations?: readonly string[]; middle?: boolean } = {}): string {
   const { padX, padY, headerPadY } = theme.spacing;
   const parts: string[] = [el('rect', {
     x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height,
@@ -87,7 +95,9 @@ export function drawBox(canvas: Canvas, box: MeasuredBox, bounds: Rect, data: No
       parts.push(el('rect', { x: bounds.x + inset, y: y + inset, width: bounds.width - 2 * inset, height: height - inset, fill: theme.color.nodeHeaderFill }));
     }
     if (index > 0) parts.push(el('line', { x1: bounds.x, y1: y, x2: bounds.x + bounds.width, y2: y, stroke: theme.color.nodeStroke, 'stroke-width': theme.stroke.compartment }));
-    let rowTop = y + (c.header ? headerPadY : padY);
+    // `middle`: a box that is only a name compartment centers its lines vertically.
+    const slack = options.middle && box.compartments.length === 1 ? Math.max(0, (height - c.height) / 2) : 0;
+    let rowTop = y + (c.header ? headerPadY : padY) + slack;
     for (const line of c.lines) {
       // One <text> per logical line (wrapped rows become <tspan>s), so the
       // element's text content is the input string itself.
@@ -104,6 +114,7 @@ export function drawBox(canvas: Canvas, box: MeasuredBox, bounds: Rect, data: No
     }
     y += height;
   });
+  parts.push(...options.decorations ?? []);
   return el('g', nodeAttributes(data, bounds), parts);
 }
 

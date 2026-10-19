@@ -72,6 +72,15 @@ export function distanceToBorder(p: Point, r: Rect): number {
   return Math.min(p.x - r.x, right(r) - p.x, p.y - r.y, bottom(r) - p.y);
 }
 
+/** Distance from point p to the ellipse inscribed in rectangle r (radial approximation, exact on the axes). */
+export function distanceToEllipse(p: Point, r: Rect): number {
+  const a = r.width / 2, b = r.height / 2, c = center(r);
+  const dx = p.x - c.x, dy = p.y - c.y;
+  const t = Math.hypot(dx / a, dy / b);
+  if (t === 0) return Math.min(a, b);
+  return Math.hypot(dx - dx / t, dy - dy / t);
+}
+
 /** Removes consecutive duplicates and collinear interior points of a polyline. */
 export function simplify(points: readonly Point[]): Point[] {
   const out: Point[] = [];

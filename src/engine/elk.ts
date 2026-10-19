@@ -26,12 +26,21 @@ export interface LayoutPort {
    * for those labels. The edge attaches at the port's middle.
    */
   width?: number;
+  /**
+   * Fixed position of the port's middle along its side, in px from the node's
+   * top (WEST/EAST) or left (NORTH/SOUTH) edge. When any port of a node has a
+   * position, all of its ports must have one (ELK FIXED_POS).
+   */
+  position?: number;
 }
 export interface LayoutNode {
   id: string;
   width: number;
   height: number;
-  /** Nested nodes (compound node). The node's size is then computed by ELK. */
+  /**
+   * Nested nodes (compound node). The node's size is then computed by ELK;
+   * `width` and `height` act as its minimum size (e.g. a header wider than the children).
+   */
   children?: LayoutNode[];
   /** Inner padding of a compound node (room for a package tab, a name compartment...). */
   padding?: { top: number; left: number; bottom: number; right: number };
@@ -73,14 +82,22 @@ export async function layout(nodes: readonly LayoutNode[], edges: readonly Layou
     ...(node.children?.length ? { children: node.children.map(toElk) } : {}),
     ...(node.ports?.length ? { ports: node.ports.map(p => {
       const horizontal = p.side === 'NORTH' || p.side === 'SOUTH';
-      return { id: p.id, width: horizontal ? p.width ?? 0 : 0, height: horizontal ? 0 : p.width ?? 0, layoutOptions: { 'elk.port.side': p.side } };
+      const width = horizontal ? p.width ?? 0 : 0, height = horizontal ? 0 : p.width ?? 0;
+      const fixed = p.position === undefined ? {} : horizontal
+        ? { x: p.position - width / 2, y: p.side === 'NORTH' ? 0 : node.height }
+        : { x: p.side === 'WEST' ? 0 : node.width, y: p.position - height / 2 };
+      return { id: p.id, width, height, ...fixed, layoutOptions: { 'elk.port.side': p.side } };
     }) } : {}),
     // An invisible outside label reserves room right of the node. Its text must not
     // be empty: ELK ignores empty labels when computing node margins.
     ...(node.reserveRight ? { labels: [{ id: `${node.id}::reserve`, text: 'reserved', width: node.reserveRight, height: Math.max(1, node.height - 2), layoutOptions: { 'elk.nodeLabels.placement': '[OUTSIDE, H_RIGHT, V_CENTER]' } }] } : {}),
     layoutOptions: {
+      ...(node.children?.length && (node.width || node.height) ? {
+        'elk.nodeSize.constraints': '[MINIMUM_SIZE]',
+        'elk.nodeSize.minimum': `(${node.width}, ${node.height})`,
+      } : {}),
       ...(node.ports?.length ? {
-        'elk.portConstraints': 'FIXED_SIDE',
+        'elk.portConstraints': node.ports.some(p => p.position !== undefined) ? 'FIXED_POS' : 'FIXED_SIDE',
         // Grow the node if its ports need more room than its content.
         'elk.nodeSize.constraints': '[PORTS, MINIMUM_SIZE]',
         'elk.nodeSize.minimum': `(${node.width}, ${node.height})`,

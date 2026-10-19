@@ -192,7 +192,7 @@ test('CLI validate, schema and kinds print JSON on stdout', () => {
   assert.equal(result.status, 0);
   assert.equal(JSON.parse(result.stdout).properties.kind.const, 'class');
   result = cli(['kinds']);
-  assert.deepEqual(JSON.parse(result.stdout).map(k => k.kind), ['class']);
+  assert.equal(JSON.parse(result.stdout)[0].kind, 'class', 'class is listed first; other kinds follow in registry order');
   assert.deepEqual(JSON.parse(result.stdout)[0].backends, ['engine', 'plantuml']);
 });
 test('invalid input never spawns renderer or creates/replaces output', async t => {
