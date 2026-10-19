@@ -9,7 +9,7 @@
   ],
   "transitions": [
     { "from": "start", "to": "red" },
-    { "from": "red", "to": "green", "trigger": "timer", "guard": "[pedestrians clear]", "effect": "log()" },
+    { "from": "red", "to": "green", "trigger": "timer", "guard": "pedestrians clear", "effect": "log()" },
     { "from": "green", "to": "yellow", "trigger": "timer" },
     { "from": "yellow", "to": "red", "trigger": "timer" }
   ]
