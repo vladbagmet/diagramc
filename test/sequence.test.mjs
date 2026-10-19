@@ -4,7 +4,7 @@ import { readFile, readdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { parseDocument } from '../dist/model/parse.js';
 import { sequenceToPlantUml } from '../dist/kinds/sequence/to-plantuml.js';
-import { attachSelfMessages, endDestroyedLifelines } from '../dist/kinds/sequence/postprocess.js';
+import { attachSelfMessages, clearLabels, endDestroyedLifelines } from '../dist/kinds/sequence/postprocess.js';
 import { checkSvg, inspectSvg } from '../dist/qa/index.js';
 import { cli, root } from './helpers.mjs';
 
@@ -193,7 +193,7 @@ test('QA reader: a stored sequence render yields lifelines, messages and labels,
   // Engine-only gates are reported as skipped; the ones this reader supplies data for are evaluated.
   const skipped = report.gates.filter(g => g.skipped).map(g => g.gate);
   for (const gate of ['label-proximity', 'edge-endpoints', 'markers']) assert.ok(skipped.includes(gate), gate);
-  for (const gate of ['label-overlap', 'label-edge-crossing', 'message-endpoints', 'inside-canvas', 'literal-text', 'min-font-size', 'text-fits']) {
+  for (const gate of ['label-overlap', 'label-edge-crossing', 'message-endpoints', 'lifeline-crossing', 'inside-canvas', 'literal-text', 'min-font-size', 'text-fits']) {
     assert.ok(report.gates.some(g => g.gate === gate && !g.skipped), `${gate} evaluated`);
   }
 });
@@ -214,6 +214,34 @@ test('QA reader: the message-endpoints gate catches arrows that miss their lifel
   assert.notEqual(flipped, group);
   const report2 = await checkSvg(svg.replace(group, flipped));
   assert.ok(!report2.gates.find(g => g.gate === 'message-endpoints').ok);
+});
+
+test('QA: lifeline-crossing fails when a lifeline crosses a message label or a guard sits on an activation bar', async () => {
+  const svg = await readFile(join(root, 'test/fixtures/sequence/rendered-checkout.svg'), 'utf8');
+  const gate = async s => (await checkSvg(s)).gates.find(g => g.gate === 'lifeline-crossing');
+  assert.ok((await gate(svg)).ok, 'the stored render passes');
+  // Without its halo, the reply label is crossed by the order lifeline.
+  const halo = svg.match(/<rect fill="#FFFFFF" height="[\d.]+" width="[\d.]+" x="[\d.]+" y="[\d.]+"\/>(?=<text[^>]*>(?:&#8203;|​)?result = charge)/)[0];
+  const unhaloed = await gate(svg.replace(halo, ''));
+  assert.ok(!unhaloed.ok && unhaloed.failures.some(f => /result = charge.*crossed by lifeline/.test(f)), JSON.stringify(unhaloed.failures));
+  // Moved back onto the service activation bar (PlantUML's own placement), the guard fails.
+  const guard = svg.match(/<text[^>]*x="([\d.]+)"[^>]*>\[(?:&#8203;|​)?result\.accepted/);
+  const bar = svg.match(/<rect fill="#F8FAFC" height="[\d.]+" style="stroke:#334155;stroke-width:1;" width="10" x="([\d.]+)" y="[\d.]+"\/>/g)
+    .map(r => Number(r.match(/ x="([\d.]+)"/)[1])).find(x => x < Number(guard[1]) && Number(guard[1]) - x < 40);
+  const onBar = await gate(svg.replace(guard[0], guard[0].replace(`x="${guard[1]}"`, `x="${bar - 4}"`)));
+  assert.ok(!onBar.ok && onBar.failures.some(f => /result\.accepted.*activation bar/.test(f)), JSON.stringify(onBar.failures));
+});
+
+test('post-processing moves a crossed label beside the lifeline or paints a halo when no gap fits', () => {
+  const lifeline = x => `<g><title>l</title><rect fill="#000000" fill-opacity="0.00000" height="400" width="8" x="${x - 4}" y="100"/><line style="stroke:#334155;stroke-width:0.5;stroke-dasharray:5,5;" x1="${x}" x2="${x}" y1="100" y2="500"/></g>`;
+  const message = (x1, x2, width) => `<g class="message" data-participant-1="uml_l0" data-participant-2="uml_l2"><line style="stroke:#334155;stroke-width:1.25;" x1="${x1}" x2="${x2}" y1="300" y2="300"/><text fill="#1E293B" font-size="12" textLength="${width}" x="${x1 + 11}" y="291">label</text></g>`;
+  // A 60px label starting at 111 is crossed by the lifeline at 150; there is room after it.
+  const moved = clearLabels(`<svg>${lifeline(100)}${lifeline(150)}${lifeline(400)}${message(100, 400, 60)}</svg>`);
+  const x = Number(moved.match(/textLength="60" x="([\d.]+)"/)[1]);
+  assert.ok(x > 154 && x + 60 < 396, `moved beside the lifeline (${x})`);
+  // A 280px label cannot avoid the lifeline at 150 within its arrow: it gets a halo.
+  const haloed = clearLabels(`<svg>${lifeline(100)}${lifeline(150)}${lifeline(400)}${message(100, 400, 280)}</svg>`);
+  assert.match(haloed, /<rect fill="#FFFFFF" height="[\d.]+" width="284" x="109" y="[\d.]+"\/><text/);
 });
 
 test('kinds, schema and validate work for sequence diagrams', () => {

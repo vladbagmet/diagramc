@@ -26,7 +26,7 @@ fixture and example. Fixtures: `test/fixtures/sequence/`.
 | Found message | `type: "found"` | Filled circle at the start | integration: same test; qa |
 | Lost message | `type: "lost"` | Filled circle at the end | integration: same test; qa |
 | Self-message | `from` = `to` | Loop back to the same lifeline | unit: QA reader test (three-segment loop); integration fixture "every message sort and symbol" |
-| Message label | `name`, `arguments` | `name(a, b)`; `name()` for an empty list; bare name without `arguments` (17.4.4) | unit: heads and labels test |
+| Message label | `name`, `arguments` | `name(a, b)`; `name()` for an empty list; bare name without `arguments` (17.4.4); never crossed by a lifeline or bar | unit: heads and labels test; unit: "lifeline-crossing fails..." and "post-processing moves a crossed label..."; gate `lifeline-crossing` on every fixture and example |
 | Activation (execution specification) | `activate`/`deactivate` items, or `activate: true` / `deactivate: true` on messages | Thin rectangle on the lifeline; nested ones offset to the right (17.2.4) | integration: "nested activations offset"; qa (arrows end on bar borders) |
 | Combined fragment | `type: "fragment"`, `operator` | Frame with the operator in a pentagon at the top left (17.6.4) | integration: "fragments, guards, interaction use..."; unit: generated `alt`/`group` lines |
 | Operands and guards | `operands[]`, `guard` | Regions separated by dashed lines; guard `[condition]` at the top of its operand | integration: guards present; unit: `else` lines |
@@ -77,7 +77,11 @@ frames, destruction crosses). Wrapped lines are merged back into one text per
 input string. Evaluated gates: `safe-markup`, `inside-canvas`, `node-overlap`
 (heads, notes, interaction uses, invariants), `label-overlap` (message labels,
 operators, guards), `label-edge-crossing` (labels against message lines),
-`literal-text`, `min-font-size`, `text-fits`, `message-endpoints`. Skipped (no
+`literal-text`, `min-font-size`, `text-fits`, `message-endpoints`, and
+`lifeline-crossing`: no visible lifeline or activation bar runs through any
+drawn text (message labels and numbers, operators, guards, invariants, notes,
+heads) unless an opaque shape drawn on top hides it there (note, invariant,
+head, interaction use, operator tab, label halo). Skipped (no
 data in this kind): `label-proximity`, `edge-endpoints`, `markers`, `ports`;
 `message-endpoints` replaces the last two.
 
@@ -90,6 +94,7 @@ data in this kind): `label-proximity`, `edge-endpoints`, `markers`, `ports`;
 - The X reaches 9 px below its message and would touch the border of a fragment it ends; a destruction that ends an operand or the diagram is followed by 12 px of space.
 - A self-message that opens a nested activation starts 5 px right of its bar; post-processing attaches it.
 - The `mainframe` heading is an unfilled polyline; it is closed and filled like the own engine's frame.
+- Message labels start at the sending end and guards right after the operator pentagon, whatever lies beneath. A label or guard crossed by a lifeline or activation bar is moved to the nearest position within its arrow (labels) or fragment (guards) where nothing runs through it, 4 px clear; when no such position exists (a label longer than every gap), a halo in the background color is painted behind it, as the own engine does for edge labels.
 - State invariants use a borderless `rnote` in the background color, so they read as a constraint in braces on the lifeline, not as a note.
 - Long notes are emitted in block form, one source line per wrapped line.
 
@@ -102,7 +107,7 @@ data in this kind): `label-proximity`, `edge-endpoints`, `markers`, `ports`;
 
 ## Known limitations
 
-- Layout is PlantUML's: guard texts are written right after the operator pentagon and may overlap an activation bar under them (readable, not overlapping other labels).
+- A message label longer than every gap between the lifelines it passes keeps its position and interrupts those lifelines with a halo (for example the reply `result = charge : ChargeResult` in `checkout`).
 - A lost message extends to the right edge of the diagram and may leave the fragment that contains it.
 - Nested fragments that end together have their bottom borders a few pixels apart.
 - An interaction use is drawn across every lifeline column between the outermost covered lifelines; REF_COVERAGE_GAP rejects documents where that would include an uncovered live lifeline.

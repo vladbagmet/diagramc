@@ -348,9 +348,10 @@ joints. Own-engine SVGs carry `data-uml-*` attributes so gates
 are exact; PlantUML SVGs are checked best-effort. For PlantUML sequence and timing
 diagrams a dedicated reader (`src/qa/plantuml-interaction.ts`) recovers lifelines,
 activation bars, messages, state lines and labels, so label overlaps, labels on
-lines and the `message-endpoints` gate (every message starts and ends on its
-lifeline or state line, arrowhead at the receiving end, found/lost circles) are
-evaluated; gates without data are reported as skipped. `npm run gallery` renders every
+lines, the `message-endpoints` gate (every message starts and ends on its
+lifeline or state line, arrowhead at the receiving end, found/lost circles) and
+the `lifeline-crossing` gate (no lifeline or activation bar through any text)
+are evaluated; gates without data are reported as skipped. `npm run gallery` renders every
 example to SVG and PNG with an `index.html` overview.
 
 ## Repository layout

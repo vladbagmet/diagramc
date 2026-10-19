@@ -58,7 +58,84 @@ export function attachSelfMessages(svg: string): string {
   });
 }
 
+interface Box { x: number; y: number; width: number; height: number }
+/** Gap kept between a moved label and the lifeline or bar it avoids. */
+export const LABEL_CLEARANCE = 4;
+
+const attr = (tag: string, name: string): number => Number(tag.match(new RegExp(`\\s${name}="(-?[\\d.]+)"`, 'u'))?.[1] ?? NaN);
+const round = (n: number): string => String(Math.round(n * 10000) / 10000);
+/** Box of a run of <text> tags (each line: baseline y, font-size, textLength). */
+function textBlock(tags: readonly string[]): Box {
+  const boxes = tags.map(t => {
+    const size = attr(t, 'font-size');
+    return { x: attr(t, 'x'), y: attr(t, 'y') - size * 0.95, width: attr(t, 'textLength'), height: size * 1.2 };
+  });
+  const x = Math.min(...boxes.map(b => b.x)), y = Math.min(...boxes.map(b => b.y));
+  return { x, y, width: Math.max(...boxes.map(b => b.x + b.width)) - x, height: Math.max(...boxes.map(b => b.y + b.height)) - y };
+}
+const moveTexts = (texts: string, dx: number): string =>
+  texts.replace(/(<text [^>]* x=")(-?[\d.]+)(")/gu, (_m, a: string, x: string, b: string) => `${a}${round(Number(x) + dx)}${b}`);
+const halo = (b: Box): string =>
+  `<rect fill="${theme.color.labelHalo}" height="${round(b.height)}" width="${round(b.width + 4)}" x="${round(b.x - 2)}" y="${round(b.y)}"/>`;
+
+/**
+ * PlantUML writes message labels from the sending end and guards right after the
+ * operator pentagon, without looking at the lifelines and activation bars under
+ * them, so a label can be crossed by a lifeline it passes. Each crossed label or
+ * guard is moved horizontally to the nearest position within its arrow (labels)
+ * or fragment (guards) where nothing runs through it; when there is none, a halo
+ * in the background color is painted behind it, as the own engine does for edge
+ * labels. Deterministic; only x coordinates change and fixed rects are added.
+ */
+export function clearLabels(svg: string): string {
+  const lifelines: { x: number; top: number; bottom: number }[] = [];
+  for (const m of svg.matchAll(new RegExp(`<g><title>[^<]*</title><rect fill="#000000" fill-opacity="0.00000"[^>]*/><line style="[^"]*" x1="${NUM}" x2="\\1" y1="${NUM}" y2="${NUM}"/></g>`, 'gu'))) {
+    lifelines.push({ x: Number(m[1]), top: Number(m[2]), bottom: Number(m[3]) });
+  }
+  const bars: Box[] = [];
+  for (const m of svg.matchAll(new RegExp(`<rect fill="${theme.color.nodeFill}" height="${NUM}" style="stroke:${theme.color.edge};stroke-width:[\\d.]+;" width="${NUM}" x="${NUM}" y="${NUM}"/>`, 'gu'))) {
+    const b = { height: Number(m[1]), width: Number(m[2]), x: Number(m[3]), y: Number(m[4]) };
+    if (!bars.some(o => o.x === b.x && o.y === b.y && o.width === b.width && o.height === b.height)) bars.push(b);
+  }
+  const crossed = (b: Box): boolean =>
+    lifelines.some(l => l.x > b.x - LABEL_CLEARANCE && l.x < b.x + b.width + LABEL_CLEARANCE && l.bottom > b.y && l.top < b.y + b.height)
+    || bars.some(r => r.x < b.x + b.width + LABEL_CLEARANCE && r.x + r.width > b.x - LABEL_CLEARANCE && r.y < b.y + b.height && r.y + r.height > b.y);
+  /** Nearest free left edge within [min, max], trying positions just beside every obstacle. */
+  const place = (b: Box, min: number, max: number): number | undefined => {
+    if (!crossed(b)) return b.x;
+    const edges = [
+      ...lifelines.flatMap(l => [l.x + LABEL_CLEARANCE + 0.5, l.x - LABEL_CLEARANCE - 0.5 - b.width]),
+      ...bars.flatMap(r => [r.x + r.width + LABEL_CLEARANCE + 0.5, r.x - LABEL_CLEARANCE - 0.5 - b.width]),
+    ].filter(x => x >= min && x <= max).sort((p, q) => Math.abs(p - b.x) - Math.abs(q - b.x) || p - q);
+    return edges.find(x => !crossed({ ...b, x }));
+  };
+
+  // Message labels: within the horizontal extent of their arrow.
+  let out = svg.replace(/(<g class="message"[^>]*>)((?:(?!<\/g>).)*?)((?:<text [^>]*>[^<]*<\/text>)+)(<\/g>)/gsu, (match, open: string, shapes: string, texts: string, close: string) => {
+    const tags = [...texts.matchAll(/<text [^>]*>/gu)].map(t => t[0]);
+    const block = textBlock(tags);
+    const xs = [...shapes.matchAll(/<line [^>]*x1="(-?[\d.]+)" x2="(-?[\d.]+)" y1="(-?[\d.]+)" y2="\3"\/>/gu)].flatMap(l => [Number(l[1]), Number(l[2])]);
+    if (!xs.length || !crossed(block)) return match;
+    const x = place(block, Math.min(...xs) + LABEL_CLEARANCE, Math.max(...xs) - LABEL_CLEARANCE - block.width);
+    return x === undefined ? `${open}${shapes}${halo(block)}${texts}${close}` : `${open}${shapes}${moveTexts(texts, x - block.x)}${close}`;
+  });
+
+  // Guards: bold "[...]" texts, within their fragment's frame.
+  const frames: Box[] = [...out.matchAll(new RegExp(`<rect fill="none" height="${NUM}" style="stroke:${theme.color.frameStroke};[^"]*" width="${NUM}" x="${NUM}" y="${NUM}"/>`, 'gu'))]
+    .map(m => ({ height: Number(m[1]), width: Number(m[2]), x: Number(m[3]), y: Number(m[4]) }));
+  out = out.replace(/<text [^>]*font-weight="bold"[^>]*>\[[^<]*\]<\/text>/gu, guard => {
+    const tag = guard.match(/<text [^>]*>/u)![0];
+    const block = textBlock([tag]);
+    if (!crossed(block)) return guard;
+    const frame = frames.filter(f => block.x >= f.x && block.x <= f.x + f.width && block.y >= f.y && block.y <= f.y + f.height)
+      .sort((p, q) => p.width * p.height - q.width * q.height)[0];
+    const x = frame ? place(block, block.x, frame.x + frame.width - LABEL_CLEARANCE - block.width) : undefined;
+    return x === undefined ? `${halo(block)}${guard}` : moveTexts(guard, x - block.x);
+  });
+  return out;
+}
+
 /** All fix-ups applied to PlantUML's sequence SVG. */
 export function postProcessSequence(svg: string): string {
-  return attachSelfMessages(endDestroyedLifelines(fillFrameHeading(svg)));
+  return clearLabels(attachSelfMessages(endDestroyedLifelines(fillFrameHeading(svg))));
 }
