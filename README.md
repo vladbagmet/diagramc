@@ -18,8 +18,8 @@ npm run build
 npm test                    # unit tests, no Java needed
 ```
 
-Own-engine kinds (class, and later object, package, component, ...) need nothing
-else. PlantUML kinds (sequence, timing, activity, state machine, use case, and the
+Own-engine kinds (class, object, package, component, state machine, use case, ...)
+need nothing else. PlantUML kinds (sequence, timing, activity, and the
 `--backend plantuml` class fallback) need the pinned local renderer:
 
 ```sh
@@ -246,6 +246,68 @@ one initial node; every node reachable; every path ends in a final node.
 
 Checklist and rules: [`docs/kinds/interaction-overview.md`](docs/kinds/interaction-overview.md).
 Examples: [`examples/interaction-overview/`](examples/interaction-overview/).
+
+### Activity diagrams
+
+Drawn by PlantUML's activity engine (needs the pinned renderer). `nodes` of type
+`action`, `callBehavior` (with the rake symbol), `sendSignal`, `acceptEvent`,
+`object` (with an optional `[state]`), `initial`, `activityFinal`, `flowFinal`,
+`decision`, `merge`, `fork` and `join`, connected by `edges` of type `control` or
+`object` from `from` to `to`. Flows leaving a decision carry a `guard`; executable
+nodes may carry a `note`; optional `partitions` become swimlanes. Decisions and
+merges, forks and joins are explicit nodes (an action has at most one incoming and
+one outgoing flow), and the graph must be well structured: each decision closes at
+its own merge, each fork at its join, loops enter at a merge and leave through one
+decision. Anything else is rejected with `UNSTRUCTURED_FLOW` and the node where the
+structure breaks.
+
+```json
+{ "kind": "activity",
+  "nodes": [{ "id": "i", "type": "initial" }, { "id": "a", "type": "action", "name": "Brew coffee" }, { "id": "f", "type": "activityFinal" }],
+  "edges": [{ "type": "control", "from": "i", "to": "a" }, { "type": "control", "from": "a", "to": "f" }] }
+```
+
+Checklist and rules: [`docs/kinds/activity.md`](docs/kinds/activity.md).
+Examples: [`examples/activity/`](examples/activity/).
+
+### State machine diagrams
+
+Own engine. `elements` are states and pseudostates (`initial`, `final`, `choice`,
+`junction`, `fork`, `join`, `shallowHistory`, `deepHistory`, `terminate`) and
+notes. A state has optional `entry`, `doActivity`, `exit` and `internal`
+transitions; with `regions` it is a composite state (several regions are
+orthogonal, separated by dashed lines), with `submachine` a submachine state, and
+composite or submachine states may have `connectionPoints` (entry and exit points
+on their border). `transitions` (top level, any depth) go from `from` to `to` and
+are labeled `trigger [guard] / effect`.
+
+```json
+{ "kind": "state-machine",
+  "elements": [{ "id": "i", "type": "initial" }, { "id": "off", "type": "state", "name": "Off" }, { "id": "on", "type": "state", "name": "On" }],
+  "transitions": [{ "from": "i", "to": "off" }, { "from": "off", "to": "on", "trigger": "switchOn" }] }
+```
+
+Checklist and rules: [`docs/kinds/state-machine.md`](docs/kinds/state-machine.md).
+Examples: [`examples/state-machine/`](examples/state-machine/).
+
+### Use case diagrams
+
+Own engine. `elements`: `actor`s (stick figures), `useCase`s (ellipses, with
+optional `extensionPoints`, inside the `subject` they name), `subject`s (system
+boundaries) and notes. `relationships`: `association` (actor and use case, optional
+multiplicities; `from` is placed left of `to`, so primary actors go in `from`),
+`include` (from the base to the included use case), `extend` (from the extending
+to the base use case, naming one of the base's `extensionPoint`s, optional
+`condition` shown in a note) and `generalization` (from specific to general).
+
+```json
+{ "kind": "use-case",
+  "elements": [{ "id": "c", "type": "actor", "name": "Customer" }, { "id": "s", "type": "subject", "name": "ATM" }, { "id": "w", "type": "useCase", "name": "Withdraw cash", "subject": "s" }],
+  "relationships": [{ "type": "association", "from": "c", "to": "w" }] }
+```
+
+Checklist and rules: [`docs/kinds/use-case.md`](docs/kinds/use-case.md).
+Examples: [`examples/use-case/`](examples/use-case/).
 
 ## Errors
 
