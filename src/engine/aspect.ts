@@ -124,11 +124,19 @@ export async function chooseLayout<T>(directions: readonly Direction[], run: (di
   };
   for (const [i, dir] of directions.entries()) {
     const penalty = options.penalty?.(i) ?? (i ? 0.15 : 0);
-    const plain = await run(dir, 'plain');
+    // ELK fails on some port configurations in some directions: only the conventional layout must succeed.
+    const tryRun = async (variant: LayoutVariant): Promise<T | undefined> => {
+      if (i === 0 && variant === 'plain') return run(dir, variant);
+      try { return await run(dir, variant); } catch { return undefined; }
+    };
+    const plain = await tryRun('plain');
+    if (plain === undefined) continue;
     consider(plain, penalty);
     const { across, along } = extents(dir, measure(plain));
-    if (across > along * ASPECT_BAND.max) consider(await run(dir, 'narrow'), penalty + 0.05);
-    if (options.wrap && along > across / ASPECT_BAND.min) consider(await run(dir, 'wrap'), penalty + 0.15);
+    const narrow = across > along * ASPECT_BAND.max ? await tryRun('narrow') : undefined;
+    if (narrow !== undefined) consider(narrow, penalty + 0.05);
+    const wrapped = options.wrap && along > across / ASPECT_BAND.min ? await tryRun('wrap') : undefined;
+    if (wrapped !== undefined) consider(wrapped, penalty + 0.15);
   }
   return best!;
 }

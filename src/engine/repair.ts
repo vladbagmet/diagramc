@@ -42,6 +42,9 @@ export interface RepairEdge {
   targetMarker: Marker;
   /** Edges with one group share their target tip (a generalization tree): it stays fixed. */
   group?: string | undefined;
+  /** Keep this end's point and direction (an end on a port, a symbol or an ellipse). */
+  fixedSource?: boolean;
+  fixedTarget?: boolean;
 }
 
 /** Length of a marker along the line. */
@@ -87,11 +90,31 @@ function sideOf(r: Rect, p: Point): number {
   return d.indexOf(Math.min(...d));
 }
 
+/** How bad a broken rule is; a reroute must lower it. */
+function severity(problem: string | undefined): number {
+  if (!problem) return 0;
+  if (problem === 'forced') return 6;
+  if (problem === 'crosses') return 5;
+  if (problem === 'detour') return 4;
+  if (problem.startsWith('short')) return 3;
+  if (problem.startsWith('crowded')) return 2;
+  return 1;
+}
+
 export interface RepairOptions {
   /** Edge IDs never to reroute. */
   keep?: ReadonlySet<string>;
   /** Minimum distance between ends on one side without markers (default: edge spacing). */
   spacing?: number;
+  /** Edge IDs to reroute even if their route breaks no rule (provisional routes). */
+  force?: ReadonlySet<string>;
+  /**
+   * Center labels: whether the edge with this route has a clean spot for its label
+   * (see labelFits in labels.ts); an edge without one is rerouted with
+   * `labelSpacing(id)` px of room from other lines.
+   */
+  labelFits?: (id: string, route: readonly Point[], routes: ReadonlyMap<string, Point[]>) => boolean;
+  labelSpacing?: (id: string) => number | undefined;
   /** Also shorten long routes that break no rule (default true). */
   shorten?: boolean;
 }
@@ -149,23 +172,27 @@ export function repairRoutes(nodes: readonly RepairNode[], edges: readonly Repai
         if (d > 0.5 && d < minSpacing(marker, o.marker) - 0.25 && sideOf(node.rect, o.p) === sideOf(node.rect, p)) return `crowded ${end}`;
       }
     }
+    if (options.labelFits && !options.labelFits(e.id, route, routes)) return 'label';
     return undefined;
   };
 
-  const reroute = (e: RepairEdge): Point[] | undefined => {
+  const reroute = (e: RepairEdge, forLabel = false): Point[] | undefined => {
     const route = routes.get(e.id)!;
     const s = byId.get(e.source)!, t = byId.get(e.target)!;
     const ends = endsOf(e.id);
     const occupied = (node: string) => ends.filter(o => o.node === node && !(e.group !== undefined && o.edge.group === e.group)).map(o => o.p);
     const lines = [...edges.filter(o => o.id !== e.id && !(e.group !== undefined && o.group === e.group)).map(o => routes.get(o.id)!), ...borders];
-    const tip = route.at(-1)!, before = route.at(-2)!;
+    const fixed = (end: Point, next: Point) => ({ fixed: { point: end, out: { x: Math.sign(Math.round(next.x - end.x)), y: Math.sign(Math.round(next.y - end.y)) } } });
     const request = {
-      source: { rect: s.rect, stub: markerLength(e.sourceMarker) + theme.spacing.bendRadius + 6, occupied: occupied(e.source), spacing: minSpacing(e.sourceMarker, 'open-arrow') },
+      source: {
+        rect: s.rect, stub: markerLength(e.sourceMarker) + theme.spacing.bendRadius + 6, occupied: occupied(e.source), spacing: minSpacing(e.sourceMarker, 'open-arrow'),
+        ...(e.fixedSource ? fixed(route[0]!, route[1]!) : {}),
+      },
       target: {
         rect: t.rect, stub: markerLength(e.targetMarker) + theme.spacing.bendRadius + 6, occupied: occupied(e.target), spacing: minSpacing(e.targetMarker, 'open-arrow'),
-        ...(e.group !== undefined ? { fixed: { point: tip, out: { x: Math.sign(before.x - tip.x), y: Math.sign(before.y - tip.y) } } } : {}),
+        ...(e.group !== undefined || e.fixedTarget ? fixed(route.at(-1)!, route.at(-2)!) : {}),
       },
-      obstacles: obstaclesFor(e), lines,
+      obstacles: obstaclesFor(e), lines, ...(forLabel && options.labelSpacing?.(e.id) ? { spacing: options.labelSpacing(e.id) } : {}),
     };
     let next = routeOrthogonal({ ...request, area: inflate(union([s.rect, t.rect]), 160) });
     if (!next || problem(e, next) === 'crosses') next = routeOrthogonal({ ...request, area: inflate(all, 40) });
@@ -180,12 +207,14 @@ export function repairRoutes(nodes: readonly RepairNode[], edges: readonly Repai
     for (const e of edges) {
       if (e.source === e.target || options.keep?.has(e.id)) continue;
       const route = routes.get(e.id)!;
-      const was = problem(e, route);
+      const was = problem(e, route) ?? (options.force?.has(e.id) && pass === 0 ? 'forced' : undefined);
       if (!was) continue;
-      const next = reroute(e);
+      const next = reroute(e, was === 'label');
       if (!next) continue;
       const now = problem(e, next);
-      if (now && was !== 'crosses' && now === was) continue;
+      // Only an improvement counts: the new route breaks a less severe rule, or none.
+      if (severity(now) >= severity(was)) continue;
+      if (was === 'label' && routeLength(next) > 1.6 * routeLength(route) + 150) continue;
       routes.set(e.id, next);
       changed.add(e.id);
       any = true;

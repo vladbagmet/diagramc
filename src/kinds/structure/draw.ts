@@ -47,7 +47,7 @@ export async function drawStructure(scene: StructScene, metrics: FontMetrics): P
     const { x, y, width } = label.rect;
     const xs = label.widths.map(w => x + (width - w) / 2);
     canvas.labels.push(canvas.lines(label.lines, xs, y + baselineOffset(metrics, label.style.size, lh), lh, {
-      ...label.style, fill: theme.color.edgeText, role: 'label', owner: label.owner, halo: true,
+      ...label.style, fill: label.fill ?? theme.color.edgeText, role: 'label', owner: label.owner, halo: true,
       data: label.end ? { 'data-uml-end': label.end, 'data-uml-anchor': `${num(label.anchor!.x)},${num(label.anchor!.y)}` } : {},
     }));
   }

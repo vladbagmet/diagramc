@@ -38,6 +38,8 @@ export interface RouteRequest {
   area: Rect;
   /** Gap kept between the route and obstacles (default 12). */
   margin?: number;
+  /** Lines closer than this to existing lines count as running along them (default: line spacing). */
+  spacing?: number;
 }
 
 const BEND = 24;
@@ -167,7 +169,7 @@ export function routeOrthogonal(request: RouteRequest): Point[] | undefined {
     if (Math.abs(a.y - b.y) < 0.5) horizontal.push({ y: a.y, x0: Math.min(a.x, b.x), x1: Math.max(a.x, b.x) });
     else if (Math.abs(a.x - b.x) < 0.5) vertical.push({ x: a.x, y0: Math.min(a.y, b.y), y1: Math.max(a.y, b.y) });
   }
-  const near = theme.spacing.edgeEdge - 1;
+  const near = request.spacing ?? theme.spacing.edgeEdge - 1;
   /** Extra cost of a grid move from a to b (crossings and running along lines). */
   const moveCost = (a: Point, b: Point): number => {
     let cost = 0;

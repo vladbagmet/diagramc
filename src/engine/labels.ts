@@ -179,6 +179,13 @@ function cost(rect: Rect, obstacles: Obstacles, placed: readonly Rect[], anchor:
   return total;
 }
 
+/** True when the label has a spot that touches nothing and names its line unambiguously. */
+export function labelFits(request: LabelRequest, obstacles: Obstacles): boolean {
+  const candidates = request.candidates ?? (request.at === 'center' ? centerCandidates(request) : endCandidates(request));
+  const anchor = request.at === 'source' ? request.route[0] : request.at === 'target' ? request.route.at(-1) : undefined;
+  return candidates.some(c => cost(c, obstacles, [], anchor, request) === 0);
+}
+
 /** Places labels in order; earlier labels get the better spots. */
 export function placeLabels(requests: readonly LabelRequest[], obstacles: Obstacles): Map<string, Rect> {
   const placed = new Map<string, Rect>();

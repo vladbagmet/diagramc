@@ -3,7 +3,7 @@ import { drawEdge, type LineStyle, type Marker } from './edges.js';
 import { layout, type Direction, type LayoutEdge, type LayoutLabel, type LayoutNode, type LayoutPort, type LayoutResult, type Side } from './elk.js';
 import type { FontMetrics, TextStyle } from './fonts.js';
 import { direction, simplify, union, type Point, type Rect } from './geometry.js';
-import { placeLabels, type LabelRequest } from './labels.js';
+import { labelFits, placeLabels, type LabelRequest } from './labels.js';
 import { drawPackageNode, measurePackage, packageTabRect, type MeasuredPackage, type PackageHeader } from './packages.js';
 import { repairRoutes, type RepairNode } from './repair.js';
 import { chooseLayout, countCrossings, LAYOUT_VARIANTS, routesLength, type LayoutVariant } from './aspect.js';
@@ -398,11 +398,35 @@ export async function layoutDiagram(spec: DiagramSpec, metrics: FontMetrics): Pr
       texts: tab ? [tab] : [],
     };
   });
-  const repaired = repairRoutes(repairNodes, plans.map(p => ({
+  const labelObstacles = [...all.keys()].flatMap(id => all.get(id)!.spec.children?.length ? [tabs.get(id)!] : [rects.get(id)!]);
+  const containerBorders: [Point, Point][] = [];
+  for (const id of all.keys()) {
+    if (!all.get(id)!.spec.children?.length) continue;
+    const r = rects.get(id)!, top = r.y + tabs.get(id)!.height;
+    const c = [{ x: r.x, y: top }, { x: r.x + r.width, y: top }, { x: r.x + r.width, y: r.y + r.height }, { x: r.x, y: r.y + r.height }];
+    c.forEach((q, k) => containerBorders.push([q, c[(k + 1) % 4]!]));
+  }
+  const repaired = repairRoutes(repairNodes,plans.map(p => ({
     id: p.spec.id, source: p.spec.source, target: p.spec.target, route: routes.get(p.spec.id)!,
     sourceMarker: p.spec.sourceMarker, targetMarker: p.spec.targetMarker,
     group: p.spec.tree ? `${p.spec.type}@${p.spec.target}` : undefined,
-  })));
+  })), {
+    // Center labels need a clean spot beside their own line (no crossing, not as
+    // close to another line); bundled lines without one are spread apart.
+    labelFits: (id, route, current) => {
+      const p = plans.find(q => q.spec.id === id)!;
+      if (!p.center) return true;
+      const others = [...current].filter(([other]) => other !== id);
+      const segments: [Point, Point][] = [...containerBorders];
+      for (const [, r] of others) r.slice(1).forEach((q, k) => segments.push([r[k]!, q]));
+      const request: LabelRequest = { id: `${id}::center`, owner: id, width: Math.max(...p.center.widths), height: p.center.lines.length * lineHeight, route, at: 'center' };
+      return labelFits(request, { rects: labelObstacles, segments, lines: others.map(([owner, points]) => ({ owner, points })) });
+    },
+    labelSpacing: id => {
+      const p = plans.find(q => q.spec.id === id)!;
+      return p.center ? Math.max(...p.center.widths) + 16 : undefined;
+    },
+  });
   for (const id of repaired.changed) routes.set(id, repaired.routes.get(id)!);
 
   // Tree edges into one shared port draw their arrowhead once.
