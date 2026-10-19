@@ -198,9 +198,9 @@ function checkPorts(scene: Scene, labels: readonly Scene['texts'][number][], fai
   }
   // Each route end touching a symbol, with the direction of its last segment (into the symbol).
   const ends = (id: string) => scene.edges.flatMap(e => {
-    const out: { edge: string; other: string; p: Point; into: Point }[] = [];
-    if (e.target === id && e.points.length > 1) out.push({ edge: e.id, other: e.source, p: e.points.at(-1)!, into: direction(e.points.at(-2)!, e.points.at(-1)!) });
-    if (e.source === id && e.points.length > 1) out.push({ edge: e.id, other: e.target, p: e.points[0]!, into: direction(e.points[1]!, e.points[0]!) });
+    const out: { edge: string; type: string; other: string; p: Point; into: Point }[] = [];
+    if (e.target === id && e.points.length > 1) out.push({ edge: e.id, type: e.type, other: e.source, p: e.points.at(-1)!, into: direction(e.points.at(-2)!, e.points.at(-1)!) });
+    if (e.source === id && e.points.length > 1) out.push({ edge: e.id, type: e.type, other: e.target, p: e.points[0]!, into: direction(e.points[1]!, e.points[0]!) });
     return out;
   });
   const dot = (a: Point, b: Point): number => a.x * b.x + a.y * b.y;
@@ -216,11 +216,13 @@ function checkPorts(scene: Scene, labels: readonly Scene['texts'][number][], fai
       if (distance(ball, socket) > 0.5) fail(`assembly ${node.id}: ball and socket are not concentric`);
       if (ball.r >= socket.r) fail(`assembly ${node.id}: ball does not fit inside the socket`);
       const u = socket.u, c = { x: socket.x, y: socket.y };
-      const back = touching.find(t => distance(t.p, { x: c.x - u.x * socket.r, y: c.y - u.y * socket.r }) <= 0.75);
-      const front = touching.find(t => distance(t.p, { x: c.x + u.x * socket.r, y: c.y + u.y * socket.r }) <= 0.75);
-      if (!back) fail(`assembly ${node.id}: no requiring connector meets the socket's back`);
+      // Lines declare their role in their type ("...required" / "...provided").
+      const back = touching.find(t => t.type.endsWith('required')), front = touching.find(t => t.type.endsWith('provided'));
+      if (!back) fail(`assembly ${node.id}: no requiring connector`);
+      else if (distance(back.p, { x: c.x - u.x * socket.r, y: c.y - u.y * socket.r }) > 0.75) fail(`assembly ${node.id}: requiring connector ${back.edge} does not meet the socket's back`);
       else if (dot(back.into, u) < 0.99) fail(`assembly ${node.id}: requiring connector does not run into the socket's back`);
-      if (!front) fail(`assembly ${node.id}: no providing connector enters through the socket's opening`);
+      if (!front) fail(`assembly ${node.id}: no providing connector`);
+      else if (distance(front.p, { x: c.x + u.x * socket.r, y: c.y + u.y * socket.r }) > 0.75) fail(`assembly ${node.id}: providing connector ${front.edge} does not enter through the socket's opening`);
       else if (dot(front.into, u) > -0.99) fail(`assembly ${node.id}: providing connector does not run into the opening toward the ball`);
       for (const t of [back, front]) if (t && offAxis(t.p, c, u) > 0.5) fail(`assembly ${node.id}: connector ${t.edge} is not aligned with the ball and socket`);
       if (touching.length !== 2) fail(`assembly ${node.id}: expected 2 connectors, found ${touching.length}`);

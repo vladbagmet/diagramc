@@ -241,8 +241,8 @@ export async function layoutStructure(graph: StructGraph, metrics: FontMetrics):
     plans.push({ id: `${s.id}::stem`, type: s.kind === 'ball' ? 'provided-stem' : 'required-stem', source: owner, target: s.id, style: 'solid', sourceMarker: 'none', targetMarker: 'none', ends: [], symbol: s.id });
   }
   for (const a of graph.assemblies) {
-    plans.push({ id: `${a.id}::required`, type: 'assembly', source: a.requirer, target: `${a.id}::joint`, style: 'solid', sourceMarker: 'none', targetMarker: 'none', ends: [], symbol: `${a.id}::joint` });
-    plans.push({ id: `${a.id}::provided`, type: 'assembly', source: a.provider, target: `${a.id}::joint`, style: 'solid', sourceMarker: 'none', targetMarker: 'none', ends: [], symbol: `${a.id}::joint` });
+    plans.push({ id: `${a.id}::required`, type: 'assembly-required', source: a.requirer, target: `${a.id}::joint`, style: 'solid', sourceMarker: 'none', targetMarker: 'none', ends: [], symbol: `${a.id}::joint` });
+    plans.push({ id: `${a.id}::provided`, type: 'assembly-provided', source: a.provider, target: `${a.id}::joint`, style: 'solid', sourceMarker: 'none', targetMarker: 'none', ends: [], symbol: `${a.id}::joint` });
   }
   // Stems and assemblies at a node without a port leave from an invisible, side-fixed anchor port.
   const anchors = new Map<string, LayoutPort[]>();

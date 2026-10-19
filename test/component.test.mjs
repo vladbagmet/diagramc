@@ -70,7 +70,7 @@ test('UML notation: lollipops, sockets and ball-and-socket assemblies face outwa
     assert.ok(j.ball.r < j.socket.r);
     const lines = s.edges.filter(e => e.target === j.id);
     assert.equal(lines.length, 2);
-    const required = lines.find(e => e.id.endsWith('::required')), provided = lines.find(e => e.id.endsWith('::provided'));
+    const required = lines.find(e => e.type === 'assembly-required'), provided = lines.find(e => e.type === 'assembly-provided');
     // Requirer meets the socket's back, provider enters through the opening; both on one horizontal axis.
     assert.equal(required.points.at(-1).x, j.socket.x - j.socket.r * j.socket.u.x);
     assert.equal(provided.points.at(-1).x, j.socket.x + j.socket.r * j.socket.u.x);
