@@ -1,0 +1,27 @@
+{
+  "kind": "use-case",
+  "title": "Library",
+  "elements": [
+    { "id": "user", "type": "actor", "name": "Library user" },
+    { "id": "student", "type": "actor", "name": "Student" },
+    { "id": "librarian", "type": "actor", "name": "Librarian" },
+    { "id": "catalog", "type": "actor", "name": "Union catalog", "stereotypes": ["system"] },
+    { "id": "lib", "type": "subject", "name": "Lending desk", "stereotypes": ["subsystem"] },
+    { "id": "borrow", "type": "useCase", "name": "Borrow item", "subject": "lib", "extensionPoints": ["no copy available"] },
+    { "id": "borrowBook", "type": "useCase", "name": "Borrow book", "subject": "lib" },
+    { "id": "reserve", "type": "useCase", "name": "Reserve item", "subject": "lib" },
+    { "id": "identify", "type": "useCase", "name": "Identify user", "subject": "lib" },
+    { "id": "search", "type": "useCase", "name": "Search other libraries" },
+    { "id": "n", "type": "note", "text": "Students may borrow up to 10 items.", "attachedTo": ["student"] }
+  ],
+  "relationships": [
+    { "type": "generalization", "from": "student", "to": "user" },
+    { "type": "association", "from": "user", "to": "borrow", "fromEnd": { "multiplicity": "1" }, "toEnd": { "multiplicity": "0..*" } },
+    { "type": "association", "from": "librarian", "to": "identify" },
+    { "type": "association", "from": "search", "to": "catalog" },
+    { "type": "generalization", "from": "borrowBook", "to": "borrow" },
+    { "type": "include", "from": "borrow", "to": "identify" },
+    { "type": "extend", "from": "reserve", "to": "borrow", "extensionPoint": "no copy available", "condition": "all copies on loan" },
+    { "type": "include", "from": "reserve", "to": "search" }
+  ]
+}

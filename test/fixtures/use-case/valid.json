@@ -1,0 +1,441 @@
+[
+ {
+  "name": "actor and use case",
+  "doc": {
+   "kind": "use-case",
+   "elements": [
+    {
+     "id": "a",
+     "type": "actor",
+     "name": "Customer"
+    },
+    {
+     "id": "u",
+     "type": "useCase",
+     "name": "Buy"
+    }
+   ],
+   "relationships": [
+    {
+     "type": "association",
+     "from": "a",
+     "to": "u"
+    }
+   ]
+  }
+ },
+ {
+  "name": "subject with use cases and actors outside",
+  "doc": {
+   "kind": "use-case",
+   "elements": [
+    {
+     "id": "a",
+     "type": "actor",
+     "name": "Customer"
+    },
+    {
+     "id": "s",
+     "type": "subject",
+     "name": "Shop"
+    },
+    {
+     "id": "u",
+     "type": "useCase",
+     "name": "Buy",
+     "subject": "s"
+    },
+    {
+     "id": "v",
+     "type": "useCase",
+     "name": "Browse",
+     "subject": "s"
+    }
+   ],
+   "relationships": [
+    {
+     "type": "association",
+     "from": "a",
+     "to": "u"
+    },
+    {
+     "type": "association",
+     "from": "a",
+     "to": "v"
+    }
+   ]
+  }
+ },
+ {
+  "name": "include, extend with extension point and condition",
+  "doc": {
+   "kind": "use-case",
+   "elements": [
+    {
+     "id": "a",
+     "type": "actor",
+     "name": "User"
+    },
+    {
+     "id": "u",
+     "type": "useCase",
+     "name": "Check out",
+     "extensionPoints": [
+      "payment"
+     ]
+    },
+    {
+     "id": "v",
+     "type": "useCase",
+     "name": "Log in"
+    },
+    {
+     "id": "w",
+     "type": "useCase",
+     "name": "Use voucher"
+    }
+   ],
+   "relationships": [
+    {
+     "type": "association",
+     "from": "a",
+     "to": "u"
+    },
+    {
+     "type": "include",
+     "from": "u",
+     "to": "v"
+    },
+    {
+     "type": "extend",
+     "from": "w",
+     "to": "u",
+     "extensionPoint": "payment",
+     "condition": "voucher entered"
+    }
+   ]
+  }
+ },
+ {
+  "name": "extend without condition",
+  "doc": {
+   "kind": "use-case",
+   "elements": [
+    {
+     "id": "a",
+     "type": "actor",
+     "name": "User"
+    },
+    {
+     "id": "u",
+     "type": "useCase",
+     "name": "Do work",
+     "extensionPoints": [
+      "step"
+     ]
+    },
+    {
+     "id": "v",
+     "type": "useCase",
+     "name": "Helper"
+    },
+    {
+     "id": "w",
+     "type": "useCase",
+     "name": "Extra"
+    }
+   ],
+   "relationships": [
+    {
+     "type": "association",
+     "from": "a",
+     "to": "u"
+    },
+    {
+     "type": "include",
+     "from": "u",
+     "to": "v"
+    },
+    {
+     "type": "extend",
+     "from": "w",
+     "to": "u",
+     "extensionPoint": "step"
+    }
+   ]
+  }
+ },
+ {
+  "name": "actor and use case generalization",
+  "doc": {
+   "kind": "use-case",
+   "elements": [
+    {
+     "id": "a",
+     "type": "actor",
+     "name": "User"
+    },
+    {
+     "id": "b",
+     "type": "actor",
+     "name": "Admin"
+    },
+    {
+     "id": "u",
+     "type": "useCase",
+     "name": "Edit"
+    },
+    {
+     "id": "v",
+     "type": "useCase",
+     "name": "Edit page"
+    }
+   ],
+   "relationships": [
+    {
+     "type": "generalization",
+     "from": "b",
+     "to": "a"
+    },
+    {
+     "type": "generalization",
+     "from": "v",
+     "to": "u"
+    },
+    {
+     "type": "association",
+     "from": "a",
+     "to": "u"
+    }
+   ]
+  }
+ },
+ {
+  "name": "association with multiplicities and a name",
+  "doc": {
+   "kind": "use-case",
+   "elements": [
+    {
+     "id": "a",
+     "type": "actor",
+     "name": "Pilot"
+    },
+    {
+     "id": "u",
+     "type": "useCase",
+     "name": "Fly plane"
+    }
+   ],
+   "relationships": [
+    {
+     "type": "association",
+     "from": "a",
+     "to": "u",
+     "name": "flies",
+     "fromEnd": {
+      "multiplicity": "1..2"
+     },
+     "toEnd": {
+      "multiplicity": "*"
+     }
+    }
+   ]
+  }
+ },
+ {
+  "name": "secondary actor on the right",
+  "doc": {
+   "kind": "use-case",
+   "elements": [
+    {
+     "id": "a",
+     "type": "actor",
+     "name": "Clerk"
+    },
+    {
+     "id": "b",
+     "type": "actor",
+     "name": "Bank",
+     "stereotypes": [
+      "system"
+     ]
+    },
+    {
+     "id": "s",
+     "type": "subject",
+     "name": "POS",
+     "stereotypes": [
+      "subsystem"
+     ]
+    },
+    {
+     "id": "u",
+     "type": "useCase",
+     "name": "Take payment",
+     "subject": "s"
+    }
+   ],
+   "relationships": [
+    {
+     "type": "association",
+     "from": "a",
+     "to": "u"
+    },
+    {
+     "type": "association",
+     "from": "u",
+     "to": "b"
+    }
+   ]
+  }
+ },
+ {
+  "name": "notes attached to an actor and a use case",
+  "doc": {
+   "kind": "use-case",
+   "elements": [
+    {
+     "id": "a",
+     "type": "actor",
+     "name": "User"
+    },
+    {
+     "id": "u",
+     "type": "useCase",
+     "name": "Act"
+    },
+    {
+     "id": "n",
+     "type": "note",
+     "text": "Only on weekdays.",
+     "attachedTo": [
+      "a",
+      "u"
+     ]
+    }
+   ],
+   "relationships": [
+    {
+     "type": "association",
+     "from": "a",
+     "to": "u"
+    }
+   ]
+  }
+ },
+ {
+  "name": "two subjects",
+  "doc": {
+   "kind": "use-case",
+   "elements": [
+    {
+     "id": "a",
+     "type": "actor",
+     "name": "User"
+    },
+    {
+     "id": "s1",
+     "type": "subject",
+     "name": "Front"
+    },
+    {
+     "id": "s2",
+     "type": "subject",
+     "name": "Back"
+    },
+    {
+     "id": "u",
+     "type": "useCase",
+     "name": "Request",
+     "subject": "s1"
+    },
+    {
+     "id": "v",
+     "type": "useCase",
+     "name": "Process",
+     "subject": "s2"
+    }
+   ],
+   "relationships": [
+    {
+     "type": "association",
+     "from": "a",
+     "to": "u"
+    },
+    {
+     "type": "include",
+     "from": "u",
+     "to": "v"
+    }
+   ]
+  }
+ },
+ {
+  "name": "many extension points",
+  "doc": {
+   "kind": "use-case",
+   "elements": [
+    {
+     "id": "a",
+     "type": "actor",
+     "name": "User"
+    },
+    {
+     "id": "u",
+     "type": "useCase",
+     "name": "Configure product",
+     "extensionPoints": [
+      "color",
+      "size",
+      "engraving",
+      "gift wrap"
+     ]
+    },
+    {
+     "id": "g",
+     "type": "useCase",
+     "name": "Add gift wrap"
+    }
+   ],
+   "relationships": [
+    {
+     "type": "association",
+     "from": "a",
+     "to": "u"
+    },
+    {
+     "type": "extend",
+     "from": "g",
+     "to": "u",
+     "extensionPoint": "gift wrap"
+    }
+   ]
+  }
+ },
+ {
+  "name": "unicode and long names",
+  "doc": {
+   "kind": "use-case",
+   "title": "Ünïcode 🚀",
+   "elements": [
+    {
+     "id": "a",
+     "type": "actor",
+     "name": "Überprüfer 注文 🚀 with a long role name"
+    },
+    {
+     "id": "u",
+     "type": "useCase",
+     "name": "A use case with a very long name that needs wrapping 注文"
+    }
+   ],
+   "relationships": [
+    {
+     "type": "association",
+     "from": "a",
+     "to": "u"
+    }
+   ]
+  }
+ }
+]

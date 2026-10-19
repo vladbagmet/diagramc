@@ -1,0 +1,645 @@
+{
+  "kind": "use-case",
+  "title": "Hospital",
+  "elements": [
+    {
+      "id": "clinic",
+      "type": "subject",
+      "name": "Clinical system"
+    },
+    {
+      "id": "billing",
+      "type": "subject",
+      "name": "Billing system",
+      "stereotypes": [
+        "subsystem"
+      ]
+    },
+    {
+      "id": "patient",
+      "type": "actor",
+      "name": "Patient"
+    },
+    {
+      "id": "outpatient",
+      "type": "actor",
+      "name": "Outpatient"
+    },
+    {
+      "id": "doctor",
+      "type": "actor",
+      "name": "Doctor"
+    },
+    {
+      "id": "surgeon",
+      "type": "actor",
+      "name": "Surgeon"
+    },
+    {
+      "id": "nurse",
+      "type": "actor",
+      "name": "Nurse"
+    },
+    {
+      "id": "clerk",
+      "type": "actor",
+      "name": "Front desk clerk"
+    },
+    {
+      "id": "lab",
+      "type": "actor",
+      "name": "Laboratory",
+      "stereotypes": [
+        "system"
+      ]
+    },
+    {
+      "id": "insurer",
+      "type": "actor",
+      "name": "Insurance company",
+      "stereotypes": [
+        "system"
+      ]
+    },
+    {
+      "id": "bank",
+      "type": "actor",
+      "name": "Payment provider",
+      "stereotypes": [
+        "system"
+      ]
+    },
+    {
+      "id": "book",
+      "type": "useCase",
+      "name": "Book appointment",
+      "subject": "clinic"
+    },
+    {
+      "id": "cancelAppt",
+      "type": "useCase",
+      "name": "Cancel appointment",
+      "subject": "clinic"
+    },
+    {
+      "id": "checkin",
+      "type": "useCase",
+      "name": "Check in",
+      "subject": "clinic"
+    },
+    {
+      "id": "register",
+      "type": "useCase",
+      "name": "Register patient",
+      "subject": "clinic"
+    },
+    {
+      "id": "triage",
+      "type": "useCase",
+      "name": "Triage patient",
+      "subject": "clinic"
+    },
+    {
+      "id": "vitals",
+      "type": "useCase",
+      "name": "Record vital signs",
+      "subject": "clinic"
+    },
+    {
+      "id": "examine",
+      "type": "useCase",
+      "name": "Examine patient",
+      "subject": "clinic",
+      "extensionPoints": [
+        "abnormal findings"
+      ]
+    },
+    {
+      "id": "diagnose",
+      "type": "useCase",
+      "name": "Record diagnosis",
+      "subject": "clinic"
+    },
+    {
+      "id": "prescribe",
+      "type": "useCase",
+      "name": "Prescribe medication",
+      "subject": "clinic",
+      "extensionPoints": [
+        "controlled substance"
+      ]
+    },
+    {
+      "id": "orderLab",
+      "type": "useCase",
+      "name": "Order lab test",
+      "subject": "clinic"
+    },
+    {
+      "id": "results",
+      "type": "useCase",
+      "name": "Review lab results",
+      "subject": "clinic"
+    },
+    {
+      "id": "refer",
+      "type": "useCase",
+      "name": "Refer to specialist",
+      "subject": "clinic"
+    },
+    {
+      "id": "admit",
+      "type": "useCase",
+      "name": "Admit patient",
+      "subject": "clinic"
+    },
+    {
+      "id": "discharge",
+      "type": "useCase",
+      "name": "Discharge patient",
+      "subject": "clinic"
+    },
+    {
+      "id": "operate",
+      "type": "useCase",
+      "name": "Perform surgery",
+      "subject": "clinic"
+    },
+    {
+      "id": "schedule",
+      "type": "useCase",
+      "name": "Schedule operating room",
+      "subject": "clinic"
+    },
+    {
+      "id": "consent",
+      "type": "useCase",
+      "name": "Obtain consent",
+      "subject": "clinic"
+    },
+    {
+      "id": "medicate",
+      "type": "useCase",
+      "name": "Administer medication",
+      "subject": "clinic"
+    },
+    {
+      "id": "records",
+      "type": "useCase",
+      "name": "View medical record",
+      "subject": "clinic"
+    },
+    {
+      "id": "portal",
+      "type": "useCase",
+      "name": "Use patient portal",
+      "subject": "clinic"
+    },
+    {
+      "id": "teleconsult",
+      "type": "useCase",
+      "name": "Attend video consultation",
+      "subject": "clinic"
+    },
+    {
+      "id": "ward",
+      "type": "useCase",
+      "name": "Assign ward bed",
+      "subject": "clinic"
+    },
+    {
+      "id": "handover",
+      "type": "useCase",
+      "name": "Hand over shift",
+      "subject": "clinic"
+    },
+    {
+      "id": "allergy",
+      "type": "useCase",
+      "name": "Check allergies",
+      "subject": "clinic"
+    },
+    {
+      "id": "authenticate",
+      "type": "useCase",
+      "name": "Authenticate user",
+      "subject": "clinic"
+    },
+    {
+      "id": "audit",
+      "type": "useCase",
+      "name": "Write audit trail",
+      "subject": "clinic"
+    },
+    {
+      "id": "invoice",
+      "type": "useCase",
+      "name": "Create invoice",
+      "subject": "billing"
+    },
+    {
+      "id": "claim",
+      "type": "useCase",
+      "name": "Submit insurance claim",
+      "subject": "billing"
+    },
+    {
+      "id": "pay",
+      "type": "useCase",
+      "name": "Pay bill",
+      "subject": "billing",
+      "extensionPoints": [
+        "amount over limit"
+      ]
+    },
+    {
+      "id": "plan",
+      "type": "useCase",
+      "name": "Set up payment plan",
+      "subject": "billing"
+    },
+    {
+      "id": "refund",
+      "type": "useCase",
+      "name": "Issue refund",
+      "subject": "billing"
+    },
+    {
+      "id": "statement",
+      "type": "useCase",
+      "name": "Send statement",
+      "subject": "billing",
+      "extensionPoints": [
+        "overdue"
+      ]
+    },
+    {
+      "id": "copay",
+      "type": "useCase",
+      "name": "Collect co-payment",
+      "subject": "billing"
+    },
+    {
+      "id": "verifyCover",
+      "type": "useCase",
+      "name": "Verify coverage",
+      "subject": "billing"
+    },
+    {
+      "id": "dispute",
+      "type": "useCase",
+      "name": "Dispute charge",
+      "subject": "billing"
+    },
+    {
+      "id": "writeoff",
+      "type": "useCase",
+      "name": "Write off debt",
+      "subject": "billing"
+    },
+    {
+      "id": "tariff",
+      "type": "useCase",
+      "name": "Apply tariff",
+      "subject": "billing"
+    },
+    {
+      "id": "reminder",
+      "type": "useCase",
+      "name": "Send payment reminder",
+      "subject": "billing"
+    },
+    {
+      "id": "receipt",
+      "type": "useCase",
+      "name": "Issue receipt",
+      "subject": "billing"
+    },
+    {
+      "id": "reconcile",
+      "type": "useCase",
+      "name": "Reconcile payments",
+      "subject": "billing"
+    },
+    {
+      "id": "n1",
+      "type": "note",
+      "text": "Every clinical action is written to the audit trail.",
+      "attachedTo": [
+        "audit"
+      ]
+    }
+  ],
+  "relationships": [
+    {
+      "type": "generalization",
+      "from": "outpatient",
+      "to": "patient"
+    },
+    {
+      "type": "generalization",
+      "from": "surgeon",
+      "to": "doctor"
+    },
+    {
+      "type": "association",
+      "from": "patient",
+      "to": "book"
+    },
+    {
+      "type": "association",
+      "from": "patient",
+      "to": "cancelAppt"
+    },
+    {
+      "type": "association",
+      "from": "clerk",
+      "to": "checkin"
+    },
+    {
+      "type": "association",
+      "from": "clerk",
+      "to": "register"
+    },
+    {
+      "type": "association",
+      "from": "nurse",
+      "to": "triage"
+    },
+    {
+      "type": "association",
+      "from": "nurse",
+      "to": "vitals"
+    },
+    {
+      "type": "association",
+      "from": "doctor",
+      "to": "examine"
+    },
+    {
+      "type": "association",
+      "from": "doctor",
+      "to": "diagnose"
+    },
+    {
+      "type": "association",
+      "from": "doctor",
+      "to": "prescribe"
+    },
+    {
+      "type": "association",
+      "from": "doctor",
+      "to": "orderLab"
+    },
+    {
+      "type": "association",
+      "from": "doctor",
+      "to": "results"
+    },
+    {
+      "type": "association",
+      "from": "doctor",
+      "to": "refer"
+    },
+    {
+      "type": "association",
+      "from": "doctor",
+      "to": "admit"
+    },
+    {
+      "type": "association",
+      "from": "doctor",
+      "to": "discharge"
+    },
+    {
+      "type": "association",
+      "from": "surgeon",
+      "to": "operate"
+    },
+    {
+      "type": "association",
+      "from": "surgeon",
+      "to": "schedule"
+    },
+    {
+      "type": "association",
+      "from": "surgeon",
+      "to": "consent"
+    },
+    {
+      "type": "association",
+      "from": "nurse",
+      "to": "medicate"
+    },
+    {
+      "type": "association",
+      "from": "patient",
+      "to": "records"
+    },
+    {
+      "type": "association",
+      "from": "outpatient",
+      "to": "portal"
+    },
+    {
+      "type": "association",
+      "from": "outpatient",
+      "to": "teleconsult"
+    },
+    {
+      "type": "association",
+      "from": "nurse",
+      "to": "ward"
+    },
+    {
+      "type": "association",
+      "from": "nurse",
+      "to": "handover"
+    },
+    {
+      "type": "association",
+      "from": "patient",
+      "to": "pay"
+    },
+    {
+      "type": "association",
+      "from": "patient",
+      "to": "dispute"
+    },
+    {
+      "type": "association",
+      "from": "clerk",
+      "to": "copay"
+    },
+    {
+      "type": "association",
+      "from": "clerk",
+      "to": "invoice"
+    },
+    {
+      "type": "association",
+      "from": "clerk",
+      "to": "reconcile"
+    },
+    {
+      "type": "association",
+      "from": "claim",
+      "to": "insurer"
+    },
+    {
+      "type": "association",
+      "from": "verifyCover",
+      "to": "insurer"
+    },
+    {
+      "type": "association",
+      "from": "pay",
+      "to": "bank",
+      "toEnd": {
+        "multiplicity": "1"
+      }
+    },
+    {
+      "type": "association",
+      "from": "refund",
+      "to": "bank"
+    },
+    {
+      "type": "association",
+      "from": "orderLab",
+      "to": "lab"
+    },
+    {
+      "type": "association",
+      "from": "results",
+      "to": "lab"
+    },
+    {
+      "type": "include",
+      "from": "prescribe",
+      "to": "allergy"
+    },
+    {
+      "type": "include",
+      "from": "medicate",
+      "to": "allergy"
+    },
+    {
+      "type": "include",
+      "from": "records",
+      "to": "authenticate"
+    },
+    {
+      "type": "include",
+      "from": "portal",
+      "to": "authenticate"
+    },
+    {
+      "type": "include",
+      "from": "diagnose",
+      "to": "audit"
+    },
+    {
+      "type": "include",
+      "from": "admit",
+      "to": "ward"
+    },
+    {
+      "type": "include",
+      "from": "operate",
+      "to": "consent"
+    },
+    {
+      "type": "include",
+      "from": "discharge",
+      "to": "invoice"
+    },
+    {
+      "type": "include",
+      "from": "invoice",
+      "to": "tariff"
+    },
+    {
+      "type": "include",
+      "from": "claim",
+      "to": "verifyCover"
+    },
+    {
+      "type": "include",
+      "from": "pay",
+      "to": "receipt"
+    },
+    {
+      "type": "include",
+      "from": "copay",
+      "to": "receipt"
+    },
+    {
+      "type": "include",
+      "from": "checkin",
+      "to": "register"
+    },
+    {
+      "type": "extend",
+      "from": "refer",
+      "to": "examine",
+      "extensionPoint": "abnormal findings",
+      "condition": "specialist needed"
+    },
+    {
+      "type": "extend",
+      "from": "orderLab",
+      "to": "examine",
+      "extensionPoint": "abnormal findings"
+    },
+    {
+      "type": "extend",
+      "from": "consent",
+      "to": "prescribe",
+      "extensionPoint": "controlled substance"
+    },
+    {
+      "type": "extend",
+      "from": "plan",
+      "to": "pay",
+      "extensionPoint": "amount over limit",
+      "condition": "balance > 500 EUR"
+    },
+    {
+      "type": "extend",
+      "from": "reminder",
+      "to": "statement",
+      "extensionPoint": "overdue"
+    },
+    {
+      "type": "association",
+      "from": "clerk",
+      "to": "statement"
+    },
+    {
+      "type": "association",
+      "from": "clerk",
+      "to": "writeoff"
+    },
+    {
+      "type": "association",
+      "from": "clerk",
+      "to": "refund"
+    },
+    {
+      "type": "association",
+      "from": "doctor",
+      "to": "teleconsult"
+    },
+    {
+      "type": "association",
+      "from": "nurse",
+      "to": "vitals"
+    },
+    {
+      "type": "association",
+      "from": "clerk",
+      "to": "book"
+    }
+  ]
+}

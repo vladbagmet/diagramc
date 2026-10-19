@@ -41,9 +41,13 @@ export function measureUseCase(metrics: FontMetrics, u: UseCase): MeasuredUseCas
   }
   const blockHeight = rows.reduce((sum, r) => sum + metrics.lineHeight(r.style.size), 0) + (nameRows < rows.length ? 8 : 0);
   const blockWidth = Math.max(...rows.map(r => r.width));
-  // The text block is the rectangle inscribed in the ellipse (half-axes = half-sizes x sqrt 2).
-  const width = Math.max(theme.size.useCase.minWidth, Math.ceil(blockWidth * Math.SQRT2 + 12));
-  const height = Math.max(theme.size.useCase.minHeight, Math.ceil(blockHeight * Math.SQRT2 + 6));
+  // The text block is a rectangle inscribed in the ellipse: its corner (p, q) lies on
+  // the ellipse when a = p / cos t and b = q / sin t. t = 45 degrees gives the smallest
+  // ellipse; tall blocks (many extension points) use a larger t to stay oval (a >= 1.5 b).
+  const p = blockWidth / 2 + 6, q = blockHeight / 2 + 3;
+  const t = Math.max(Math.PI / 4, Math.atan(1.5 * q / p));
+  const width = Math.max(theme.size.useCase.minWidth, Math.ceil(2 * p / Math.cos(t)));
+  const height = Math.max(theme.size.useCase.minHeight, Math.ceil(2 * q / Math.sin(t)));
   return { rows, nameRows, width, height, blockHeight };
 }
 
@@ -177,7 +181,7 @@ export async function layoutUseCaseDiagram(model: UseCaseDiagram, metrics: FontM
   const sceneEdges: UseCaseScene['edges'] = [];
   const routes = new Map<string, Point[]>();
   for (const p of plans) {
-    let route = result.edges.get(p.key)!.points;
+    let route = smooth(result.edges.get(p.key)!.points);
     if (p.reversed) route = [...route].reverse();
     route = clipRoute(route, 'source', rect(p.r.from), shapeOf(p.r.from));
     route = clipRoute(route, 'target', rect(p.r.to), shapeOf(p.r.to));
@@ -225,7 +229,8 @@ export async function layoutUseCaseDiagram(model: UseCaseDiagram, metrics: FontM
     const route = routes.get(p.key)!;
     p.ends.forEach((e, k) => {
       const id = `${p.key}::end${k}`;
-      requests.push({ id, width: e.width, height: lineHeight, route, at: e.end, side: 1, clearance: 4 });
+      const suggested = result.edges.get(p.key)?.labels.get(id);
+      requests.push({ id, width: e.width, height: lineHeight, route, at: e.end, side: 1, clearance: 4, suggestion: suggested && { x: suggested.x + 2, y: suggested.y, width: e.width, height: lineHeight } });
       meta.set(id, { owner: p.key, lines: [e.text], widths: [e.width], end: e.end, anchor: e.end === 'source' ? route[0]! : route.at(-1)! });
     });
   }
@@ -269,6 +274,18 @@ export async function layoutUseCaseDiagram(model: UseCaseDiagram, metrics: FontM
     edges: sceneEdges.map(e => ({ ...e, points: e.points.map(movePoint) })),
     labels: labels.map(l => ({ ...l, rect: move(l.rect), ...(l.anchor ? { anchor: movePoint(l.anchor) } : {}) })),
   };
+}
+
+/** Removes the small jogs polyline routing leaves between ports: a short inner segment collapses to its middle. */
+function smooth(route: readonly Point[]): Point[] {
+  const out = route.map(p => ({ ...p }));
+  for (let k = 1; k + 2 < out.length; k++) {
+    const a = out[k]!, b = out[k + 1]!;
+    if (distance(a, b) >= 8) continue;
+    out.splice(k, 2, { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 });
+    k--;
+  }
+  return out;
 }
 
 /** Points every 6 px along the middle 70% of a polyline. */
