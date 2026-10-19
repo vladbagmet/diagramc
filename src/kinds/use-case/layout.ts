@@ -1,14 +1,16 @@
 import { theme } from '../../core/theme.js';
-import { clipRoute, spreadEllipseEnds, type NodeShape } from '../../engine/clip.js';
+import { spreadEllipseEnds } from '../../engine/clip.js';
 import { markerHalf, markerLength } from '../../engine/edges.js';
 import type { Marker, LineStyle } from '../../engine/edges.js';
 import { layout, type LayoutEdge, type LayoutLabel, type LayoutNode } from '../../engine/elk.js';
 import type { FontMetrics, TextStyle } from '../../engine/fonts.js';
-import { center, direction, distance, inflate, segmentIntersectsRect, union, type Point, type Rect } from '../../engine/geometry.js';
+import { center, contains, direction, distance, inflate, segmentIntersectsRect, union, type Point, type Rect } from '../../engine/geometry.js';
 import { placeLabels, type LabelRequest } from '../../engine/labels.js';
 import { measureFrameHeading, measureNote } from '../../engine/shapes.js';
 import { wrapText } from '../../engine/text.js';
+import { countCrossings, layoutScore, routesLength } from '../../engine/aspect.js';
 import type { Actor, Element, Extend, Relationship, Subject, UseCase, UseCaseDiagram } from './model.js';
+import { Router, type Obstacle, type RouteEnd } from './route.js';
 
 /** A line of text inside a shape: centered at `x`, baseline from `top`. */
 export interface TextRow { text: string; style: TextStyle; fill?: string | undefined; width: number; /** Rows of one input string share a group. */ group: number }
@@ -60,11 +62,42 @@ function conditionRows(metrics: FontMetrics, r: Extend): string[] {
 /** Index of the first row of the extension point line in conditionRows. */
 const conditionSplit = (metrics: FontMetrics, r: Extend): number => wrapText(metrics, `Condition: {${r.condition}}`, { size: theme.font.size.body }, theme.size.maxNoteWidth).length;
 
+/**
+ * Lays out a use case diagram. When lines between use cases of different subjects
+ * can be left out of the layering (subjects above each other instead of in a row),
+ * both layouts are made and the more readable one wins (src/engine/aspect.ts).
+ */
 export async function layoutUseCaseDiagram(model: UseCaseDiagram, metrics: FontMetrics): Promise<UseCaseScene> {
+  const stacked = await layoutVariant(model, metrics, true);
+  if (!stacked.separated) return stacked.scene;
+  const row = await layoutVariant(model, metrics, false);
+  const measure = ({ scene }: { scene: UseCaseScene }) => {
+    const lines = scene.edges.map(e => e.points);
+    return { width: scene.width, height: scene.height, crossings: countCrossings(lines), edgeLength: routesLength(lines) };
+  };
+  return layoutScore(measure(row)) < layoutScore(measure(stacked)) - 1e-6 ? row.scene : stacked.scene;
+}
+
+async function layoutVariant(model: UseCaseDiagram, metrics: FontMetrics, separate: boolean): Promise<{ scene: UseCaseScene; separated: boolean }> {
   const lineHeight = metrics.lineHeight(LABEL.size);
   const relationships = (model.relationships ?? []).map((r, i) => ({ r, key: r.id ?? `relationships/${i}` }));
   const byId = new Map<string, Element>(model.elements.map(e => [e.id, e]));
   const subjectOf = (id: string): string | undefined => { const e = byId.get(id); return e?.type === 'useCase' ? e.subject : undefined; };
+  // Actors stand in the outer columns: primary actors left, actors that only ever
+  // are the far end of associations (secondary actors, external systems) right.
+  // A specialised actor stands in the column of its general actor.
+  const associations = relationships.filter(x => x.r.type === 'association').map(x => x.r);
+  const actorIds = model.elements.filter(e => e.type === 'actor').map(e => e.id);
+  const secondary = new Set(actorIds.filter(id => associations.some(r => r.to === id) && !associations.some(r => r.from === id)));
+  for (let changed = true; changed;) {
+    changed = false;
+    for (const { r } of relationships) {
+      if (r.type !== 'generalization' || !actorIds.includes(r.from) || !actorIds.includes(r.to)) continue;
+      if (secondary.has(r.from) !== secondary.has(r.to) && !associations.some(a => a.from === r.from)) {
+        if (secondary.has(r.to)) { secondary.add(r.from); changed = true; }
+      }
+    }
+  }
 
   // Sizes.
   const useCases = new Map<string, MeasuredUseCase>();
@@ -85,7 +118,10 @@ export async function layoutUseCaseDiagram(model: UseCaseDiagram, metrics: FontM
         const width = Math.max(...rows.map(r => r.width)) + 4;
         const height = rows.reduce((sum, r) => sum + metrics.lineHeight(r.style.size), 0) + 4;
         captions.set(e.id, { rows, width, height });
-        return { id: e.id, width: theme.size.actor.width, height: theme.size.actor.height, labelBelow: { width: width + 8, height: height + 4 } };
+        return {
+          id: e.id, width: theme.size.actor.width, height: theme.size.actor.height, labelBelow: { width: width + 8, height: height + 4 },
+          elk: { 'elk.layered.layering.layerConstraint': secondary.has(e.id) ? 'LAST' : 'FIRST' },
+        };
       }
       case 'note': {
         const note = measureNote(metrics, e.text);
@@ -158,19 +194,36 @@ export async function layoutUseCaseDiagram(model: UseCaseDiagram, metrics: FontM
     const lines = wrapText(metrics, p.center, LABEL, 160);
     centerLines.set(p.key, { lines, widths: lines.map(l => Math.ceil(metrics.measure(l.trimEnd(), LABEL))) });
   }
-  const edges: LayoutEdge[] = plans.map(p => {
+  // Lines between use cases of different subjects are left out of the layering, so
+  // subjects can stand above each other instead of in a long row (the router draws them).
+  let separated = false;
+  const layered = plans.filter(p => {
+    const from = byId.get(p.r.from)!, to = byId.get(p.r.to)!;
+    // Actors in one column are not layered against each other either.
+    if (from.type === 'actor' && to.type === 'actor' && secondary.has(from.id) === secondary.has(to.id)) return false;
+    // A subject no actor uses is placed by these lines.
+    const anchored = (s: string | undefined): boolean => s === undefined || associations.some(a => subjectOf(a.from) === s || subjectOf(a.to) === s);
+    const cross = from.type === 'useCase' && to.type === 'useCase' && from.subject !== undefined && to.subject !== undefined && from.subject !== to.subject && anchored(from.subject) && anchored(to.subject);
+    if (cross && separate) separated = true;
+    return !(cross && separate);
+  });
+  const edges: LayoutEdge[] = layered.map(p => {
     const labels: LayoutLabel[] = [];
     const c = centerLines.get(p.key);
     if (c) labels.push({ id: `${p.key}::center`, width: Math.max(...c.widths) + 4, height: c.lines.length * lineHeight, placement: 'center' });
     p.ends.forEach((e, k) => labels.push({ id: `${p.key}::end${k}`, width: e.width + 4, height: lineHeight, placement: (e.end === 'source') !== p.reversed ? 'tail' : 'head' }));
-    return { id: p.key, source: p.reversed ? p.r.to : p.r.from, target: p.reversed ? p.r.from : p.r.to, labels, directionPriority: p.r.type === 'association' ? 5 : 1 };
+    let source = p.reversed ? p.r.to : p.r.from, target = p.reversed ? p.r.from : p.r.to;
+    // Lines leave the left column and enter the right one (ELK's layer constraints).
+    const column = (id: string): number => !actorIds.includes(id) ? 0 : secondary.has(id) ? 1 : -1;
+    if (column(source) > column(target) || column(target) < 0 || column(source) > 0) [source, target] = [target, source];
+    return { id: p.key, source, target, labels, directionPriority: p.r.type === 'association' ? 5 : 1 };
   });
   const anchors: { id: string; note: string; target: string }[] = [];
   for (const e of model.elements) {
     if (e.type !== 'note') continue;
     for (const target of e.attachedTo ?? []) {
       anchors.push({ id: `${e.id}->${target}`, note: e.id, target });
-      edges.push({ id: `${e.id}->${target}`, source: target, target: e.id });
+      edges.push(secondary.has(target) ? { id: `${e.id}->${target}`, source: e.id, target } : { id: `${e.id}->${target}`, source: target, target: e.id });
     }
   }
   for (const [key, c] of conditions) {
@@ -181,37 +234,63 @@ export async function layoutUseCaseDiagram(model: UseCaseDiagram, metrics: FontM
 
   const result = await layout(roots, edges, { direction: 'RIGHT', routing: 'polyline', layerSpacing: 72, nodeSpacing: 28 });
   const rect = (id: string): Rect => result.nodes.get(id)!;
-  const shapeOf = (id: string): NodeShape => byId.get(id)?.type === 'useCase' ? 'ellipse' : 'rect';
 
+  // Actor captions (names under the figures).
+  const actors: UseCaseScene['actors'] = [];
+  for (const e of model.elements) {
+    if (e.type !== 'actor') continue;
+    const b = rect(e.id), c = captions.get(e.id)!;
+    actors.push({ actor: e, bounds: b, caption: { rect: { x: b.x + b.width / 2 - c.width / 2, y: b.y + b.height + 4, width: c.width, height: c.height }, rows: c.rows } });
+  }
+  const subjectHeader = (id: string): Rect => {
+    const b = rect(id), rows = subjectRows.get(id)!;
+    const height = rows.reduce((sum, r) => sum + metrics.lineHeight(r.style.size), 0) + 2 * theme.spacing.headerPadY;
+    const width = Math.max(...rows.map(r => r.width)) + 8;
+    return { x: b.x + (b.width - width) / 2, y: b.y, width, height };
+  };
+
+  // Lines: straight, bent around elements in the way (see route.ts).
+  const routeObstacles: Obstacle[] = [
+    ...model.elements.filter(e => e.type !== 'subject').map(e => ({ id: e.id, rect: rect(e.id) })),
+    ...actors.map(a => ({ id: `${a.actor.id}::caption`, rect: a.caption.rect })),
+    ...[...conditions.values()].map(c => ({ id: c.noteId, rect: rect(c.noteId) })),
+    ...[...subjectRows.keys()].map(id => ({ id: `${id}::header`, rect: subjectHeader(id) })),
+  ];
+  // A subject is in the way of lines that neither start nor end inside it.
+  const subjectIds = [...subjectRows.keys()];
+  const around = (...rs: Rect[]): string[] => subjectIds.filter(id => rs.some(r => contains(rect(id), r)));
+  const router = new Router([...routeObstacles, ...subjectIds.map(id => ({ id, rect: rect(id) }))]);
+  const endOf = (id: string, marker: Marker, generalization = false, labelled = false): RouteEnd => {
+    const type = byId.get(id)?.type;
+    const r = rect(id);
+    const end: RouteEnd = { id, rect: r, shape: type === 'useCase' ? 'ellipse' : type === 'actor' ? 'actor' : 'rect', straight: markerLength(marker) + theme.spacing.bendRadius + 2, labelled };
+    // A generalization's arrowhead sits beside the point where an actor's associations
+    // meet, never on it: shifted along the side, away from the caption below.
+    if (generalization && type === 'actor') {
+      const apart = 2 * theme.size.triangle.halfWidth + 6;
+      end.attach = (side, toward) => {
+        const c = center(r);
+        if (Math.abs(side.y - c.y) < 0.5) return { x: side.x, y: toward.y > c.y ? Math.max(r.y + 2, c.y - apart) : Math.min(r.y + r.height - 2, c.y + apart) };
+        return { x: c.x + (toward.x > c.x ? -1 : 1) * Math.min(apart, r.width / 2 - 2), y: side.y };
+      };
+    }
+    return end;
+  };
   const sceneEdges: UseCaseScene['edges'] = [];
   const routes = new Map<string, Point[]>();
-  for (const p of plans) {
-    let route = smooth(result.edges.get(p.key)!.points);
-    if (p.reversed) route = [...route].reverse();
-    route = clipRoute(route, 'source', rect(p.r.from), shapeOf(p.r.from));
-    route = clipRoute(route, 'target', rect(p.r.to), shapeOf(p.r.to));
-    // Lines meet an actor at one point per side (the middle of the side facing them)
-    // instead of a comb of nearly coinciding ends.
-    for (const end of ['source', 'target'] as const) {
-      const id = end === 'source' ? p.r.from : p.r.to;
-      if (byId.get(id)?.type !== 'actor' || route.length < 2) continue;
-      const q = end === 'source' ? route[1]! : route.at(-2)!;
-      const r = rect(id), center = sideCenter(r, q);
-      // A generalization's arrowhead sits beside the point where the associations meet,
-      // never on it (a side point shifted along the side).
-      const side = Math.abs(center.y - (r.y + r.height / 2)) < 0.5;
-      const own = end === 'source' ? route[0]! : route.at(-1)!;
-      const apart = 2 * theme.size.triangle.halfWidth + 6;
-      if (p.r.type === 'generalization' && distance(own, center) >= apart) continue;
-      // Shifted away from where the line comes from, so it stays clear of the caption below.
-      const at = p.r.type === 'generalization' && side ? { x: center.x, y: q.y > center.y ? Math.max(r.y + 2, center.y - apart) : Math.min(r.y + r.height - 2, center.y + apart) } : center;
-      route = end === 'source' ? [at, ...route.slice(1)] : [...route.slice(0, -1), at];
-      // An arrowhead needs a straight end segment: drop a bend too close to the new end.
-      const marker = end === 'source' ? 'none' : p.target;
-      if (route.length > 2 && distance(q, at) < markerLength(marker) + theme.spacing.bendRadius + 1) route = end === 'source' ? [at, ...route.slice(2)] : [...route.slice(0, -2), at];
-    }
+  const rank = (p: Plan): number => p.r.type === 'association' ? 0 : p.r.type === 'generalization' ? 1 : 2;
+  for (const p of [...plans].sort((a, b) => rank(a) - rank(b))) {
+    const gen = p.r.type === 'generalization', labelled = (end: string) => p.ends.some(e => e.end === end);
+    const route = router.route(endOf(p.r.from, 'none', gen, labelled('source')), endOf(p.r.to, p.target, gen, labelled('target')), around(rect(p.r.from), rect(p.r.to)));
+    router.add(route);
     routes.set(p.key, route);
-    sceneEdges.push({ id: p.key, type: p.r.type, source: p.r.from, target: p.r.to, points: route, style: p.style, sourceMarker: 'none', targetMarker: p.target });
+  }
+  for (const p of plans) sceneEdges.push({ id: p.key, type: p.r.type, source: p.r.from, target: p.r.to, points: routes.get(p.key)!, style: p.style, sourceMarker: 'none', targetMarker: p.target });
+  for (const a of anchors) {
+    const route = router.route(endOf(a.note, 'none'), endOf(a.target, 'none'), around(rect(a.note), rect(a.target)));
+    router.add(route);
+    routes.set(a.id, route);
+    sceneEdges.push({ id: a.id, type: 'note-anchor', source: a.note, target: a.target, points: route, style: 'dashed', sourceMarker: 'none', targetMarker: 'none' });
   }
   // Ends on one use case keep apart around its ellipse (no overlapping arrowheads).
   for (const e of model.elements) {
@@ -220,44 +299,43 @@ export async function layoutUseCaseDiagram(model: UseCaseDiagram, metrics: FontM
       .map(end => ({ edge: s.id, end, min: Math.max(theme.spacing.edgeEdge, 2 * markerHalf(end === 'source' ? s.sourceMarker : s.targetMarker) + 6) })));
     spreadEllipseEnds(routes, rect(e.id), ends);
   }
-  for (const a of anchors) {
-    // Laid out from the target to the note; drawn from the note to the target.
-    let route = [...result.edges.get(a.id)!.points].reverse();
-    route = clipRoute(route, 'target', rect(a.target), shapeOf(a.target));
-    // Anchors from one note leave from the middle of the side facing them, and meet an
-    // actor where its associations do, so their ends never form a comb.
-    if (route.length >= 2) route[0] = sideCenter(rect(a.note), route[1]!);
-    if (route.length >= 2 && byId.get(a.target)?.type === 'actor') route[route.length - 1] = sideCenter(rect(a.target), route.at(-2)!);
-    sceneEdges.push({ id: a.id, type: 'note-anchor', source: a.note, target: a.target, points: route, style: 'dashed', sourceMarker: 'none', targetMarker: 'none' });
-  }
+  for (const s of sceneEdges) s.points = routes.get(s.id)!;
   for (const [key, c] of conditions) {
     // The condition note is attached to its «extend» line, at the point nearest
-    // to the note whose dashed anchor crosses no other element.
+    // to the note whose dashed anchor crosses no other element or line end.
     const note = rect(c.noteId);
-    const others = [...model.elements.filter(e => e.type !== 'subject').map(e => rect(e.id)), ...[...conditions.values()].filter(o => o !== c).map(o => rect(o.noteId))];
-    const candidates = samples(routes.get(key)!).map(p => ({ p, from: rectHit(p, note) }))
-      .filter(({ p, from }) => !others.some(o => segmentIntersectsRect(from, p, inflate(o, 2))))
+    const line = routes.get(key)!;
+    const others = routeObstacles.filter(o => o.id !== c.noteId).map(o => inflate(o.rect, 3));
+    const walls = (p: Point): Rect[] => subjectIds.filter(id => !around(note, { ...p, width: 0, height: 0 }).includes(id)).map(id => rect(id));
+    const candidates = samples(line).map(p => ({ p, from: rectHit(p, note) }))
+      .filter(({ p, from }) => !others.some(o => segmentIntersectsRect(from, p, o)) && !walls(p).some(w => segmentIntersectsRect(from, p, w)))
       .sort((a, b) => distance(a.p, a.from) - distance(b.p, b.from));
-    const mid = midpoint(routes.get(key)!);
-    const best = candidates[0] ?? { p: mid, from: rectHit(mid, note) };
-    sceneEdges.push({ id: `${c.noteId}::anchor`, type: 'note-anchor', source: c.noteId, target: key, points: [best.from, best.p], style: 'dashed', sourceMarker: 'none', targetMarker: 'none' });
+    let points: Point[];
+    if (candidates[0]) points = [candidates[0].from, candidates[0].p];
+    else {
+      // No clear straight anchor: bend it around what is in the way, to the middle of the line.
+      const mid = midpoint(line);
+      const point = { x: mid.x, y: mid.y, width: 0, height: 0 };
+      points = router.route(endOf(c.noteId, 'none'), { id: `${key}::point`, rect: point, shape: 'rect' }, around(note, point));
+    }
+    router.add(points);
+    sceneEdges.push({ id: `${c.noteId}::anchor`, type: 'note-anchor', source: c.noteId, target: key, points, style: 'dashed', sourceMarker: 'none', targetMarker: 'none' });
   }
 
-  // Actor captions and labels.
-  const actors: UseCaseScene['actors'] = [];
-  for (const e of model.elements) {
-    if (e.type !== 'actor') continue;
-    const b = rect(e.id), c = captions.get(e.id)!;
-    actors.push({ actor: e, bounds: b, caption: { rect: { x: b.x + b.width / 2 - c.width / 2, y: b.y + b.height + 4, width: c.width, height: c.height }, rows: c.rows } });
-  }
+  // Labels.
   const obstacles = {
-    rects: [...model.elements.filter(e => e.type !== 'subject').map(e => rect(e.id)), ...actors.map(a => a.caption.rect), ...[...conditions.values()].map(c => rect(c.noteId))],
+    rects: routeObstacles.map(o => o.rect),
     segments: sceneEdges.flatMap(e => e.points.slice(1).map((p, k) => [e.points[k]!, p] as [Point, Point])),
   };
-  for (const [id, rows] of subjectRows) {
+  // Subject borders: labels stay on one side of them.
+  for (const id of subjectIds) {
     const b = rect(id);
-    const height = rows.reduce((sum, r) => sum + metrics.lineHeight(r.style.size), 0) + 2 * theme.spacing.headerPadY;
-    obstacles.rects.push({ x: b.x, y: b.y, width: b.width, height });
+    const corners = [{ x: b.x, y: b.y }, { x: b.x + b.width, y: b.y }, { x: b.x + b.width, y: b.y + b.height }, { x: b.x, y: b.y + b.height }];
+    corners.forEach((c, k) => obstacles.segments.push([c, corners[(k + 1) % 4]!]));
+  }
+  for (const e of sceneEdges) {
+    const box = markerBox(e.points.at(-1)!, e.points.at(-2)!, e.targetMarker);
+    if (box) obstacles.rects.push(box);
   }
   const requests: LabelRequest[] = [];
   const meta = new Map<string, Omit<UseCaseScene['labels'][number], 'id' | 'rect'>>();
@@ -265,8 +343,7 @@ export async function layoutUseCaseDiagram(model: UseCaseDiagram, metrics: FontM
     const route = routes.get(p.key)!;
     p.ends.forEach((e, k) => {
       const id = `${p.key}::end${k}`;
-      const suggested = result.edges.get(p.key)?.labels.get(id);
-      requests.push({ id, width: e.width, height: lineHeight, route, at: e.end, side: 1, clearance: 4, suggestion: suggested && { x: suggested.x + 2, y: suggested.y, width: e.width, height: lineHeight } });
+      requests.push({ id, width: e.width, height: lineHeight, route, at: e.end, side: 1, clearance: 4 + (e.end === 'target' ? markerHalf(p.target) : 0) });
       meta.set(id, { owner: p.key, lines: [e.text], widths: [e.width], end: e.end, anchor: e.end === 'source' ? route[0]! : route.at(-1)! });
     });
   }
@@ -275,12 +352,11 @@ export async function layoutUseCaseDiagram(model: UseCaseDiagram, metrics: FontM
     if (!c) continue;
     const id = `${p.key}::center`;
     const width = Math.max(...c.widths), height = c.lines.length * lineHeight;
-    const suggested = result.edges.get(p.key)?.labels.get(id);
-    requests.push({ id, width, height, route: routes.get(p.key)!, at: 'center', suggestion: suggested && { x: suggested.x + 2, y: suggested.y, width, height } });
+    requests.push({ id, owner: p.key, width, height, route: routes.get(p.key)!, at: 'center' });
     meta.set(id, { owner: p.key, ...c });
   }
   const labelledEnds = plans.flatMap(p => [...new Set(p.ends.map(e => e.end))].map(end => end === 'source' ? routes.get(p.key)![0]! : routes.get(p.key)!.at(-1)!));
-  const placed = placeLabels(requests, { ...obstacles, ends: labelledEnds });
+  const placed = placeLabels(requests, { ...obstacles, ends: labelledEnds, lines: sceneEdges.map(e => ({ owner: e.id, points: e.points })) });
   const labels: UseCaseScene['labels'] = [...placed].map(([id, r]) => ({ id, rect: r, ...meta.get(id)! }));
 
   // Translate to the canvas margin (inside the frame, if any).
@@ -300,7 +376,7 @@ export async function layoutUseCaseDiagram(model: UseCaseDiagram, metrics: FontM
     frame = { bounds: { x: margin, y: margin, width: frameWidth, height: height - margin }, title: model.title! };
     width = margin + frameWidth;
   }
-  return {
+  return { separated, scene: {
     width: width + margin, height: height + margin,
     ...(frame ? { frame } : {}),
     subjects: model.elements.filter((e): e is Subject => e.type === 'subject').map(s => ({ subject: s, bounds: move(rect(s.id)), rows: subjectRows.get(s.id)! })),
@@ -309,19 +385,16 @@ export async function layoutUseCaseDiagram(model: UseCaseDiagram, metrics: FontM
     notes: [...model.elements.filter(e => e.type === 'note').map(e => e.id), ...[...conditions.values()].map(c => c.noteId)].map(id => ({ id, bounds: move(rect(id)), rows: noteRows.get(id)!, parent: noteParent.get(id), ...(noteStarts.has(id) ? { starts: noteStarts.get(id)! } : {}) })),
     edges: sceneEdges.map(e => ({ ...e, points: e.points.map(movePoint) })),
     labels: labels.map(l => ({ ...l, rect: move(l.rect), ...(l.anchor ? { anchor: movePoint(l.anchor) } : {}) })),
-  };
+  } };
 }
 
-/** Removes the small jogs polyline routing leaves between ports: a short inner segment collapses to its middle. */
-function smooth(route: readonly Point[]): Point[] {
-  const out = route.map(p => ({ ...p }));
-  for (let k = 1; k + 2 < out.length; k++) {
-    const a = out[k]!, b = out[k + 1]!;
-    if (distance(a, b) >= 8) continue;
-    out.splice(k, 2, { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 });
-    k--;
-  }
-  return out;
+/** Box around the arrowhead at `tip` (the line arrives from `from`). */
+function markerBox(tip: Point, from: Point, marker: Marker): Rect | undefined {
+  const length = markerLength(marker), half = markerHalf(marker);
+  if (!length) return undefined;
+  const u = direction(from, tip), n = { x: -u.y, y: u.x };
+  const base = { x: tip.x - u.x * length, y: tip.y - u.y * length };
+  return union([tip, { x: base.x + n.x * half, y: base.y + n.y * half }, { x: base.x - n.x * half, y: base.y - n.y * half }].map(p => ({ ...p, width: 0, height: 0 })));
 }
 
 /** Points every 6 px along the middle 70% of a polyline. */

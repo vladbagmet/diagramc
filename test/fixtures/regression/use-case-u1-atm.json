@@ -1,0 +1,35 @@
+{
+  "kind": "use-case",
+  "title": "ATM",
+  "elements": [
+    { "id": "cust", "type": "actor", "name": "Bank Customer" },
+    { "id": "tech", "type": "actor", "name": "Maintenance Technician" },
+    { "id": "bank", "type": "actor", "name": "Core Banking System", "stereotypes": ["system"] },
+    { "id": "atm", "type": "subject", "name": "ATM" },
+    { "id": "wd", "type": "useCase", "name": "Withdraw cash", "subject": "atm", "extensionPoints": ["receipt"] },
+    { "id": "dep", "type": "useCase", "name": "Deposit cheque", "subject": "atm" },
+    { "id": "bal", "type": "useCase", "name": "Check balance", "subject": "atm" },
+    { "id": "xfer", "type": "useCase", "name": "Transfer funds", "subject": "atm" },
+    { "id": "auth", "type": "useCase", "name": "Authenticate", "subject": "atm" },
+    { "id": "print", "type": "useCase", "name": "Print receipt", "subject": "atm" },
+    { "id": "refill", "type": "useCase", "name": "Refill cash cassettes", "subject": "atm" },
+    { "id": "diag", "type": "useCase", "name": "Run diagnostics", "subject": "atm" },
+    { "id": "n1", "type": "note", "text": "Daily withdrawal limit is 1000 EUR.", "attachedTo": ["wd"] }
+  ],
+  "relationships": [
+    { "type": "association", "from": "cust", "to": "wd" },
+    { "type": "association", "from": "cust", "to": "dep" },
+    { "type": "association", "from": "cust", "to": "bal" },
+    { "type": "association", "from": "cust", "to": "xfer" },
+    { "type": "association", "from": "tech", "to": "refill" },
+    { "type": "association", "from": "tech", "to": "diag" },
+    { "type": "association", "from": "wd", "to": "bank" },
+    { "type": "association", "from": "dep", "to": "bank" },
+    { "type": "association", "from": "xfer", "to": "bank" },
+    { "type": "include", "from": "wd", "to": "auth" },
+    { "type": "include", "from": "dep", "to": "auth" },
+    { "type": "include", "from": "bal", "to": "auth" },
+    { "type": "include", "from": "xfer", "to": "auth" },
+    { "type": "extend", "from": "print", "to": "wd", "extensionPoint": "receipt", "condition": "customer requests receipt" }
+  ]
+}

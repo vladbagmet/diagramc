@@ -1,0 +1,383 @@
+{
+ "kind": "use-case",
+ "title": "Permits",
+ "elements": [
+  {
+   "id": "s1",
+   "type": "subject",
+   "name": "Municipal Permit and Licensing Self-Service Portal (Phase 2 rollout, all districts)",
+   "stereotypes": [
+    "subsystem"
+   ]
+  },
+  {
+   "id": "s2",
+   "type": "subject",
+   "name": "Payments"
+  },
+  {
+   "id": "hub",
+   "type": "useCase",
+   "name": "Verify applicant identity using national electronic ID and two-factor confirmation",
+   "subject": "s1",
+   "extensionPoints": [
+    "biometric fallback",
+    "manual review requested by the clerk on duty",
+    "foreign applicant"
+   ]
+  },
+  {
+   "id": "a0",
+   "type": "actor",
+   "name": "Citizen"
+  },
+  {
+   "id": "a1",
+   "type": "actor",
+   "name": "Business Owner"
+  },
+  {
+   "id": "a2",
+   "type": "actor",
+   "name": "Licensing Clerk with Supervisor Privileges"
+  },
+  {
+   "id": "a3",
+   "type": "actor",
+   "name": "Architect"
+  },
+  {
+   "id": "a4",
+   "type": "actor",
+   "name": "Auditor"
+  },
+  {
+   "id": "u0",
+   "type": "useCase",
+   "name": "Apply for permit type 0 including all supporting documents",
+   "subject": "s1"
+  },
+  {
+   "id": "n0",
+   "type": "note",
+   "text": "Permit 0: fee schedule B applies.",
+   "attachedTo": [
+    "u0"
+   ]
+  },
+  {
+   "id": "u1",
+   "type": "useCase",
+   "name": "Apply for permit type 1 including all supporting documents",
+   "subject": "s1"
+  },
+  {
+   "id": "n1",
+   "type": "note",
+   "text": "Permit 1: fee schedule B applies.",
+   "attachedTo": [
+    "u1"
+   ]
+  },
+  {
+   "id": "u2",
+   "type": "useCase",
+   "name": "Apply for permit type 2 including all supporting documents",
+   "subject": "s1"
+  },
+  {
+   "id": "n2",
+   "type": "note",
+   "text": "Permit 2: fee schedule B applies.",
+   "attachedTo": [
+    "u2"
+   ]
+  },
+  {
+   "id": "u3",
+   "type": "useCase",
+   "name": "Apply for permit type 3 including all supporting documents",
+   "subject": "s1"
+  },
+  {
+   "id": "n3",
+   "type": "note",
+   "text": "Permit 3: fee schedule B applies.",
+   "attachedTo": [
+    "u3"
+   ]
+  },
+  {
+   "id": "u4",
+   "type": "useCase",
+   "name": "Apply for permit type 4 including all supporting documents",
+   "subject": "s1"
+  },
+  {
+   "id": "n4",
+   "type": "note",
+   "text": "Permit 4: fee schedule B applies.",
+   "attachedTo": [
+    "u4"
+   ]
+  },
+  {
+   "id": "u5",
+   "type": "useCase",
+   "name": "Apply for permit type 5 including all supporting documents",
+   "subject": "s1"
+  },
+  {
+   "id": "n5",
+   "type": "note",
+   "text": "Permit 5: fee schedule B applies.",
+   "attachedTo": [
+    "u5"
+   ]
+  },
+  {
+   "id": "u6",
+   "type": "useCase",
+   "name": "Apply for permit type 6 including all supporting documents",
+   "subject": "s1"
+  },
+  {
+   "id": "n6",
+   "type": "note",
+   "text": "Permit 6: fee schedule B applies.",
+   "attachedTo": [
+    "u6"
+   ]
+  },
+  {
+   "id": "u7",
+   "type": "useCase",
+   "name": "Apply for permit type 7 including all supporting documents",
+   "subject": "s1"
+  },
+  {
+   "id": "n7",
+   "type": "note",
+   "text": "Permit 7: fee schedule B applies.",
+   "attachedTo": [
+    "u7"
+   ]
+  },
+  {
+   "id": "pay",
+   "type": "useCase",
+   "name": "Pay fee",
+   "subject": "s2"
+  },
+  {
+   "id": "bio",
+   "type": "useCase",
+   "name": "Biometric check",
+   "subject": "s1"
+  },
+  {
+   "id": "man",
+   "type": "useCase",
+   "name": "Manual review",
+   "subject": "s1"
+  },
+  {
+   "id": "nh",
+   "type": "note",
+   "text": "Central use case: everything goes through identity verification.",
+   "attachedTo": [
+    "hub",
+    "a2",
+    "s1"
+   ]
+  }
+ ],
+ "relationships": [
+  {
+   "type": "include",
+   "from": "u0",
+   "to": "hub"
+  },
+  {
+   "type": "association",
+   "from": "a0",
+   "to": "u0",
+   "fromEnd": {
+    "multiplicity": "1"
+   },
+   "toEnd": {
+    "multiplicity": "0..*"
+   }
+  },
+  {
+   "type": "include",
+   "from": "u1",
+   "to": "hub"
+  },
+  {
+   "type": "association",
+   "from": "a1",
+   "to": "u1",
+   "fromEnd": {
+    "multiplicity": "1"
+   },
+   "toEnd": {
+    "multiplicity": "0..*"
+   }
+  },
+  {
+   "type": "include",
+   "from": "u2",
+   "to": "hub"
+  },
+  {
+   "type": "association",
+   "from": "a2",
+   "to": "u2",
+   "fromEnd": {
+    "multiplicity": "1"
+   },
+   "toEnd": {
+    "multiplicity": "0..*"
+   }
+  },
+  {
+   "type": "include",
+   "from": "u3",
+   "to": "hub"
+  },
+  {
+   "type": "association",
+   "from": "a3",
+   "to": "u3",
+   "fromEnd": {
+    "multiplicity": "1"
+   },
+   "toEnd": {
+    "multiplicity": "0..*"
+   }
+  },
+  {
+   "type": "include",
+   "from": "u4",
+   "to": "hub"
+  },
+  {
+   "type": "association",
+   "from": "a4",
+   "to": "u4",
+   "fromEnd": {
+    "multiplicity": "1"
+   },
+   "toEnd": {
+    "multiplicity": "0..*"
+   }
+  },
+  {
+   "type": "include",
+   "from": "u5",
+   "to": "hub"
+  },
+  {
+   "type": "association",
+   "from": "a0",
+   "to": "u5",
+   "fromEnd": {
+    "multiplicity": "1"
+   },
+   "toEnd": {
+    "multiplicity": "0..*"
+   }
+  },
+  {
+   "type": "include",
+   "from": "u6",
+   "to": "hub"
+  },
+  {
+   "type": "association",
+   "from": "a1",
+   "to": "u6",
+   "fromEnd": {
+    "multiplicity": "1"
+   },
+   "toEnd": {
+    "multiplicity": "0..*"
+   }
+  },
+  {
+   "type": "include",
+   "from": "u7",
+   "to": "hub"
+  },
+  {
+   "type": "association",
+   "from": "a2",
+   "to": "u7",
+   "fromEnd": {
+    "multiplicity": "1"
+   },
+   "toEnd": {
+    "multiplicity": "0..*"
+   }
+  },
+  {
+   "type": "extend",
+   "from": "bio",
+   "to": "hub",
+   "extensionPoint": "biometric fallback",
+   "condition": "eID unavailable"
+  },
+  {
+   "type": "extend",
+   "from": "man",
+   "to": "hub",
+   "extensionPoint": "manual review requested by the clerk on duty"
+  },
+  {
+   "type": "association",
+   "from": "a0",
+   "to": "hub",
+   "name": "verifies"
+  },
+  {
+   "type": "association",
+   "from": "a1",
+   "to": "hub",
+   "name": "verifies"
+  },
+  {
+   "type": "association",
+   "from": "a2",
+   "to": "hub",
+   "name": "verifies"
+  },
+  {
+   "type": "association",
+   "from": "a3",
+   "to": "hub",
+   "name": "verifies"
+  },
+  {
+   "type": "association",
+   "from": "a4",
+   "to": "hub",
+   "name": "verifies"
+  },
+  {
+   "type": "include",
+   "from": "u0",
+   "to": "pay"
+  },
+  {
+   "type": "generalization",
+   "from": "a1",
+   "to": "a0"
+  },
+  {
+   "type": "association",
+   "from": "a2",
+   "to": "man"
+  }
+ ]
+}
