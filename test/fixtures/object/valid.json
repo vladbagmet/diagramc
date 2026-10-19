@@ -1,0 +1,34 @@
+[
+  { "name": "single anonymous instance", "doc": { "kind": "object", "elements": [{ "id": "a", "type": "instance", "classifier": "Order" }] } },
+  { "name": "single instance without classifier", "doc": { "kind": "object", "elements": [{ "id": "a", "type": "instance", "name": "x" }] } },
+  { "name": "single note", "doc": { "kind": "object", "elements": [{ "id": "n", "type": "note", "text": "Only a note." }] } },
+  { "name": "every link adornment", "doc": { "kind": "object", "elements": [
+      { "id": "a", "type": "instance", "name": "a", "classifier": "A" }, { "id": "b", "type": "instance", "name": "b", "classifier": "B" }, { "id": "c", "type": "instance", "classifier": "C" }],
+    "relationships": [
+      { "id": "full", "type": "link", "from": "a", "to": "b", "name": "l1", "association": "owns", "fromEnd": { "role": "owner", "navigable": false }, "toEnd": { "role": "item", "navigable": true } },
+      { "id": "named", "type": "link", "from": "b", "to": "c", "name": "l2" },
+      { "id": "plain", "type": "link", "from": "a", "to": "c" }] } },
+  { "name": "parallel links between the same instances", "doc": { "kind": "object", "elements": [
+      { "id": "a", "type": "instance", "name": "a", "classifier": "Person" }, { "id": "b", "type": "instance", "name": "b", "classifier": "Person" }],
+    "relationships": [
+      { "type": "link", "from": "a", "to": "b", "association": "knows", "toEnd": { "role": "friend" } },
+      { "type": "link", "from": "a", "to": "b", "association": "employs", "fromEnd": { "role": "boss" }, "toEnd": { "role": "staff", "navigable": true } },
+      { "type": "link", "from": "b", "to": "a", "association": "mentors" }] } },
+  { "name": "self links", "doc": { "kind": "object", "elements": [{ "id": "a", "type": "instance", "name": "node", "classifier": "Node", "slots": [{ "feature": "v", "value": "1" }] }],
+    "relationships": [
+      { "type": "link", "from": "a", "to": "a", "association": "next", "fromEnd": { "role": "prev" }, "toEnd": { "role": "next" } },
+      { "type": "link", "from": "a", "to": "a", "name": "self" }] } },
+  { "name": "declared classifiers without attributes accept any slot", "doc": { "kind": "object", "classifiers": [{ "name": "Thing" }], "elements": [
+      { "id": "a", "type": "instance", "classifier": "Thing", "slots": [{ "feature": "anything", "type": "String", "value": "\"ok\"" }] }] } },
+  { "name": "many links into one instance", "doc": { "kind": "object", "elements": [
+      { "id": "hub", "type": "instance", "name": "hub", "classifier": "Hub" },
+      { "id": "a", "type": "instance", "name": "a" }, { "id": "b", "type": "instance", "name": "b" }, { "id": "c", "type": "instance", "name": "c" }, { "id": "d", "type": "instance", "name": "d" }],
+    "relationships": [
+      { "type": "link", "from": "a", "to": "hub", "toEnd": { "role": "hub", "navigable": true } }, { "type": "link", "from": "b", "to": "hub", "toEnd": { "role": "hub", "navigable": true } },
+      { "type": "link", "from": "c", "to": "hub", "toEnd": { "role": "hub", "navigable": true } }, { "type": "link", "from": "d", "to": "hub", "toEnd": { "role": "hub", "navigable": true } }] } },
+  { "name": "long and Unicode text", "doc": { "kind": "object", "title": "Snapshot 🚀", "elements": [
+      { "id": "a", "type": "instance", "name": "averyveryverylonginstancenamethatmustwrapsomewhereinsidethebox", "classifier": "ExtremelyLongClassifierNameForTesting",
+        "slots": [{ "feature": "名前", "type": "文字列", "value": "\"山田 太郎\"" }, { "feature": "note", "value": "\"<b>not bold</b> & {braces}\"" }] },
+      { "id": "b", "type": "instance", "name": "  spaced  ", "classifier": "Ünïcödé" }],
+    "relationships": [{ "type": "link", "from": "a", "to": "b", "association": "relatesTo", "toEnd": { "role": "目標" } }] } }
+]
