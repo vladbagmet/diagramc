@@ -63,6 +63,48 @@ test('UML notation: messages run between state lines; duration constraint arrows
   assert.ok(scene.texts.some(t => t.content === '{30..50}'), 'time constraint window label');
 });
 
+test('constraints belong to their lifeline; rows have room; one border; labels aligned (review C-12, C-13, C-15, C-43, C-44)', async () => {
+  const { svg } = await assertGates(JSON.parse(await readFile(join(root, 'examples/timing/door.json'), 'utf8')));
+  const scene = await inspectSvg(svg);
+  const text = content => scene.texts.find(t => t.content === content);
+  const separators = scene.edges.filter(e => e.type === 'separator').map(e => e.points[0].y).sort((a, b) => a - b);
+  const rowOf = y => separators.filter(s => s <= y).length - 1;
+  // The time constraint {30..50} of "door" is labelled and shaded inside the door row only.
+  const doorRow = rowOf(text('door : Door').bounds.y);
+  assert.equal(rowOf(text('{30..50}').bounds.y), doorRow, 'time constraint label in the constrained row');
+  const window = [...svg.matchAll(/<rect fill="#F1F5F9" height="([\d.]+)" [^>]*y="([\d.]+)"/g)].map(m => ({ y: Number(m[2]), h: Number(m[1]) }));
+  assert.equal(window.length, 1);
+  assert.ok(window[0].y >= separators[doorRow] && rowOf(window[0].y + window[0].h - 1) === doorRow, 'window confined to the door row');
+  // The duration constraint arrow of "lock" runs above its top state line, not between states.
+  const arrow = scene.edges.find(e => e.type === 'duration-constraint');
+  assert.ok(arrow.points[0].y < text('Locked').bounds.y - 4, 'duration constraint above the state rows');
+  assert.equal(rowOf(arrow.points[0].y), rowOf(text('lock : Lock').bounds.y));
+  // Name tab and first state label never touch; state levels at least 24 px apart; labels left-aligned.
+  const tabBottom = name => text(name).bounds.y + text(name).bounds.height;
+  assert.ok(text('Open').bounds.y - tabBottom('door : Door') >= 6);
+  assert.ok(text('Ajar').bounds.y - text('Open').bounds.y >= 24 && text('Closed').bounds.y - text('Ajar').bounds.y >= 24);
+  assert.deepEqual(new Set(['Locked', 'Unlocked', 'Open', 'Ajar', 'Closed'].map(n => text(n).bounds.x)).size, 1, 'state labels share one x');
+  // No inner box: the only vertical solid lines at the far left are the frame's.
+  assert.doesNotMatch(svg, /<line style="stroke:#334155;stroke-width:1.25;" x1="20" x2="20"/, 'no second border inside the frame');
+  // Time grid lines stop at the name tabs.
+  const tab = text('reader : CardReader').bounds;
+  for (const m of svg.matchAll(/<line style="[^"]*dasharray:3,5;[^"]*" x1="([\d.]+)" x2="\1" y1="([\d.]+)" y2="([\d.]+)"/g)) {
+    const [x, y1, y2] = m.slice(1).map(Number);
+    assert.ok(!(x > tab.x && x < tab.x + tab.width && y1 < tab.y + tab.height && y2 > tab.y), `grid line at x=${x} crosses a name tab`);
+  }
+});
+
+test('review fixtures: dense timing input is rejected precisely; readable inputs keep a readable aspect ratio', async () => {
+  const review = name => readFile(join(root, 'test/fixtures/review', name), 'utf8');
+  const awkward = await review('tim-awkward.json');
+  assert.throws(() => parseDocument(awkward), e => e.code === 'TIMELINE_TOO_DENSE' && e.diagnostics.length > 1 && e.diagnostics.every(d => /needs about \d+ px/.test(d.message)));
+  for (const name of ['tim-traffic.json', 'tim-llm2.json']) {
+    const { svg } = await assertGates(await review(name));
+    const [, , w, h] = svg.match(/viewBox="([\d.]+) ([\d.]+) ([\d.]+) ([\d.]+)"/).slice(1).map(Number);
+    assert.ok(w / h < 4, `${name}: aspect ratio ${(w / h).toFixed(1)} (was 12.9 for tim-llm2)`);
+  }
+});
+
 test('hostile, markup-like and Unicode text stays literal in every slot', async () => {
   const hostile = '" } !include https://evil.invalid <b>x</b> [[link]] **x** \\n @enduml';
   for (const text of [hostile, '  spaced  ', '<svg onload="alert(1)">', 'Unicode: 🚀 𠀀 \u{10FFFD} 漢字']) {

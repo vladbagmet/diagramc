@@ -61,7 +61,7 @@
     "doc": { "kind": "composite-structure", "elements": [{ "id": "k", "type": "collaboration", "name": "K", "roles": [] }] } },
   { "name": "keyword on a connector", "expect": { "code": "SCHEMA_INVALID", "path": "/relationships/0/keyword" },
     "doc": { "kind": "composite-structure", "elements": [{ "id": "c", "type": "class", "name": "C", "parts": [{ "id": "a", "name": "a" }, { "id": "b", "name": "b" }] }], "relationships": [{ "type": "connector", "from": "a", "to": "b", "keyword": "x" }] } },
-  { "name": "unknown element type", "expect": { "code": "SCHEMA_INVALID", "path": "/elements/0" },
+  { "name": "unknown element type", "expect": { "code": "SCHEMA_INVALID", "path": "/elements/0/type" },
     "doc": { "kind": "composite-structure", "elements": [{ "id": "c", "type": "component", "name": "C" }] } },
   { "name": "blank role name", "expect": { "code": "INVALID_TEXT", "path": "/elements/0/roles/0/name" },
     "doc": { "kind": "composite-structure", "elements": [{ "id": "k", "type": "collaboration", "name": "K", "roles": [{ "id": "r", "name": "  " }] }] } }

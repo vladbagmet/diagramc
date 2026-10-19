@@ -1,7 +1,7 @@
 import { kindSchema } from '../../model/schema.js';
 
 const ref = (name: string, description?: string) => ({ $ref: `#/definitions/${name}`, ...(description ? { description } : {}) });
-const stereotypes = { type: 'array', maxItems: 4, items: ref('keyword'), description: 'Stereotype names without guillemets, drawn «a, b» above the name (e.g. ["J2EE Server"]).' };
+const stereotypes = { type: 'array', maxItems: 4, items: ref('keyword'), description: 'Stereotype names without guillemets, drawn «a, b» above the name (e.g. ["library"] for an artifact, ["J2EE Server"] for a node).' };
 
 function nodeLike(type: string, description: string) {
   return {

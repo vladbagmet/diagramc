@@ -34,7 +34,7 @@ fixture and example. Fixtures: `test/fixtures/sequence/`.
 | Loop bounds | `min`, `max` (`"*"` allowed) | `loop(min,max)` in the pentagon, guard separate | unit: `group loop(1,3) [more]`; integration: `loop(1,3)` text |
 | Interaction use | `type: "ref"`, `covered`, `name`, `arguments` | Frame with `ref` pentagon spanning the covered lifelines, `Name(args)` centered (17.7.4) | integration: `ref` and `FindUser(name)` drawn; unit: `ref over` line |
 | State invariant | `type: "stateInvariant"`, `constraint` | Constraint in braces on the lifeline (17.2.4) | integration: `{open}` drawn; unit: `rnote ... {x > 0}` |
-| Note | `type: "note"`, `position` over/left/right | Rectangle with folded corner (7.2.4) | unit: note block lines; gallery `checkout`, `notation` |
+| Note | `type: "note"`, `position` over/left/right | Rectangle with folded corner (7.2.4); a note beside a lifeline never covers the next lifeline | unit: note block lines; integration: "review fixes ... (C-07 ...)"; gallery `checkout`, `notation` |
 | Autonumber | `autonumber: true` | Sequence number before each message label | unit: `autonumber` in the source; gallery `stress` |
 | Diagram frame | `title` | Frame with pentagon heading `sd <title>`, `sd` bold, filled like the own engine's frames (Annex A) | integration: frame labels `sd` (bold) and the title; filled pentagon |
 | Long text | any label | Wrapped at word boundaries into generated, separately encoded lines | unit: "long labels are wrapped..."; integration fixture "long labels wrap" |
@@ -52,7 +52,7 @@ fixture and example. Fixtures: `test/fixtures/sequence/`.
 | INVALID_SELF_MESSAGE | no lifeline creates or deletes itself with a message | `/items/0/to` |
 | DEACTIVATION_WITHOUT_ACTIVATION | a deactivation ends an open activation | `/items/1`, `/items/0/deactivate` |
 | ACTIVATION_NOT_CLOSED | every activation ends | `/items/0/activate`, `/items/0` |
-| ACTIVATION_CROSSES_FRAGMENT | an activation ends in the operand where it starts | `/items/1/operands/0/items/0/deactivate`, `/items/0/operands/0/items/0/activate` |
+| ACTIVATION_CROSSES_FRAGMENT | an activation ends in the operand where it starts; the message explains to end one that spans the fragment once, after it | `/items/1/operands/0/items/0/deactivate`, `/items/0/operands/0/items/0/activate` |
 | FRAGMENT_OPERAND_COUNT | alt: one or more operands; par, strict, seq: two or more; others exactly one | `/items/0/operands` |
 | INVALID_LOOP_BOUNDS | bounds only on loop; `max` needs `min`; `min <= max`; `max > 0` | `/items/0/max`, `/items/0/min` |
 | MISPLACED_ELSE | the `else` guard is on the last alt operand | `/items/0/operands/0/guard` |
@@ -96,7 +96,14 @@ data in this kind): `label-proximity`, `edge-endpoints`, `markers`, `ports`;
 - The `mainframe` heading is an unfilled polyline; it is closed and filled like the own engine's frame.
 - Message labels start at the sending end and guards right after the operator pentagon, whatever lies beneath. A label or guard crossed by a lifeline or activation bar is moved to the nearest position within its arrow (labels) or fragment (guards) where nothing runs through it, 4 px clear; when no such position exists (a label longer than every gap), a halo in the background color is painted behind it, as the own engine does for edge labels.
 - State invariants use a borderless `rnote` in the background color, so they read as a constraint in braces on the lifeline, not as a note.
-- Long notes are emitted in block form, one source line per wrapped line.
+- Long notes are emitted in block form, one source line per wrapped line. Wrapping breaks after spaces, then after identifier punctuation, then at camelCase boundaries, and only then inside a word.
+- PlantUML does not move lifelines apart for a note beside a lifeline. Hidden messages at the very end, labelled with no-break spaces as wide as the note needs, push the pair apart; the empty rows they add at the bottom are cropped.
+- Guards are drawn in the regular weight; only the operator is bold (17.6.4).
+- Found and lost messages end inside the innermost fragment around their known end, 14 px from its border.
+- Rectangle heads in the top row are moved down so their names share the baseline of stereotype-icon heads.
+- An activation that ends right after a fragment gets 12 px of extra room, so it visibly continues below the fragment border.
+- Halos behind crossed labels leave 4 px of clear space and have rounded corners.
+- Untitled diagrams get the own engine's 16 px canvas margin.
 
 ## Unsupported (rejected by the schema)
 
@@ -108,7 +115,6 @@ data in this kind): `label-proximity`, `edge-endpoints`, `markers`, `ports`;
 ## Known limitations
 
 - A message label longer than every gap between the lifelines it passes keeps its position and interrupts those lifelines with a halo (for example the reply `result = charge : ChargeResult` in `checkout`).
-- A lost message extends to the right edge of the diagram and may leave the fragment that contains it.
 - Nested fragments that end together have their bottom borders a few pixels apart.
 - An interaction use is drawn across every lifeline column between the outermost covered lifelines; REF_COVERAGE_GAP rejects documents where that would include an uncovered live lifeline.
 - Glyph shapes come from Java's rendering of the pinned Inter font; sizes and colors match the own engine.

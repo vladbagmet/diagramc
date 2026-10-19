@@ -1,0 +1,18 @@
+{
+  "kind": "class",
+  "title": "E-commerce",
+  "elements": [
+    { "id": "User", "type": "class", "name": "User",
+      "attributes": ["- id: UUID", "- email: String"],
+      "methods": [{ "name": "login", "returnType": "bool" }] },
+    { "id": "Order", "type": "class", "name": "Order",
+      "attributes": [{ "name": "total", "type": "Money", "visibility": "+" }] },
+    { "id": "PaymentMethod", "type": "abstract class", "name": "PaymentMethod" },
+    { "id": "Card", "type": "class", "name": "Card" }
+  ],
+  "relationships": [
+    { "type": "association", "from": "User", "to": "Order", "label": "places", "multiplicity": "1..n" },
+    { "type": "inheritance", "from": "Card", "to": "PaymentMethod" },
+    { "type": "composition", "source": "Order", "target": "OrderItem" }
+  ]
+}

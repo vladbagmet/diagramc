@@ -1,0 +1,1139 @@
+{
+ "kind": "timing",
+ "title": "Awkward timing",
+ "timeUnit": "clock cycles",
+ "lifelines": [
+  {
+   "id": "l0",
+   "name": "component0",
+   "classifier": "SomeQuiteLongClassifierName",
+   "notation": "robust",
+   "states": [
+    "State number 0 with a rather long descriptive name",
+    "S1",
+    "S2",
+    "S3"
+   ],
+   "changes": [
+    {
+     "at": 0,
+     "state": "S1"
+    },
+    {
+     "at": 76,
+     "state": "S3"
+    },
+    {
+     "at": 93,
+     "state": "S1"
+    },
+    {
+     "at": 171,
+     "state": "S2"
+    },
+    {
+     "at": 252,
+     "state": "S3"
+    },
+    {
+     "at": 261,
+     "state": "S2"
+    },
+    {
+     "at": 263,
+     "state": "S1"
+    },
+    {
+     "at": 297,
+     "state": "S3"
+    },
+    {
+     "at": 327,
+     "state": "State number 0 with a rather long descriptive name"
+    },
+    {
+     "at": 388,
+     "state": "S3"
+    },
+    {
+     "at": 459,
+     "state": "S1"
+    },
+    {
+     "at": 510,
+     "state": "S3"
+    },
+    {
+     "at": 530,
+     "state": "State number 0 with a rather long descriptive name"
+    },
+    {
+     "at": 612,
+     "state": "S1"
+    },
+    {
+     "at": 679,
+     "state": "S2"
+    },
+    {
+     "at": 681,
+     "state": "S3"
+    },
+    {
+     "at": 690,
+     "state": "State number 0 with a rather long descriptive name"
+    },
+    {
+     "at": 766,
+     "state": "S1"
+    },
+    {
+     "at": 805,
+     "state": "State number 0 with a rather long descriptive name"
+    },
+    {
+     "at": 840,
+     "state": "S2"
+    },
+    {
+     "at": 917,
+     "state": "S3"
+    },
+    {
+     "at": 967,
+     "state": "S2"
+    }
+   ]
+  },
+  {
+   "id": "l1",
+   "name": "component1",
+   "classifier": "SomeQuiteLongClassifierName",
+   "notation": "concise",
+   "states": [
+    "WAITING_FOR_UPSTREAM_ACKNOWLEDGEMENT",
+    "OK",
+    "X",
+    "RETRYING WITH EXPONENTIAL BACKOFF"
+   ],
+   "changes": [
+    {
+     "at": 0,
+     "state": "RETRYING WITH EXPONENTIAL BACKOFF"
+    },
+    {
+     "at": 74,
+     "state": "OK"
+    },
+    {
+     "at": 92,
+     "state": "X"
+    },
+    {
+     "at": 105,
+     "state": "WAITING_FOR_UPSTREAM_ACKNOWLEDGEMENT"
+    },
+    {
+     "at": 123,
+     "state": "X"
+    },
+    {
+     "at": 151,
+     "state": "OK"
+    },
+    {
+     "at": 238,
+     "state": "X"
+    },
+    {
+     "at": 319,
+     "state": "OK"
+    },
+    {
+     "at": 373,
+     "state": "RETRYING WITH EXPONENTIAL BACKOFF"
+    },
+    {
+     "at": 423,
+     "state": "X"
+    },
+    {
+     "at": 468,
+     "state": "RETRYING WITH EXPONENTIAL BACKOFF"
+    },
+    {
+     "at": 543,
+     "state": "OK"
+    },
+    {
+     "at": 618,
+     "state": "WAITING_FOR_UPSTREAM_ACKNOWLEDGEMENT"
+    },
+    {
+     "at": 662,
+     "state": "RETRYING WITH EXPONENTIAL BACKOFF"
+    },
+    {
+     "at": 666,
+     "state": "OK"
+    },
+    {
+     "at": 744,
+     "state": "RETRYING WITH EXPONENTIAL BACKOFF"
+    },
+    {
+     "at": 834,
+     "state": "WAITING_FOR_UPSTREAM_ACKNOWLEDGEMENT"
+    },
+    {
+     "at": 924,
+     "state": "X"
+    },
+    {
+     "at": 994,
+     "state": "RETRYING WITH EXPONENTIAL BACKOFF"
+    }
+   ]
+  },
+  {
+   "id": "l2",
+   "name": "component2",
+   "classifier": "SomeQuiteLongClassifierName",
+   "notation": "robust",
+   "states": [
+    "State number 0 with a rather long descriptive name",
+    "S1",
+    "S2",
+    "S3"
+   ],
+   "changes": [
+    {
+     "at": 0,
+     "state": "State number 0 with a rather long descriptive name"
+    },
+    {
+     "at": 84,
+     "state": "S1"
+    },
+    {
+     "at": 166,
+     "state": "S3"
+    },
+    {
+     "at": 201,
+     "state": "S1"
+    },
+    {
+     "at": 217,
+     "state": "State number 0 with a rather long descriptive name"
+    },
+    {
+     "at": 279,
+     "state": "S3"
+    },
+    {
+     "at": 341,
+     "state": "State number 0 with a rather long descriptive name"
+    },
+    {
+     "at": 386,
+     "state": "S1"
+    },
+    {
+     "at": 439,
+     "state": "State number 0 with a rather long descriptive name"
+    },
+    {
+     "at": 442,
+     "state": "S2"
+    },
+    {
+     "at": 497,
+     "state": "S1"
+    },
+    {
+     "at": 513,
+     "state": "State number 0 with a rather long descriptive name"
+    },
+    {
+     "at": 591,
+     "state": "S3"
+    },
+    {
+     "at": 597,
+     "state": "S1"
+    },
+    {
+     "at": 673,
+     "state": "S2"
+    },
+    {
+     "at": 744,
+     "state": "S1"
+    },
+    {
+     "at": 809,
+     "state": "State number 0 with a rather long descriptive name"
+    },
+    {
+     "at": 814,
+     "state": "S2"
+    },
+    {
+     "at": 815,
+     "state": "State number 0 with a rather long descriptive name"
+    },
+    {
+     "at": 829,
+     "state": "S3"
+    },
+    {
+     "at": 898,
+     "state": "State number 0 with a rather long descriptive name"
+    },
+    {
+     "at": 924,
+     "state": "S2"
+    },
+    {
+     "at": 962,
+     "state": "S3"
+    },
+    {
+     "at": 996,
+     "state": "State number 0 with a rather long descriptive name"
+    }
+   ]
+  },
+  {
+   "id": "l3",
+   "name": "component3",
+   "classifier": "SomeQuiteLongClassifierName",
+   "notation": "concise",
+   "states": [
+    "WAITING_FOR_UPSTREAM_ACKNOWLEDGEMENT",
+    "OK",
+    "X",
+    "RETRYING WITH EXPONENTIAL BACKOFF"
+   ],
+   "changes": [
+    {
+     "at": 0,
+     "state": "WAITING_FOR_UPSTREAM_ACKNOWLEDGEMENT"
+    },
+    {
+     "at": 44,
+     "state": "X"
+    },
+    {
+     "at": 91,
+     "state": "WAITING_FOR_UPSTREAM_ACKNOWLEDGEMENT"
+    },
+    {
+     "at": 140,
+     "state": "X"
+    },
+    {
+     "at": 199,
+     "state": "RETRYING WITH EXPONENTIAL BACKOFF"
+    },
+    {
+     "at": 249,
+     "state": "X"
+    },
+    {
+     "at": 326,
+     "state": "RETRYING WITH EXPONENTIAL BACKOFF"
+    },
+    {
+     "at": 398,
+     "state": "WAITING_FOR_UPSTREAM_ACKNOWLEDGEMENT"
+    },
+    {
+     "at": 478,
+     "state": "RETRYING WITH EXPONENTIAL BACKOFF"
+    },
+    {
+     "at": 513,
+     "state": "OK"
+    },
+    {
+     "at": 595,
+     "state": "RETRYING WITH EXPONENTIAL BACKOFF"
+    },
+    {
+     "at": 626,
+     "state": "OK"
+    },
+    {
+     "at": 682,
+     "state": "X"
+    },
+    {
+     "at": 749,
+     "state": "OK"
+    },
+    {
+     "at": 820,
+     "state": "X"
+    },
+    {
+     "at": 822,
+     "state": "OK"
+    },
+    {
+     "at": 897,
+     "state": "X"
+    },
+    {
+     "at": 900,
+     "state": "OK"
+    },
+    {
+     "at": 979,
+     "state": "RETRYING WITH EXPONENTIAL BACKOFF"
+    }
+   ]
+  },
+  {
+   "id": "l4",
+   "name": "component4",
+   "classifier": "SomeQuiteLongClassifierName",
+   "notation": "robust",
+   "states": [
+    "State number 0 with a rather long descriptive name",
+    "S1",
+    "S2",
+    "S3"
+   ],
+   "changes": [
+    {
+     "at": 0,
+     "state": "S1"
+    },
+    {
+     "at": 8,
+     "state": "S3"
+    },
+    {
+     "at": 89,
+     "state": "S1"
+    },
+    {
+     "at": 149,
+     "state": "S2"
+    },
+    {
+     "at": 236,
+     "state": "S1"
+    },
+    {
+     "at": 314,
+     "state": "S3"
+    },
+    {
+     "at": 350,
+     "state": "S2"
+    },
+    {
+     "at": 413,
+     "state": "State number 0 with a rather long descriptive name"
+    },
+    {
+     "at": 489,
+     "state": "S1"
+    },
+    {
+     "at": 576,
+     "state": "State number 0 with a rather long descriptive name"
+    },
+    {
+     "at": 624,
+     "state": "S2"
+    },
+    {
+     "at": 705,
+     "state": "S1"
+    },
+    {
+     "at": 744,
+     "state": "S3"
+    },
+    {
+     "at": 821,
+     "state": "S1"
+    },
+    {
+     "at": 844,
+     "state": "S2"
+    },
+    {
+     "at": 868,
+     "state": "S1"
+    },
+    {
+     "at": 916,
+     "state": "S3"
+    },
+    {
+     "at": 950,
+     "state": "S1"
+    },
+    {
+     "at": 999,
+     "state": "State number 0 with a rather long descriptive name"
+    }
+   ]
+  },
+  {
+   "id": "l5",
+   "name": "component5",
+   "classifier": "SomeQuiteLongClassifierName",
+   "notation": "concise",
+   "states": [
+    "WAITING_FOR_UPSTREAM_ACKNOWLEDGEMENT",
+    "OK",
+    "X",
+    "RETRYING WITH EXPONENTIAL BACKOFF"
+   ],
+   "changes": [
+    {
+     "at": 0,
+     "state": "OK"
+    },
+    {
+     "at": 40,
+     "state": "RETRYING WITH EXPONENTIAL BACKOFF"
+    },
+    {
+     "at": 69,
+     "state": "X"
+    },
+    {
+     "at": 104,
+     "state": "WAITING_FOR_UPSTREAM_ACKNOWLEDGEMENT"
+    },
+    {
+     "at": 146,
+     "state": "OK"
+    },
+    {
+     "at": 233,
+     "state": "X"
+    },
+    {
+     "at": 317,
+     "state": "RETRYING WITH EXPONENTIAL BACKOFF"
+    },
+    {
+     "at": 330,
+     "state": "WAITING_FOR_UPSTREAM_ACKNOWLEDGEMENT"
+    },
+    {
+     "at": 407,
+     "state": "X"
+    },
+    {
+     "at": 450,
+     "state": "RETRYING WITH EXPONENTIAL BACKOFF"
+    },
+    {
+     "at": 479,
+     "state": "OK"
+    },
+    {
+     "at": 501,
+     "state": "WAITING_FOR_UPSTREAM_ACKNOWLEDGEMENT"
+    },
+    {
+     "at": 545,
+     "state": "RETRYING WITH EXPONENTIAL BACKOFF"
+    },
+    {
+     "at": 629,
+     "state": "WAITING_FOR_UPSTREAM_ACKNOWLEDGEMENT"
+    },
+    {
+     "at": 702,
+     "state": "X"
+    },
+    {
+     "at": 737,
+     "state": "WAITING_FOR_UPSTREAM_ACKNOWLEDGEMENT"
+    },
+    {
+     "at": 753,
+     "state": "OK"
+    },
+    {
+     "at": 821,
+     "state": "WAITING_FOR_UPSTREAM_ACKNOWLEDGEMENT"
+    },
+    {
+     "at": 862,
+     "state": "RETRYING WITH EXPONENTIAL BACKOFF"
+    },
+    {
+     "at": 886,
+     "state": "OK"
+    },
+    {
+     "at": 930,
+     "state": "RETRYING WITH EXPONENTIAL BACKOFF"
+    },
+    {
+     "at": 941,
+     "state": "X"
+    },
+    {
+     "at": 986,
+     "state": "RETRYING WITH EXPONENTIAL BACKOFF"
+    }
+   ]
+  },
+  {
+   "id": "l6",
+   "name": "component6",
+   "classifier": "SomeQuiteLongClassifierName",
+   "notation": "robust",
+   "states": [
+    "State number 0 with a rather long descriptive name",
+    "S1",
+    "S2",
+    "S3"
+   ],
+   "changes": [
+    {
+     "at": 0,
+     "state": "S3"
+    },
+    {
+     "at": 38,
+     "state": "S2"
+    },
+    {
+     "at": 73,
+     "state": "S1"
+    },
+    {
+     "at": 118,
+     "state": "S3"
+    },
+    {
+     "at": 172,
+     "state": "S1"
+    },
+    {
+     "at": 226,
+     "state": "S3"
+    },
+    {
+     "at": 279,
+     "state": "State number 0 with a rather long descriptive name"
+    },
+    {
+     "at": 332,
+     "state": "S1"
+    },
+    {
+     "at": 358,
+     "state": "State number 0 with a rather long descriptive name"
+    },
+    {
+     "at": 420,
+     "state": "S3"
+    },
+    {
+     "at": 486,
+     "state": "S1"
+    },
+    {
+     "at": 558,
+     "state": "S3"
+    },
+    {
+     "at": 587,
+     "state": "State number 0 with a rather long descriptive name"
+    },
+    {
+     "at": 646,
+     "state": "S3"
+    },
+    {
+     "at": 713,
+     "state": "S1"
+    },
+    {
+     "at": 783,
+     "state": "S2"
+    },
+    {
+     "at": 813,
+     "state": "State number 0 with a rather long descriptive name"
+    },
+    {
+     "at": 889,
+     "state": "S2"
+    },
+    {
+     "at": 905,
+     "state": "State number 0 with a rather long descriptive name"
+    },
+    {
+     "at": 911,
+     "state": "S1"
+    }
+   ]
+  },
+  {
+   "id": "l7",
+   "name": "component7",
+   "classifier": "SomeQuiteLongClassifierName",
+   "notation": "concise",
+   "states": [
+    "WAITING_FOR_UPSTREAM_ACKNOWLEDGEMENT",
+    "OK",
+    "X",
+    "RETRYING WITH EXPONENTIAL BACKOFF"
+   ],
+   "changes": [
+    {
+     "at": 0,
+     "state": "OK"
+    },
+    {
+     "at": 56,
+     "state": "RETRYING WITH EXPONENTIAL BACKOFF"
+    },
+    {
+     "at": 63,
+     "state": "WAITING_FOR_UPSTREAM_ACKNOWLEDGEMENT"
+    },
+    {
+     "at": 125,
+     "state": "RETRYING WITH EXPONENTIAL BACKOFF"
+    },
+    {
+     "at": 141,
+     "state": "WAITING_FOR_UPSTREAM_ACKNOWLEDGEMENT"
+    },
+    {
+     "at": 206,
+     "state": "X"
+    },
+    {
+     "at": 237,
+     "state": "RETRYING WITH EXPONENTIAL BACKOFF"
+    },
+    {
+     "at": 240,
+     "state": "X"
+    },
+    {
+     "at": 309,
+     "state": "OK"
+    },
+    {
+     "at": 316,
+     "state": "RETRYING WITH EXPONENTIAL BACKOFF"
+    },
+    {
+     "at": 331,
+     "state": "OK"
+    },
+    {
+     "at": 348,
+     "state": "X"
+    },
+    {
+     "at": 418,
+     "state": "OK"
+    },
+    {
+     "at": 426,
+     "state": "X"
+    },
+    {
+     "at": 455,
+     "state": "WAITING_FOR_UPSTREAM_ACKNOWLEDGEMENT"
+    },
+    {
+     "at": 471,
+     "state": "RETRYING WITH EXPONENTIAL BACKOFF"
+    },
+    {
+     "at": 487,
+     "state": "WAITING_FOR_UPSTREAM_ACKNOWLEDGEMENT"
+    },
+    {
+     "at": 518,
+     "state": "X"
+    },
+    {
+     "at": 535,
+     "state": "WAITING_FOR_UPSTREAM_ACKNOWLEDGEMENT"
+    },
+    {
+     "at": 598,
+     "state": "RETRYING WITH EXPONENTIAL BACKOFF"
+    },
+    {
+     "at": 672,
+     "state": "OK"
+    },
+    {
+     "at": 679,
+     "state": "X"
+    },
+    {
+     "at": 711,
+     "state": "OK"
+    },
+    {
+     "at": 791,
+     "state": "RETRYING WITH EXPONENTIAL BACKOFF"
+    },
+    {
+     "at": 858,
+     "state": "OK"
+    },
+    {
+     "at": 865,
+     "state": "X"
+    },
+    {
+     "at": 907,
+     "state": "WAITING_FOR_UPSTREAM_ACKNOWLEDGEMENT"
+    },
+    {
+     "at": 915,
+     "state": "OK"
+    },
+    {
+     "at": 921,
+     "state": "WAITING_FOR_UPSTREAM_ACKNOWLEDGEMENT"
+    },
+    {
+     "at": 928,
+     "state": "OK"
+    },
+    {
+     "at": 990,
+     "state": "WAITING_FOR_UPSTREAM_ACKNOWLEDGEMENT"
+    }
+   ]
+  }
+ ],
+ "messages": [
+  {
+   "from": "l7",
+   "fromTime": 165,
+   "to": "l2",
+   "toTime": 185,
+   "name": "message0WithLongName",
+   "arguments": [
+    "arg"
+   ]
+  },
+  {
+   "from": "l1",
+   "fromTime": 400,
+   "to": "l2",
+   "toTime": 424,
+   "name": "message1WithLongName",
+   "arguments": [
+    "arg"
+   ]
+  },
+  {
+   "from": "l4",
+   "fromTime": 276,
+   "to": "l2",
+   "toTime": 288,
+   "name": "message2WithLongName",
+   "arguments": [
+    "arg"
+   ]
+  },
+  {
+   "from": "l5",
+   "fromTime": 131,
+   "to": "l3",
+   "toTime": 139,
+   "name": "message3WithLongName",
+   "arguments": [
+    "arg"
+   ]
+  },
+  {
+   "from": "l0",
+   "fromTime": 745,
+   "to": "l5",
+   "toTime": 769,
+   "name": "message4WithLongName",
+   "arguments": [
+    "arg"
+   ]
+  },
+  {
+   "from": "l1",
+   "fromTime": 187,
+   "to": "l4",
+   "toTime": 189,
+   "name": "message5WithLongName",
+   "arguments": [
+    "arg"
+   ]
+  },
+  {
+   "from": "l5",
+   "fromTime": 623,
+   "to": "l3",
+   "toTime": 657,
+   "name": "message6WithLongName",
+   "arguments": [
+    "arg"
+   ]
+  },
+  {
+   "from": "l6",
+   "fromTime": 825,
+   "to": "l5",
+   "toTime": 827,
+   "name": "message7WithLongName",
+   "arguments": [
+    "arg"
+   ]
+  },
+  {
+   "from": "l6",
+   "fromTime": 386,
+   "to": "l0",
+   "toTime": 426,
+   "name": "message8WithLongName",
+   "arguments": [
+    "arg"
+   ]
+  },
+  {
+   "from": "l7",
+   "fromTime": 724,
+   "to": "l6",
+   "toTime": 744,
+   "name": "message9WithLongName",
+   "arguments": [
+    "arg"
+   ]
+  },
+  {
+   "from": "l6",
+   "fromTime": 433,
+   "to": "l5",
+   "toTime": 462,
+   "name": "message10WithLongName",
+   "arguments": [
+    "arg"
+   ]
+  },
+  {
+   "from": "l0",
+   "fromTime": 228,
+   "to": "l1",
+   "toTime": 262,
+   "name": "message11WithLongName",
+   "arguments": [
+    "arg"
+   ]
+  },
+  {
+   "from": "l4",
+   "fromTime": 609,
+   "to": "l5",
+   "toTime": 613,
+   "name": "message12WithLongName",
+   "arguments": [
+    "arg"
+   ]
+  },
+  {
+   "from": "l6",
+   "fromTime": 441,
+   "to": "l1",
+   "toTime": 449,
+   "name": "message13WithLongName",
+   "arguments": [
+    "arg"
+   ]
+  },
+  {
+   "from": "l0",
+   "fromTime": 388,
+   "to": "l2",
+   "toTime": 423,
+   "name": "message14WithLongName",
+   "arguments": [
+    "arg"
+   ]
+  },
+  {
+   "from": "l4",
+   "fromTime": 480,
+   "to": "l0",
+   "toTime": 487,
+   "name": "message15WithLongName",
+   "arguments": [
+    "arg"
+   ]
+  },
+  {
+   "from": "l6",
+   "fromTime": 116,
+   "to": "l5",
+   "toTime": 136,
+   "name": "message16WithLongName",
+   "arguments": [
+    "arg"
+   ]
+  },
+  {
+   "from": "l1",
+   "fromTime": 606,
+   "to": "l6",
+   "toTime": 606,
+   "name": "message17WithLongName",
+   "arguments": [
+    "arg"
+   ]
+  },
+  {
+   "from": "l7",
+   "fromTime": 246,
+   "to": "l1",
+   "toTime": 270,
+   "name": "message18WithLongName",
+   "arguments": [
+    "arg"
+   ]
+  },
+  {
+   "from": "l0",
+   "fromTime": 99,
+   "to": "l4",
+   "toTime": 135,
+   "name": "message19WithLongName",
+   "arguments": [
+    "arg"
+   ]
+  },
+  {
+   "from": "l1",
+   "fromTime": 906,
+   "to": "l5",
+   "toTime": 930,
+   "name": "message20WithLongName",
+   "arguments": [
+    "arg"
+   ]
+  },
+  {
+   "from": "l2",
+   "fromTime": 29,
+   "to": "l6",
+   "toTime": 50,
+   "name": "message21WithLongName",
+   "arguments": [
+    "arg"
+   ]
+  },
+  {
+   "from": "l1",
+   "fromTime": 869,
+   "to": "l0",
+   "toTime": 876,
+   "name": "message22WithLongName",
+   "arguments": [
+    "arg"
+   ]
+  },
+  {
+   "from": "l7",
+   "fromTime": 718,
+   "to": "l6",
+   "toTime": 736,
+   "name": "message23WithLongName",
+   "arguments": [
+    "arg"
+   ]
+  },
+  {
+   "from": "l4",
+   "fromTime": 95,
+   "to": "l6",
+   "toTime": 97,
+   "name": "message24WithLongName",
+   "arguments": [
+    "arg"
+   ]
+  }
+ ],
+ "durationConstraints": [
+  {
+   "lifeline": "l0",
+   "from": 100,
+   "to": 400,
+   "min": "200",
+   "max": "350"
+  },
+  {
+   "lifeline": "l0",
+   "from": 150,
+   "to": 300,
+   "min": "1",
+   "max": "2"
+  }
+ ],
+ "highlights": [
+  {
+   "from": 200,
+   "to": 260,
+   "label": "overlapping highlight one"
+  },
+  {
+   "from": 230,
+   "to": 300,
+   "label": "overlapping highlight two"
+  }
+ ],
+ "notes": [
+  {
+   "lifeline": "l1",
+   "at": 0,
+   "text": "A note at this change that is moderately long"
+  },
+  {
+   "lifeline": "l1",
+   "at": 74,
+   "text": "A note at this change that is moderately long"
+  },
+  {
+   "lifeline": "l1",
+   "at": 92,
+   "text": "A note at this change that is moderately long"
+  },
+  {
+   "lifeline": "l1",
+   "at": 105,
+   "text": "A note at this change that is moderately long"
+  },
+  {
+   "lifeline": "l1",
+   "at": 123,
+   "text": "A note at this change that is moderately long"
+  },
+  {
+   "lifeline": "l1",
+   "at": 151,
+   "text": "A note at this change that is moderately long"
+  }
+ ]
+}

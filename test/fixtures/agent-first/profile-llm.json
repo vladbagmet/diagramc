@@ -1,0 +1,16 @@
+{
+  "kind": "profile",
+  "title": "REST profile",
+  "elements": [
+    { "id": "rest", "type": "profile", "name": "REST", "members": ["resource", "endpoint"] },
+    { "id": "resource", "type": "stereotype", "name": "Resource", "tags": [{ "name": "path", "type": "String" }] },
+    { "id": "endpoint", "type": "stereotype", "name": "Endpoint", "attributes": [{ "name": "method", "type": "HttpMethod" }], "extends": "Operation" },
+    { "id": "Class", "type": "metaclass", "name": "Class" },
+    { "id": "op", "type": "metaclass", "name": "Operation", "attributes": [] }
+  ],
+  "relationships": [
+    { "type": "extension", "from": "Class", "to": "resource" },
+    { "type": "extends", "from": "endpoint", "to": "op" },
+    { "type": "apply", "from": "rest", "to": "rest" }
+  ]
+}

@@ -21,8 +21,8 @@ and example. Fixtures: `test/fixtures/timing/`.
 | State change | `changes[]`: `at`, `state` | Vertical step (robust) or transition mark (concise) at the time | integration: state line rows per time |
 | Time axis with unit | `timeUnit` | Tick marks with round values and the unit `time (<unit>)` under the axis | integration: `time (ms)` drawn; unit: "time axis: about ten round ticks" |
 | Message | `messages[]`: `from`, `fromTime`, `to`, `toTime`, `name`, `arguments` | Arrow from the sender's state line at the send time to the receiver's at the receive time, label `name(args)` beside it (17.7.4) | integration: "messages run between state lines"; qa `message-endpoints` |
-| Duration constraint | `durationConstraints[]`: `lifeline`, `from`, `to`, `min`, `max` | Double-headed arrow between the two times labelled `{min..max}` (8.4.4, 17.7.4) | integration: `{0..60}` owned by a two-headed constraint arrow; unit: `<->` line |
-| Time constraint | `timeConstraints[]`: `lifeline`, `at`, `from`, `to` | Allowed window for the state change at `at`, labelled `{from..to}` | integration: `{30..50}` drawn; validation `UNKNOWN_EVENT` |
+| Duration constraint | `durationConstraints[]`: `lifeline`, `from`, `to`, `min`, `max` | Double-headed arrow between the two times labelled `{min..max}`, in its own band above the lifeline's states, with dotted extension lines down to the constrained changes (8.4.4, 17.7.4) | integration: `{0..60}` owned by a two-headed constraint arrow; unit: `<->` line |
+| Time constraint | `timeConstraints[]`: `lifeline`, `at`, `from`, `to` | Allowed window for the state change at `at`: shaded and labelled `{from..to}` inside the constrained lifeline's row only (17.7.4) | integration: `{30..50}` drawn; validation `UNKNOWN_EVENT` |
 | Highlighted interval | `highlights[]`: `from`, `to`, `label` | Shaded band across all lifelines (PlantUML extension, no UML semantics) | unit: `highlight 22 to 25 : idle`; gallery `stress` |
 | Note | `notes[]` on concise lifelines | Rectangle with folded corner at the time (7.2.4) | unit: note block; gallery `door` |
 | Diagram frame | `title` | Frame with pentagon heading `sd <title>` (Annex A: timing diagrams are interactions) | integration: frame labels `sd` (bold) and the title |
@@ -41,6 +41,7 @@ and example. Fixtures: `test/fixtures/timing/`.
 | TIME_BEFORE_FIRST_STATE | messages, constraints and notes refer to times when the lifeline has a state | `/messages/0/fromTime` |
 | MESSAGE_BACKWARDS_IN_TIME | a message is not received before it is sent | `/messages/0/toTime` |
 | ZERO_LENGTH_MESSAGE | a message to the same lifeline needs a later receive time | `/messages/0/toTime` |
+| TIMELINE_TOO_DENSE | every concise value, note, highlight caption and duration arrow fits between its two times on an axis at most 3200 px wide (text is never drawn over other text); the message names the room needed and available | `/lifelines/0/changes/1/state` |
 | INVALID_TIME_INTERVAL | constraints and highlights end after they start | `/durationConstraints/0/to`, `/timeConstraints/0/to`, `/highlights/0/to` |
 | UNKNOWN_EVENT | a time constraint names a time at which its lifeline changes state | `/timeConstraints/0/at` |
 | UNSUPPORTED_NOTE_TARGET | notes attach to concise lifelines (PlantUML drops notes on robust ones) | `/notes/0/lifeline` |
@@ -66,9 +67,12 @@ Skipped: `label-proximity`, `edge-endpoints`, `markers`, `ports`.
 ## PlantUML deviations fixed by the generator or post-processing
 
 - Default colors (green lines, red constraints, lavender bands) are replaced by theme tokens through a `<style>` block.
-- `scale` is chosen so ticks fall on round values (1, 2 or 5 x 10^k, about ten per axis) and every concise value, highlight and time-constraint caption has room between its two times (480 to 3200 px wide).
+- `scale` is chosen so ticks fall on round values (1, 2 or 5 x 10^k, about ten per axis) and the axis is as wide as what must fit between two times needs (`src/kinds/timing/scale.ts`: concise values with their hexagon ends, consecutive notes, highlight captions, duration arrows, a minimum step between changes), from 480 to 3200 px. Text widths come from Inter's advance table, so validation decides without loading fonts. Large time values no longer stretch the axis.
 - Robust state lines stop at the last state change; each robust lifeline restates its final state at the last time used anywhere, so later messages and constraints end on a line.
-- A duration-constraint arrow is drawn 5 px from the state line it measures; it and its label are lifted 6 px.
+- Rows get vertical room (`src/kinds/timing/rows.ts`): at least 8 px between a name tab and its first state label, 26 px between robust state levels, and a 26 px band per duration constraint and per lifeline with time constraints, opened by moving everything below (arrowheads move as a whole).
+- Duration constraints are redrawn in their band with dotted extension lines; time-constraint windows and labels are confined to their lifeline's row.
+- Robust state labels share the column of the lifeline names, with at least 10 px to the time axis; the last concise value is centered in its open band; the time axis reaches the end of the state lines; time grid lines stop at name tabs.
+- PlantUML's inner box (a second border inside the frame) is dropped: rows are separated by full-width lines.
 - A message label is written at the arrow tip, over the receiver; it is moved beside the arrow, to the right and away from the direction the line runs, at the first candidate position that crosses no line, text, value or note.
 - The time unit is a footer, which PlantUML's frame does not enclose; the frame and canvas are extended around it.
 - The `mainframe` heading is closed and filled like the own engine's frames.
@@ -82,6 +86,5 @@ Skipped: `label-proximity`, `edge-endpoints`, `markers`, `ports`.
 
 ## Known limitations
 
-- Time constraints are drawn as a highlighted window across all lifelines, not as a constraint attached to the one occurrence.
-- Very dense timelines produce wide diagrams (up to 3200 px at 1x).
+- Timelines too dense for 3200 px are rejected (TIMELINE_TOO_DENSE) rather than drawn; split them into shorter time windows.
 - Message label placement is a fixed candidate search; with many crossing messages a label may still land on a line, which the gates then report.

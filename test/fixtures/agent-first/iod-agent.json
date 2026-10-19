@@ -1,0 +1,29 @@
+{
+  "kind": "interaction-overview",
+  "title": "Checkout",
+  "lifelines": ["Customer", "Shop", "PaymentProvider"],
+  "nodes": [
+    { "id": "start", "type": "initial" },
+    { "id": "browse", "type": "interaction-use", "name": "BrowseCatalog" },
+    { "id": "cart", "type": "interaction-use", "name": "AddToCart" },
+    { "id": "check", "type": "decision", "name": "Logged in?" },
+    { "id": "login", "type": "interaction-use", "name": "Login" },
+    { "id": "pay", "type": "interaction", "name": "Pay", "lifelines": [
+      { "id": "c", "name": "Customer" }, { "id": "s", "name": "Shop" }, { "id": "p", "name": "PaymentProvider" } ],
+      "messages": [
+        { "from": "c", "to": "s", "name": "submitPayment(card)" },
+        { "from": "s", "to": "p", "name": "charge", "arguments": ["amount"] },
+        { "from": "p", "to": "s", "name": "ok", "sort": "reply" } ] },
+    { "id": "end", "type": "final" }
+  ],
+  "flows": [
+    { "from": "start", "to": "browse" },
+    { "from": "browse", "to": "cart", "guard": "item selected" },
+    { "from": "cart", "to": "check" },
+    { "from": "check", "to": "login", "guard": "no" },
+    { "from": "check", "to": "pay" },
+    { "from": "login", "to": "pay" },
+    { "from": "pay", "to": "end" },
+    { "from": "pay", "to": "browse" }
+  ]
+}

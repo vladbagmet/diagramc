@@ -95,7 +95,7 @@
   "name": "unknown vertex type",
   "expect": {
    "code": "SCHEMA_INVALID",
-   "path": "/elements/0"
+   "path": "/elements/0/type"
   },
   "doc": {
    "kind": "state-machine",
@@ -190,7 +190,7 @@
   "name": "note inside a region",
   "expect": {
    "code": "SCHEMA_INVALID",
-   "path": "/elements/1/regions/0/elements/0"
+   "path": "/elements/1/regions/0/elements/0/type"
   },
   "doc": {
    "kind": "state-machine",

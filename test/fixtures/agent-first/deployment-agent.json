@@ -1,0 +1,19 @@
+{
+  "kind": "deployment",
+  "title": "ATM network",
+  "elements": [
+    { "id": "atm", "type": "device", "name": "ATM", "elements": [
+      { "id": "atmsw", "type": "artifact", "name": "atm-firmware.bin" } ] },
+    { "id": "switch", "type": "node", "name": "Transaction Switch", "elements": [
+      { "id": "os", "type": "executionEnvironment", "name": "Linux", "elements": [
+        { "id": "hw", "type": "device", "name": "HSM" } ] } ] },
+    { "id": "core", "type": "node", "name": "Core Banking" },
+    { "id": "app", "type": "artifact", "name": "switch.jar" }
+  ],
+  "relationships": [
+    { "type": "communicationPath", "from": "atm", "to": "switch", "protocol": "«ISO 8583»", "fromEnd": { "multiplicity": "many" } },
+    { "type": "communicationPath", "from": "atmsw", "to": "core" },
+    { "type": "deploy", "from": "switch", "to": "app" },
+    { "type": "communicationPath", "from": "switch", "to": "core", "protocol": "MQ", "label": "async" }
+  ]
+}

@@ -1,0 +1,207 @@
+{
+ "kind": "sequence",
+ "title": "OAuth 2.0 authorization code login",
+ "lifelines": [
+  {
+   "id": "user",
+   "name": "User",
+   "symbol": "actor"
+  },
+  {
+   "id": "browser",
+   "name": "browser",
+   "classifier": "Browser",
+   "symbol": "boundary"
+  },
+  {
+   "id": "app",
+   "name": "app",
+   "classifier": "WebApp",
+   "symbol": "control"
+  },
+  {
+   "id": "idp",
+   "name": "idp",
+   "classifier": "AuthorizationServer"
+  },
+  {
+   "id": "api",
+   "name": "api",
+   "classifier": "ResourceServer"
+  },
+  {
+   "id": "db",
+   "classifier": "SessionStore",
+   "symbol": "entity"
+  }
+ ],
+ "items": [
+  {
+   "type": "message",
+   "sort": "synchronous",
+   "from": "user",
+   "to": "browser",
+   "name": "clickLogin",
+   "arguments": [],
+   "activate": true
+  },
+  {
+   "type": "message",
+   "sort": "synchronous",
+   "from": "browser",
+   "to": "app",
+   "name": "GET /login",
+   "activate": true
+  },
+  {
+   "type": "message",
+   "sort": "reply",
+   "from": "app",
+   "to": "browser",
+   "name": "GET /login",
+   "returnValue": "302 to /authorize",
+   "deactivate": true
+  },
+  {
+   "type": "message",
+   "sort": "synchronous",
+   "from": "browser",
+   "to": "idp",
+   "name": "authorize",
+   "arguments": [
+    "client_id",
+    "redirect_uri",
+    "state",
+    "code_challenge"
+   ],
+   "activate": true
+  },
+  {
+   "type": "note",
+   "position": "right",
+   "lifelines": [
+    "idp"
+   ],
+   "text": "The user authenticates and consents on the identity provider's own pages."
+  },
+  {
+   "type": "fragment",
+   "operator": "alt",
+   "operands": [
+    {
+     "guard": "consent granted",
+     "items": [
+      {
+       "type": "message",
+       "sort": "reply",
+       "from": "idp",
+       "to": "browser",
+       "name": "authorize",
+       "returnValue": "302 with code and state"
+      },
+      {
+       "type": "message",
+       "sort": "synchronous",
+       "from": "browser",
+       "to": "app",
+       "name": "GET /callback",
+       "arguments": [
+        "code",
+        "state"
+       ],
+       "activate": true
+      },
+      {
+       "type": "message",
+       "sort": "synchronous",
+       "from": "app",
+       "to": "idp",
+       "name": "token",
+       "arguments": [
+        "code",
+        "code_verifier"
+       ],
+       "activate": true
+      },
+      {
+       "type": "message",
+       "sort": "reply",
+       "from": "idp",
+       "to": "app",
+       "assignment": "tokens",
+       "name": "token",
+       "returnValue": "TokenResponse",
+       "deactivate": true
+      },
+      {
+       "type": "message",
+       "sort": "synchronous",
+       "from": "app",
+       "to": "api",
+       "name": "getProfile",
+       "arguments": [
+        "tokens.access_token"
+       ],
+       "activate": true
+      },
+      {
+       "type": "message",
+       "sort": "reply",
+       "from": "api",
+       "to": "app",
+       "name": "getProfile",
+       "returnValue": "Profile",
+       "deactivate": true
+      },
+      {
+       "type": "message",
+       "sort": "asynchronous",
+       "from": "app",
+       "to": "db",
+       "name": "storeSession",
+       "arguments": [
+        "profile.sub",
+        "tokens"
+       ]
+      },
+      {
+       "type": "message",
+       "sort": "reply",
+       "from": "app",
+       "to": "browser",
+       "name": "GET /callback",
+       "returnValue": "302 to /home + Set-Cookie",
+       "deactivate": true
+      }
+     ]
+    },
+    {
+     "guard": "else",
+     "items": [
+      {
+       "type": "message",
+       "sort": "reply",
+       "from": "idp",
+       "to": "browser",
+       "name": "authorize",
+       "returnValue": "access_denied"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "type": "deactivate",
+   "lifeline": "idp"
+  },
+  {
+   "type": "message",
+   "sort": "reply",
+   "from": "browser",
+   "to": "user",
+   "name": "clickLogin",
+   "returnValue": "home page",
+   "deactivate": true
+  }
+ ]
+}

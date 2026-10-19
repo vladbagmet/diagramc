@@ -1,6 +1,7 @@
 import { pointer, type Diagnostic } from '../../core/errors.js';
 import { reference, uniqueIds } from '../../model/rules.js';
 import type { Lifeline, TimingDiagram } from './model.js';
+import { MAX_WIDTH, timeScale } from './scale.js';
 import { checkLength } from '../sequence/validate.js';
 import { lifelineLabel } from '../sequence/format.js';
 
@@ -75,5 +76,16 @@ export function validateTimingDiagram(model: TimingDiagram): Diagnostic[] {
     const l = during(n.lifeline, pointer(at, 'lifeline'), n.at, pointer(at, 'at'));
     if (l && l.notation !== 'concise') add('UNSUPPORTED_NOTE_TARGET', pointer(at, 'lifeline'), `Notes can be attached to concise lifelines only; "${n.lifeline}" is robust`);
   });
+  if (!diagnostics.length) {
+    const scale = timeScale(model);
+    const most = MAX_WIDTH / Math.max(1, scale.end - scale.start);
+    for (const n of scale.tooDense) {
+      const span = n.to - n.from;
+      add('TIMELINE_TOO_DENSE', n.path,
+        `The ${n.what} from ${n.from} to ${n.to} needs about ${n.px} px, but this time axis (${scale.start} to ${scale.end} ${model.timeUnit}) can be at most ${MAX_WIDTH} px wide, which leaves it ${Math.floor(span * most)} px; `
+        + 'shorten the text, give it a longer interval, or split the diagram into shorter time windows. Text is never drawn over other text',
+        { from: n.from, to: n.to, neededPx: n.px, availablePx: Math.floor(span * most) });
+    }
+  }
   return diagnostics;
 }

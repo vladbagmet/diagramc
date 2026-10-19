@@ -36,7 +36,7 @@ test('v1 schema rejects unknown fields at every level, unsupported types and non
     [{ ...minimal, relationships: [{ type: 'composition', from: 'a', to: 'a' }] }, '/relationships/0/type'],
     [{ ...minimal, classes: [{ id: 'a', name: 3 }] }, '/classes/0/name'],
     [{ classes: [], relationships: [] }, '/classes'],
-    [{ classes: [] }, '/relationships'],
+    [{ classes: [{ id: 'a', name: 'A' }] }, '/relationships'],
   ]) fails(model, 'SCHEMA_INVALID', path);
   fails([], 'SCHEMA_INVALID', '');
   fails({ elements: [] }, 'SCHEMA_INVALID', '/kind');
@@ -61,7 +61,7 @@ test('v1 duplicate IDs, missing references (with v1 paths) and prototype-like ID
   fails({ ...minimal, classes: [minimal.classes[0], minimal.classes[0]] }, 'DUPLICATE_ID', '/classes/1/id');
   fails({ ...minimal, relationships: [{ type: 'association', from: 'a', to: 'missing' }] }, 'MISSING_REFERENCE', '/relationships/0/to');
   fails({ ...minimal, relationships: [{ type: 'association', from: 'missing', to: 'a' }] }, 'MISSING_REFERENCE', '/relationships/0/from');
-  assert.throws(() => parse({ ...minimal, relationships: [{ type: 'association', from: 'a', to: 'missing' }] }), { details: { from: 'a', to: 'missing' } });
+  assert.throws(() => parse({ ...minimal, relationships: [{ type: 'association', from: 'a', to: 'missing' }] }), e => e.details === undefined && e.diagnostics[0].details.from === 'a' && e.diagnostics[0].details.to === 'missing');
   parse({ classes: [{ id: 'constructor', name: 'Constructor' }, { id: 'toString', name: 'ToString' }], relationships: [{ type: 'inheritance', from: 'constructor', to: 'toString' }] });
 });
 test('inheritance direction, cycles, self-inheritance and legal association cycles', () => {
@@ -265,10 +265,20 @@ test('CLI runtime failures preserve output, success supports stdin and atomic re
     assert.equal(await readFile(out, 'utf8'), 'original');
   }
   env.UML_JAVA = await fakeJava(dir, `process.stdin.resume(); process.stdin.on('end', () => process.stdout.write(${JSON.stringify(fakeSvg)}));`);
+  // The fake renderer's empty drawing fails the literal-text gate: --strict refuses it and keeps the old output...
+  result = cli(['render', '-', '-o', out, '--strict', ...plantuml], { input: JSON.stringify(minimal), env });
+  assert.equal(result.status, 5, result.stderr);
+  assert.equal(JSON.parse(result.stderr).error.code, 'LAYOUT_QUALITY');
+  assert.equal(JSON.parse(result.stderr).error.details.warnings[0].gate, 'literal-text');
+  assert.equal(await readFile(out, 'utf8'), 'original');
+  // ...and without --strict the drawing is written, exit 0, with one JSON warnings object on stderr.
   result = cli(['render', '-', '-o', out, ...plantuml], { input: JSON.stringify(minimal), env });
   assert.equal(result.status, 0, result.stderr);
   assert.equal(result.stdout, '');
-  assert.equal(result.stderr, '');
+  const { warnings } = JSON.parse(result.stderr);
+  assert.deepEqual(warnings.map(w => [w.code, w.gate, w.count]), [['LAYOUT_QUALITY', 'literal-text', 1]]);
+  assert.match(warnings[0].message, /input text "A" is not drawn literally/);
+  assert.ok(warnings[0].advice);
   assert.equal(await readFile(out, 'utf8'), fakeSvg);
   await assert.rejects(writeOutput(join(dir, 'missing', 'out.svg'), Buffer.from(fakeSvg)), { code: 'OUTPUT_WRITE_FAILED' });
   const directoryOutput = join(dir, 'directory.svg');

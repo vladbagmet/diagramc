@@ -1,0 +1,86 @@
+{
+ "kind": "activity",
+ "title": "Elevator call",
+ "nodes": [
+  {
+   "id": "start",
+   "type": "initial"
+  },
+  {
+   "id": "press",
+   "type": "action",
+   "name": "Press call button"
+  },
+  {
+   "id": "busy",
+   "type": "decision"
+  },
+  {
+   "id": "wait",
+   "type": "action",
+   "name": "Wait in queue"
+  },
+  {
+   "id": "m",
+   "type": "merge"
+  },
+  {
+   "id": "move",
+   "type": "action",
+   "name": "Move to floor"
+  },
+  {
+   "id": "open",
+   "type": "action",
+   "name": "Open doors"
+  },
+  {
+   "id": "end",
+   "type": "activityFinal"
+  }
+ ],
+ "edges": [
+  {
+   "type": "control",
+   "from": "start",
+   "to": "press"
+  },
+  {
+   "type": "control",
+   "from": "press",
+   "to": "busy"
+  },
+  {
+   "type": "control",
+   "from": "busy",
+   "to": "m",
+   "guard": "[yes]"
+  },
+  {
+   "type": "control",
+   "from": "busy",
+   "to": "wait",
+   "guard": "[no]"
+  },
+  {
+   "type": "control",
+   "from": "wait",
+   "to": "m"
+  },
+  {
+   "type": "control",
+   "from": "move",
+   "to": "open"
+  },
+  {
+   "type": "control",
+   "from": "open",
+   "to": "end"
+  },
+  {
+   "type": "control",
+   "from": "m",
+   "to": "move"
+  }
+ ]
+}

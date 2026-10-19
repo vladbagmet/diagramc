@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import { parseDocument } from '../dist/model/parse.js';
 import { timingToPlantUml, niceStep } from '../dist/kinds/timing/to-plantuml.js';
 import { encloseFooter, liftConstraints, placeMessageLabels, CONSTRAINT_LIFT } from '../dist/kinds/timing/postprocess.js';
+import { estimateWidth, VALUE_PAD } from '../dist/kinds/timing/scale.js';
 import { checkSvg, inspectSvg } from '../dist/qa/index.js';
 import { cli, root } from './helpers.mjs';
 
@@ -44,7 +45,7 @@ test('UML notation: robust and concise lifelines, states, changes, messages, con
   notes: [{ lifeline: 'c', at: 20, text: 'changes', position: 'bottom' }] }).split('\n').map(decode);
   const body = lines.slice(lines.indexOf('</style>') + 1);
   assert.deepEqual(body, [
-    'mainframe **sd** T', 'footer time (ms)', 'scale 5 as 100 pixels',
+    'mainframe **sd** T', 'footer time (ms)', 'scale 5 as 96 pixels',
     'robust "r : Lamp" as uml_t0', 'uml_t0 has "On" as uml_t0s0', 'uml_t0 has "Off" as uml_t0s1',
     'concise "c" as uml_t1', 'uml_t1 has "A" as uml_t1s0', 'uml_t1 has "B" as uml_t1s1',
     '@0', 'uml_t0 is uml_t0s1', 'uml_t1 is uml_t1s0',
@@ -53,7 +54,8 @@ test('UML notation: robust and concise lifelines, states, changes, messages, con
     '@25', 'uml_t0 is uml_t0s0',
     'uml_t0@0 <-> @10 : {d..3*d}',
     'uml_t0@10 -> uml_t1@20 : go(1)',
-    'highlight 18 to 22 : {18..22}',
+    // Time constraints carry a marker fill: the post-processor confines them to their lifeline.
+    'highlight 18 to 22 #F1F5F8 : {18..22}',
     'highlight 22 to 25 : idle',
     '@enduml', '',
   ]);
@@ -63,10 +65,22 @@ test('time axis: about ten round ticks, and room for every concise value', () =>
   assert.deepEqual([0.5, 1, 1.5, 3, 7, 10, 12, 45, 99, 101].map(niceStep), [1, 1, 2, 5, 10, 10, 20, 50, 100, 200]);
   const scale = doc => source(doc).match(/^scale (\d+) as (\d+) pixels$/m).slice(1).map(Number);
   const [step, px] = scale({ kind: 'timing', timeUnit: 's', lifelines: [T('c', 'concise', ['a long value name', 'B'], [[0, 'a long value name'], [10, 'B'], [100, 'a long value name']])] });
-  assert.equal(step, 10);
-  assert.ok(px / step * 10 >= 17 * 8 + 32, 'the shortest value interval is wide enough for its text');
+  // The last value starts at the last time: the axis runs on so it has room too (about 160 s, ticks of 20).
+  assert.equal(step, 20);
+  assert.ok(px / step * 10 >= estimateWidth('a long value name') + VALUE_PAD, 'the shortest value interval is wide enough for its text');
   assert.deepEqual(scale({ kind: 'timing', timeUnit: 's', lifelines: [T('r', 'robust', ['a'], [[0, 'a']])], highlights: [{ from: 0, to: 10 }] }), [1, 48], 'at least 480 px wide');
-  assert.deepEqual(scale({ kind: 'timing', timeUnit: 's', lifelines: [T('r', 'robust', ['a'], [[0, 'a']])], highlights: [{ from: 0, to: 1000 }] }), [100, 320], 'at most 3200 px wide');
+  // Large time values do not blow up the width: the scale follows what needs room (review C-14).
+  const [bigStep, bigPx] = scale({ kind: 'timing', timeUnit: 'ms', lifelines: [T('r', 'robust', ['Closed', 'Open'], [[0, 'Closed'], [2500, 'Open'], [11000, 'Closed']])] });
+  assert.ok(bigPx / bigStep * 11000 <= 600, `a two-change lifeline over 11000 ms stays compact (${bigPx / bigStep * 11000} px)`);
+  // Text that cannot get its room even at the widest axis is a validation error, never overlapping text (C-03).
+  const dense = { kind: 'timing', timeUnit: 'cycles', lifelines: [T('c', 'concise', ['OK', 'WAITING_FOR_UPSTREAM_ACKNOWLEDGEMENT'], [[0, 'OK'], [500, 'WAITING_FOR_UPSTREAM_ACKNOWLEDGEMENT'], [502, 'OK'], [1000, 'WAITING_FOR_UPSTREAM_ACKNOWLEDGEMENT']])] };
+  assert.throws(() => parseDocument(JSON.stringify(dense)), e => {
+    assert.equal(e.code, 'TIMELINE_TOO_DENSE');
+    assert.equal(e.path, '/lifelines/0/changes/1/state');
+    assert.match(e.message, /needs about \d+ px.*leaves it \d+ px; shorten the text/);
+    return true;
+  });
+  assert.ok(estimateWidth('STOP') >= 33 && estimateWidth('STOP') <= 36, 'advance table matches Inter (STOP is 34.5 px at 13 px)');
 });
 
 test('hostile text in every slot is encoded and never becomes PlantUML syntax', () => {
@@ -76,7 +90,7 @@ test('hostile text in every slot is encoded and never becomes PlantUML syntax', 
     T('c', 'concise', [hostile], [[0, hostile]], { name: hostile }),
   ], messages: [{ from: 'r', fromTime: 0, to: 'c', toTime: 5, name: hostile, arguments: [hostile] }],
   durationConstraints: [{ lifeline: 'r', from: 0, to: 10, min: hostile.slice(0, 40), max: hostile.slice(0, 40) }],
-  highlights: [{ from: 1, to: 2, label: hostile }],
+  highlights: [{ from: 1, to: 10, label: hostile }],
   notes: [{ lifeline: 'c', at: 0, text: hostile }] });
   const skeleton = src.replace(/​(?:<U\+[0-9A-F]{4}>)*​/g, 'TEXT');
   for (const fragment of ['!include', 'evil', '<b>', '[[', '#red', ' is has']) assert.ok(!skeleton.includes(fragment), fragment);

@@ -25,7 +25,8 @@ export type ExecutableNode = Action | CallBehaviorAction | SendSignalAction | Ac
 
 export interface ActivityEdge {
   id?: string;
-  type: 'control' | 'object';
+  /** Inferred when omitted: object flow when either end is an object node, else control flow. */
+  type?: 'control' | 'object';
   from: string;
   to: string;
   guard?: string;

@@ -88,36 +88,28 @@
      "state": "Write"
     },
     {
-     "at": 37,
-     "state": "Free"
-    },
-    {
      "at": 75,
-     "state": "Read"
+     "state": "Free"
     },
     {
      "at": 122,
-     "state": "Write"
+     "state": "Read"
     },
     {
      "at": 151,
-     "state": "Read"
+     "state": "Write"
     },
     {
      "at": 164,
-     "state": "Write"
-    },
-    {
-     "at": 170,
-     "state": "Free"
-    },
-    {
-     "at": 216,
      "state": "Read"
     },
     {
-     "at": 261,
+     "at": 216,
      "state": "Write"
+    },
+    {
+     "at": 261,
+     "state": "Free"
     },
     {
      "at": 284,
@@ -149,10 +141,6 @@
    "changes": [
     {
      "at": 0,
-     "state": "Transfer"
-    },
-    {
-     "at": 22,
      "state": "Ready"
     },
     {
@@ -164,15 +152,15 @@
      "state": "Ready"
     },
     {
-     "at": 56,
+     "at": 71,
      "state": "Transfer"
     },
     {
-     "at": 104,
+     "at": 103,
      "state": "Ready"
     },
     {
-     "at": 143,
+     "at": 137,
      "state": "Transfer"
     },
     {
@@ -184,11 +172,11 @@
      "state": "Transfer"
     },
     {
-     "at": 200,
+     "at": 224,
      "state": "Ready"
     },
     {
-     "at": 250,
+     "at": 281,
      "state": "Transfer"
     },
     {
@@ -200,8 +188,12 @@
      "state": "Transfer"
     },
     {
-     "at": 362,
+     "at": 331,
      "state": "Ready"
+    },
+    {
+     "at": 386,
+     "state": "Transfer"
     }
    ]
   },
@@ -217,46 +209,42 @@
    "changes": [
     {
      "at": 0,
-     "state": "Clear"
+     "state": "Asserted"
     },
     {
-     "at": 35,
-     "state": "Asserted"
+     "at": 20,
+     "state": "Clear"
     },
     {
      "at": 56,
-     "state": "Clear"
+     "state": "Asserted"
     },
     {
      "at": 69,
-     "state": "Asserted"
-    },
-    {
-     "at": 119,
      "state": "Clear"
     },
     {
-     "at": 150,
+     "at": 99,
      "state": "Asserted"
+    },
+    {
+     "at": 149,
+     "state": "Clear"
     },
     {
      "at": 189,
-     "state": "Clear"
+     "state": "Asserted"
     },
     {
      "at": 202,
-     "state": "Asserted"
-    },
-    {
-     "at": 207,
      "state": "Clear"
     },
     {
-     "at": 246,
+     "at": 237,
      "state": "Asserted"
     },
     {
-     "at": 285,
+     "at": 276,
      "state": "Clear"
     },
     {
@@ -268,7 +256,7 @@
      "state": "Clear"
     },
     {
-     "at": 390,
+     "at": 363,
      "state": "Asserted"
     }
    ]
@@ -287,51 +275,51 @@
    "changes": [
     {
      "at": 0,
-     "state": "IDLE"
+     "state": "STOP"
     },
     {
-     "at": 48,
+     "at": 54,
      "state": "DATA"
     },
     {
      "at": 75,
-     "state": "START"
-    },
-    {
-     "at": 88,
-     "state": "STOP"
-    },
-    {
-     "at": 123,
      "state": "IDLE"
     },
     {
-     "at": 177,
+     "at": 88,
      "state": "DATA"
     },
     {
-     "at": 208,
+     "at": 120,
      "state": "START"
+    },
+    {
+     "at": 193,
+     "state": "STOP"
+    },
+    {
+     "at": 208,
+     "state": "IDLE"
     },
     {
      "at": 221,
      "state": "DATA"
     },
     {
-     "at": 260,
+     "at": 268,
      "state": "START"
     },
     {
-     "at": 341,
-     "state": "STOP"
-    },
-    {
-     "at": 349,
+     "at": 322,
      "state": "DATA"
     },
     {
+     "at": 341,
+     "state": "START"
+    },
+    {
      "at": 354,
-     "state": "IDLE"
+     "state": "STOP"
     }
    ]
   },
@@ -351,8 +339,8 @@
      "state": "EMPTY"
     },
     {
-     "at": 51,
-     "state": "PARTIAL"
+     "at": 58,
+     "state": "FULL"
     },
     {
      "at": 94,
@@ -363,36 +351,32 @@
      "state": "PARTIAL"
     },
     {
-     "at": 121,
+     "at": 182,
      "state": "EMPTY"
     },
     {
-     "at": 190,
-     "state": "PARTIAL"
-    },
-    {
      "at": 227,
-     "state": "FULL"
+     "state": "PARTIAL"
     },
     {
      "at": 240,
      "state": "EMPTY"
     },
     {
-     "at": 247,
+     "at": 252,
      "state": "PARTIAL"
     },
     {
-     "at": 329,
-     "state": "EMPTY"
-    },
-    {
-     "at": 360,
+     "at": 321,
      "state": "FULL"
     },
     {
-     "at": 373,
+     "at": 360,
      "state": "EMPTY"
+    },
+    {
+     "at": 373,
+     "state": "PARTIAL"
     }
    ]
   },
@@ -412,47 +396,39 @@
      "state": "NOTIFY"
     },
     {
-     "at": 30,
-     "state": "WAIT"
-    },
-    {
-     "at": 94,
-     "state": "NOTIFY"
-    },
-    {
-     "at": 113,
+     "at": 40,
      "state": "COPY"
     },
     {
-     "at": 126,
+     "at": 113,
      "state": "NOTIFY"
     },
     {
-     "at": 181,
+     "at": 126,
+     "state": "COPY"
+    },
+    {
+     "at": 179,
      "state": "WAIT"
     },
     {
      "at": 234,
-     "state": "COPY"
+     "state": "NOTIFY"
     },
     {
      "at": 246,
-     "state": "WAIT"
+     "state": "COPY"
     },
     {
      "at": 259,
      "state": "NOTIFY"
     },
     {
-     "at": 319,
+     "at": 298,
      "state": "WAIT"
     },
     {
      "at": 379,
-     "state": "NOTIFY"
-    },
-    {
-     "at": 387,
      "state": "COPY"
     }
    ]
@@ -472,11 +448,11 @@
      "state": "RUN"
     },
     {
-     "at": 56,
+     "at": 37,
      "state": "HANDLE"
     },
     {
-     "at": 103,
+     "at": 121,
      "state": "RUN"
     },
     {
@@ -484,11 +460,11 @@
      "state": "HANDLE"
     },
     {
-     "at": 159,
+     "at": 180,
      "state": "RUN"
     },
     {
-     "at": 248,
+     "at": 253,
      "state": "HANDLE"
     },
     {
@@ -496,12 +472,8 @@
      "state": "RUN"
     },
     {
-     "at": 298,
+     "at": 328,
      "state": "HANDLE"
-    },
-    {
-     "at": 361,
-     "state": "RUN"
     }
    ]
   }
@@ -679,14 +651,14 @@
   },
   {
    "lifeline": "dma",
-   "from": 37,
-   "to": 56,
+   "from": 50,
+   "to": 103,
    "min": "10",
    "max": "60"
   },
   {
    "lifeline": "irq",
-   "from": 150,
+   "from": 149,
    "to": 202,
    "min": "d",
    "max": "3*d"
@@ -710,12 +682,12 @@
  "notes": [
   {
    "lifeline": "uart",
-   "at": 48,
+   "at": 54,
    "text": "Start bit detected"
   },
   {
    "lifeline": "app",
-   "at": 103,
+   "at": 121,
    "position": "bottom",
    "text": "Handler runs at task level"
   }

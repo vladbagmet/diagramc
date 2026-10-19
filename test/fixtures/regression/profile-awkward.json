@@ -118,9 +118,9 @@
    "type": "class",
    "name": "Invoice",
    "stereotypes": [
-    "Audited",
-    "Versioned",
-    "Encrypted"
+    "Stereo0",
+    "Stereo1",
+    "Stereo2"
    ]
   },
   {

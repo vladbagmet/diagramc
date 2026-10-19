@@ -21,7 +21,7 @@ export const stateMachineSchema = kindSchema({
     behavior: {
       type: 'object', additionalProperties: false, required: ['trigger'],
       description: 'An internal transition, drawn in the state as `trigger [guard] / effect`.',
-      properties: { trigger: ref('text'), guard: ref('text', 'Guard WITHOUT brackets.'), effect: ref('text', 'Effect behavior, drawn after "/".') },
+      properties: { trigger: ref('text'), guard: ref('guard', 'Guard WITHOUT brackets.'), effect: ref('text', 'Effect behavior, drawn after "/".') },
     },
     region: {
       type: 'object', additionalProperties: false, required: ['elements'],
@@ -82,7 +82,7 @@ export const stateMachineSchema = kindSchema({
         id: ref('id', 'Optional ID, used in diagnostics and in the SVG.'),
         from: ref('id', 'Source vertex or connection point.'), to: ref('id', 'Target vertex or connection point.'),
         trigger: ref('text', 'Event(s) that fire the transition, e.g. "timeout" or "keyPressed(key)".'),
-        guard: ref('text', 'Guard WITHOUT brackets, drawn [guard].'),
+        guard: ref('guard', 'Guard WITHOUT brackets, drawn [guard].'),
         effect: ref('text', 'Effect behavior, drawn after "/".'),
       },
     },

@@ -1,0 +1,27 @@
+{
+  "kind": "timing",
+  "title": "Pedestrian crossing",
+  "timeUnit": "s",
+  "lifelines": [
+    { "id": "button", "name": "button", "classifier": "PushButton", "notation": "robust", "states": ["Pressed", "Released"],
+      "changes": [ { "at": 0, "state": "Released" }, { "at": 5, "state": "Pressed" }, { "at": 6, "state": "Released" } ] },
+    { "id": "ctl", "name": "controller", "classifier": "Controller", "notation": "concise", "states": ["Idle", "Request pending", "Cycling", "Cooldown"],
+      "changes": [ { "at": 0, "state": "Idle" }, { "at": 5, "state": "Request pending" }, { "at": 10, "state": "Cycling" }, { "at": 40, "state": "Cooldown" }, { "at": 55, "state": "Idle" } ] },
+    { "id": "car", "name": "carLight", "classifier": "TrafficLight", "notation": "robust", "states": ["Green", "Amber", "Red"],
+      "changes": [ { "at": 0, "state": "Green" }, { "at": 10, "state": "Amber" }, { "at": 14, "state": "Red" }, { "at": 36, "state": "Amber" }, { "at": 38, "state": "Green" } ] },
+    { "id": "ped", "name": "walkLight", "classifier": "PedestrianLight", "notation": "robust", "states": ["Walk", "Flashing", "Don't walk"],
+      "changes": [ { "at": 0, "state": "Don't walk" }, { "at": 16, "state": "Walk" }, { "at": 28, "state": "Flashing" }, { "at": 34, "state": "Don't walk" } ] }
+  ],
+  "messages": [
+    { "from": "button", "fromTime": 5, "to": "ctl", "toTime": 5, "name": "request" },
+    { "from": "ctl", "fromTime": 10, "to": "car", "toTime": 10, "name": "stopTraffic" },
+    { "from": "car", "fromTime": 14, "to": "ped", "toTime": 16, "name": "allRed" },
+    { "from": "ped", "fromTime": 34, "to": "car", "toTime": 36, "name": "clear" }
+  ],
+  "durationConstraints": [
+    { "lifeline": "ped", "from": 16, "to": 28, "min": "10", "max": "15" },
+    { "lifeline": "car", "from": 10, "to": 14, "min": "3", "max": "5" }
+  ],
+  "timeConstraints": [ { "lifeline": "car", "at": 10, "from": 5, "to": 12 } ],
+  "notes": [ { "lifeline": "ctl", "at": 40, "text": "No new request is served during cooldown." } ]
+}

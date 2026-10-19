@@ -26,6 +26,11 @@ export interface PlantUmlBackend<M> {
    * geometry and fixed theme styling, never introduce input text or markup.
    */
   postProcess?(svg: string, model: M): string;
+  /**
+   * The QA gates this backend's drawings are held to, when not all of them (a
+   * best-effort fallback renderer). `uml render` warns only about these.
+   */
+  readonly gates?: readonly string[];
 }
 
 export type Backend<M> = EngineBackend<M> | PlantUmlBackend<M>;
