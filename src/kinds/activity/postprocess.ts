@@ -94,7 +94,9 @@ function moveCrossedLabels(svg: string, depth: number): string {
     return tag.replace(/ x="[^"]*"/u, ` x="${fmt(Number(a.x) + to.x - from.x)}"`).replace(/ y="[^"]*"/u, ` y="${fmt(Number(a.y) + to.y - from.y)}"`);
   };
   for (const t of texts) {
-    if (!t.tag.includes(`fill="${theme.color.edgeText}"`) || !crossing(t.rect, s => s.flow)) continue;
+    // Guards crossed by a flow line, or touching a node (a bar right under them).
+    const touching = obstacles.some(o => overlapArea(inflate(t.rect, 1), o) > 0);
+    if (!t.tag.includes(`fill="${theme.color.edgeText}"`) || (!crossing(t.rect, s => s.flow) && !touching)) continue;
     const candidates: Rect[] = [];
     for (let step = 1; step <= 12; step++) {
       for (const [dx, dy] of [[step * 4, 0], [-step * 4, 0], [0, -step * 3], [0, step * 3]] as const) candidates.push({ ...t.rect, x: t.rect.x + dx, y: t.rect.y + dy });

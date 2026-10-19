@@ -101,7 +101,7 @@ export function activitySkinParams(): string[] {
     '  }',
     '  .callBehavior {',
     `    LineColor ${CALL_BEHAVIOR_MARK}`,
-    '    Padding 10 30 10 10',
+    '    Padding 10 36 10 10',
     '  }',
     '}',
     '</style>',
