@@ -11,6 +11,9 @@ export const WRAP = { lifeline: 28, message: 44, note: 36, ref: 48 } as const;
 
 const SYMBOL_KEYWORD = { rectangle: 'participant', actor: 'actor', boundary: 'boundary', control: 'control', entity: 'entity' } as const;
 
+/** Extra vertical space (px) after a destruction that ends an operand or the diagram. */
+export const DESTRUCTION_SPACE = 12;
+
 /** PlantUML arrows per message sort (with `skinparam style strictuml`). */
 export const ARROW = {
   synchronous: '->', asynchronous: '->>', reply: '-->>', create: '-->>', delete: '->',
@@ -87,6 +90,9 @@ export function sequenceToPlantUml(model: SequenceDiagram): string {
           break;
       }
     }
+    // The destruction X reaches 9px below its message: leave room before a fragment or frame border.
+    const last = items.at(-1);
+    if (last && (last.type === 'destroy' || (last.type === 'message' && last.sort === 'delete'))) lines.push(`${pad}||${DESTRUCTION_SPACE}||`);
   };
 
   const emitFragment = (f: Fragment, depth: number): void => {

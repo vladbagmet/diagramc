@@ -147,6 +147,13 @@ test('hostile text in every slot is encoded and never becomes PlantUML syntax', 
   assert.ok(src.split('\n').every(l => !l.includes('uml_') || /^\s*(?:[a-z]+ |\[o|uml_l\d|ref over|note over|rnote over|group |alt |else|loop |end)/.test(l)));
 });
 
+test('a destruction that ends an operand gets room before the fragment border', () => {
+  const lines = body({ kind: 'sequence', lifelines: L('a', 'b'), items: [
+    { type: 'fragment', operator: 'opt', operands: [{ items: [{ type: 'message', sort: 'delete', from: 'a', to: 'b', name: 'drop' }] }] },
+  ] }).map(l => l.trim());
+  assert.deepEqual(lines.slice(-4).map(decode), ['uml_l0 -> uml_l1 : drop', 'destroy uml_l1', '||12||', 'end']);
+});
+
 test('user IDs never reach the generated source', () => {
   const src = source({ kind: 'sequence', lifelines: [{ id: 'secretLifelineId', name: 'a' }, { id: 'other', name: 'b' }], items: [{ type: 'message', sort: 'synchronous', id: 'secretMessageId', from: 'secretLifelineId', to: 'other', name: 'x' }] });
   assert.ok(!src.includes('secretLifelineId') && !src.includes('secretMessageId') && !src.includes('other'));

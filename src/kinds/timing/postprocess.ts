@@ -63,8 +63,8 @@ const textBox = (tag: string): Box => {
 /**
  * PlantUML writes a timing message's label at the arrow's tip, where it covers
  * the receiving lifeline (a concise value band or a grid line). Each label is
- * moved next to its arrow instead: candidate positions along the arrow, to its
- * right and on the side the line does not run to, are tried in a fixed order and
+ * moved next to its arrow instead: candidate positions along the arrow, right
+ * then left of it and on the side the line does not run to, are tried in a fixed order and
  * the first one that crosses no solid line, text, value band or note is taken
  * (the middle of the arrow when none is free). Deterministic; only x/y change.
  */
@@ -77,7 +77,8 @@ export function placeMessageLabels(svg: string): string {
   // Obstacles: solid lines, other texts, concise value shapes and notes.
   const segments: { a: Point; b: Point }[] = [];
   for (const m of svg.matchAll(/<line style="([^"]*)" x1="(-?[\d.]+)" x2="(-?[\d.]+)" y1="(-?[\d.]+)" y2="(-?[\d.]+)"\/>/gu)) {
-    if (m[1]!.includes('dasharray')) continue;
+    // Time grid lines (3,5 dashes) may run under labels; highlight borders (4,4) may not.
+    if (m[1]!.includes('dasharray') && !m[1]!.includes('dasharray:4,4')) continue;
     segments.push({ a: { x: Number(m[2]), y: Number(m[4]) }, b: { x: Number(m[3]), y: Number(m[5]) } });
   }
   const boxes: Box[] = [];
@@ -90,6 +91,7 @@ export function placeMessageLabels(svg: string): string {
     boxes.push({ x: Math.min(...xs), y: Math.min(...ys), width: Math.max(...xs) - Math.min(...xs), height: Math.max(...ys) - Math.min(...ys) });
   }
   const right = Math.max(...segments.map(s => Math.max(s.a.x, s.b.x)));
+  const left = Math.min(...segments.map(s => Math.min(s.a.x, s.b.x)));
 
   let index = 0;
   return svg.replace(pattern, (match, open: string, ...rest: string[]) => {
@@ -108,15 +110,18 @@ export function placeMessageLabels(svg: string): string {
     // Screen y grows downwards: a rising arrow has its line above-right of any point on it.
     const below = rightEnd.y < leftEnd.y;
     const own_ = { a: { x: x1, y: y1 }, b: { x: x2, y: y2 } };
-    const free = (b: Box): boolean => b.x + b.width <= right
+    const free = (b: Box): boolean => b.x + b.width <= right && b.x >= left
       && !segments.some(s => !(s.a.x === own_.a.x && s.a.y === own_.a.y && s.b.x === own_.b.x && s.b.y === own_.b.y) && segmentIntersectsRect(s.a, s.b, b))
       && !segmentIntersectsRect(own_.a, own_.b, b)
       && !boxes.some(o => overlapArea(o, b) > 0);
-    const at = (t: number): Box => {
+    // Right of the point, the line runs up for a rising arrow: the label goes below; left of it, above (and vice versa).
+    const at = (t: number, side: 'right' | 'left'): Box => {
       const p = { x: leftEnd.x + (rightEnd.x - leftEnd.x) * t, y: leftEnd.y + (rightEnd.y - leftEnd.y) * t };
-      return { x: p.x + MESSAGE_LABEL_GAP, y: below ? p.y + MESSAGE_LABEL_GAP : p.y - MESSAGE_LABEL_GAP - height, width, height };
+      const down = side === 'right' ? below : !below;
+      return { x: side === 'right' ? p.x + MESSAGE_LABEL_GAP : p.x - MESSAGE_LABEL_GAP - width, y: down ? p.y + MESSAGE_LABEL_GAP : p.y - MESSAGE_LABEL_GAP - height, width, height };
     };
-    const chosen = [0.5, 0.4, 0.6, 0.3, 0.7, 0.2, 0.8, 0.1].map(at).find(free) ?? at(0.5);
+    const candidates = [0.5, 0.4, 0.6, 0.3, 0.7, 0.2, 0.8, 0.1].flatMap(t => [at(t, 'right'), at(t, 'left')]);
+    const chosen = candidates.find(free) ?? at(0.5, 'right');
     boxes.push(chosen);
     const dx = chosen.x - first.x, dy = chosen.y - first.y;
     const moved = texts.replace(/(<text [^>]* x=")(-?[\d.]+)(" y=")(-?[\d.]+)(")/gu, (_m, a: string, x: string, b: string, y: string, c: string) =>
