@@ -60,7 +60,7 @@ export function baselineOffset(metrics: FontMetrics, size: number, lineHeight: n
 
 export interface NodeData { id: string; type: string; parent?: string | undefined }
 
-function nodeAttributes(data: NodeData, bounds: Rect): Record<string, string> {
+export function nodeAttributes(data: NodeData, bounds: Rect): Record<string, string> {
   return {
     'data-uml-role': 'node', 'data-uml-id': data.id, 'data-uml-type': data.type,
     ...(data.parent ? { 'data-uml-parent': data.parent } : {}),
