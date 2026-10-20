@@ -132,3 +132,14 @@ test('layout: lines never cross another line right next to where it meets a node
     }
   }
 });
+
+test('layout: lines between nested elements of two containers do not order the containers (regions side by side)', async () => {
+  // Replication between the regions' databases used to put one region a whole layer
+  // after the other, so every client line to the second region ran around the first.
+  const { scene: s } = await scene(await example('stress.json'));
+  const eu = node(s, 'euregion').bounds, us = node(s, 'usregion').bounds;
+  const overlap = (a, b, x, w) => Math.min(a[x] + a[w], b[x] + b[w]) - Math.max(a[x], b[x]);
+  assert.ok(overlap(eu, us, 'y', 'height') > 0.5 * Math.min(eu.height, us.height), 'regions share a row');
+  const { width, height } = s.viewBox;
+  assert.ok(width / height < 2 && height / width < 2, `aspect ${width}x${height}`);
+});

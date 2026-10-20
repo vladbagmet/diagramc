@@ -12,7 +12,6 @@ import { createHash } from 'node:crypto';
  * the first 12 hex digits of the SHA-1 of JSON.stringify(document).
  */
 export const KNOWN_GATE_FAILURES = [
-  { finding: 'F-A-05', kind: 'deployment', title: "Multi-region SaaS", gate: 'label-proximity', problem: /another line must be/, source: "examples/deployment/stress.json" },
   { finding: 'F-B-08', kind: 'component', title: "Enterprise integration platform with an unusually long diagram title to test the frame heading", gate: 'shared-segments', problem: / share \d+px of line | meet at /, source: "test/fixtures/regression/component-awkward.json and component-c2-awkward.json" },
   { finding: 'F-A-05', kind: 'composite-structure', title: "Awkward composite", gate: 'label-proximity', problem: /another line must be/, source: "test/fixtures/regression/cs-awkward.json" },
 ];

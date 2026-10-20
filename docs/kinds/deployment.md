@@ -62,10 +62,10 @@ node, below its name.
 
 ## Known limitations
 
-- Where several long lines run side by side down a narrow corridor (the stress
-  example's right edge), a center label may find no spot twice as far from the
-  neighbouring line as from its own (gate label-proximity, a known failure).
-
+- Lines between elements nested in two different top-level nodes (replication
+  between two regions, say) are also tried outside the layered layout, so the
+  nodes can sit side by side; such a line is then routed around the elements in
+  between, and the layout that reads better wins.
 - The cut corners of a 3D box (top left and bottom right) are inside the node's
   bounds: a line arriving exactly there ends a few pixels short of the outline.
 - Drawings larger than 1000 x 1000 px are also laid out top to bottom (and, when

@@ -185,6 +185,17 @@ export interface ChooseOptions {
   maxAspect?: number;
 }
 
+/**
+ * The better of a few finished candidates by `layoutScore`, with ChooseOptions.maxAspect
+ * applied as in chooseLayout (used to compare the winners of separate chooseLayout runs).
+ */
+export function betterLayout<T>(candidates: readonly { result: T; penalty: number }[], measure: (result: T) => LayoutMeasure, maxAspect?: number): T {
+  const scored = candidates.map(c => ({ result: c.result, score: layoutScore({ ...measure(c.result), penalty: c.penalty }), within: maxAspect === undefined || elongation(measure(c.result)) <= maxAspect }));
+  const best = scored.reduce((a, b) => b.score < a.score - 1e-6 ? b : a);
+  if (best.within) return best.result;
+  return scored.filter(c => c.within && c.score <= best.score * MAX_ASPECT_TOLERANCE).sort((a, b) => a.score - b.score)[0]?.result ?? best.result;
+}
+
 /** See ChooseOptions.maxAspect. */
 export const MAX_ASPECT_TOLERANCE = 1.6;
 /** See chooseLayout: no wrapped variant once a layout is at most this elongated. */

@@ -7,7 +7,7 @@ import { labelFits, placeLabels, type LabelRequest } from '../../engine/labels.j
 import { measureBox, measureFrameHeading, measureNote, type Compartment, type MeasuredBox } from '../../engine/shapes.js';
 import { ballBounds, socketBounds } from '../../engine/symbols.js';
 import { wrapText } from '../../engine/text.js';
-import { chooseLayout, countCrossings, LAYOUT_VARIANTS, routeLimit, routesDetour, routesLength, wrapsAround, type LayoutVariant } from '../../engine/aspect.js';
+import { betterLayout, chooseLayout, countCrossings, LAYOUT_VARIANTS, routeLimit, routesDetour, routesLength, wrapsAround, type LayoutMeasure, type LayoutVariant } from '../../engine/aspect.js';
 import { rectGap, repairRoutes, type RepairNode } from '../../engine/repair.js';
 import { routeOrthogonal } from '../../engine/router.js';
 import { spreadEllipseEnds } from '../../engine/clip.js';
@@ -212,16 +212,17 @@ export async function layoutStructure(graph: StructGraph, metrics: FontMetrics):
   // compare finished candidates.
   const count = (nodes: readonly StructNode[]): number => nodes.reduce((n, x) => n + 1 + count(x.children ?? []), 0);
   const bindings = count(graph.nodes) > DEFER_FINISH;
-  const keys = new Map<StructScene, [Direction, LayoutVariant]>();
-  const run = (dir: Direction, variant: LayoutVariant, final = !bindings): Promise<StructScene> => {
-    const key = `${dir} ${variant} ${final}`;
-    if (!runs.has(key)) runs.set(key, layoutIn(graph, metrics, dir === 'DOWN' ? 'DOWN' : 'RIGHT', variant, final).then(scene => { keys.set(scene, [dir, variant]); return scene; }));
+  const peers = peerEdges(graph);
+  const keys = new Map<StructScene, [Direction, LayoutVariant, boolean]>();
+  const run = (dir: Direction, variant: LayoutVariant, apart: boolean, final = !bindings): Promise<StructScene> => {
+    const key = `${dir} ${variant} ${apart} ${final}`;
+    if (!runs.has(key)) runs.set(key, layoutIn(graph, metrics, dir === 'DOWN' ? 'DOWN' : 'RIGHT', variant, final, apart ? peers : new Set()).then(scene => { keys.set(scene, [dir, variant, apart]); return scene; }));
     return runs.get(key)!;
   };
   const finish = (scene: StructScene): Promise<StructScene> => bindings ? run(...keys.get(scene)!, true) : Promise.resolve(scene);
-  const first = await run(directions[0]!, 'plain');
-  if (directions.length === 1 || (first.width <= SMALL_LAYOUT.width && first.height <= SMALL_LAYOUT.height)) return finish(first);
-  return finish(await chooseLayout(directions, (dir, variant) => run(dir, variant), scene => {
+  const first = await run(directions[0]!, 'plain', false);
+  if (!peers.size && (directions.length === 1 || (first.width <= SMALL_LAYOUT.width && first.height <= SMALL_LAYOUT.height))) return finish(first);
+  const measure = (scene: StructScene): LayoutMeasure => {
     const lines = scene.edges.map(e => e.points);
     // A slanted segment (a line no route could straighten) costs like several crossings.
     const slanted = lines.reduce((n, r) => n + r.slice(1).filter((q, i) => Math.abs(q.x - r[i]!.x) > 0.5 && Math.abs(q.y - r[i]!.y) > 0.5).length, 0);
@@ -233,8 +234,41 @@ export async function layoutStructure(graph: StructGraph, metrics: FontMetrics):
       if (!a || !b || contains(a, b) || contains(b, a)) return sum;
       return sum + Math.max(0, routesLength([e.points]) - 1.5 * rectGap(a, b) - 100);
     }, 0);
-    return { width: scene.width, height: scene.height, crossings: countCrossings(lines) + 8 * slanted + detour / 80, edgeLength: routesLength(lines), detour: routesDetour(lines) };
-  }, { wrap: true, maxAspect: MAX_ASPECT, penalty: i => i ? 0.05 : 0 }));
+    // A label across a node's border (a line left out of ELK has no room kept for it) costs like several crossings.
+    const crossed = scene.labels.reduce((n, l) => n + scene.nodes.filter(x => overlaps(inflate(l.rect, -0.5), x.bounds) && !contains(x.bounds, l.rect)).length, 0);
+    return { width: scene.width, height: scene.height, crossings: countCrossings(lines) + 8 * slanted + 8 * crossed + detour / 80, edgeLength: routesLength(lines), detour: routesDetour(lines) };
+  };
+  const options = { wrap: true, maxAspect: MAX_ASPECT, penalty: (i: number) => i ? 0.05 : 0 };
+  const together = directions.length === 1 || (first.width <= SMALL_LAYOUT.width && first.height <= SMALL_LAYOUT.height)
+    ? first : await chooseLayout(directions, (dir, variant) => run(dir, variant, false), measure, options);
+  if (!peers.size) return finish(together);
+  // Lines between elements of two different top-level containers (replication between
+  // two regions, say) need not set the order of those containers: left out of ELK, the
+  // containers can sit side by side, and the lines are routed afterwards. Both sets of
+  // candidates compete, the one keeping every line a little ahead on ties.
+  const apart = await chooseLayout(directions, (dir, variant) => run(dir, variant, true), measure, options);
+  return finish(betterLayout([{ result: together, penalty: 0 }, { result: apart, penalty: 0.05 }], measure, MAX_ASPECT));
+}
+
+/**
+ * IDs of relationships between elements nested in two different top-level containers
+ * (neither end a top-level element itself, nor a port): candidates to leave out of
+ * the ELK run (see layoutStructure).
+ */
+function peerEdges(graph: StructGraph): Set<string> {
+  const top = new Map<string, string>(), ports = new Set<string>();
+  const walk = (nodes: readonly StructNode[], root: string | undefined): void => {
+    for (const n of nodes) {
+      if (root !== undefined) top.set(n.id, root);
+      for (const p of n.ports ?? []) ports.add(p.id);
+      walk(n.children ?? [], root ?? n.id);
+    }
+  };
+  walk(graph.nodes, undefined);
+  return new Set(graph.edges.filter(e => {
+    const a = top.get(e.source), b = top.get(e.target);
+    return a !== undefined && b !== undefined && a !== b && !ports.has(e.source) && !ports.has(e.target);
+  }).map(e => e.id));
 }
 
 /**
@@ -243,7 +277,7 @@ export async function layoutStructure(graph: StructGraph, metrics: FontMetrics):
  * `S()` maps a logical side to the real one, and `main`/`cross` name the real axes
  * along and across the layout direction.
  */
-async function layoutIn(graph: StructGraph, metrics: FontMetrics, dir: 'RIGHT' | 'DOWN', variant: LayoutVariant = 'plain', final = true): Promise<StructScene> {
+async function layoutIn(graph: StructGraph, metrics: FontMetrics, dir: 'RIGHT' | 'DOWN', variant: LayoutVariant = 'plain', final = true, leaveOut: ReadonlySet<string> = new Set()): Promise<StructScene> {
   const down = dir === 'DOWN';
   const S = (side: Side): Side => down ? ({ EAST: 'SOUTH', WEST: 'NORTH', NORTH: 'WEST', SOUTH: 'EAST' } as const)[side] : side;
   const main = down ? 'y' as const : 'x' as const, cross = down ? 'x' as const : 'y' as const;
@@ -543,6 +577,8 @@ async function layoutIn(graph: StructGraph, metrics: FontMetrics, dir: 'RIGHT' |
       return [{ id: `${endpoint}::label`, width: labelWidth(text) + 4, height: lh, placement: elkSource ? 'tail' : 'head' }];
     };
     for (const p of levelPlans) {
+      // Left out on purpose (see peerEdges): routed afterwards like a line ELK could not lay out.
+      if (leaveOut.has(p.id)) continue;
       const source = lift(p.source), target = lift(p.target);
       const symbol = p.symbol === undefined ? undefined : symbolById.get(p.symbol);
       if (symbol) {

@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- Deployment, component and composite structure layouts no longer let a line
+  between elements of two top-level containers decide their order: the
+  containers can sit side by side. The deployment stress example now passes
+  every layout check (5120 x 3892 instead of 3906 x 6762, no lines around a region).
+
 ## 1.0.0 (2026-10-20)
 
 First stable release. Compared with the 0.1.0 MVP, which drew class diagrams to
