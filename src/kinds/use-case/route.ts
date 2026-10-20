@@ -31,10 +31,15 @@ export interface Obstacle { id: string; rect: Rect }
 const MARGIN = 5;
 /** Distance of a bend point from the corner of the element it goes around. */
 const CORNER = 12;
+/** Distances of bend points from a corner: one lane per line going around it (four round a subject, two round smaller elements). */
+const LANES = [CORNER, 2 * CORNER + 2, 3 * CORNER + 4, 4 * CORNER + 6];
+const WIDE = 300;
 const BEND_COST = 36;
 const CROSS_COST = 28;
 /** Lines nearer than this to each other run "along" each other... */
-const NEAR = 3;
+const NEAR = 4;
+/** Length at a shared end over which lines may run close (they fan out from one point). */
+const FAN = 12;
 /** ...which costs this much per 8 px. */
 const ALONG_COST = 6;
 
@@ -69,7 +74,12 @@ export class Router {
   add(route: readonly Point[]): void { for (let k = 1; k < route.length; k++) this.segments.push([route[k - 1]!, route[k]!]); }
 
   private blocked(a: Point, b: Point, ignore: ReadonlySet<string>): boolean {
-    for (const o of this.inflated) if (!ignore.has(o.id) && segmentIntersectsRect(a, b, o.rect)) return true;
+    const x0 = Math.min(a.x, b.x), x1 = Math.max(a.x, b.x), y0 = Math.min(a.y, b.y), y1 = Math.max(a.y, b.y);
+    for (const o of this.inflated) {
+      const r = o.rect;
+      if (x1 < r.x || x0 > r.x + r.width || y1 < r.y || y0 > r.y + r.height) continue;
+      if (!ignore.has(o.id) && segmentIntersectsRect(a, b, r)) return true;
+    }
     return false;
   }
   /** Routed segments near the box of a-b. */
@@ -82,21 +92,33 @@ export class Router {
     for (const [c, d] of this.near(a, b, 0)) if (properCross(a, b, c, d)) n++;
     return n;
   }
-  /** Cost of running along lines routed before (lines on top of each other read as one). */
+  /**
+   * Cost of running along lines routed before (lines on top of each other read as
+   * one): the length over which a routed segment stays within NEAR of this one, at
+   * any angle, so two lines leaving one point in nearly the same direction count
+   * too. Only the first few px at a shared end (an actor's fan point) are free.
+   */
   private along(a: Point, b: Point, fromEnd: boolean, toEnd: boolean): number {
     const length = distance(a, b);
     if (length < 1) return 0;
     const u = { x: (b.x - a.x) / length, y: (b.y - a.y) / length };
-    // Lines leaving one point (an actor's side) are close there by design.
-    const lo = fromEnd ? 30 : 0, hi = toEnd ? length - 30 : length;
+    const lo = fromEnd ? FAN : 0, hi = toEnd ? length - FAN : length;
     if (hi <= lo) return 0;
     let close = 0;
     for (const [c, d] of this.near(a, b, NEAR)) {
-      // Nearly parallel segments within NEAR of this one: the length they share.
+      // The part of c-d within NEAR of the line through a-b, projected onto a-b.
       const off = (q: Point) => (q.x - a.x) * u.y - (q.y - a.y) * u.x;
-      if (Math.abs(off(c)) >= NEAR || Math.abs(off(d)) >= NEAR) continue;
       const t = (q: Point) => (q.x - a.x) * u.x + (q.y - a.y) * u.y;
-      const overlap = Math.min(hi, Math.max(t(c), t(d))) - Math.max(lo, Math.min(t(c), t(d)));
+      const oc = off(c), od = off(d);
+      let s0 = 0, s1 = 1;
+      if (Math.abs(od - oc) < 1e-9) { if (Math.abs(oc) >= NEAR) continue; }
+      else {
+        const k0 = (-NEAR - oc) / (od - oc), k1 = (NEAR - oc) / (od - oc);
+        s0 = Math.max(0, Math.min(k0, k1)); s1 = Math.min(1, Math.max(k0, k1));
+        if (s1 <= s0) continue;
+      }
+      const p0 = t({ x: c.x + (d.x - c.x) * s0, y: c.y + (d.y - c.y) * s0 }), p1 = t({ x: c.x + (d.x - c.x) * s1, y: c.y + (d.y - c.y) * s1 });
+      const overlap = Math.min(hi, Math.max(p0, p1)) - Math.max(lo, Math.min(p0, p1));
       if (overlap > 0) close += overlap;
     }
     return close / 8 * ALONG_COST;
@@ -120,7 +142,7 @@ export class Router {
     const corners: Point[] = [];
     for (const o of this.obstacles) {
       if (ignore.has(o.id) || !overlapsRect(o.rect, box)) continue;
-      for (const by of [CORNER, 2 * CORNER + 4]) for (const p of cornersOf(inflate(o.rect, by))) {
+      for (const by of o.rect.width > WIDE || o.rect.height > WIDE ? LANES : LANES.slice(0, 2)) for (const p of cornersOf(inflate(o.rect, by))) {
         if (this.obstacles.some(x => !ignore.has(x.id) && inside(p, inflate(x.rect, MARGIN)))) continue;
         if (inside(p, inflate(source.rect, 2)) || inside(p, inflate(target.rect, 2))) continue;
         corners.push(p);
