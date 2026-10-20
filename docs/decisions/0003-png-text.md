@@ -1,7 +1,9 @@
 # 0003: Text in PNG output (mixed scripts, emoji)
 
-Status: accepted. Context: review findings A-18 (bold lost on mixed-script names in
-PNG) and O-10 (emoji drawn as a box in PNG).
+Status: accepted. Date: 2026-10-19.
+
+Context: review findings A-18 (bold lost on mixed-script names in PNG) and O-10
+(emoji drawn as a box in PNG).
 
 ## Problem
 

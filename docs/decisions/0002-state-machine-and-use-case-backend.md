@@ -1,6 +1,6 @@
 # 0002: State machine and use case diagrams on the own engine
 
-Date: 2026-10-19. Status: accepted (chunk 5).
+Status: accepted (chunk 5). Date: 2026-10-19.
 
 ## Context
 

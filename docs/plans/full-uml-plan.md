@@ -107,3 +107,34 @@ Each chunk delivers, per kind: schema, validator, renderer, notation checklist, 
 - **Font consistency between backends.** PlantUML uses Java's font stack; the own engine uses a pinned embedded font. Colors and sizes match exactly; glyph shapes may differ slightly between PlantUML kinds and own-engine kinds. Accepted for now and documented.
 - **elkjs label and port behavior.** It is a transpiled port of Java ELK. Chunk 0 must prove edge labels, ports and compound nesting on fixtures before chunks 1 to 3 build on it.
 - **PlantUML state/use case quality.** If they fail the gates, they move to the own engine during chunk 5 or 6, which costs extra time but no rework of the model.
+
+## Outcome
+
+Released as 1.0.0 on 2026-10-20 (see [CHANGELOG.md](../../CHANGELOG.md)).
+
+- **All 14 kinds shipped.** Class, object, package, profile, component,
+  deployment, composite structure, communication, interaction overview, state
+  machine and use case run on the own engine; sequence, timing and activity run on
+  PlantUML 1.2025.10, post-processed to UML notation. The backend table above held
+  except for state machine and use case, which moved to the own engine in chunk 5
+  (decision 0002). Class keeps PlantUML as an optional fallback
+  (`--backend plantuml`). `uml kinds` lists the backends of each kind.
+- **Quality gates.** `src/qa` runs 16 geometry and text gates (markup safety,
+  canvas bounds, node and label overlap, labels on lines and near their ends, edge
+  endpoints, arrowheads, message arrows, literal text, minimum font size, text
+  fitting its box, ports, plus engine-only spacing and route-length checks) on
+  every fixture and example of every kind. PlantUML sequence and timing drawings
+  also get a dedicated reader for lifelines, activation bars and messages, with
+  the `message-endpoints` and `lifeline-crossing` gates. Every example passes them
+  with `--strict`.
+- **Render-time warnings and `--strict`.** `uml render` runs the same gates on
+  every drawing. A drawing that fails one is still written with exit code 0, and
+  stderr carries one JSON object with a `LAYOUT_QUALITY` warning per failed gate,
+  with advice in terms of the model. `--strict` makes that exit code 5 and writes
+  nothing.
+- **Beyond the plan.** PNG output through resvg, `uml example <kind>`, and
+  validation errors that list every problem with suggested corrections. The
+  `uml inspect` command sketched in the target architecture was not built; the
+  render-time warnings cover its purpose.
+- **Known limits** are listed per kind in `docs/kinds/<kind>.md` and summarised in
+  the README.
