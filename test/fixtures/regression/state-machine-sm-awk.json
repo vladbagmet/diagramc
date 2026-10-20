@@ -1,0 +1,288 @@
+{
+ "kind": "state-machine",
+ "title": "Autonomous delivery robot mission controller",
+ "elements": [
+  {
+   "id": "i0",
+   "type": "initial"
+  },
+  {
+   "id": "docked",
+   "type": "state",
+   "name": "Docked at charging station",
+   "entry": "start charging",
+   "exit": "undock and run pre-mission self check",
+   "internal": [
+    {
+     "trigger": "batteryLevel(p)",
+     "guard": "p > 95",
+     "effect": "stop charging"
+    }
+   ]
+  },
+  {
+   "id": "fork1",
+   "type": "fork"
+  },
+  {
+   "id": "mission",
+   "type": "state",
+   "name": "Executing mission with navigation and payload supervision",
+   "connectionPoints": [
+    {
+     "id": "ep",
+     "type": "entryPoint",
+     "name": "resume after obstacle"
+    },
+    {
+     "id": "xp",
+     "type": "exitPoint",
+     "name": "abort mission"
+    }
+   ],
+   "regions": [
+    {
+     "name": "navigation",
+     "elements": [
+      {
+       "id": "ni",
+       "type": "initial"
+      },
+      {
+       "id": "plan",
+       "type": "state",
+       "name": "Planning route",
+       "doActivity": "compute A* path over the occupancy grid"
+      },
+      {
+       "id": "drive",
+       "type": "state",
+       "name": "Driving"
+      },
+      {
+       "id": "avoid",
+       "type": "state",
+       "name": "Avoiding obstacle"
+      },
+      {
+       "id": "nh",
+       "type": "deepHistory"
+      },
+      {
+       "id": "jn",
+       "type": "junction"
+      }
+     ]
+    },
+    {
+     "name": "payload",
+     "elements": [
+      {
+       "id": "pi",
+       "type": "initial"
+      },
+      {
+       "id": "locked",
+       "type": "state",
+       "name": "Compartment locked"
+      },
+      {
+       "id": "temp",
+       "type": "state",
+       "name": "Temperature control",
+       "doActivity": "hold 4 degrees C"
+      }
+     ]
+    },
+    {
+     "name": "telemetry",
+     "elements": [
+      {
+       "id": "ti",
+       "type": "initial"
+      },
+      {
+       "id": "stream",
+       "type": "state",
+       "name": "Streaming telemetry to fleet backend"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "join1",
+   "type": "join"
+  },
+  {
+   "id": "deliver",
+   "type": "state",
+   "name": "Handover",
+   "submachine": "CustomerHandoverProtocol"
+  },
+  {
+   "id": "ch",
+   "type": "choice"
+  },
+  {
+   "id": "fault",
+   "type": "state",
+   "name": "Safe stop",
+   "entry": "engage brakes; flash hazard lights"
+  },
+  {
+   "id": "term",
+   "type": "terminate"
+  },
+  {
+   "id": "fin",
+   "type": "final"
+  },
+  {
+   "id": "note1",
+   "type": "note",
+   "text": "Any lidar failure while driving forces an immediate safe stop regardless of mission priority.",
+   "attachedTo": [
+    "fault",
+    "drive"
+   ]
+  }
+ ],
+ "transitions": [
+  {
+   "from": "i0",
+   "to": "docked"
+  },
+  {
+   "from": "docked",
+   "to": "docked",
+   "trigger": "heartbeat",
+   "effect": "report state of charge"
+  },
+  {
+   "from": "docked",
+   "to": "fork1",
+   "trigger": "missionAssigned(m)",
+   "guard": "battery > 80% and weather ok"
+  },
+  {
+   "from": "fork1",
+   "to": "plan"
+  },
+  {
+   "from": "fork1",
+   "to": "locked"
+  },
+  {
+   "from": "fork1",
+   "to": "stream"
+  },
+  {
+   "from": "ni",
+   "to": "plan"
+  },
+  {
+   "from": "pi",
+   "to": "locked"
+  },
+  {
+   "from": "ti",
+   "to": "stream"
+  },
+  {
+   "from": "plan",
+   "to": "drive",
+   "trigger": "routeReady"
+  },
+  {
+   "from": "drive",
+   "to": "avoid",
+   "trigger": "obstacleDetected(d)",
+   "guard": "d < 2 m"
+  },
+  {
+   "from": "avoid",
+   "to": "jn",
+   "trigger": "cleared"
+  },
+  {
+   "from": "jn",
+   "to": "drive",
+   "guard": "route still valid"
+  },
+  {
+   "from": "jn",
+   "to": "plan",
+   "guard": "else",
+   "effect": "invalidate route"
+  },
+  {
+   "from": "drive",
+   "to": "join1",
+   "trigger": "arrived"
+  },
+  {
+   "from": "locked",
+   "to": "temp",
+   "trigger": "coolingOn"
+  },
+  {
+   "from": "temp",
+   "to": "join1",
+   "trigger": "unlockRequested"
+  },
+  {
+   "from": "stream",
+   "to": "join1"
+  },
+  {
+   "from": "ep",
+   "to": "nh"
+  },
+  {
+   "from": "xp",
+   "to": "fault",
+   "effect": "log abort reason"
+  },
+  {
+   "from": "join1",
+   "to": "deliver"
+  },
+  {
+   "from": "deliver",
+   "to": "ch",
+   "trigger": "handoverFinished(r)"
+  },
+  {
+   "from": "ch",
+   "to": "docked",
+   "guard": "r == success",
+   "effect": "return to base"
+  },
+  {
+   "from": "ch",
+   "to": "fault",
+   "guard": "else"
+  },
+  {
+   "from": "fault",
+   "to": "ep",
+   "trigger": "operatorResume"
+  },
+  {
+   "from": "fault",
+   "to": "term",
+   "trigger": "tamperDetected"
+  },
+  {
+   "from": "fault",
+   "to": "fin",
+   "trigger": "decommission"
+  },
+  {
+   "from": "drive",
+   "to": "xp",
+   "trigger": "lidarFailure"
+  }
+ ]
+}
