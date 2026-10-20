@@ -5,7 +5,7 @@ UML 2.5.1 diagram kinds: class, object, package, profile, component, deployment,
 composite structure, communication, interaction overview, sequence, timing,
 activity, state machine and use case. It is built for agents as users: every
 model is validated against a published JSON Schema, errors are one JSON object
-that lists every problem with a suggested fix, and each drawing is checked for
+that lists every problem (with a fix where one is clear), and each drawing is checked for
 layout defects before it is written. Rendering is offline and needs no server,
 API key, browser, Graphviz or global installation.
 
