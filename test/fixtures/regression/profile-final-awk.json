@@ -1,0 +1,39 @@
+{
+  "kind":"profile",
+  "title":"Awkward profiles",
+  "elements":[
+    {"id":"pA","type":"profile","name":"SafetyCriticalAvionicsSoftwareCertificationProfileDO178C","members":["s1","s2","s3","s4","s5","mClass"]},
+    {"id":"pB","type":"profile","name":"Security","members":["t1","t2","mProp"]},
+    {"id":"mClass","type":"metaclass","name":"Class"},
+    {"id":"mProp","type":"metaclass","name":"Property"},
+    {"id":"mOp","type":"metaclass","name":"Operation"},
+    {"id":"s1","type":"stereotype","name":"DesignAssuranceLevelAClassificationForFlightControlSoftware","attributes":[{"name":"verificationEvidenceDocumentReferenceIdentifier","type":"String","multiplicity":"1..*"}]},
+    {"id":"s2","type":"stereotype","name":"LevelB"},
+    {"id":"s3","type":"stereotype","name":"LevelC"},
+    {"id":"s4","type":"stereotype","name":"LevelD"},
+    {"id":"s5","type":"stereotype","name":"Partitioned"},
+    {"id":"t1","type":"stereotype","name":"Encrypted","attributes":[{"name":"algorithm","type":"String","default":"AES-256-GCM"}]},
+    {"id":"t2","type":"stereotype","name":"Audited"},
+    {"id":"model","type":"package","name":"FlightControlComputer","members":["fcc","law"]},
+    {"id":"fcc","type":"class","name":"PitchControlLaw","stereotypes":["LevelB","Partitioned"]},
+    {"id":"law","type":"class","name":"KeyStore","stereotypes":["Encrypted","Audited"]},
+    {"id":"uml","type":"package","name":"UML"},
+    {"id":"n","type":"note","text":"Every stereotype in this profile extends Class.","attachedTo":["s1","s2","s3","s4","s5"]}
+  ],
+  "relationships":[
+    {"type":"extension","from":"s1","to":"mClass","required":true},
+    {"type":"extension","from":"s2","to":"mClass"},
+    {"type":"extension","from":"s3","to":"mClass"},
+    {"type":"extension","from":"s4","to":"mClass"},
+    {"type":"extension","from":"s5","to":"mClass"},
+    {"type":"extension","from":"s5","to":"mOp"},
+    {"type":"extension","from":"t1","to":"mProp"},
+    {"type":"extension","from":"t1","to":"mClass"},
+    {"type":"extension","from":"t2","to":"mOp"},
+    {"type":"extension","from":"t2","to":"mClass","required":true},
+    {"type":"apply","from":"model","to":"pA"},
+    {"type":"apply","from":"model","to":"pB"},
+    {"type":"reference","from":"pA","to":"uml"},
+    {"type":"reference","from":"pB","to":"mOp"}
+  ]
+}

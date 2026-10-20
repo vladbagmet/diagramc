@@ -84,7 +84,7 @@ by the actor) for which ELK keeps room (`labelBelow`).
   `to` end. Actors that are only `to` ends become secondary actors on the right.
 - Many associations of one actor fan out from one point on the figure's side; at
   small angles the first few pixels of those lines lie close together (the
-  `use-case-lines` gate allows 60 px around the shared point).
+  `shared-segments` gate allows 60 px around the shared point).
 - Use cases keep the input order within the group of each actor, not globally:
   ELK's crossing minimisation reorders them where that saves crossings.
 - Notes are laid out after the element they annotate, which can put them a layer

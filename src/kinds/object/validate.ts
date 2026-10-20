@@ -27,12 +27,14 @@ export function validateObjectDiagram(model: ObjectDiagram): Diagnostic[] {
     });
   });
 
+  // Links and note anchors name instances; a note is never a useful suggestion.
+  const instanceIds = model.elements.filter(e => !isNote(e)).map(e => e.id);
   model.elements.forEach((element, i) => {
     const at = pointer('', 'elements', i);
     if (isNote(element)) {
       (element.attachedTo ?? []).forEach((id, j) => {
         const path = pointer(at, 'attachedTo', j);
-        if (!reference(id, path, elements, diagnostics)) return;
+        if (!reference(id, path, elements, diagnostics, 'element', undefined, instanceIds)) return;
         if (isNote(elements.get(id)!)) diagnostics.push({ code: 'INVALID_ATTACHMENT', path, message: `Note "${element.id}" cannot be attached to another note ("${id}")` });
       });
       return;
@@ -59,8 +61,8 @@ export function validateObjectDiagram(model: ObjectDiagram): Diagnostic[] {
 
   links.forEach((r, i) => {
     const at = pointer('', 'relationships', i);
-    const fromOk = reference(r.from, pointer(at, 'from'), elements, diagnostics, 'instance', { from: r.from, to: r.to });
-    const toOk = reference(r.to, pointer(at, 'to'), elements, diagnostics, 'instance', { from: r.from, to: r.to });
+    const fromOk = reference(r.from, pointer(at, 'from'), elements, diagnostics, 'instance', { from: r.from, to: r.to }, instanceIds);
+    const toOk = reference(r.to, pointer(at, 'to'), elements, diagnostics, 'instance', { from: r.from, to: r.to }, instanceIds);
     if (!fromOk || !toOk) return;
     for (const end of ['from', 'to'] as const) {
       if (isNote(elements.get(r[end])!)) diagnostics.push({ code: 'NOTE_IN_RELATIONSHIP', path: pointer(at, end), message: `Links connect instances; use the note's "attachedTo" instead` });

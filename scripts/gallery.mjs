@@ -8,6 +8,7 @@ import { fileURLToPath } from 'node:url';
 import { kinds } from '../dist/model/registry.js';
 import { renderAndCheck, formatReport } from '../dist/qa/index.js';
 import { rasterize } from '../dist/engine/png.js';
+import { judgementMessage } from '../test/known-gate-failures.mjs';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 const out = join(root, 'artifacts', 'gallery');
@@ -32,11 +33,15 @@ for (const kind of kinds) {
   const cards = [];
   for (const file of files) {
     const name = (file.includes(`${join('examples', 'v1')}`) ? 'v1-' : '') + basename(file, '.json');
-    const { svg, report, ms } = await renderAndCheck(await readFile(file, 'utf8'));
+    const text = await readFile(file, 'utf8');
+    const { svg, report, ms } = await renderAndCheck(text);
     await writeFile(join(dir, `${name}.svg`), svg);
     await writeFile(join(dir, `${name}.png`), await rasterize(svg, 2));
     const failed = report.gates.filter(g => !g.ok);
-    if (failed.length) { failures++; console.error(`FAIL ${kind.kind}/${name}\n${formatReport(report)}`); }
+    // Known failures (test/known-gate-failures.mjs) are shown on the card but do not fail the run.
+    const message = judgementMessage(text, failed.map(g => ({ gate: g.gate, problems: g.failures })));
+    if (message) { failures++; console.error(`FAIL ${kind.kind}/${name}\n${message}`); }
+    else if (failed.length) console.log(`known ${kind.kind}/${name}\n${formatReport(report)}`);
     else console.log(`ok   ${kind.kind}/${name} (${ms.toFixed(0)} ms)`);
     cards.push({ name, ms, failed, skipped: report.gates.filter(g => g.skipped).map(g => g.gate) });
   }

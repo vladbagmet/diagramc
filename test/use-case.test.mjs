@@ -152,22 +152,22 @@ test('use case: hostile text stays literal in every slot and creates no active S
 
 const regression = name => readFile(join(root, 'test/fixtures/regression', name), 'utf8');
 
-test('use case gate: lines running on top of each other fail use-case-lines, a fan from one point does not', () => {
+test('shared-segments gate on use case drawings: lines running on top of each other fail, a fan from one point does not', () => {
   const node = (id, type, x, y, w, h, parent) => ({ id, type, bounds: { x, y, width: w, height: h }, ...(parent ? { parent } : {}) });
   const edge = (id, target, points) => ({ id, type: 'association', source: 'a', target, points, sourceMarker: 'none', targetMarker: 'none' });
   const scene = edges => ({
     renderer: 'engine', kind: 'use-case', viewBox: { x: 0, y: 0, width: 1000, height: 600 }, markers: [], arrows: [], texts: [], extents: [], unsafe: [],
     nodes: [node('a', 'actor', 10, 100, 30, 60), node('u1', 'useCase', 800, 50, 120, 40), node('u2', 'useCase', 800, 300, 120, 40)], edges,
   });
-  const verdict = edges => runGates(scene(edges)).gates.find(g => g.gate === 'use-case-lines');
+  const verdict = edges => runGates(scene(edges)).gates.find(g => g.gate === 'shared-segments');
   // Two lines sharing a trunk to a bend at (600, 130), then fanning out (the old hospital stress drawing).
   const trunk = verdict([edge('e1', 'u1', [{ x: 40, y: 130 }, { x: 600, y: 131 }, { x: 800, y: 70 }]), edge('e2', 'u2', [{ x: 40, y: 130 }, { x: 600, y: 132 }, { x: 800, y: 320 }])]);
   assert.equal(trunk.ok, false);
-  assert.match(trunk.failures[0], /e1 and e2 run within 2px/);
+  assert.match(trunk.failures[0], /e1 and e2 share \d+px of line/);
   // Straight lines from one point to the two use cases.
   assert.equal(verdict([edge('e1', 'u1', [{ x: 40, y: 130 }, { x: 800, y: 70 }]), edge('e2', 'u2', [{ x: 40, y: 130 }, { x: 800, y: 320 }])]).ok, true);
-  // Only use case drawings are judged.
-  assert.equal(runGates({ ...scene([edge('e1', 'u1', [{ x: 40, y: 130 }, { x: 600, y: 131 }]), edge('e2', 'u2', [{ x: 40, y: 130 }, { x: 600, y: 132 }])]), kind: 'class' }).gates.find(g => g.gate === 'use-case-lines').ok, true);
+  // The gate is generic: the same trunk fails in any kind of drawing.
+  assert.equal(runGates({ ...scene([edge('e1', 'u1', [{ x: 40, y: 130 }, { x: 600, y: 131 }]), edge('e2', 'u2', [{ x: 40, y: 130 }, { x: 600, y: 132 }])]), kind: 'class' }).gates.find(g => g.gate === 'shared-segments').ok, false);
 });
 
 test('use case layout: actors stand beside the subject they mostly use; no line runs along an unrelated subject', async () => {

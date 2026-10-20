@@ -1,0 +1,22 @@
+{
+  "kind":"object",
+  "title":"Awkward snapshot",
+  "elements":[
+    {"id":"a","type":"instance","name":"theVeryFirstPrimaryReplicaOfTheInventoryDatabaseInFrankfurt","classifier":"PostgresReplicaInstanceSpecification","stereotypes":["primary"],"slots":[{"feature":"connectionString","value":"\"postgresql://inventory-primary.fra.internal.example.com:5432/inventory?sslmode=verify-full&application_name=reporting\""},{"feature":"maxConnections","type":"Integer","value":"500"}]},
+    {"id":"b","type":"instance","name":"r2","classifier":"PostgresReplicaInstanceSpecification"},
+    {"id":"c","type":"instance","name":"r3","classifier":"PostgresReplicaInstanceSpecification"},
+    {"id":"d","type":"instance","classifier":"Monitor"},
+    {"id":"n1","type":"note","text":"Three parallel links between a and b.","attachedTo":["a","b"]},
+    {"id":"n2","type":"note","text":"Self link on r3.","attachedTo":["c"]}
+  ],
+  "relationships":[
+    {"id":"l1","type":"link","from":"a","to":"b","name":"streams WAL to","fromEnd":{"role":"upstream"},"toEnd":{"role":"downstream","navigable":true}},
+    {"id":"l2","type":"link","from":"a","to":"b","name":"heartbeat"},
+    {"id":"l3","type":"link","from":"b","to":"a","name":"acknowledges"},
+    {"type":"link","from":"b","to":"c","name":"cascades to","toEnd":{"navigable":true}},
+    {"type":"link","from":"c","to":"c","name":"selfCheck","fromEnd":{"role":"checker"},"toEnd":{"role":"checked"}},
+    {"type":"link","from":"d","to":"a","toEnd":{"role":"watched"}},
+    {"type":"link","from":"d","to":"b","toEnd":{"role":"watched"}},
+    {"type":"link","from":"d","to":"c","toEnd":{"role":"watched"}}
+  ]
+}

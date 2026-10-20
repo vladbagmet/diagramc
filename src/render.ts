@@ -1,4 +1,5 @@
 import { UmlError } from './core/errors.js';
+import { adviceForAll } from './qa/advice.js';
 import { MAX_OUTPUT_BYTES } from './core/limits.js';
 import { rasterize } from './engine/png.js';
 import type { Backend } from './model/kind.js';
@@ -61,24 +62,12 @@ export interface LayoutWarning {
   count: number;
   /** The first problems, as the gate reports them. */
   problems: string[];
-  /** What usually helps, in terms of the model. */
+  /** What usually helps, in terms of the model, for the kinds of problem found (src/qa/advice.ts). */
   advice: string;
 }
 
 /** Most problems listed per gate in a warning. */
 const MAX_PROBLEMS = 5;
-
-/** What usually helps when a gate fails, in terms of the model (gate names: src/qa/gates.ts). */
-const ADVICE: Record<string, string> = {
-  'node-overlap': 'Shapes overlap. Fewer elements per diagram or shorter names usually help.',
-  'label-overlap': 'A label overlaps a shape or another text. Shorter labels or names usually help.',
-  'label-edge-crossing': 'A line runs through a label. Shorter labels or fewer crossing relationships usually help.',
-  'label-proximity': 'A label is far from its line or nearer another one. Fewer relationships between the same elements usually help.',
-  'edge-endpoints': 'A line runs through a shape it does not connect. Fewer crossing relationships, less deeply nested structure, or splitting the diagram usually helps.',
-  markers: 'Arrowheads touch each other. Fewer relationships ending at the same element usually help.',
-  'message-arrows': 'A message arrow collides with something. Fewer messages on one link usually help.',
-};
-const RENDERER_DEFECT = 'This is a renderer defect, not a problem in the model; the diagram may still be usable.';
 
 /** Runs every QA gate on a rendered SVG and turns failed gates into warnings. */
 export async function layoutWarnings(svg: string, parsed: ParsedDocument, backend?: Backend<unknown>): Promise<LayoutWarning[]> {
@@ -87,7 +76,7 @@ export async function layoutWarnings(svg: string, parsed: ParsedDocument, backen
   return report.gates.filter(g => !g.ok && (!held || held.includes(g.gate))).map(g => ({
     code: 'LAYOUT_QUALITY', gate: g.gate,
     message: `Layout check "${g.gate}" found ${g.failures.length} problem${g.failures.length === 1 ? '' : 's'}: ${g.failures[0]}${g.failures.length > 1 ? ` (and ${g.failures.length - 1} more)` : ''}`,
-    count: g.failures.length, problems: g.failures.slice(0, MAX_PROBLEMS), advice: ADVICE[g.gate] ?? RENDERER_DEFECT,
+    count: g.failures.length, problems: g.failures.slice(0, MAX_PROBLEMS), advice: adviceForAll(g.gate, g.failures),
   }));
 }
 

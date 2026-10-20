@@ -4,6 +4,7 @@ import { distanceToOutline } from '../engine/clip.js';
 import { inspectSvg, type Scene } from './inspect.js';
 import { collinearOverlap, LABEL_CLEARANCE, rectSegmentDistance } from '../engine/labels.js';
 import { interactionGates } from './plantuml-interaction.js';
+import { routeLimit, wrapsAround } from '../engine/aspect.js';
 
 /**
  * Hard quality gates run on every rendered fixture and example (both backends).
@@ -15,19 +16,29 @@ export interface QaReport { ok: boolean; renderer: Scene['renderer']; gates: Gat
 
 export const GATES = [
   'safe-markup', 'inside-canvas', 'node-overlap', 'label-overlap', 'label-edge-crossing', 'label-proximity',
-  'edge-endpoints', 'use-case-lines', 'end-spacing', 'route-length', 'markers', 'message-arrows', 'literal-text', 'min-font-size', 'text-fits', 'ports',
+  'edge-endpoints', 'shared-segments', 'end-spacing', 'route-length', 'markers', 'message-arrows', 'literal-text', 'min-font-size', 'text-fits', 'ports',
 ] as const;
 
 /**
  * Gates that judge layout choices only the own engine makes (end spacing, route
  * length); PlantUML output reports them as skipped.
  */
-export const ENGINE_ONLY_GATES: readonly string[] = ['use-case-lines', 'end-spacing', 'route-length'];
+export const ENGINE_ONLY_GATES: readonly string[] = ['end-spacing', 'route-length'];
 
 /** Minimum gap between a label and a node border it does not overlap (labels must not touch outlines). */
 export const LABEL_BORDER_CLEARANCE = LABEL_CLEARANCE;
 /** A center label must lie within this distance of its own line. */
 export const CENTER_LABEL_REACH = 24;
+/** Every other line must be at least this many times as far from a label as its own line (and 3 px more). */
+export const LABEL_RIVAL_FACTOR = 2;
+/** Different edges may share a collinear piece of line at most this long. */
+export const MAX_SHARED_SEGMENT = 10;
+/** Lines closer than this (px) count as running on top of each other. */
+export const SHARED_TOLERANCE = 2;
+/** Length near a point shared by two slanted lines (an actor's fan) that the shared-segments gate does not judge. */
+export const SHARED_FAN = 60;
+/** Lines keep at least this far from the border of a node they do not end on. */
+export const NODE_CLEARANCE = 4;
 /** Routes may be at most this factor longer than the Manhattan gap between their ends' nodes, plus ROUTE_SLACK px. */
 export const ROUTE_FACTOR = 3;
 export const ROUTE_SLACK = 200;
@@ -60,6 +71,26 @@ function gapBetween(a: Rect, b: Rect): number {
   const dx = Math.max(0, b.x - (a.x + a.width), a.x - (b.x + b.width));
   const dy = Math.max(0, b.y - (a.y + a.height), a.y - (b.y + b.height));
   return Math.hypot(dx, dy);
+}
+
+/**
+ * True when segment a-b runs parallel to a side of `r`, outside it or on it, closer
+ * than NODE_CLEARANCE and for more than MAX_SHARED_SEGMENT px: the line reads as
+ * part of the outline. Crossing a node is judged separately.
+ */
+function runsAlong(a: Point, b: Point, r: Rect): boolean {
+  const horizontal = Math.abs(a.y - b.y) < 0.5, vertical = Math.abs(a.x - b.x) < 0.5;
+  if (horizontal) {
+    const overlap = Math.min(Math.max(a.x, b.x), r.x + r.width) - Math.max(Math.min(a.x, b.x), r.x);
+    const gap = Math.min(Math.abs(a.y - r.y), Math.abs(a.y - r.y - r.height));
+    return overlap > MAX_SHARED_SEGMENT && gap < NODE_CLEARANCE && (a.y <= r.y + 0.5 || a.y >= r.y + r.height - 0.5);
+  }
+  if (vertical) {
+    const overlap = Math.min(Math.max(a.y, b.y), r.y + r.height) - Math.max(Math.min(a.y, b.y), r.y);
+    const gap = Math.min(Math.abs(a.x - r.x), Math.abs(a.x - r.x - r.width));
+    return overlap > MAX_SHARED_SEGMENT && gap < NODE_CLEARANCE && (a.x <= r.x + 0.5 || a.x >= r.x + r.width - 0.5);
+  }
+  return false;
 }
 
 export function runGates(scene: Scene, expectedTexts: readonly string[] = []): QaReport {
@@ -163,7 +194,19 @@ export function runGates(scene: Scene, expectedTexts: readonly string[] = []): Q
       if (near > 48) fail(`end label ${snippet(label.content)} is ${near.toFixed(1)}px from its ${label.end} end`);
       if (!scene.edges.some(e => e.id === label.owner)) { fail(`end label ${snippet(label.content)} has no edge ${label.owner}`); continue; }
       const rival = ends.find(o => !(o.edge === label.owner && o.end === label.end) && distanceToRect(o.p, label.bounds) < near - 2);
-      if (rival) fail(`end label ${snippet(label.content)} of ${label.owner} is closer to an end of ${rival.edge} than to its own`);
+      if (rival) { fail(`end label ${snippet(label.content)} of ${label.owner} is closer to an end of ${rival.edge} than to its own`); continue; }
+      // Beside its own line: no other line (other than one ending at the same point) as near as twice that distance.
+      const own = edgeById.get(label.owner!)!;
+      const ownSegments = own.points.slice(1).map((q, k) => [own.points[k]!, q] as const);
+      const line = Math.min(...ownSegments.map(([a, b]) => rectSegmentDistance(label.bounds, a, b)));
+      for (const other of scene.edges) {
+        if (other.id === own.id || other.source === own.id || other.target === own.id) continue;
+        const shared = [other.points[0]!, other.points.at(-1)!].some(p => distance(p, label.anchor!) < 0.5);
+        if (shared) continue;
+        const d = Math.min(Infinity, ...other.points.slice(1).map((q, k) => [other.points[k]!, q] as const)
+          .filter(([a, b]) => !ownSegments.some(([c, e]) => collinearOverlap(a, b, c, e))).map(([a, b]) => rectSegmentDistance(label.bounds, a, b)));
+        if (d < Math.max(line + 3, LABEL_RIVAL_FACTOR * line)) { fail(`end label ${snippet(label.content)} of ${own.id} is ${d.toFixed(1)}px from ${other.id} but ${line.toFixed(1)}px from its own line (another line must be at least ${LABEL_RIVAL_FACTOR}x as far)`); break; }
+      }
     }
     // A center label (name, keyword) must sit next to its own line, clearly nearer
     // to it than to any other line, or a reader cannot tell which line it names.
@@ -182,7 +225,7 @@ export function runGates(scene: Scene, expectedTexts: readonly string[] = []): Q
         if (other.id === own.id || other.source === own.id || other.target === own.id) continue;
         // Segments shared with the own line (a generalization trunk) do not compete.
         const d = Math.min(Infinity, ...segmentsOf(other).filter(([a, b]) => !ownSegments.some(([c, e]) => collinearOverlap(a, b, c, e))).map(([a, b]) => rectSegmentDistance(box, a, b)));
-        if (d < near + 3) { fail(`label ${snippet(label.content)} of ${own.id} is ${d.toFixed(1)}px from ${other.id} but ${near.toFixed(1)}px from its own line`); break; }
+        if (d < Math.max(near + 3, LABEL_RIVAL_FACTOR * near)) { fail(`label ${snippet(label.content)} of ${own.id} is ${d.toFixed(1)}px from ${other.id} but ${near.toFixed(1)}px from its own line (another line must be at least ${LABEL_RIVAL_FACTOR}x as far)`); break; }
       }
     }
   }, !exactEdges);
@@ -196,6 +239,19 @@ export function runGates(scene: Scene, expectedTexts: readonly string[] = []): Q
     for (const n of scene.nodes) if (n.parent !== undefined && n.type !== 'port' && n.borderOf === undefined) containers.add(n.parent);
     for (const n of scene.nodes) if (n.type === 'composite-state' || n.type === 'subject' || n.tab) containers.add(n.id);
     const nodeTexts = scene.texts.filter(t => t.role === 'text' && t.node && containers.has(t.node));
+    // A container's header band: from its top to below its own texts (name, keywords), across its width.
+    // Packages carry their name in the tab, which is a text of its own.
+    const bands = new Map<string, Rect>();
+    for (const id of containers) {
+      const n = nodeById.get(id);
+      if (!n || n.tab) continue;
+      // The container's own texts (not labels of lines inside it), from the top down while they follow each other.
+      const own = nodeTexts.filter(t => t.node === id && (t.owner === undefined || t.owner === id)).sort((p, q) => p.bounds.y - q.bounds.y);
+      if (!own.length || own[0]!.bounds.y > n.bounds.y + 40) continue;
+      let bottom = own[0]!.bounds.y;
+      for (const t of own) { if (t.bounds.y > bottom + 8) break; bottom = Math.max(bottom, t.bounds.y + t.bounds.height); }
+      bands.set(id, { x: n.bounds.x, y: n.bounds.y, width: n.bounds.width, height: bottom - n.bounds.y + 2 });
+    }
     for (const e of scene.edges) {
       if (e.points.length < 2) { fail(`edge ${e.id} has fewer than two points`); continue; }
       for (const [end, id, p] of [['source', e.source, e.points[0]!], ['target', e.target, e.points.at(-1)!]] as const) {
@@ -223,7 +279,20 @@ export function runGates(scene: Scene, expectedTexts: readonly string[] = []): Q
           if (n.id === e.source || n.id === e.target || encloses(n, e.source) || encloses(n, e.target)) continue;
           // A node on the border of an end node (entry/exit point) may be touched by that end's lines.
           if (n.borderOf !== undefined && (n.borderOf === e.source || n.borderOf === e.target)) continue;
+          // The owner of an end port, or a port on an end node, is part of that end.
+          const endNodes = [nodeById.get(e.source), nodeById.get(e.target)];
+          if (endNodes.some(end => end && (end.parent === n.id && end.type === 'port' || n.parent === end.id && n.type === 'port'))) continue;
           if (segmentIntersectsRect(a, b, inflate(n.bounds, -1))) fail(`edge ${e.id} passes through node ${n.id}`);
+          // Running along a border (or just outside it) reads as part of the outline.
+          else if (n.borderOf === undefined && n.type !== 'port' && runsAlong(a, b, n.bounds)) fail(`edge ${e.id} runs along the border of node ${n.id} (closer than ${NODE_CLEARANCE}px)`);
+        }
+        // Lines into a container stay out of its header band and off the separator below it.
+        for (const [id, band] of bands) {
+          if (segmentIntersectsRect(a, b, inflate(band, -1))) { fail(`edge ${e.id} runs through the header of ${id}`); continue; }
+          const sep = band.y + band.height;
+          const horizontal = Math.abs(a.y - b.y) < 0.5 && Math.abs(a.y - sep) < 3;
+          const overlap = Math.min(Math.max(a.x, b.x), band.x + band.width) - Math.max(Math.min(a.x, b.x), band.x);
+          if (horizontal && overlap > MAX_SHARED_SEGMENT) fail(`edge ${e.id} runs along the header separator of ${id}`);
         }
         // Lines crossing into a container must not run over its texts (a composite state's name).
         for (const t of nodeTexts) {
@@ -233,32 +302,32 @@ export function runGates(scene: Scene, expectedTexts: readonly string[] = []): Q
     }
   }, !exactEdges);
 
-  gate('use-case-lines', fail => {
-    // Use case diagrams: two lines running on top of each other read as one (several
-    // actors' lines sharing one trunk), so no stretch longer than OVERLAP_LENGTH
-    // where one line lies within OVERLAP_DISTANCE of another, at any angle. Lines
-    // leaving one point (an actor's fan) are not judged within OVERLAP_FAN of it;
-    // lines sharing an arrowhead tip (a generalization tree) share their trunk by
-    // design; a note's line to another line ends on it.
-    if (scene.kind !== 'use-case') return;
-    const lines = scene.edges.filter(e => e.points.length >= 2);
-    const tip = (e: Scene['edges'][number]): Point[] => [
-      ...(e.sourceMarker !== 'none' ? [e.points[0]!] : []), ...(e.targetMarker !== 'none' ? [e.points.at(-1)!] : []),
-    ];
-    lines.forEach((a, i) => {
-      for (const b of lines.slice(i + 1)) {
-        if (a.source === b.id || a.target === b.id || b.source === a.id || b.target === a.id) continue;
-        if (tip(a).some(p => tip(b).some(q => distance(p, q) < 0.5))) continue;
-        // Lines fanning out from one shared point are close near it by design.
-        const shared = [a.points[0]!, a.points.at(-1)!].find(p => [b.points[0]!, b.points.at(-1)!].some(q => distance(p, q) < 0.5));
-        let worst = 0;
-        for (let k = 1; k < a.points.length; k++) for (let m = 1; m < b.points.length; m++) {
-          worst = Math.max(worst, nearRun(a.points[k - 1]!, a.points[k]!, b.points[m - 1]!, b.points[m]!, OVERLAP_DISTANCE, shared));
+  gate('shared-segments', fail => {
+    // Two different lines must not run on top of each other (within SHARED_TOLERANCE,
+    // at any angle, for more than MAX_SHARED_SEGMENT): the reader cannot tell where
+    // either goes. Lines of one generalization tree (same type, one shared hollow
+    // triangle) merge on purpose; slanted lines leaving one shared point are not
+    // judged within SHARED_FAN of it.
+    const tree = (a: Scene['edges'][number], b: Scene['edges'][number]): boolean =>
+      a.type === b.type && a.target === b.target && a.targetMarker === 'hollow-triangle' && b.targetMarker === 'hollow-triangle' && distance(a.points.at(-1)!, b.points.at(-1)!) < 0.5;
+    scene.edges.forEach((e, i) => {
+      for (const o of scene.edges.slice(i + 1)) {
+        if (tree(e, o) || e.source === o.id || e.target === o.id || o.source === e.id || o.target === e.id) continue;
+        // Lines fanning out from one shared end point (an actor's lines) are close near it by design.
+        const fan = [e.points[0]!, e.points.at(-1)!].find(p => [o.points[0]!, o.points.at(-1)!].some(q => distance(p, q) < 0.5));
+        let shared = 0, at: Point | undefined;
+        for (let k = 1; k < e.points.length; k++) for (let m = 1; m < o.points.length; m++) {
+          const l = nearRun(e.points[k - 1]!, e.points[k]!, o.points[m - 1]!, o.points[m]!, SHARED_TOLERANCE, fan);
+          if (l > shared) { shared = l; at = e.points[k - 1]; }
         }
-        if (worst > OVERLAP_LENGTH) fail(`edges ${a.id} and ${b.id} run within ${OVERLAP_DISTANCE}px of each other for ${worst.toFixed(0)}px`);
+        if (shared > MAX_SHARED_SEGMENT) { fail(`edges ${e.id} and ${o.id} share ${shared.toFixed(0)}px of line near (${at!.x.toFixed(0)}, ${at!.y.toFixed(0)})`); continue; }
+        // A bend of one line on the other line reads as a junction: the lines look connected.
+        const onLine = (p: Point, line: readonly Point[]): boolean => line.slice(1).some((q, k) => distanceToSegment(p, line[k]!, q) < 1);
+        const junction = [...e.points.slice(1, -1).filter(p => onLine(p, o.points)), ...o.points.slice(1, -1).filter(p => onLine(p, e.points))][0];
+        if (junction) fail(`edges ${e.id} and ${o.id} meet at (${junction.x.toFixed(0)}, ${junction.y.toFixed(0)}), where a bend of one lies on the other`);
       }
     });
-  }, !engine);
+  }, !exactEdges);
 
   gate('end-spacing', fail => {
     // Different lines ending on one node keep apart (two arrowheads side by side plus
@@ -296,7 +365,12 @@ export function runGates(scene: Scene, expectedTexts: readonly string[] = []): Q
       const gap = Math.max(0, b.x - a.x - a.width, a.x - b.x - b.width) + Math.max(0, b.y - a.y - a.height, a.y - b.y - b.height);
       const length = e.points.slice(1).reduce((sum, q, k) => sum + distance(e.points[k]!, q), 0);
       const limit = ROUTE_FACTOR * gap + ROUTE_SLACK;
-      if (length > limit) fail(`edge ${e.id} is ${length.toFixed(0)}px long for a ${gap.toFixed(0)}px gap (limit ${limit.toFixed(0)})`);
+      if (length > limit) { fail(`edge ${e.id} is ${length.toFixed(0)}px long for a ${gap.toFixed(0)}px gap (limit ${limit.toFixed(0)})`); continue; }
+      // Measured between the route's own ends: a line that leaves on the far side and runs around the drawing.
+      const start = e.points[0]!, end = e.points.at(-1)!;
+      const direct = Math.abs(start.x - end.x) + Math.abs(start.y - end.y), endLimit = routeLimit(start, end);
+      if (length > endLimit + 0.5) fail(`edge ${e.id} is ${length.toFixed(0)}px long between ends ${direct.toFixed(0)}px apart (limit ${endLimit.toFixed(0)}): it detours`);
+      else if (wrapsAround(e.points)) fail(`edge ${e.id} wraps around: it turns the same way three times (${length.toFixed(0)}px between ends ${direct.toFixed(0)}px apart)`);
     }
   }, !engine);
 
@@ -491,16 +565,12 @@ export function formatReport(report: QaReport): string {
   return report.gates.filter(g => !g.ok).map(g => `${g.gate}:\n  ${g.failures.slice(0, 20).join('\n  ')}`).join('\n');
 }
 
-/** See the use-case-lines gate. */
-export const OVERLAP_DISTANCE = 2;
-export const OVERLAP_LENGTH = 40;
-/** Length near a point shared by two lines (an actor's fan point) that the use-case-lines gate does not judge. */
-export const OVERLAP_FAN = 60;
-
 /**
  * Length of the longest stretch of segment c-d that lies within `tol` of segment
  * a-b (sampled every 2 px; the distance to a segment is convex along a line, so
- * the stretch is one interval), leaving out OVERLAP_FAN px around `fan`.
+ * the stretch is one interval). With `fan` (a point both lines start or end at),
+ * SHARED_FAN px around it are left out when the segments are not parallel: lines
+ * fanning out at a small angle lie close together near their common point.
  */
 export function nearRun(a: Point, b: Point, c: Point, d: Point, tol: number, fan?: Point): number {
   if (Math.min(a.x, b.x) - tol > Math.max(c.x, d.x) || Math.min(c.x, d.x) - tol > Math.max(a.x, b.x)) return 0;
@@ -508,10 +578,12 @@ export function nearRun(a: Point, b: Point, c: Point, d: Point, tol: number, fan
   const length = distance(c, d);
   if (length < 1) return 0;
   const steps = Math.ceil(length / 2);
+  const ab = distance(a, b);
+  const fanning = !!fan && ab > 0 && Math.abs(((b.x - a.x) * (d.y - c.y) - (b.y - a.y) * (d.x - c.x)) / (ab * length)) > 0.005;
   let first = -1, last = -1;
   for (let s = 0; s <= steps; s++) {
     const t = s / steps, p = { x: c.x + (d.x - c.x) * t, y: c.y + (d.y - c.y) * t };
-    if (fan && distance(p, fan) < OVERLAP_FAN) continue;
+    if (fanning && distance(p, fan!) < SHARED_FAN) continue;
     if (distanceToSegment(p, a, b) <= tol) { if (first < 0) first = s; last = s; }
   }
   return first < 0 ? 0 : (last - first) / steps * length;

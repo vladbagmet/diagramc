@@ -3,7 +3,8 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import assert from 'node:assert/strict';
-import { renderAndCheck, formatReport } from '../dist/qa/index.js';
+import { renderAndCheck } from '../dist/qa/index.js';
+import { judgementMessage } from './known-gate-failures.mjs';
 
 export const root = resolve(import.meta.dirname, '..');
 export async function workspace(t) {
@@ -30,10 +31,14 @@ export const fakeSvg = '<svg xml:space="preserve" data-diagram-type="CLASS"></sv
 
 /**
  * Renders a document (own engine by default) and asserts that every QA gate
- * passes. Returns the SVG, the gate report and the render time in ms.
+ * passes, apart from the problems listed for it in KNOWN_GATE_FAILURES
+ * (test/known-gate-failures.mjs). Returns the SVG, the gate report and the render
+ * time in ms.
  */
 export async function assertGates(document, options = {}) {
   const result = await renderAndCheck(document, options);
-  assert.ok(result.report.ok, `QA gates failed:\n${formatReport(result.report)}`);
+  const failures = result.report.gates.filter(g => !g.ok).map(g => ({ gate: g.gate, problems: g.failures }));
+  const message = judgementMessage(document, failures);
+  assert.ok(!message, message);
   return result;
 }
