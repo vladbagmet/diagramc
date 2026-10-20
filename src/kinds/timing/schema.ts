@@ -1,3 +1,4 @@
+import { TEXT_KEYWORD, TEXT_PATTERN } from '../../core/text.js';
 import { kindSchema } from '../../model/schema.js';
 
 export const MAX_TIME = 1_000_000;
@@ -44,12 +45,19 @@ export const timingSchema = kindSchema({
         name: ref('text'), arguments: { type: 'array', maxItems: 12, items: ref('text'), description: 'Drawn `name(a, b)`.' },
       },
     },
+    bound: {
+      anyOf: [
+        { type: 'number', description: 'a number such as 10 or 2.5' },
+        { type: 'string', minLength: 1, maxLength: 40, pattern: TEXT_PATTERN, [TEXT_KEYWORD]: true, description: 'an expression such as "d" or "3*d", 1 to 40 code points' },
+      ],
+      description: 'Bound of a duration constraint: a number such as 10 or 2.5, or an expression such as "d" or "3*d" (drawn literally).',
+    },
     durationConstraint: {
       type: 'object', additionalProperties: false, required: ['lifeline', 'from', 'to', 'min', 'max'],
       description: 'Duration constraint: a double-headed arrow on `lifeline` from `from` to `to` labelled {min..max}.',
       properties: {
         id: ref('id'), lifeline: ref('id'), from: time('Start of the constrained duration.'), to: time('End of the constrained duration.'),
-        min: ref('keyword', 'Lower bound, e.g. "10" or "d".'), max: ref('keyword', 'Upper bound, e.g. "30" or "3*d".'),
+        min: ref('bound', 'Lower bound: a number such as 10, or an expression such as "d".'), max: ref('bound', 'Upper bound: a number such as 30, or an expression such as "3*d".'),
       },
     },
     timeConstraint: {

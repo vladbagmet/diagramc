@@ -106,6 +106,24 @@ const typeName = (v: unknown): string => v === null ? 'null' : Array.isArray(v) 
 const where = (path: string): string => path || '(document root)';
 const sentence = (s: unknown): string => typeof s === 'string' && s ? ` ${s.endsWith('.') ? s : `${s}.`}` : '';
 
+/**
+ * The description the schema gives the property at `path` itself (the one next
+ * to its `$ref`), so a type error explains that property rather than the shared
+ * definition it refers to. Undefined when the walk cannot follow the path.
+ */
+function ownDescription(root: Schema, document: unknown, path: string): string | undefined {
+  let schema: Schema | undefined = root, raw: Schema | undefined = root, node: unknown = document;
+  for (const part of path.split('/').slice(1)) {
+    const key = part.replaceAll('~1', '/').replaceAll('~0', '~');
+    if (!schema) return undefined;
+    const object = schemaOf(root, schema, node);
+    raw = (object.properties as Record<string, Schema> | undefined)?.[key] ?? (Array.isArray(node) ? object.items as Schema | undefined : undefined);
+    schema = resolve(root, raw);
+    node = node && typeof node === 'object' ? (node as Record<string, unknown>)[key] : undefined;
+  }
+  return typeof raw?.description === 'string' ? raw.description : undefined;
+}
+
 /** The object at `path` for messages: `/elements/0 (type "class")` when `type` is one of its properties. */
 function describeObject(document: unknown, path: string, allowed: readonly string[] = ['type']): string {
   const node = at(document, path);
@@ -273,7 +291,7 @@ function describeErrors(errors: ErrorObject[], root: Schema, document: unknown):
           if (attribute) { issues.push({ path, keyword: 'type', message: `${where(path)} must be an object, but it is ${typeName(value)}${hint}.`, details: { expected, suggestion: attribute } }); break; }
         } else if (expected === 'integer' && typeof value === 'number') hint = '; use whole numbers';
         const quote = expected.includes('string') && (typeof value === 'number' || typeof value === 'boolean');
-        issues.push({ path, keyword: 'type', message: `${where(path)} must be ${article(expected)}, but it is ${typeName(value)}${hint}.${sentence(schema.description)}`, details: { expected, ...(quote ? { suggestion: String(value) } : {}) } });
+        issues.push({ path, keyword: 'type', message: `${where(path)} must be ${article(expected)}, but it is ${typeName(value)}${hint}.${sentence(ownDescription(root, document, path) ?? schema.description)}`, details: { expected, ...(quote ? { suggestion: String(value) } : {}) } });
         break;
       }
       case 'pattern': {

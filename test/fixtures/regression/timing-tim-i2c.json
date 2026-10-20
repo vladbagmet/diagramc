@@ -1,0 +1,239 @@
+{
+ "kind": "timing",
+ "title": "I2C read transaction between a microcontroller and a temperature sensor with clock stretching",
+ "timeUnit": "us",
+ "lifelines": [
+  {
+   "id": "mcu",
+   "name": "mcu",
+   "classifier": "STM32MicrocontrollerI2CMasterPeripheral",
+   "notation": "concise",
+   "states": [
+    "IDLE",
+    "START",
+    "ADDRESS + R",
+    "WAIT ACK",
+    "READ MSB",
+    "READ LSB",
+    "NACK + STOP"
+   ],
+   "changes": [
+    {
+     "at": 0,
+     "state": "IDLE"
+    },
+    {
+     "at": 10,
+     "state": "START"
+    },
+    {
+     "at": 20,
+     "state": "ADDRESS + R"
+    },
+    {
+     "at": 110,
+     "state": "WAIT ACK"
+    },
+    {
+     "at": 125,
+     "state": "READ MSB"
+    },
+    {
+     "at": 215,
+     "state": "READ LSB"
+    },
+    {
+     "at": 305,
+     "state": "NACK + STOP"
+    },
+    {
+     "at": 330,
+     "state": "IDLE"
+    }
+   ]
+  },
+  {
+   "id": "scl",
+   "name": "SCL",
+   "notation": "robust",
+   "states": [
+    "High",
+    "Low (stretched by slave)",
+    "Low"
+   ],
+   "changes": [
+    {
+     "at": 0,
+     "state": "High"
+    },
+    {
+     "at": 15,
+     "state": "Low"
+    },
+    {
+     "at": 110,
+     "state": "Low (stretched by slave)"
+    },
+    {
+     "at": 140,
+     "state": "Low"
+    },
+    {
+     "at": 320,
+     "state": "High"
+    }
+   ]
+  },
+  {
+   "id": "sda",
+   "name": "SDA",
+   "notation": "robust",
+   "states": [
+    "High",
+    "Low"
+   ],
+   "changes": [
+    {
+     "at": 0,
+     "state": "High"
+    },
+    {
+     "at": 10,
+     "state": "Low"
+    },
+    {
+     "at": 40,
+     "state": "High"
+    },
+    {
+     "at": 60,
+     "state": "Low"
+    },
+    {
+     "at": 180,
+     "state": "High"
+    },
+    {
+     "at": 250,
+     "state": "Low"
+    },
+    {
+     "at": 325,
+     "state": "High"
+    }
+   ]
+  },
+  {
+   "id": "sensor",
+   "name": "tmp",
+   "classifier": "TMP117",
+   "notation": "concise",
+   "states": [
+    "SLEEP",
+    "ADDR",
+    "STRETCH",
+    "TX"
+   ],
+   "changes": [
+    {
+     "at": 0,
+     "state": "SLEEP"
+    },
+    {
+     "at": 100,
+     "state": "ADDR"
+    },
+    {
+     "at": 110,
+     "state": "STRETCH"
+    },
+    {
+     "at": 140,
+     "state": "TX"
+    },
+    {
+     "at": 310,
+     "state": "SLEEP"
+    }
+   ]
+  }
+ ],
+ "messages": [
+  {
+   "from": "mcu",
+   "fromTime": 20,
+   "to": "sensor",
+   "toTime": 100,
+   "name": "address",
+   "arguments": [
+    "0x48",
+    "R"
+   ]
+  },
+  {
+   "from": "sensor",
+   "fromTime": 110,
+   "to": "scl",
+   "toTime": 110,
+   "name": "holdClockLow"
+  },
+  {
+   "from": "sensor",
+   "fromTime": 140,
+   "to": "mcu",
+   "toTime": 140,
+   "name": "ack"
+  },
+  {
+   "from": "mcu",
+   "fromTime": 305,
+   "to": "sensor",
+   "toTime": 310,
+   "name": "stop"
+  }
+ ],
+ "durationConstraints": [
+  {
+   "lifeline": "scl",
+   "from": 110,
+   "to": 140,
+   "min": "0",
+   "max": "35"
+  },
+  {
+   "lifeline": "mcu",
+   "from": 125,
+   "to": 305,
+   "min": "170",
+   "max": "200"
+  }
+ ],
+ "timeConstraints": [
+  {
+   "lifeline": "sda",
+   "at": 10,
+   "from": 5,
+   "to": 12
+  }
+ ],
+ "highlights": [
+  {
+   "from": 110,
+   "to": 140,
+   "label": "clock stretching"
+  }
+ ],
+ "notes": [
+  {
+   "lifeline": "mcu",
+   "at": 10,
+   "text": "SDA falls while SCL is high: start condition."
+  },
+  {
+   "lifeline": "sensor",
+   "at": 140,
+   "position": "bottom",
+   "text": "Sensor drives SDA with the 16-bit temperature, MSB first."
+  }
+ ]
+}

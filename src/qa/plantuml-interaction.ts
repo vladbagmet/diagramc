@@ -1,5 +1,5 @@
 import { theme } from '../core/theme.js';
-import { boundsOfPoints, contains, distance, union, type Point, type Rect } from '../engine/geometry.js';
+import { boundsOfPoints, contains, distance, segmentIntersectsRect, union, type Point, type Rect } from '../engine/geometry.js';
 import type { GateResult } from './gates.js';
 import { pathPoints, pointList, type InspectedNode, type InspectedText, type Scene } from './inspect.js';
 import { walk, type XmlElement } from './xml.js';
@@ -48,6 +48,10 @@ export interface Interaction {
    * reads as interrupted.
    */
   occluders: (Rect & { order?: number; text?: boolean })[];
+  /** Timing: dashed highlight and time-window borders and dotted duration-constraint extension lines. */
+  guides?: { a: Point; b: Point }[];
+  /** Timing: the band of each lifeline, top to bottom. */
+  rows?: { top: number; bottom: number }[];
 }
 
 const num = (s: string | undefined): number => Number(s ?? 0);
@@ -381,7 +385,61 @@ export function interactionGates(scene: Scene): GateResult[] {
   }
   const results: GateResult[] = [{ gate: 'message-endpoints', ok: !failures.length, failures }];
   if (interaction.diagram === 'sequence') results.push(lifelineCrossing(scene, interaction));
+  else results.push(timingLines(scene, interaction));
   return results;
+}
+
+/** Length over which two segments run on top of each other (0 unless collinear within 1.5 px). */
+function sharedLength(a: Point, b: Point, c: Point, d: Point): number {
+  const len = distance(a, b);
+  if (len < 0.01) return 0;
+  const u = { x: (b.x - a.x) / len, y: (b.y - a.y) / len };
+  // Parallel (within 2 degrees), with both ends of c-d within 1.5 px of the line through a and b.
+  const other = distance(c, d);
+  if (other < 0.01 || Math.abs(u.x * (d.y - c.y) - u.y * (d.x - c.x)) / other > 0.035) return 0;
+  const off = (p: Point): number => Math.abs((p.x - a.x) * u.y - (p.y - a.y) * u.x);
+  if (off(c) > 1.5 || off(d) > 1.5) return 0;
+  const t = (p: Point): number => (p.x - a.x) * u.x + (p.y - a.y) * u.y;
+  return Math.max(0, Math.min(len, Math.max(t(c), t(d))) - Math.max(0, Math.min(t(c), t(d))));
+}
+
+/**
+ * `timing-lines` (timing): a message never runs along another line (a state
+ * step, a value band edge, a highlight or time-window border, a constraint's
+ * extension line, another message), its label sits in the band of its sender or
+ * its receiver, and no dashed highlight or extension line runs through text.
+ */
+export function timingLines(scene: Scene, interaction: Interaction): GateResult {
+  const failures: string[] = [];
+  const guides = interaction.guides ?? [];
+  const lines = [
+    ...interaction.waveforms.map(w => ({ ...w, what: 'a state line' })),
+    ...guides.map(g => ({ ...g, what: 'a highlight or constraint line' })),
+    ...interaction.messages.flatMap(m => m.points.slice(1).map((q, k) => ({ a: m.points[k]!, b: q, what: `message ${m.id}`, owner: m.id }))),
+  ];
+  const rows = interaction.rows ?? [];
+  const rowOf = (p: Point): number => rows.findIndex(r => p.y >= r.top - 0.5 && p.y <= r.bottom + 0.5);
+  for (const m of interaction.messages) {
+    for (let k = 1; k < m.points.length; k++) {
+      const a = m.points[k - 1]!, b = m.points[k]!;
+      const hit = lines.find(l => (l as { owner?: string }).owner !== m.id && sharedLength(a, b, l.a, l.b) > 2);
+      if (hit) { failures.push(`${m.id} runs along ${hit.what} at x=${a.x.toFixed(1)}`); break; }
+    }
+    if (m.points.length < 2 || !rows.length) continue;
+    const ends = new Set([rowOf(m.points[0]!), rowOf(m.head?.tip ?? m.points.at(-1)!)]);
+    for (const t of scene.texts.filter(t => t.owner === m.id)) {
+      const c = { x: t.bounds.x + t.bounds.width / 2, y: t.bounds.y + t.bounds.height / 2 };
+      if (!ends.has(rowOf(c))) failures.push(`label ${JSON.stringify(t.content)} of ${m.id} is in the band of neither its sender nor its receiver`);
+    }
+  }
+  for (const t of scene.texts) {
+    if (t.role === 'frame-label') continue;
+    for (const box of t.lines) {
+      const inner = { x: box.x + 0.5, y: box.y + 1, width: box.width - 1, height: box.height - 2 };
+      if (guides.some(g => segmentIntersectsRect(g.a, g.b, inner))) { failures.push(`text ${JSON.stringify(t.content)} is crossed by a highlight or constraint line`); break; }
+    }
+  }
+  return { gate: 'timing-lines', ok: !failures.length, failures };
 }
 
 /**
@@ -453,6 +511,7 @@ export function readTiming(root: XmlElement, scene: Scene): void {
   const items = elements(main);
   const robustWidth = theme.stroke.node + 0.25;
   const owned = new Map<XmlElement, { role: string; owner: string }>();
+  const separators: number[] = [];
   const containers: { id: string; bounds: Rect }[] = [];
   let count = 0;
 
@@ -487,9 +546,16 @@ export function readTiming(root: XmlElement, scene: Scene): void {
       if (items[i + 1]?.tag === 'path' && items[i + 1]!.attrs.fill === color.noteFill) i++;
       continue;
     }
+    if (e.tag === 'line' && style.dashed && style.stroke === color.edge && !/dasharray:3,5/u.test(e.attrs.style ?? '')) {
+      // Highlight and time-window borders (4,4) and duration-constraint extension lines (2,2); not the time grid (3,5).
+      const [a, b] = lineEnds(e);
+      (interaction.guides ??= []).push({ a, b });
+      continue;
+    }
     if (e.tag === 'line' && !style.dashed && style.stroke === color.edge) {
       const [a, b] = lineEnds(e);
       if (a.y === b.y && Math.abs(b.x - a.x) > scene.viewBox.width / 2) {
+        separators.push(a.y);
         // Band separator between lifelines (or the time axis): labels must not sit on it.
         scene.edges.push({ id: `separator${count++}`, type: 'separator', source: '', target: '', points: [a, b], sourceMarker: 'none', targetMarker: 'none' });
         continue;
@@ -526,5 +592,8 @@ export function readTiming(root: XmlElement, scene: Scene): void {
   }
   for (const p of pending) out.push(merge(p.parts, { role: 'text', node: p.container }));
   scene.texts = out;
+  // Lifeline bands: between consecutive separators (the last one is the time axis).
+  const ys = [...new Set(separators)].sort((a, b) => a - b);
+  interaction.rows = ys.slice(1).map((y, k) => ({ top: ys[k]!, bottom: y }));
   addExtents(root, scene);
 }
