@@ -1,0 +1,29 @@
+{
+  "kind":"deployment",
+  "title":"Awkward deployment",
+  "elements":[
+    {"id":"dc","type":"node","name":"Frankfurt Data Centre","elements":[
+      {"id":"rack","type":"node","name":"Rack 12","elements":[
+        {"id":"srv","type":"device","name":"Dell PowerEdge R760 with an unusually long hardware inventory name","elements":[
+          {"id":"hv","type":"executionEnvironment","name":"ESXi 8","elements":[
+            {"id":"vm","type":"executionEnvironment","name":"vm-app-01","elements":[
+              {"id":"jvm","type":"executionEnvironment","name":"JVM 21","elements":[
+                {"id":"war","type":"artifact","name":"billing.war"}]}]}]}]}]}]},
+    {"id":"db1","type":"device","name":"db-primary"},
+    {"id":"db2","type":"device","name":"db-replica"},
+    {"id":"lb","type":"device","name":"F5 BIG-IP"},
+    {"id":"spec","type":"deploymentSpecification","name":"billing-deployment-descriptor-production-eu-central.xml","properties":[{"name":"contextRoot","value":"/billing"},{"name":"maxThreads","value":"400"}]},
+    {"id":"lib","type":"artifact","name":"shared-lib.jar"},
+    {"id":"n1","type":"note","text":"Two paths between the VM and the primary database: one for writes, one for replication monitoring.","attachedTo":["vm","db1"]}
+  ],
+  "relationships":[
+    {"type":"communicationPath","from":"vm","to":"db1","protocol":"TCP","name":"writes"},
+    {"type":"communicationPath","from":"vm","to":"db1","protocol":"TCP","name":"monitoring"},
+    {"type":"communicationPath","from":"db1","to":"db2","protocol":"TCP","name":"streaming replication"},
+    {"type":"communicationPath","from":"lb","to":"vm","protocol":"HTTPS","fromEnd":{"multiplicity":"1"},"toEnd":{"multiplicity":"1..*"}},
+    {"type":"communicationPath","from":"lb","to":"jvm","protocol":"AJP"},
+    {"type":"deploy","from":"spec","to":"jvm"},
+    {"type":"deploy","from":"lib","to":"jvm"},
+    {"type":"dependency","from":"spec","to":"war","keyword":"configures"}
+  ]
+}

@@ -1,0 +1,40 @@
+{
+  "kind":"component",
+  "title":"Food delivery platform",
+  "elements":[
+    {"id":"iOrder","type":"interface","name":"IOrder"},
+    {"id":"iMenu","type":"interface","name":"IMenu"},
+    {"id":"iDispatch","type":"interface","name":"IDispatch"},
+    {"id":"iPay","type":"interface","name":"IPayment"},
+    {"id":"iNotify","type":"interface","name":"INotify"},
+    {"id":"iGeo","type":"interface","name":"IGeocode"},
+    {"id":"app","type":"component","name":"Customer App","stereotypes":["mobile"],"requires":["iOrder","iMenu"]},
+    {"id":"courier","type":"component","name":"Courier App","stereotypes":["mobile"],"requires":["iDispatch"]},
+    {"id":"orders","type":"component","name":"Order Service","provides":["iOrder"],"requires":["iPay","iDispatch","iNotify"],
+      "elements":[
+        {"id":"api","type":"component","name":"OrderApi"},
+        {"id":"saga","type":"component","name":"CheckoutSaga"}
+      ],
+      "ports":[{"id":"pOrd","name":"rest","provides":["iOrder"]}]},
+    {"id":"menu","type":"component","name":"Menu Service","provides":["iMenu"]},
+    {"id":"dispatch","type":"component","name":"Dispatch Service","provides":["iDispatch"],"requires":["iGeo","iNotify"]},
+    {"id":"pay","type":"component","name":"Payment Adapter","provides":["iPay"]},
+    {"id":"notify","type":"component","name":"Notification Service","provides":["iNotify"]},
+    {"id":"maps","type":"component","name":"Maps API","stereotypes":["external"],"provides":["iGeo"]},
+    {"id":"jar","type":"artifact","name":"order-service.jar"},
+    {"id":"n","type":"note","text":"Payment Adapter wraps Stripe and Adyen.","attachedTo":["pay"]}
+  ],
+  "relationships":[
+    {"type":"assembly","from":"app","to":"pOrd","interface":"iOrder"},
+    {"type":"assembly","from":"app","to":"menu","interface":"iMenu"},
+    {"type":"assembly","from":"courier","to":"dispatch","interface":"iDispatch"},
+    {"type":"assembly","from":"orders","to":"dispatch","interface":"iDispatch"},
+    {"type":"assembly","from":"orders","to":"pay","interface":"iPay"},
+    {"type":"assembly","from":"orders","to":"notify","interface":"iNotify"},
+    {"type":"assembly","from":"dispatch","to":"notify","interface":"iNotify"},
+    {"type":"assembly","from":"dispatch","to":"maps","interface":"iGeo"},
+    {"type":"delegation","from":"pOrd","to":"api"},
+    {"type":"dependency","from":"api","to":"saga","keyword":"use"},
+    {"type":"manifest","from":"jar","to":"orders"}
+  ]
+}

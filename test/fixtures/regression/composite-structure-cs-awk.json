@@ -1,0 +1,39 @@
+{
+  "kind":"composite-structure",
+  "title":"Awkward structure",
+  "elements":[
+    {"id":"sys","type":"class","name":"RailwayInterlockingSignallingControlSystemForMainlineJunctions","stereotypes":["safetyCritical"],
+     "ports":[{"id":"p1","name":"trackCircuitInputFromLineside","type":"TrackCircuitFeed"},{"id":"p2","name":"operator","type":"HmiProtocol","conjugated":true},{"id":"p3","name":"radio","type":"Gsmr"}],
+     "parts":[
+       {"id":"logic","name":"vitalLogic","type":"TwoOutOfThreeVotingProcessor","parts":[
+          {"id":"c1","name":"channelA","type":"Cpu"},{"id":"c2","name":"channelB","type":"Cpu"},{"id":"c3","name":"channelC","type":"Cpu"},
+          {"id":"voter","name":"voter","type":"Voter","ports":[{"id":"vo","name":"out","type":"Command"}]}]},
+       {"id":"io","name":"objectControllers","type":"ObjectController","multiplicity":"1..64"},
+       {"id":"log","name":"juridicalRecorder","type":"EventRecorder","aggregation":"shared"},
+       {"id":"diag","name":"diag","type":"Diagnostics"}
+     ],
+     "collaborationUses":[
+       {"id":"cu1","name":"redundancy","collaboration":"tmr","bindings":[{"role":"r1","part":"c1"},{"role":"r2","part":"c2"},{"role":"r3","part":"c3"},{"role":"rv","part":"voter"}]},
+       {"id":"cu2","name":"monitoring","collaboration":"obs","bindings":[{"role":"subj","part":"logic"},{"role":"ob","part":"diag"}]}
+     ]},
+    {"id":"tmr","type":"collaboration","name":"Triple modular redundancy","roles":[{"id":"r1","name":"a"},{"id":"r2","name":"b"},{"id":"r3","name":"c"},{"id":"rv","name":"voter"}]},
+    {"id":"obs","type":"collaboration","name":"Observer","roles":[{"id":"subj","name":"subject"},{"id":"ob","name":"observer","multiplicity":"*"}]},
+    {"id":"n1","type":"note","text":"Three parallel connectors between voter and the object controllers model the redundant fieldbus.","attachedTo":["io"]}
+  ],
+  "relationships":[
+    {"type":"connector","from":"p1","to":"logic"},
+    {"type":"connector","from":"c1","to":"voter","name":"vote"},
+    {"type":"connector","from":"c2","to":"voter","name":"vote"},
+    {"type":"connector","from":"c3","to":"voter","name":"vote"},
+    {"type":"connector","from":"vo","to":"io","name":"busA","toEnd":{"multiplicity":"1..64","role":"targets"}},
+    {"type":"connector","from":"vo","to":"io","name":"busB"},
+    {"type":"connector","from":"vo","to":"io","name":"busC"},
+    {"type":"connector","from":"logic","to":"log","name":"events"},
+    {"type":"connector","from":"p2","to":"logic"},
+    {"type":"connector","from":"p3","to":"logic","name":"movementAuthorities : RbcLink"},
+    {"type":"connector","from":"diag","to":"log"},
+    {"type":"connector","from":"r1","to":"rv"},{"type":"connector","from":"r2","to":"rv"},{"type":"connector","from":"r3","to":"rv"},
+    {"type":"connector","from":"subj","to":"ob","name":"notify"},
+    {"type":"dependency","from":"sys","to":"tmr","keyword":"use"}
+  ]
+}

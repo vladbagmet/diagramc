@@ -1,0 +1,43 @@
+{
+  "kind":"component",
+  "title":"Awkward components",
+  "elements":[
+    {"id":"iA","type":"interface","name":"IHighFrequencyTradingOrderRoutingAndRiskLimitEnforcementGateway"},
+    {"id":"iB","type":"interface","name":"IMarketData"},
+    {"id":"iC","type":"interface","name":"IClock"},
+    {"id":"iD","type":"interface","name":"IAuditTrail","operations":[{"name":"append","parameters":[{"name":"e","type":"Event"}]}]},
+    {"id":"engine","type":"component","name":"Matching Engine","stereotypes":["subsystem"],
+      "ports":[
+        {"id":"pIn","name":"orders","provides":["iA"]},
+        {"id":"pMd","name":"md","requires":["iB"]},
+        {"id":"pClk","name":"clock","requires":["iC"]},
+        {"id":"pAud","name":"audit","requires":["iD"]},
+        {"id":"pAdm","name":"admin"}
+      ],
+      "elements":[
+        {"id":"book","type":"component","name":"Order Book","ports":[{"id":"bIn","name":"in","provides":["iA"]}],
+          "elements":[{"id":"bids","type":"component","name":"Bid Side With A Rather Long Name"},{"id":"asks","type":"component","name":"Ask Side"}]},
+        {"id":"risk","type":"component","name":"Pre-trade Risk","ports":[{"id":"rMd","name":"md","requires":["iB"]}]}
+      ]},
+    {"id":"feed","type":"component","name":"Exchange Feed Handler","provides":["iB"]},
+    {"id":"feed2","type":"component","name":"Backup Feed Handler","provides":["iB"]},
+    {"id":"ptp","type":"component","name":"PTP Clock","provides":["iC"]},
+    {"id":"gw","type":"component","name":"FIX Gateway","requires":["iA"]},
+    {"id":"gw2","type":"component","name":"OUCH Gateway","requires":["iA"]},
+    {"id":"auditc","type":"component","name":"Audit Store"},
+    {"id":"n1","type":"note","text":"Two feed handlers provide the same interface; only one is active at a time.","attachedTo":["feed","feed2"]}
+  ],
+  "relationships":[
+    {"type":"assembly","from":"gw","to":"pIn","interface":"iA"},
+    {"type":"assembly","from":"gw2","to":"pIn","interface":"iA"},
+    {"type":"assembly","from":"pMd","to":"feed","interface":"iB"},
+    {"type":"assembly","from":"pMd","to":"feed2","interface":"iB"},
+    {"type":"assembly","from":"pClk","to":"ptp","interface":"iC"},
+    {"type":"delegation","from":"pIn","to":"bIn"},
+    {"type":"delegation","from":"rMd","to":"pMd"},
+    {"type":"realization","from":"auditc","to":"iD"},
+    {"type":"usage","from":"engine","to":"iD"},
+    {"type":"dependency","from":"bids","to":"asks","keyword":"call"},
+    {"type":"dependency","from":"asks","to":"bids","keyword":"call"}
+  ]
+}
