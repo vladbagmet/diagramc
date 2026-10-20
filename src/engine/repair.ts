@@ -111,6 +111,11 @@ export interface RepairOptions {
    * either line's end: there the crossing reads as a junction at the node.
    */
   junctions?: boolean;
+  /**
+   * Further lines to keep clear of and to cross rather than follow, like container
+   * borders (a composite state's dashed region separators).
+   */
+  lines?: readonly (readonly Point[])[];
 }
 
 /** Room beyond an end label's width that its end keeps from other ends (gaps on both sides of the label). */
@@ -149,7 +154,10 @@ export function repairRoutes(nodes: readonly RepairNode[], edges: readonly Repai
   const baseSpacing = options.spacing ?? theme.spacing.endEnd;
   const all = union(nodes.map(n => n.rect));
   // Container borders count as lines: routes keep a line spacing away from them instead of hugging them.
-  const borders = nodes.filter(n => n.container).map(({ rect: r }) => [{ x: r.x, y: r.y }, { x: r.x + r.width, y: r.y }, { x: r.x + r.width, y: r.y + r.height }, { x: r.x, y: r.y + r.height }, { x: r.x, y: r.y }]);
+  const borders = [
+    ...nodes.filter(n => n.container).map(({ rect: r }) => [{ x: r.x, y: r.y }, { x: r.x + r.width, y: r.y }, { x: r.x + r.width, y: r.y + r.height }, { x: r.x, y: r.y + r.height }, { x: r.x, y: r.y }]),
+    ...(options.lines ?? []).map(l => [...l]),
+  ];
 
   /** Hard obstacles for an edge: other leaves, unrelated containers, every container text. */
   const obstaclesFor = (e: RepairEdge): Rect[] => {

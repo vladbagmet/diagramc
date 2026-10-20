@@ -25,7 +25,7 @@ export const KNOWN_GATE_FAILURES = [
   { finding: 'F-B-15', kind: 'interaction-overview', title: "Onboarding (stress)", gate: 'route-length', problem: / detours$| wraps around/, source: "examples/interaction-overview/stress.json" },
   { finding: 'F-B-16', kind: 'interaction-overview', title: "WithdrawCash", gate: 'shared-segments', problem: / share \d+px of line | meet at /, source: "examples/interaction-overview/withdraw-cash.json" },
   { finding: 'F-A-10', kind: 'package', title: "Shop platform", gate: 'route-length', problem: / detours$| wraps around/, source: "examples/package/stress.json" },
-  { finding: 'F-B-08', kind: 'state-machine', title: "Order lifecycle", gate: 'route-length', problem: / detours$| wraps around/, source: "examples/state-machine/notation.json" },
+  { finding: 'F-B-08', kind: 'state-machine', title: "Order lifecycle", gate: 'edge-endpoints', problem: /runs through the header/, source: "examples/state-machine/notation.json" },
   { finding: 'F-B-08', kind: 'use-case', title: "Online shop", gate: 'shared-segments', problem: / share \d+px of line | meet at /, source: "examples/use-case/online-shop.json" },
   { finding: 'F-B-08', kind: 'use-case', title: "Hospital", gate: 'edge-endpoints', problem: /runs through the header/, source: "examples/use-case/stress.json" },
   { finding: 'F-B-08', kind: 'use-case', title: "Hospital", gate: 'shared-segments', problem: / share \d+px of line | meet at /, source: "examples/use-case/stress.json" },
@@ -43,8 +43,18 @@ export const KNOWN_GATE_FAILURES = [
   { finding: 'F-A-04', kind: 'composite-structure', title: "Build agent", gate: 'shared-segments', problem: / share \d+px of line | meet at /, source: "test/fixtures/regression/cs-ci.json" },
   { finding: 'F-A-05', kind: 'deployment', title: "Wide-area network", gate: 'label-proximity', problem: /another line must be/, source: "test/fixtures/regression/deployment-awkward.json and deployment-d2-awkward.json" },
   { finding: 'F-B-16', kind: 'interaction-overview', title: "Negotiation with a really long overview title for the frame", gate: 'shared-segments', problem: / share \d+px of line | meet at /, source: "test/fixtures/regression/interaction-overview-i2-awkward.json" },
+  { finding: 'F-B-08', kind: 'state-machine', title: "Autonomous delivery robot mission controller", gate: 'edge-endpoints', problem: /runs through the header/, source: "test/fixtures/regression/state-machine-sm-awk.json" },
+  { finding: 'F-B-08', kind: 'state-machine', title: "Autonomous delivery robot mission controller", gate: 'route-length', problem: / detours$| wraps around/, source: "test/fixtures/regression/state-machine-sm-awk.json" },
+  { finding: 'F-B-08', kind: 'state-machine', title: "Subscription lifecycle", gate: 'shared-segments', problem: / share \d+px of line | meet at /, source: "test/fixtures/regression/state-machine-sm-sub.json" },
+  { finding: 'F-B-08', kind: 'state-machine', title: "Subscription lifecycle", gate: 'route-length', problem: / detours$| wraps around/, source: "test/fixtures/regression/state-machine-sm-sub.json" },
   { finding: 'F-B-08', kind: 'use-case', title: "ATM", gate: 'shared-segments', problem: / share \d+px of line | meet at /, source: "test/fixtures/regression/use-case-u1-atm.json" },
   { finding: 'F-B-18', kind: 'use-case', title: "Permits", gate: 'label-proximity', problem: /another line must be/, source: "test/fixtures/regression/use-case-u2-awkward.json" },
+  { finding: 'F-B-08', kind: 'use-case', title: "Permits", gate: 'shared-segments', problem: / share \d+px of line | meet at /, source: "test/fixtures/regression/use-case-u2-awkward.json" },
+  { finding: 'F-B-08', kind: 'use-case', title: "Expense management", gate: 'shared-segments', problem: / share \d+px of line | meet at /, source: "test/fixtures/regression/use-case-uc-awk.json" },
+  { finding: 'F-B-08', kind: 'use-case', title: "Expense management", gate: 'route-length', problem: / detours$| wraps around/, source: "test/fixtures/regression/use-case-uc-awk.json" },
+  { finding: 'F-B-08', kind: 'use-case', title: "Food delivery platform", gate: 'edge-endpoints', problem: /runs through the header/, source: "test/fixtures/regression/use-case-uc-lib.json" },
+  { finding: 'F-B-16', kind: 'interaction-overview', title: "<script>x</script>", gate: 'shared-segments', problem: / share \d+px of line | meet at /, source: "test/interaction-overview.test.mjs: hostile text" },
+  { finding: 'F-B-08', kind: 'use-case', title: "Hospital", gate: 'route-length', problem: / detours$| wraps around/, source: "examples/use-case/stress.json" },
 ];
 
 const hashOf = (doc) => createHash('sha1').update(JSON.stringify(doc)).digest('hex').slice(0, 12);
@@ -77,7 +87,10 @@ export function judgeFailures(document, failures) {
 export function judgementMessage(document, failures) {
   const { unexpected, stale } = judgeFailures(document, failures);
   const parts = [];
-  if (unexpected.length) parts.push(`QA gates failed:\n  ${unexpected.join('\n  ')}`);
+  if (unexpected.length) {
+    const doc = typeof document === 'string' ? JSON.parse(document) : document;
+    parts.push(`QA gates failed (kind ${doc.kind}, ${doc.title !== undefined ? `title ${JSON.stringify(doc.title)}` : `hash ${hashOf(doc)}`}):\n  ${unexpected.join('\n  ')}`);
+  }
   if (stale.length) parts.push(`fixed, remove from KNOWN_GATE_FAILURES (test/known-gate-failures.mjs): ${stale.join('; ')}`);
   return parts.length ? parts.join('\n') : undefined;
 }

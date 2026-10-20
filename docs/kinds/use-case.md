@@ -25,12 +25,16 @@ example passes every QA gate.
 | Diagram frame | `title` | Pentagon heading **uc** name (Annex A) | uc: frame label |
 
 ELK places the elements (layered, left to right); primary actors stand in the
-first column, secondary actors (only ever the `to` end of associations) in the
-last, and a specialised actor in the column of its general actor. Lines are
+first column, secondary actors (only ever the `to` end of associations) and
+external systems (keyword «system») in the last, as long as some actor stays left,
+and a specialised actor in the column of its general actor. Within a column, two
+elements trade places, and actors and use cases no actor uses move into free space,
+whenever that removes a crossing of the straight lines between them. Lines are
 drawn by `src/kinds/use-case/route.ts`: straight, as use case diagrams are usually
 drawn, and bent around any element, note, actor name or subject name in the way
 (shortest path over the corners of the obstacles, with costs for bends, crossings
-and running along another line). An actor's lines fan out from one point per side
+and running along another line, at any angle, so lines toward nearly the same
+point do not share a trunk; each corner offers several lanes). An actor's lines fan out from one point per side
 of the figure (never its bottom, where the name is); lines meet a use case aiming
 at its center, and ends with a multiplicity near the ellipse's left or right
 vertex so the label sits next to them. Ends on one ellipse keep apart
@@ -39,7 +43,11 @@ Note anchors are routed the same way; a condition note is anchored to the neares
 clear point of its «extend» line. Lines between use cases of two subjects are left
 out of the layering when both subjects are used by actors, so the subjects can
 stand above each other; both layouts are made and `layoutScore` picks the more
-readable one. Actor names are captions under the figure (QA role `label`, owned
+readable one, counting every 40 px of association line that runs past a subject
+holding neither of its ends (within 24 px of it) as a crossing, so actors stand
+beside the subject they use. Two or more generalizations to one element share one
+hollow triangle and a short trunk (a generalization tree); a repeated association
+between the same two elements bends beside the first. Actor names are captions under the figure (QA role `label`, owned
 by the actor) for which ELK keeps room (`labelBelow`).
 
 ## Semantic rules
@@ -75,7 +83,8 @@ by the actor) for which ELK keeps room (`labelBelow`).
 - The layout reads left to right: an association's `from` end is placed left of its
   `to` end. Actors that are only `to` ends become secondary actors on the right.
 - Many associations of one actor fan out from one point on the figure's side; at
-  small angles the first few pixels of those lines lie close together.
+  small angles the first few pixels of those lines lie close together (the
+  `shared-segments` gate allows 60 px around the shared point).
 - Use cases keep the input order within the group of each actor, not globally:
   ELK's crossing minimisation reorders them where that saves crossings.
 - Notes are laid out after the element they annotate, which can put them a layer

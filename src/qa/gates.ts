@@ -34,7 +34,9 @@ export const LABEL_RIVAL_FACTOR = 2;
 /** Different edges may share a collinear piece of line at most this long. */
 export const MAX_SHARED_SEGMENT = 10;
 /** Lines closer than this (px) count as running on top of each other. */
-export const SHARED_TOLERANCE = 1.5;
+export const SHARED_TOLERANCE = 2;
+/** Length near a point shared by two slanted lines (an actor's fan) that the shared-segments gate does not judge. */
+export const SHARED_FAN = 60;
 /** Lines keep at least this far from the border of a node they do not end on. */
 export const NODE_CLEARANCE = 4;
 /** Routes may be at most this factor longer than the Manhattan gap between their ends' nodes, plus ROUTE_SLACK px. */
@@ -301,32 +303,21 @@ export function runGates(scene: Scene, expectedTexts: readonly string[] = []): Q
   }, !exactEdges);
 
   gate('shared-segments', fail => {
-    // Two different lines must not run on top of each other: the reader cannot tell
-    // where either goes. Lines of one generalization tree (same type, one shared
-    // hollow triangle) merge on purpose.
+    // Two different lines must not run on top of each other (within SHARED_TOLERANCE,
+    // at any angle, for more than MAX_SHARED_SEGMENT): the reader cannot tell where
+    // either goes. Lines of one generalization tree (same type, one shared hollow
+    // triangle) merge on purpose; slanted lines leaving one shared point are not
+    // judged within SHARED_FAN of it.
     const tree = (a: Scene['edges'][number], b: Scene['edges'][number]): boolean =>
       a.type === b.type && a.target === b.target && a.targetMarker === 'hollow-triangle' && b.targetMarker === 'hollow-triangle' && distance(a.points.at(-1)!, b.points.at(-1)!) < 0.5;
-    /**
-     * Length of segment c-d that runs within SHARED_TOLERANCE of segment a-b (any
-     * slope): two lines that close read as one.
-     */
-    const overlapLength = (a: Point, b: Point, c: Point, d: Point): number => {
-      const t = SHARED_TOLERANCE;
-      if (Math.min(c.x, d.x) > Math.max(a.x, b.x) + t || Math.max(c.x, d.x) < Math.min(a.x, b.x) - t || Math.min(c.y, d.y) > Math.max(a.y, b.y) + t || Math.max(c.y, d.y) < Math.min(a.y, b.y) - t) return 0;
-      const length = distance(c, d), steps = Math.max(1, Math.ceil(length / 2));
-      let inside = 0;
-      for (let k = 0; k < steps; k++) {
-        const f = (k + 0.5) / steps;
-        if (distanceToSegment({ x: c.x + (d.x - c.x) * f, y: c.y + (d.y - c.y) * f }, a, b) <= t) inside++;
-      }
-      return inside * length / steps;
-    };
     scene.edges.forEach((e, i) => {
       for (const o of scene.edges.slice(i + 1)) {
         if (tree(e, o) || e.source === o.id || e.target === o.id || o.source === e.id || o.target === e.id) continue;
+        // Lines fanning out from one shared end point (an actor's lines) are close near it by design.
+        const fan = [e.points[0]!, e.points.at(-1)!].find(p => [o.points[0]!, o.points.at(-1)!].some(q => distance(p, q) < 0.5));
         let shared = 0, at: Point | undefined;
         for (let k = 1; k < e.points.length; k++) for (let m = 1; m < o.points.length; m++) {
-          const l = overlapLength(e.points[k - 1]!, e.points[k]!, o.points[m - 1]!, o.points[m]!);
+          const l = nearRun(e.points[k - 1]!, e.points[k]!, o.points[m - 1]!, o.points[m]!, SHARED_TOLERANCE, fan);
           if (l > shared) { shared = l; at = e.points[k - 1]; }
         }
         if (shared > MAX_SHARED_SEGMENT) { fail(`edges ${e.id} and ${o.id} share ${shared.toFixed(0)}px of line near (${at!.x.toFixed(0)}, ${at!.y.toFixed(0)})`); continue; }
@@ -572,4 +563,28 @@ export async function checkSvg(svg: string, expectedTexts: readonly string[] = [
 
 export function formatReport(report: QaReport): string {
   return report.gates.filter(g => !g.ok).map(g => `${g.gate}:\n  ${g.failures.slice(0, 20).join('\n  ')}`).join('\n');
+}
+
+/**
+ * Length of the longest stretch of segment c-d that lies within `tol` of segment
+ * a-b (sampled every 2 px; the distance to a segment is convex along a line, so
+ * the stretch is one interval). With `fan` (a point both lines start or end at),
+ * SHARED_FAN px around it are left out when the segments are not parallel: lines
+ * fanning out at a small angle lie close together near their common point.
+ */
+export function nearRun(a: Point, b: Point, c: Point, d: Point, tol: number, fan?: Point): number {
+  if (Math.min(a.x, b.x) - tol > Math.max(c.x, d.x) || Math.min(c.x, d.x) - tol > Math.max(a.x, b.x)) return 0;
+  if (Math.min(a.y, b.y) - tol > Math.max(c.y, d.y) || Math.min(c.y, d.y) - tol > Math.max(a.y, b.y)) return 0;
+  const length = distance(c, d);
+  if (length < 1) return 0;
+  const steps = Math.ceil(length / 2);
+  const ab = distance(a, b);
+  const fanning = !!fan && ab > 0 && Math.abs(((b.x - a.x) * (d.y - c.y) - (b.y - a.y) * (d.x - c.x)) / (ab * length)) > 0.005;
+  let first = -1, last = -1;
+  for (let s = 0; s <= steps; s++) {
+    const t = s / steps, p = { x: c.x + (d.x - c.x) * t, y: c.y + (d.y - c.y) * t };
+    if (fanning && distance(p, fan!) < SHARED_FAN) continue;
+    if (distanceToSegment(p, a, b) <= tol) { if (first < 0) first = s; last = s; }
+  }
+  return first < 0 ? 0 : (last - first) / steps * length;
 }
