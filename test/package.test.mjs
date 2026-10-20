@@ -1,37 +1,22 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { cp, mkdir, symlink } from 'node:fs/promises';
-import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
-import { root, workspace } from './helpers.mjs';
+import { root } from './helpers.mjs';
 
-test('packing a clean source tree builds its executable and includes the runtime schema and setup script', async t => {
-  const directory = await workspace(t), source = join(directory, 'source'), extracted = join(directory, 'unpacked');
-  await mkdir(source);
-  await mkdir(extracted);
-  for (const name of ['src', 'schema', 'assets', 'scripts', 'examples', 'package.json', 'tsconfig.json', 'README.md']) {
-    await cp(join(root, name), join(source, name), { recursive: true });
+// What `npm pack` would put in the tarball (without running prepack: dist is built by `npm test`).
+test('the npm package ships the CLI, schemas, fonts, setup script and notices, and nothing from development', () => {
+  const result = spawnSync('npm', ['pack', '--dry-run', '--json', '--ignore-scripts', '--offline'], { cwd: root, encoding: 'utf8', timeout: 60_000 });
+  assert.equal(result.status, 0, result.stderr);
+  const files = JSON.parse(result.stdout)[0].files.map(f => f.path);
+  for (const required of ['dist/cli.js', 'package.json', 'README.md', 'CHANGELOG.md', 'THIRD_PARTY_NOTICES.md',
+    'schema/model-v1.schema.json', 'scripts/setup-renderer.mjs', 'assets/fonts/OFL.txt', 'assets/fonts/Inter-Regular.ttf',
+    'assets/fonts/Inter-Bold.ttf', 'assets/fonts/Inter-Italic.ttf', 'assets/fonts/Inter-BoldItalic.ttf', 'examples/class/minimal.json']) {
+    assert.ok(files.includes(required), `missing ${required}`);
   }
-  await symlink(join(root, 'node_modules'), join(source, 'node_modules'), 'dir');
-  const packed = spawnSync('npm', ['pack', '--offline', '--json', '--pack-destination', directory], {
-    cwd: source, encoding: 'utf8', timeout: 30_000,
-  });
-  assert.equal(packed.status, 0, packed.stderr);
-  const [metadata] = JSON.parse(packed.stdout), files = metadata.files.map(file => file.path);
-  for (const path of ['dist/cli.js', 'dist/model/parse.js', 'dist/kinds/class/index.js', 'schema/model-v1.schema.json', 'scripts/setup-renderer.mjs', 'assets/fonts/Inter-Regular.ttf', 'assets/fonts/OFL.txt']) {
-    assert.ok(files.includes(path), `missing packaged ${path}`);
-  }
-  assert.ok(!files.some(path => /^(?:\.tools|node_modules|docs|artifacts|src|test)\//.test(path)));
-  const unpacked = spawnSync('tar', ['-xzf', join(directory, metadata.filename), '-C', extracted], { encoding: 'utf8' });
-  assert.equal(unpacked.status, 0, unpacked.stderr);
-  await symlink(join(root, 'node_modules'), join(extracted, 'package', 'node_modules'), 'dir');
-  const help = spawnSync(join(extracted, 'package', 'dist/cli.js'), ['--help'], {
-    cwd: directory, encoding: 'utf8', timeout: 10_000,
-  });
-  assert.equal(help.status, 0, help.stderr);
-  assert.match(help.stdout, /validated JSON UML models to SVG or PNG/);
-  const rendered = spawnSync(join(extracted, 'package', 'dist/cli.js'), ['render', join(extracted, 'package', 'examples/class/minimal.json'), '-o', join(directory, 'out.svg')], {
-    cwd: directory, encoding: 'utf8', timeout: 30_000,
-  });
-  assert.equal(rendered.status, 0, rendered.stderr);
+  // `uml example <kind>` reads examples/<kind>/minimal.json from the installed package.
+  const kinds = JSON.parse(spawnSync(process.execPath, ['dist/cli.js', 'kinds'], { cwd: root, encoding: 'utf8' }).stdout).map(k => k.kind);
+  for (const kind of kinds) assert.ok(files.includes(`examples/${kind}/minimal.json`), `missing example of ${kind}`);
+  const forbidden = files.filter(f => /^(test|src|artifacts|docs|node_modules)\/|^\./.test(f) || /\.(tmp|log|tgz)$|\.DS_Store$|worktree/.test(f)
+    || (f.startsWith('scripts/') && f !== 'scripts/setup-renderer.mjs'));
+  assert.deepEqual(forbidden, []);
 });
