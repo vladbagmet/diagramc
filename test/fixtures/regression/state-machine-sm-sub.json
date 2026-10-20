@@ -1,0 +1,35 @@
+{
+  "kind": "state-machine",
+  "title": "Subscription lifecycle",
+  "elements": [
+    {"id": "init", "type": "initial"},
+    {"id": "trial", "type": "state", "name": "Trial", "entry": "send welcome email", "internal": [{"trigger": "day", "guard": "3 days left", "effect": "send reminder"}]},
+    {"id": "active", "type": "state", "name": "Active", "regions": [
+      {"elements": [
+        {"id": "ai", "type": "initial"},
+        {"id": "paid", "type": "state", "name": "Paid"},
+        {"id": "pastdue", "type": "state", "name": "Past due", "entry": "notify customer"},
+        {"id": "retry", "type": "choice"}
+      ]}
+    ]},
+    {"id": "suspended", "type": "state", "name": "Suspended", "entry": "revoke access", "exit": "restore access"},
+    {"id": "cancelled", "type": "state", "name": "Cancelled"},
+    {"id": "fin", "type": "final"},
+    {"id": "n1", "type": "note", "text": "Dunning runs three retries over ten days.", "attachedTo": ["retry"]}
+  ],
+  "transitions": [
+    {"from": "init", "to": "trial"},
+    {"from": "trial", "to": "active", "trigger": "trialEnded", "guard": "card on file"},
+    {"from": "trial", "to": "cancelled", "trigger": "trialEnded", "guard": "no card"},
+    {"from": "ai", "to": "paid"},
+    {"from": "paid", "to": "pastdue", "trigger": "invoiceFailed"},
+    {"from": "pastdue", "to": "retry", "trigger": "retryTimer"},
+    {"from": "retry", "to": "paid", "guard": "charge succeeded"},
+    {"from": "retry", "to": "pastdue", "guard": "attempts < 3"},
+    {"from": "retry", "to": "suspended", "guard": "else"},
+    {"from": "active", "to": "cancelled", "trigger": "cancel", "effect": "prorate refund"},
+    {"from": "suspended", "to": "active", "trigger": "paymentReceived"},
+    {"from": "suspended", "to": "cancelled", "trigger": "after(30 days)"},
+    {"from": "cancelled", "to": "fin", "trigger": "purge"}
+  ]
+}
