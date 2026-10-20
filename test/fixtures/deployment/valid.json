@@ -1,4 +1,8 @@
 [
+  { "name": "virtual machine node inside a hypervisor execution environment (F-A-20)", "doc": { "kind": "deployment", "elements": [
+      { "id": "host", "type": "device", "name": "Host", "elements": [
+        { "id": "hv", "type": "executionEnvironment", "name": "Hypervisor", "elements": [
+          { "id": "vm", "type": "node", "name": "VM 1", "elements": [{ "id": "war", "type": "artifact", "name": "app.war" }] }] }] }] } },
   { "name": "single note", "doc": { "kind": "deployment", "elements": [{ "id": "n", "type": "note", "text": "Only a note." }] } },
   { "name": "every node type and artifact kind, nested", "doc": { "kind": "deployment", "elements": [
       { "id": "rack", "type": "node", "name": "Rack 7", "elements": [

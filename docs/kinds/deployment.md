@@ -44,7 +44,7 @@ node, below its name.
 | INVALID_DEPLOYMENT | only artifacts and deployment specifications are deployed, onto nodes, devices or execution environments, and not onto the node they are already drawn in | `/relationships/0/from`, `/relationships/0/to` |
 | INVALID_MANIFEST | an artifact manifests a component | `/relationships/0/from`, `/relationships/0/to` |
 | INVALID_DEPENDENCY | a dependency does not connect an element to something nested in it | `/relationships/0/to` |
-| INVALID_NESTING | an execution environment contains no nodes or devices | `/elements/0/elements/0/type` |
+| INVALID_NESTING | an execution environment contains no devices (nodes, such as virtual machines in a hypervisor, are allowed) | `/elements/0/elements/0/type` |
 | NOTE_IN_RELATIONSHIP | relationships do not connect notes | `/relationships/0/to` |
 | INVALID_ATTACHMENT | a note is not attached to a note | `/elements/1/attachedTo/0` |
 | NESTING_TOO_DEEP | at most six levels of nesting | `/elements/0/elements/0/elements/0/elements/0/elements/0/elements/0/elements/0/elements/0` |

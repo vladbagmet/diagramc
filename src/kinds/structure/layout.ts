@@ -106,6 +106,8 @@ const SMALL_LAYOUT = { width: 1000, height: 1000 };
 const MAX_ASPECT = 2.5;
 /** Node count above which role bindings are routed only in the chosen layout (render time). */
 const DEFER_BINDINGS = 24;
+/** Jogs shorter than this are removed from lines between plain nodes (an end slides along its side). */
+const JOG = 16;
 /** Inner padding of containers; sides with ports get more for delegation stubs. */
 const PAD = { side: 20, portSide: 34, bottom: 18, belowHeader: 14 };
 
@@ -1034,8 +1036,56 @@ async function layoutIn(graph: StructGraph, metrics: FontMetrics, dir: 'RIGHT' |
     },
   });
   for (const id of repaired.changed) { routes.set(id, repaired.routes.get(id)!); for (const key of [...suggestions.keys()]) if (key.startsWith(`${id}::`)) suggestions.delete(key); }
+  swapCrossedNeighbours();
   if (final) routeEllipseLines();
   straightenZigZags();
+
+  /**
+   * Two plain nodes one above the other (no ports, interface symbols or nested
+   * nodes) whose lines cross each other trade places when that, with their lines
+   * routed afresh, leaves fewer crossings (ELK's crossing reduction does not see
+   * lines that leave containers).
+   */
+  function swapCrossedNeighbours(): void {
+    const plain = (id: string): boolean => {
+      const n = info.get(id)!.node;
+      return !n.children?.length && !n.ports?.length && !n.stubs?.length && n.shape !== 'ellipse'
+        && !graph.assemblies.some(a => a.requirer === id || a.provider === id) && !symbols.some(s => s.parent === id);
+    };
+    const linesOf = (id: string): EdgePlan[] => plans.filter(p => p.symbol === undefined && routes.has(p.id) && (ownerNode(p.source) === id || ownerNode(p.target) === id));
+    const ids = [...rects.keys()].filter(plain);
+    let trials = 0;
+    for (const a of ids) {
+      for (const b of ids) {
+        if (a === b || trials >= 3 || info.get(a)!.parent !== info.get(b)!.parent) continue;
+        const ra = rects.get(a)!, rb = rects.get(b)!;
+        if (ra.y + ra.height > rb.y) continue;
+        if (Math.min(ra.x + ra.width, rb.x + rb.width) - Math.max(ra.x, rb.x) < 0.5 * Math.min(ra.width, rb.width)) continue;
+        const la = linesOf(a).filter(p => ownerNode(p.source) !== b && ownerNode(p.target) !== b), lb = linesOf(b).filter(p => ownerNode(p.source) !== a && ownerNode(p.target) !== a);
+        if (!la.some(p => lb.some(q => p.id !== q.id && countCrossings([routes.get(p.id)!, routes.get(q.id)!]) > 0))) continue;
+        const gap = rb.y - ra.y - ra.height;
+        const nb = { ...rb, y: ra.y }, na = { ...ra, y: ra.y + rb.height + gap };
+        const others = [...rects].filter(([id]) => id !== a && id !== b && !ancestors(a).includes(id));
+        if (others.some(([, r]) => overlaps(inflate(na, 4), r) || overlaps(inflate(nb, 4), r))) continue;
+        trials++;
+        const moved = new Map([[a, na], [b, nb]]);
+        const nodes = repairNodes.map(n => moved.has(n.id) ? { ...n, rect: moved.get(n.id)! } : n);
+        const forced = new Set([...linesOf(a), ...linesOf(b)].map(p => p.id));
+        const all = plans.filter(p => routes.has(p.id));
+        const trial = repairRoutes(nodes, all.map(p => ({
+          id: p.id, source: p.source, target: p.target, route: routes.get(p.id)!, sourceMarker: p.sourceMarker, targetMarker: p.targetMarker,
+          fixedSource: pinned(p.source), fixedTarget: pinned(p.target),
+        })), { keep: new Set(all.filter(p => !forced.has(p.id)).map(p => p.id)), force: forced, junctions: true });
+        if ([...forced].some(id => !trial.changed.has(id))) continue;
+        const before = countCrossings(all.map(p => routes.get(p.id)!)), after = countCrossings(all.map(p => trial.routes.get(p.id)!));
+        if (after >= before) continue;
+        rects.set(a, na); rects.set(b, nb);
+        for (const n of repairNodes) if (moved.has(n.id)) n.rect = moved.get(n.id)!;
+        for (const id of forced) { routes.set(id, trial.routes.get(id)!); for (const key of [...suggestions.keys()]) if (key.startsWith(`${id}::`)) suggestions.delete(key); }
+        return;
+      }
+    }
+  }
 
   /**
    * Lines at an ellipse (role bindings of a collaboration use, dependencies to a
@@ -1241,7 +1291,7 @@ async function layoutIn(graph: StructGraph, metrics: FontMetrics, dir: 'RIGHT' |
     for (const p of plans) {
       const r = routes.get(p.id), s = nodeRect(p.source), t = nodeRect(p.target);
       if (!r || r.length < 4 || !s || !t || p.symbol !== undefined) continue;
-      const next = straightenJogs(r, { source: s, target: t });
+      const next = straightenJogs(r, { source: s, target: t }, JOG);
       if (next.length === r.length) continue;
       const related = new Set([...ancestors(ownerNode(p.source)), ...ancestors(ownerNode(p.target)), p.source, p.target]);
       const ends: [string, Point][] = [[p.source, next[0]!], [p.target, next.at(-1)!]];
