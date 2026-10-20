@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile, writeFile, access, mkdir, readdir, watch } from 'node:fs/promises';
+import { readFileSync } from 'node:fs';
 import { spawn } from 'node:child_process';
 import { join } from 'node:path';
 import { parseDocument } from '../dist/model/parse.js';
@@ -146,9 +147,21 @@ test('renderer expands the viewport for clipped self-association paths and label
 });
 test('CLI help, version, usage and machine-readable read/parse/encoding failures', () => {
   assert.equal(cli(['--help']).status, 0);
-  for (const command of ['render', 'validate', 'schema', 'kinds']) assert.match(cli([command, '--help']).stdout, /uml render <model\.json\|->/);
+  for (const command of ['render', 'validate', 'example', 'schema', 'kinds']) {
+    for (const args of [[command, '--help'], ['help', command], ['--help', command]]) {
+      const result = cli(args);
+      assert.equal(result.status, 0, args.join(' '));
+      assert.match(result.stdout, new RegExp(`^Usage: uml ${command}\\b`), args.join(' '));
+    }
+  }
+  assert.match(cli(['help']).stdout, /uml render <model\.json\|->/);
   assert.match(cli(['--help']).stdout, /specific to the general/);
-  assert.equal(cli(['--version']).stdout, '0.2.0\n');
+  assert.match(cli(['--help']).stdout, /setup-renderer\.mjs/);
+  for (const flag of ['--format', '--backend', '--scale', '--strict', '-o, --output']) assert.ok(cli(['render', '--help']).stdout.includes(flag), flag);
+  assert.equal(cli(['help', 'draw']).status, 2);
+  const { version } = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
+  assert.equal(version, '1.0.0');
+  assert.equal(cli(['--version']).stdout, `${version}\n`);
   for (const [args, options, code, status] of [
     [[], {}, 'USAGE', 2],
     [['draw'], {}, 'USAGE', 2],

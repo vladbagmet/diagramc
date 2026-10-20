@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { readFileSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { UmlError } from './core/errors.js';
@@ -9,9 +10,43 @@ import { kinds, findKind } from './model/registry.js';
 import type { KindDefinition } from './model/kind.js';
 import { renderChecked, selectBackend, type OutputFormat } from './render.js';
 
-const VERSION = '0.2.0';
+/** The version and install location come from the package itself, so they never drift. */
+const packageRoot = new URL('../', import.meta.url);
+const VERSION = (JSON.parse(readFileSync(new URL('package.json', packageRoot), 'utf8')) as { version: string }).version;
+const SETUP_SCRIPT = fileURLToPath(new URL('scripts/setup-renderer.mjs', packageRoot));
 
-const help = `uml ${VERSION} - validated JSON UML models to SVG or PNG, offline
+/** The kind names, wrapped to the help text's 80 columns. */
+const kindList = (): string => {
+  const lines = [''];
+  for (const { kind } of kinds) {
+    const last = lines.length - 1;
+    if (lines[last] && lines[last]!.length + kind.length > 74) { lines[last] += ','; lines.push(kind); }
+    else lines[last] += `${lines[last] ? ', ' : ''}${kind}`;
+  }
+  return lines.join('\n  ');
+};
+const plantumlKinds = (): string => kinds.filter(k => k.backends[0]?.name === 'plantuml').map(k => k.kind).join(', ');
+
+const renderer = (): string => `PlantUML kinds (${plantumlKinds()}, and class with --backend
+plantuml) need a local Java renderer, set up once with
+  node ${SETUP_SCRIPT}
+(npm run setup:renderer in a source checkout), or set both UML_JAVA and
+PLANTUML_JAR to a trusted Java and PlantUML jar. The other kinds need nothing.`;
+
+const warningLine = '{"warnings":[{"code":"LAYOUT_QUALITY","gate","message","count","problems","advice"}]}';
+
+const errorsAndExits = `Errors: one JSON object on stderr, {"error":{"code","message","path"?,"details"?,
+"diagnostics"?}}, and no output is written. "diagnostics" lists every problem
+with its JSON Pointer path, "message" summarises them, and corrections are in
+each diagnostic's details (suggestion, swap).
+Exit codes: 0 success (warnings possible), 2 invalid input or usage, 3 renderer,
+4 file I/O, 5 layout check failed under --strict, 130/143 interrupted.`;
+
+const backendOption = `  --backend <engine|plantuml>
+                            Renderer, when a kind has several (only class has
+                            both); the default is the first one uml kinds lists.`;
+
+const help = (): string => `uml ${VERSION} - validated JSON UML models to SVG or PNG, offline
 
 Usage:
   uml render <model.json|-> -o <diagram.svg|diagram.png> [options]
@@ -19,6 +54,8 @@ Usage:
   uml example <kind>
   uml schema <kind>
   uml kinds
+  uml <command> --help      Details of one command
+  uml --version
 
 Commands:
   render     Validate, then draw the diagram and check its layout. Output format
@@ -27,15 +64,18 @@ Commands:
   example    Print a minimal valid model of a kind: a starting point to edit.
   schema     Print the JSON Schema of a kind (draft-07): every property, with
              descriptions and allowed values.
-  kinds      Print the 14 supported diagram kinds as JSON.
+  kinds      Print the ${kinds.length} supported diagram kinds and their backends as JSON.
 
 Render options:
   -o, --output <path>       Output file; its parent directory must exist.
   --format <svg|png>        Output format (default: from the -o extension).
-  --backend <name>          Renderer, when a kind has several (see uml kinds).
+${backendOption}
   --scale <1-4>             PNG pixel density (default 2).
   --strict                  Fail (exit 5, LAYOUT_QUALITY) instead of warning when
                             the drawing fails a layout check; nothing is written.
+
+Kinds:
+  ${kindList()}.
 
 Writing a model: start from \`uml example <kind>\` and look up properties with
 \`uml schema <kind>\`. Input is UTF-8 JSON, at most ${MAX_INPUT_BYTES / 1024} KiB:
@@ -46,17 +86,71 @@ literally; write keywords without guillemets and guards without brackets.
 Documents without "kind" in the v1 format (classes + relationships) are class diagrams.
 
 Output is replaced atomically only after a successful render (an existing device
-or pipe such as /dev/null is written directly). On success render
-prints nothing, or, when the drawing fails a layout check, one JSON object on
-stderr: {"warnings":[{"code":"LAYOUT_QUALITY","gate","message","count","problems",
-"advice"}]}.
-Errors: one JSON object on stderr, {"error":{"code","message","path"?,"details"?,
-"diagnostics"?}}; "diagnostics" lists every problem with its JSON Pointer path,
-the message summarises them, and suggestions are in each diagnostic's details.
-Exit codes: 0 success (warnings possible), 2 invalid input or usage, 3 renderer,
-4 file I/O, 5 layout check failed under --strict, 130/143 interrupted.
-PlantUML kinds need: npm run setup:renderer, or trusted UML_JAVA and PLANTUML_JAR.
+or pipe such as /dev/null is written directly). On success render prints
+nothing, or, when the drawing fails a layout check, one JSON object on stderr
+(the file is still written and the exit code is 0):
+${warningLine}
+${errorsAndExits}
+
+${renderer()}
 `;
+
+const commandHelp: Record<string, () => string> = {
+  render: () => `Usage: uml render <model.json|-> -o <diagram.svg|diagram.png> [options]
+
+Validates the model ("-" reads it from stdin), draws it with the kind's backend,
+runs the layout checks on the drawing and writes the output.
+
+Options:
+  -o, --output <path>       Output file (required); its parent directory must
+                            exist. It is replaced atomically, only after a
+                            successful render; an existing device or pipe
+                            (/dev/null, /dev/stdout) is written directly.
+  --format <svg|png>        Output format (default: from the -o extension, which
+                            must then be .svg or .png).
+${backendOption}
+  --scale <1-4>             PNG pixel density (default 2); PNG output only.
+  --strict                  Fail (exit 5, LAYOUT_QUALITY, the findings in
+                            details.warnings) instead of warning when the drawing
+                            fails a layout check; nothing is written.
+
+On success nothing is printed on stdout. When the drawing fails a layout check,
+the file is still written, the exit code is 0, and stderr carries one JSON object:
+${warningLine}
+${errorsAndExits}
+
+${renderer()}
+`,
+  validate: () => `Usage: uml validate <model.json|->
+
+Validates the model ("-" reads it from stdin) against its kind's schema and
+rules, without drawing it. On success prints one line on stdout, for example
+{"valid":true,"kind":"class","version":2} (version 1 for the v1 class format).
+${errorsAndExits}
+`,
+  example: () => `Usage: uml example <kind>
+
+Prints a minimal valid model of the kind on stdout, a starting point to edit.
+Kinds:
+  ${kindList()}.
+An unknown kind fails with UNKNOWN_KIND (exit 2) and the nearest kind.
+`,
+  schema: () => `Usage: uml schema <kind>
+
+Prints the JSON Schema (draft-07) of the kind on stdout: every property with its
+description and allowed values. Properties the schema does not list are errors.
+Kinds:
+  ${kindList()}.
+An unknown kind fails with UNKNOWN_KIND (exit 2) and the nearest kind.
+`,
+  kinds: () => `Usage: uml kinds
+
+Prints the ${kinds.length} supported diagram kinds as a JSON array on stdout, each
+{"kind","title","summary","frameKeyword","backends"}. The first backend is the
+default: "engine" is the built-in layout engine, "plantuml" the local PlantUML
+renderer (see uml --help).
+`,
+};
 
 const usage = (message: string): UmlError => new UmlError('USAGE', `${message}${message.endsWith('?') ? '' : '.'} See uml --help`);
 
@@ -125,9 +219,14 @@ async function main(): Promise<void> {
   const [command, ...rest] = args;
   if (command === undefined) throw usage('Missing command');
   const commands = ['render', 'validate', 'example', 'schema', 'kinds', 'help'];
-  if (command === '--help' || command === '-h' || command === 'help' || rest.includes('--help') || rest.includes('-h')) {
-    if (args.length > 1 && !commands.includes(command)) throw usage(`Unknown command ${JSON.stringify(command)}`);
-    process.stdout.write(help);
+  const asksHelp = command === '--help' || command === '-h' || command === 'help';
+  if (asksHelp || rest.includes('--help') || rest.includes('-h')) {
+    // `uml help render`, `uml --help render` and `uml render --help` show the render help.
+    const topic = asksHelp ? rest[0] : command;
+    if (asksHelp && rest.length > 1) throw usage('Usage: uml help [command]');
+    if (topic !== undefined && !commands.includes(topic)) throw usage(`Unknown command ${JSON.stringify(topic)}`);
+    const specific = topic === undefined ? undefined : commandHelp[topic];
+    process.stdout.write(specific ? specific() : help());
     return;
   }
   if (command === '--version') {

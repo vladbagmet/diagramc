@@ -1,6 +1,6 @@
 {
   "name": "agent-uml-cli",
-  "version": "0.2.0",
+  "version": "1.0.0",
   "private": true,
   "description": "Agent-first CLI: validated JSON UML models to SVG/PNG, offline",
   "type": "module",
