@@ -94,6 +94,11 @@ All rules are errors (none are warnings): an invalid overview is not rendered.
 
 ## Known limitations
 
+- The vocabulary follows UML's interaction overview (`flows`, `final`,
+  `flow-final`, `interaction-use`), not the activity kind's (`edges`,
+  `activityFinal`, `flowFinal`, `callBehavior`); a model written with the activity
+  names gets the overview names as "did you mean" corrections.
+
 - More than three branches of a decision share a vertex and its short trunk
   (14 px plus 18 px per further branch going the same way); their guards sit
   where each turns off it. Inputs of a merge share the straight vertex.
