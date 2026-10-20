@@ -61,10 +61,19 @@ export function validateSchema(schema: JsonSchema, value: unknown): SchemaResult
   try { ok = validate(value) as boolean; }
   finally { collected = undefined; }
   if (ok) return { diagnostics: [], texts: dedupe(texts) };
-  const errors = validate.errors ?? [];
+  // One problem per string: an empty string only as too short; a string that breaks its
+  // pattern and the display text rules as one diagnostic that gives the text rule's reason.
+  const all = validate.errors ?? [];
+  const shortAt = new Set(all.filter(e => e.keyword === 'minLength').map(e => e.instancePath));
+  const errors = all.filter(e => !(shortAt.has(e.instancePath) && (e.keyword === TEXT_KEYWORD || e.keyword === 'pattern')));
+  const textReason = new Map(errors.filter(e => e.keyword === TEXT_KEYWORD).map(e => [e.instancePath, e.message ?? 'Invalid display text']));
+  const patternAt = new Set(errors.filter(e => e.keyword === 'pattern').map(e => e.instancePath));
   const diagnostics = [
-    ...describeErrors(errors.filter(e => e.keyword !== TEXT_KEYWORD), schema, value),
-    ...errors.filter(e => e.keyword === TEXT_KEYWORD).map(e => ({
+    ...describeErrors(errors.filter(e => e.keyword !== TEXT_KEYWORD), schema, value).map(d => {
+      const reason = (d.details as { rule?: string } | undefined)?.rule === 'pattern' ? textReason.get(d.path ?? '') : undefined;
+      return reason ? { ...d, message: `${d.message} (${reason})` } : d;
+    }),
+    ...errors.filter(e => e.keyword === TEXT_KEYWORD && !patternAt.has(e.instancePath)).map(e => ({
       code: 'INVALID_TEXT', path: e.instancePath,
       message: `${e.instancePath || '(document root)'}: ${e.message ?? 'Invalid display text'}; display text must be nonblank, well-formed Unicode without bidi controls`,
     })),
@@ -105,6 +114,24 @@ const jsonType = (v: unknown): string => v === null ? 'null' : Array.isArray(v) 
 const typeName = (v: unknown): string => v === null ? 'null' : Array.isArray(v) ? 'an array' : typeof v === 'object' ? 'an object' : typeof v === 'string' ? `the string ${JSON.stringify(v.length > 40 ? `${v.slice(0, 40)}…` : v)}` : `${typeof v} ${JSON.stringify(v)}`;
 const where = (path: string): string => path || '(document root)';
 const sentence = (s: unknown): string => typeof s === 'string' && s ? ` ${s.endsWith('.') ? s : `${s}.`}` : '';
+
+/**
+ * The description the schema gives the property at `path` itself (the one next
+ * to its `$ref`), so a type error explains that property rather than the shared
+ * definition it refers to. Undefined when the walk cannot follow the path.
+ */
+function ownDescription(root: Schema, document: unknown, path: string): string | undefined {
+  let schema: Schema | undefined = root, raw: Schema | undefined = root, node: unknown = document;
+  for (const part of path.split('/').slice(1)) {
+    const key = part.replaceAll('~1', '/').replaceAll('~0', '~');
+    if (!schema) return undefined;
+    const object = schemaOf(root, schema, node);
+    raw = (object.properties as Record<string, Schema> | undefined)?.[key] ?? (Array.isArray(node) ? object.items as Schema | undefined : undefined);
+    schema = resolve(root, raw);
+    node = node && typeof node === 'object' ? (node as Record<string, unknown>)[key] : undefined;
+  }
+  return typeof raw?.description === 'string' ? raw.description : undefined;
+}
 
 /** The object at `path` for messages: `/elements/0 (type "class")` when `type` is one of its properties. */
 function describeObject(document: unknown, path: string, allowed: readonly string[] = ['type']): string {
@@ -238,8 +265,12 @@ function describeErrors(errors: ErrorObject[], root: Schema, document: unknown):
         const tagPath = pointer(path, tag);
         const tagValue = p.tagValue;
         if (p.error === 'mapping') {
-          const nearest = typeof tagValue === 'string' ? suggest(tagValue, allowed.map(String), 'value') : undefined;
-          const other = nearest ? undefined : valueOfAnotherProperty(root, schema, tag, tagValue);
+          // A value that is exactly a value of another property ("type": "alt" is the operator of a
+          // fragment) names that property, before any similar-looking allowed value.
+          const exact = valueOfAnotherProperty(root, schema, tag, tagValue);
+          const fuzzy = typeof tagValue === 'string' ? suggest(tagValue, allowed.map(String), 'value') : undefined;
+          const nearest = exact && exact.value === tagValue ? undefined : fuzzy;
+          const other = nearest ? undefined : exact;
           const hint = other ? `; ${other.text}` : nearest ? `; did you mean "${nearest}"` : '';
           const abstract = typeof tagValue === 'string' && /abstract/iu.test(tagValue) && nearest ? ` (set "abstract": true for an abstract ${nearest})` : '';
           issues.push({ path: tagPath, keyword: 'discriminator',
@@ -273,7 +304,7 @@ function describeErrors(errors: ErrorObject[], root: Schema, document: unknown):
           if (attribute) { issues.push({ path, keyword: 'type', message: `${where(path)} must be an object, but it is ${typeName(value)}${hint}.`, details: { expected, suggestion: attribute } }); break; }
         } else if (expected === 'integer' && typeof value === 'number') hint = '; use whole numbers';
         const quote = expected.includes('string') && (typeof value === 'number' || typeof value === 'boolean');
-        issues.push({ path, keyword: 'type', message: `${where(path)} must be ${article(expected)}, but it is ${typeName(value)}${hint}.${sentence(schema.description)}`, details: { expected, ...(quote ? { suggestion: String(value) } : {}) } });
+        issues.push({ path, keyword: 'type', message: `${where(path)} must be ${article(expected)}, but it is ${typeName(value)}${hint}.${sentence(ownDescription(root, document, path) ?? schema.description)}`, details: { expected, ...(quote ? { suggestion: String(value) } : {}) } });
         break;
       }
       case 'pattern': {

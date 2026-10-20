@@ -61,7 +61,11 @@ lines). Evaluated gates: `safe-markup`, `inside-canvas`, `node-overlap`,
 values and notes), `label-edge-crossing` (labels against state lines, messages,
 constraints and band separators), `literal-text`, `min-font-size`, `text-fits`
 (values inside their band, note text inside its note), `message-endpoints`
-(both ends on a state line or value band, arrowhead at the receiving end).
+(both ends on a state line or value band, arrowhead at the receiving end),
+`timing-lines` (no message runs along another line: a state change, a value band
+edge, a highlight or time-window border, a constraint extension line or another
+message; every message label is in the band of its sender or its receiver; no
+dashed highlight or extension line runs through text).
 Skipped: `label-proximity`, `edge-endpoints`, `markers`, `ports`.
 
 ## PlantUML deviations fixed by the generator or post-processing
@@ -73,7 +77,10 @@ Skipped: `label-proximity`, `edge-endpoints`, `markers`, `ports`.
 - Duration constraints are redrawn in their band with dotted extension lines; time-constraint windows and labels are confined to their lifeline's row.
 - Robust state labels share the column of the lifeline names, with at least 10 px to the time axis; the last concise value is centered in its open band; the time axis reaches the end of the state lines; time grid lines stop at name tabs.
 - PlantUML's inner box (a second border inside the frame) is dropped: rows are separated by full-width lines.
-- A message label is written at the arrow tip, over the receiver; it is moved beside the arrow, to the right and away from the direction the line runs, at the first candidate position that crosses no line, text, value or note.
+- A message label is written at the arrow tip, over the receiver; it is moved beside the arrow, to the right and away from the direction the line runs, at the first candidate position that crosses no line, text, value or note and keeps 8 px from other message labels. A message that crosses other lifelines' bands keeps its label in the band of its sender (first) or its receiver, never in a band it only passes.
+- A message sent and received at one instant is a vertical line at that time, where state changes of the lifelines it passes, highlight borders and constraint extension lines are drawn too. Such a message is moved sideways by 8 px (then 12, 16, 24, right before left) to the first place where it runs along no other line, with its ends on the state lines there; on a robust lifeline that changes at that instant the arrow meets the new level. The arrow is then drawn a few px off its exact time.
+- Highlight borders and constraint extension lines are cut where they would run through a text or a note body.
+- Duration constraint bounds `min` and `max` may be numbers (`2.5`) or expressions (`"3*d"`).
 - The time unit is a footer, which PlantUML's frame does not enclose; the frame and canvas are extended around it.
 - The `mainframe` heading is closed and filled like the own engine's frames.
 

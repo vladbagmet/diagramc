@@ -1,0 +1,33 @@
+{
+  "kind": "timing",
+  "title": "Washing machine wash cycle",
+  "timeUnit": "min",
+  "lifelines": [
+    {"id": "ctl", "name": "ctl", "classifier": "Controller", "notation": "concise",
+     "states": ["Idle", "Fill", "Wash", "Drain", "Spin", "Done"],
+     "changes": [{"at": 0, "state": "Idle"}, {"at": 2, "state": "Fill"}, {"at": 8, "state": "Wash"}, {"at": 38, "state": "Drain"}, {"at": 42, "state": "Spin"}, {"at": 52, "state": "Done"}]},
+    {"id": "valve", "name": "valve", "classifier": "InletValve", "notation": "robust",
+     "states": ["Open", "Closed"],
+     "changes": [{"at": 0, "state": "Closed"}, {"at": 2, "state": "Open"}, {"at": 8, "state": "Closed"}]},
+    {"id": "motor", "name": "motor", "classifier": "DrumMotor", "notation": "robust",
+     "states": ["Spin 1200 rpm", "Tumble 50 rpm", "Off"],
+     "changes": [{"at": 0, "state": "Off"}, {"at": 8, "state": "Tumble 50 rpm"}, {"at": 38, "state": "Off"}, {"at": 42, "state": "Spin 1200 rpm"}, {"at": 52, "state": "Off"}]},
+    {"id": "pump", "name": "pump", "classifier": "DrainPump", "notation": "robust",
+     "states": ["On", "Off"],
+     "changes": [{"at": 0, "state": "Off"}, {"at": 38, "state": "On"}, {"at": 52, "state": "Off"}]}
+  ],
+  "messages": [
+    {"from": "ctl", "fromTime": 2, "to": "valve", "toTime": 2, "name": "open"},
+    {"from": "ctl", "fromTime": 8, "to": "motor", "toTime": 8, "name": "tumble"},
+    {"from": "ctl", "fromTime": 38, "to": "pump", "toTime": 38, "name": "drain"},
+    {"from": "ctl", "fromTime": 42, "to": "motor", "toTime": 42, "name": "spin", "arguments": ["1200"]}
+  ],
+  "durationConstraints": [
+    {"lifeline": "ctl", "from": 8, "to": 38, "min": "25", "max": "35"}
+  ],
+  "timeConstraints": [
+    {"lifeline": "valve", "at": 8, "from": 6, "to": 10}
+  ],
+  "highlights": [{"from": 42, "to": 52, "label": "door locked, high vibration"}],
+  "notes": [{"lifeline": "ctl", "at": 45, "text": "Spin speed depends on fabric programme."}]
+}

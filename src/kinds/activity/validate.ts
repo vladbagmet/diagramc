@@ -1,7 +1,7 @@
 import { pointer, type Diagnostic } from '../../core/errors.js';
 import { reference, uniqueIds } from '../../model/rules.js';
 import { CONTROL_TYPES, isFinal, type ActivityDiagram, type ActivityNode } from './model.js';
-import { blockPartitions, structure, StructureError, type Block } from './structure.js';
+import { blockPartitions, blockSpan, orderBySpan, spansApart, structure, StructureError, type Block, type Span } from './structure.js';
 
 const DEGREE: Record<string, { code: string; inMin: number; inMax: number; outMin: number; outMax: number; text: string }> = {
   decision: { code: 'DECISION_DEGREE', inMin: 1, inMax: 1, outMin: 2, outMax: Infinity, text: 'one incoming and at least two outgoing flows' },
@@ -114,35 +114,102 @@ export function validateActivityDiagram(model: ActivityDiagram): Diagnostic[] {
       if (!(error instanceof StructureError)) throw error;
       diagnostics.push({ code: 'UNSTRUCTURED_FLOW', path: pointer('', 'nodes', nodeIndex.get(error.nodeId) ?? 0), message: `${error.message}. Activity diagrams must be well structured (see docs/kinds/activity.md)`, details: { node: error.nodeId } });
     }
-    if (blocks && partitions.length) checkMultiwayDecisions(blocks, nodeIndex, diagnostics);
+    if (blocks && partitions.length) checkSwimlanes(blocks, model, nodeIndex, diagnostics);
   }
   return diagnostics;
 }
 
 const cap = (s: string): string => s[0]!.toUpperCase() + s.slice(1);
 
+/** The node a branch starts with (for messages). */
+function firstNode(block: Block): string | undefined {
+  const step = block[0];
+  if (!step) return undefined;
+  switch (step.kind) {
+    case 'node': case 'decision': case 'fork': return step.node.id;
+    default: return step.merge.id;
+  }
+}
+
 /**
- * PlantUML draws a decision with more than two branches (switch/case) only when
- * the whole decision stays in one swimlane: a swimlane change inside a case loses
- * flows and guards. Two-way decisions (if/else) may span swimlanes freely.
+ * Swimlane rules of PlantUML's activity layout, checked on the structured blocks:
+ *
+ * - PlantUML places the branches of a decision or fork side by side within every
+ *   swimlane, and runs the flows to them along shared rows. Branches whose lanes
+ *   interleave (two branches both using lanes 1 to 3) get flows drawn through each
+ *   other's nodes and diamonds, so each branch must occupy its own run of adjacent
+ *   lanes; neighbours may meet in one lane (BRANCHES_SHARE_PARTITIONS).
+ * - A decision with more than two branches (switch/case) is drawn only when the
+ *   whole decision stays in one swimlane: a swimlane change inside a case loses
+ *   flows and guards (DECISION_SPANS_PARTITIONS). The message spells out the
+ *   equivalent nested two-way decisions, which may cross lanes.
  */
-function checkMultiwayDecisions(blocks: Block, nodeIndex: ReadonlyMap<string, number>, diagnostics: Diagnostic[]): void {
-  for (const step of blocks) {
-    if (step.kind === 'decision') {
-      if (step.branches.length > 2) {
-        const own = step.node.partition;
-        const others = [...new Set(step.branches.flatMap(b => [...blockPartitions(b.body)]))].filter(p => p !== own);
-        if (others.length) {
+function checkSwimlanes(blocks: Block, model: ActivityDiagram, nodeIndex: ReadonlyMap<string, number>, diagnostics: Diagnostic[]): void {
+  const index = new Map((model.partitions ?? []).map((p, i) => [p.id, i]));
+  const ids = new Set([...model.nodes.map(n => n.id), ...(model.partitions ?? []).map(p => p.id)]);
+  const fresh = (base: string): string => { let k = 2; while (ids.has(`${base}_${k}`)) k++; const id = `${base}_${k}`; ids.add(id); return id; };
+  const lanes = (s: Span): string => {
+    const name = (i: number): string => `"${model.partitions![i]!.id}"`;
+    return s.min === s.max ? `partition ${name(s.min)}` : `partitions ${name(s.min)} to ${name(s.max)}`;
+  };
+  const label = (guard: string | undefined, block: Block): string => `${guard === undefined ? 'branch' : `branch [${guard}]`}${firstNode(block) ? ` (from node "${firstNode(block)}")` : ''}`;
+  const visit = (blocks: Block): void => {
+    for (const step of blocks) {
+      if (step.kind === 'decision' || step.kind === 'fork') {
+        const branches = step.kind === 'decision' ? step.branches : step.branches.map(body => ({ guard: undefined as string | undefined, body }));
+        const what = `${step.kind} "${step.node.id}"`;
+        const spans = branches.map(b => blockSpan(b.body, index));
+        let clash = false;
+        for (let i = 0; i < branches.length && !clash; i++) for (let j = i + 1; j < branches.length && !clash; j++) {
+          const a = spans[i], b = spans[j];
+          if (!a || !b || spansApart(a, b)) continue;
+          clash = true;
           diagnostics.push({
-            code: 'DECISION_SPANS_PARTITIONS', path: pointer('', 'nodes', nodeIndex.get(step.node.id) ?? 0, 'partition'),
-            message: `Decision "${step.node.id}" has ${step.branches.length} branches and some of their nodes are in partition${others.length > 1 ? 's' : ''} ${others.map(p => `"${p}"`).join(', ')}, not in its own partition "${own}". `
-              + `A decision with more than two branches must keep all nodes up to its merge (or its final nodes) in its own partition; otherwise split it into nested two-way decisions, which may cross partitions`,
-            details: { node: step.node.id, partition: own, others },
+            code: 'BRANCHES_SHARE_PARTITIONS', path: pointer('', 'nodes', nodeIndex.get(step.node.id) ?? 0),
+            message: `The branches of ${what} overlap in swimlanes: ${label(branches[i]!.guard, branches[i]!.body)} uses ${lanes(a)} and ${label(branches[j]!.guard, branches[j]!.body)} uses ${lanes(b)}. `
+              + 'The branches of a decision or fork are drawn side by side in every swimlane they use, so branches that share more than one swimlane, or interleave, would have their flows drawn through each other. '
+              + 'Give each branch its own run of adjacent partitions (neighbouring branches may share one partition at their boundary): move nodes, including nested decisions, to other partitions, reorder "partitions", or split the diagram',
+            details: { node: step.node.id, branches: [i, j].map(k => ({ ...(branches[k]!.guard === undefined ? {} : { guard: branches[k]!.guard }), first: firstNode(branches[k]!.body), partitions: [model.partitions![spans[k]!.min]!.id, model.partitions![spans[k]!.max]!.id] })) },
           });
         }
-      }
-      for (const b of step.branches) checkMultiwayDecisions(b.body, nodeIndex, diagnostics);
-    } else if (step.kind === 'fork') for (const b of step.branches) checkMultiwayDecisions(b, nodeIndex, diagnostics);
-    else if (step.kind === 'while' || step.kind === 'repeat') checkMultiwayDecisions(step.body, nodeIndex, diagnostics);
-  }
+        if (step.kind === 'decision' && step.branches.length > 2 && !clash) {
+          const own = step.node.partition;
+          const others = [...new Set(step.branches.flatMap(b => [...blockPartitions(b.body)]))].filter(p => p !== own);
+          if (others.length) diagnostics.push(multiway(step, others, fresh, index));
+        }
+        for (const b of branches) visit(b.body);
+      } else if (step.kind === 'while' || step.kind === 'repeat') visit(step.body);
+    }
+  };
+  const multiway = (step: Extract<Block[number], { kind: 'decision' }>, others: string[], fresh: (base: string) => string, index: ReadonlyMap<string, number>): Diagnostic => {
+    // The equivalent nested two-way decisions, in lane order: each one keeps the
+    // leftmost remaining branch (the rightmost when the leftmost is [else], which
+    // must stay with the passed-on ones) and passes the others on through [else].
+    let rest = orderBySpan(step.branches, b => b.body, index);
+    const id = step.node.id, merge = step.merge?.id;
+    const steps: string[] = [];
+    let decision = id, mergeInto = merge;
+    while (rest.length > 2) {
+      const right = rest[0]!.guard === 'else';
+      const kept = right ? rest.at(-1)! : rest[0]!;
+      const passed = right ? rest.slice(0, -1) : rest.slice(1);
+      const next = fresh(id);
+      // Nested decisions sit in the first lane of the branches they lead to.
+      const first = Math.min(...passed.map(b => blockSpan(b.body, index)?.min ?? Infinity));
+      const lane = Number.isFinite(first) ? model.partitions![first]!.id : step.node.partition;
+      const nextMerge = merge === undefined ? undefined : fresh(merge);
+      steps.push(`decision "${decision}" keeps [${kept.guard}] to "${firstNode(kept.body) ?? mergeInto}" and gets a flow [else] to a new decision "${next}" in partition "${lane}"`
+        + (nextMerge === undefined ? '' : `, whose branches meet at a new merge "${nextMerge}" that flows into "${mergeInto}"`));
+      decision = next; mergeInto = nextMerge; rest = passed;
+    }
+    steps.push(`decision "${decision}" gets [${rest[0]!.guard}] to "${firstNode(rest[0]!.body) ?? mergeInto}" and [${rest[1]!.guard}] to "${firstNode(rest[1]!.body) ?? mergeInto}"`);
+    return {
+      code: 'DECISION_SPANS_PARTITIONS', path: pointer('', 'nodes', nodeIndex.get(id) ?? 0, 'partition'),
+      message: `Decision "${id}" has ${step.branches.length} branches and some of their nodes are in partition${others.length > 1 ? 's' : ''} ${others.map(p => `"${p}"`).join(', ')}, not in its own partition "${step.node.partition}". `
+        + 'A decision with more than two branches can only be drawn when all its nodes up to its merge (or its final nodes) stay in its own partition. '
+        + `Rewrite it as nested two-way decisions, which may cross partitions: ${steps.join('; ')}`,
+      details: { node: id, partition: step.node.partition, others, rewrite: steps },
+    };
+  };
+  visit(blocks);
 }

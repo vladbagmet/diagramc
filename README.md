@@ -57,7 +57,9 @@ every problem with a corrected value where one is clear (see [Errors](#errors)).
 
 Run it with `npm exec --offline -- uml ...` or `./dist/cli.js ...`. The output
 format follows the `-o` extension unless `--format svg|png` is given. Output is
-replaced atomically, only after a successful render; its parent must exist.
+replaced atomically, only after a successful render; its parent must exist. An
+existing device or pipe (`-o /dev/null --format svg`, `-o /dev/stdout`) is
+written directly.
 Successful runs print nothing on stdout (except `validate`, `example`, `kinds`,
 `schema`).
 
@@ -333,7 +335,11 @@ Drawn by PlantUML's activity engine (needs the pinned renderer). `nodes` of type
 a `guard` written without brackets; executable nodes may carry a `note`, attached
 with a dashed line; optional `partitions` become swimlanes, and two-way decisions
 may send their branches to other swimlanes (a decision with more than two branches
-keeps them in its own swimlane, `DECISION_SPANS_PARTITIONS`). Decisions and
+keeps them in its own swimlane, `DECISION_SPANS_PARTITIONS`, and the error spells
+out the equivalent nested two-way decisions). The branches of a decision or fork
+must each occupy their own run of adjacent swimlanes, neighbours sharing at most
+one (`BRANCHES_SHARE_PARTITIONS`): PlantUML draws branches side by side in every
+swimlane they use, so interleaved branches would cross each other. Decisions and
 merges, forks and joins are explicit nodes (an action has at most one incoming and
 one outgoing flow), and the graph must be well structured: each decision closes at
 its own merge, each fork at its join, loops enter at a merge and leave through one
