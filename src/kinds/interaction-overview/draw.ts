@@ -9,9 +9,9 @@ import { GUARD, NAME, type OverviewScene, type OverviewSceneNode } from './layou
 
 const stroke = { stroke: theme.color.nodeStroke, 'stroke-width': theme.stroke.node };
 
-function group(id: string, type: string, bounds: Rect, parts: string[], parent?: string): string {
+function group(id: string, type: string, bounds: Rect, parts: string[], parent?: string, shape?: string): string {
   return el('g', {
-    'data-uml-role': 'node', 'data-uml-id': id, 'data-uml-type': type, 'data-uml-parent': parent,
+    'data-uml-role': 'node', 'data-uml-id': id, 'data-uml-type': type, 'data-uml-parent': parent, 'data-uml-shape': shape,
     'data-uml-bounds': `${num(bounds.x)} ${num(bounds.y)} ${num(bounds.width)} ${num(bounds.height)}`,
   }, parts);
 }
@@ -48,7 +48,8 @@ function drawNode(canvas: Canvas, entry: OverviewSceneNode): string {
       ]);
     }
     case 'decision': case 'merge':
-      return group(id, node.type, b, [el('polygon', { points: pointsAttr([{ x: cx, y: b.y }, { x: b.x + b.width, y: cy }, { x: cx, y: b.y + b.height }, { x: b.x, y: cy }]), fill: theme.color.nodeFill, ...stroke, 'stroke-linejoin': 'miter' })]);
+      // Flows may start anywhere on the diamond's outline (branches sharing a vertex start on its edges).
+      return group(id, node.type, b, [el('polygon', { points: pointsAttr([{ x: cx, y: b.y }, { x: b.x + b.width, y: cy }, { x: cx, y: b.y + b.height }, { x: b.x, y: cy }]), fill: theme.color.nodeFill, ...stroke, 'stroke-linejoin': 'miter' })], undefined, 'diamond');
     case 'fork': case 'join':
       return group(id, node.type, b, [el('rect', { x: b.x, y: b.y, width: b.width, height: b.height, rx: 1, fill: edge })]);
     case 'interaction-use': {

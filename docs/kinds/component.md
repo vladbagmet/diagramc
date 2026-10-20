@@ -98,6 +98,12 @@ fixture and example also passes all QA gates, including the `ports` gate.
 
 ## Known limitations
 
+- No two lines run on top of each other: lines that ELK lets share a trunk at a
+  port leave it from separate faces (outer face, then the side faces outside the
+  owner) and are routed apart. A port takes three such lines; more lines at one
+  port (seven assemblies into one provider port in the reviewers' awkward model)
+  still share a trunk there.
+
 - Long chains of large containers grow horizontally (the stress example is about
   4700 x 1100 px, top to bottom would be about 1600 x 2900); ELK's graph wrapping
   routes cut lines around whole rows, so it is not used.

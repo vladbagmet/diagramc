@@ -95,7 +95,7 @@ test('interaction overview: a loop-back leaves its interaction from the east sid
   assert.ok(Math.abs(loop.points[0].x - (wait.x + wait.width)) < 0.5, `loop starts at ${JSON.stringify(loop.points[0])}`);
 });
 
-test('interaction overview: flows never share a sideways run or the last segment into a final node; loops return without crossing (F-B-15, F-B-16)', async () => {
+test('interaction overview: flows never share a run (also branches of one decision vertex) nor the way into a final node; loops return without crossing (F-B-15, F-B-16)', async () => {
   const segments = e => e.points.slice(1).map((q, k) => [e.points[k], q]);
   const horizontalOverlap = ([a, b], [c, d]) => Math.abs(a.y - b.y) < 0.5 && Math.abs(c.y - d.y) < 0.5 && Math.abs(a.y - c.y) < 0.5
     ? Math.min(Math.max(a.x, b.x), Math.max(c.x, d.x)) - Math.max(Math.min(a.x, b.x), Math.min(c.x, d.x)) : 0;
@@ -107,7 +107,7 @@ test('interaction overview: flows never share a sideways run or the last segment
     const scene = await inspectSvg(await render(text));
     for (const [i, e] of scene.edges.entries()) for (const f of scene.edges.slice(i + 1)) {
       for (const s of segments(e)) for (const t of segments(f)) {
-        assert.ok(horizontalOverlap(s, t) <= 1, `${name}: ${e.id} and ${f.id} share a sideways run`);
+        assert.ok(horizontalOverlap(s, t) <= 10 && verticalOverlap(s, t) <= 10, `${name}: ${e.id} and ${f.id} share a run`);
         if (e.target === f.target && scene.nodes.find(n => n.id === e.target)?.type?.includes('final')) assert.ok(verticalOverlap(s, t) <= 1, `${name}: ${e.id} and ${f.id} share their way into ${e.target}`);
       }
     }

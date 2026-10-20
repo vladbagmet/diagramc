@@ -64,6 +64,12 @@ gates, including the `ports` gate.
 
 ## Known limitations
 
+- No two lines run on top of each other: lines that ELK lets share a trunk at a
+  port leave it from separate faces (outer face, then the side faces outside the
+  owner) and are routed apart. A port takes three such lines; more lines at one
+  port (seven assemblies into one provider port in the reviewers' awkward model)
+  still share a trunk there.
+
 - Layout: left to right or top to bottom, whichever is more readable
   (`StructGraph.directions`, `chooseLayout`), within 2.5:1 when a layout achieves
   it; top to bottom, ports on a part's top border move onto its side border below

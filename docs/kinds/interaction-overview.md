@@ -40,9 +40,11 @@ vertices are chosen from where the previous pass placed the neighbours (one bran
 straight down, the leftmost west, the rightmost east; with three branches, one
 to a node right below goes straight) and the layout is repeated until the choice
 is stable; the pass with the fewest crossings wins. Branches that still share a
-vertex run on a 14 px trunk and then part, each on its own line (branches
-turning the same way leave the trunk 18 px apart, the farthest first), with its
-guard where that line begins. A branch whose path loops back above the decision
+vertex leave it apart, never on a shared line: one straight on, and to each side
+the farthest branch sideways right at the vertex (its guard beside the vertex,
+below its line when the side vertex above has a line); a second branch to one
+side goes straight on and turns after a short run when no branch continues
+straight. A group that needs more keeps the 14 px trunk ELK gives it. A branch whose path loops back above the decision
 leaves from its east vertex, so the loop returns beside the other branches
 instead of across one. Several flows into a final node arrive at different
 vertices of its circle (top, left, right). Guards at a vertex sit right of a line going down and
@@ -99,9 +101,9 @@ All rules are errors (none are warnings): an invalid overview is not rendered.
   `activityFinal`, `flowFinal`, `callBehavior`); a model written with the activity
   names gets the overview names as "did you mean" corrections.
 
-- More than three branches of a decision share a vertex and its short trunk
-  (14 px plus 18 px per further branch going the same way); their guards sit
-  where each turns off it. Inputs of a merge share the straight vertex.
+- A vertex sends at most three branches apart (straight, left, right; two to
+  one side when none goes straight); a decision whose branches need more at one
+  vertex keeps a short shared trunk there. Inputs of a merge share the straight vertex.
 - More than three flows into one final node share a vertex of its circle.
 - Message labels in inline interactions are drawn on a background box, so the
   dashed lifelines they cross are interrupted under them.

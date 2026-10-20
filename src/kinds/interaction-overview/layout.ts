@@ -28,8 +28,6 @@ const REF_PAD_Y = 10, REF_PAD_X = 24, MIN_REF = 150, MAX_REF_NAME = 260;
 const WIDE = 360, SPINE_INSET = 48;
 /** Length of the trunk branches that share a decision vertex run on together. */
 const SPLIT = 14;
-/** Distance between the sideways runs of branches that leave one decision vertex to the same side. */
-const STAGGER = 18;
 
 export interface OverviewSceneNode {
   node: OverviewNode;
@@ -297,7 +295,7 @@ export async function layoutInteractionOverview(model: InteractionOverviewDiagra
   // trunk of SPLIT px), and each runs on its own line from there: ELK would let
   // them share long segments, so a reader could not tell which guard is whose.
   /** Where a branch's own line begins (its guard goes there) and its direction there. */
-  const ownStart = new Map<string, { at: Point; d: Point }>();
+  const ownStart = new Map<string, { at: Point; d: Point; below?: boolean; corner?: Point; down?: Point }>();
   for (const n of model.nodes) {
     if (n.type !== 'decision') continue;
     const groups = new Map<Vertex, typeof flows>();
@@ -313,32 +311,51 @@ export async function layoutInteractionOverview(model: InteractionOverviewDiagra
       const off = (p: Point): number => Math.abs((p.x - V.x) * d.y - (p.y - V.y) * d.x);
       const parallel = (a: Point, b: Point): boolean => Math.abs((b.x - a.x) * d.y - (b.y - a.y) * d.x) < 0.5 && (b.x - a.x) * d.x + (b.y - a.y) * d.y > 0.5;
       const bus = { x: V.x + d.x * SPLIT, y: V.y + d.y * SPLIT };
-      const next = new Map<string, Point[]>(), starts = new Map<string, Point>();
+      const next = new Map<string, Point[]>(), starts = new Map<string, Point>(), sidewaysStart = new Map<string, { at: Point; d: Point; below: boolean; corner: Point; down: Point }>();
       // Branches turning to one side leave the trunk one below the other, the
       // farthest first, so each runs on its own line (no shared run sideways).
       const side = (p: Point): number => Math.sign((p.x - V.x) * d.y - (p.y - V.y) * d.x);
-      const depth = new Map<string, number>();
+      // A vertex can send three lines apart: one straight on and one sideways to each
+      // side. Branches turning to one side: the farthest leaves sideways right at the
+      // vertex; one more may go straight on and turn after SPLIT px when no branch
+      // continues straight. Further ones would share a line: then the group keeps
+      // the trunk ELK gave it.
+      const sideOf = new Map<string, number>(), depth = new Map<string, number>();
+      let straightUsed = group.some(f => { const t = routes.get(f.id)![2]; return !t || side(t) === 0; });
+      let fits = true;
       for (const sign of [-1, 1]) {
         const turning = group.filter(f => { const t = routes.get(f.id)![2]; return t && side(t) === sign; })
-          .sort((a, b) => off(routes.get(b.id)![2]!) - off(routes.get(a.id)![2]!));
-        turning.forEach((f, k) => depth.set(f.id, SPLIT + k * STAGGER));
+          .sort((x, y) => off(routes.get(y.id)![2]!) - off(routes.get(x.id)![2]!));
+        turning.forEach((f, k) => {
+          sideOf.set(f.id, sign);
+          if (k === 0) depth.set(f.id, 0);
+          else if (k === 1 && !straightUsed) { depth.set(f.id, SPLIT + guardHeight + 8); straightUsed = true; }
+          else fits = false;
+        });
       }
+      if (!fits) continue;
       let ok = true, straight = 0;
       for (const f of group) {
         const r = routes.get(f.id)!;
         if (r.length < 2 || off(r[1]!) > 0.5 || along(r[1]!) < SPLIT + 0.5) { ok = false; break; }
         const turn = r[2], after = r[3];
-        const own = depth.get(f.id) ?? SPLIT;
-        if (turn && after && parallel(turn, after) && along(turn) > SPLIT + 0.5 && along(after) > own + 0.5) {
+        const own = depth.get(f.id);
+        if (own !== undefined && turn && after && parallel(turn, after) && along(after) > own + 0.5) {
           const knee = { x: V.x + d.x * own, y: V.y + d.y * own };
           const corner = d.x === 0 ? { x: turn.x, y: knee.y } : { x: knee.x, y: turn.y };
-          const route = [V, knee, corner, ...r.slice(3)];
+          const route = own === 0 ? [V, corner, ...r.slice(3)] : [V, knee, corner, ...r.slice(3)];
           const last = route.length - 2;
           const blocked = route.slice(1).some((q, k) => [...rects].some(([id, rect]) =>
             id !== n.id && !(id === f.to && k === last) && segmentIntersectsRect(route[k]!, q, inflate(rect, 2))));
           if (blocked) { ok = false; break; }
           next.set(f.id, route);
-          starts.set(f.id, corner);
+          // A branch leaving sideways has its guard beside the vertex, above its line.
+          const sign = sideOf.get(f.id)!, sideways = { x: d.y * sign, y: -d.x * sign };
+          // Its guard goes below its line when the side vertex above it has a line of its own.
+          const sideVertex: Vertex = sideways.x < 0 ? 'WEST' : sideways.x > 0 ? 'EAST' : sideways.y < 0 ? 'NORTH' : 'SOUTH';
+          const below = outs(n.id).some(o => o.id !== f.id && vertices.get(`${n.id}\u0000${o.id}`) === sideVertex) || ins(n.id).some(o => vertices.get(`${n.id}\u0000${o.id}`) === sideVertex);
+          if (own === 0) sidewaysStart.set(f.id, { at: V, d: sideways, below, corner, down: d });
+          else starts.set(f.id, corner);
         } else {
           straight++;
           starts.set(f.id, bus);
@@ -347,6 +364,7 @@ export async function layoutInteractionOverview(model: InteractionOverviewDiagra
       if (!ok || straight > 1) continue;
       for (const [id, route] of next) routes.set(id, simplify(route));
       for (const [id, at] of starts) ownStart.set(id, { at, d });
+      for (const [id, own] of sidewaysStart) ownStart.set(id, own);
     }
   }
 
@@ -375,7 +393,12 @@ export async function layoutInteractionOverview(model: InteractionOverviewDiagra
     const route = routes.get(f.id)!;
     const own = ownStart.get(f.id);
     if (own) {
-      requests.push({ id, owner: f.id, width, height: guardHeight, route, at: 'center', candidates: beside(own.at, own.d, width, 4) });
+      // A branch leaving sideways at a vertex keeps its guard clear of the line going straight on from it.
+      const near = beside(own.at, own.d, width, own.below === undefined ? 4 : 14);
+      // Failing those (a short sideways run), beside the line where it turns on.
+      const turnSpots = own.corner && own.down ? beside(own.corner, own.down, width, 4) : [];
+      const candidates = [...(own.below ? [...near.filter(r => r.y >= own.at.y), ...near.filter(r => r.y < own.at.y)] : near), ...turnSpots];
+      requests.push({ id, owner: f.id, width, height: guardHeight, route, at: 'center', candidates });
       guards.set(id, { owner: f.id, text });
       continue;
     }
