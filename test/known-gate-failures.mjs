@@ -25,9 +25,6 @@ export const KNOWN_GATE_FAILURES = [
   { finding: 'F-B-15', kind: 'interaction-overview', title: "Onboarding (stress)", gate: 'route-length', problem: / detours$| wraps around/, source: "examples/interaction-overview/stress.json" },
   { finding: 'F-B-16', kind: 'interaction-overview', title: "WithdrawCash", gate: 'shared-segments', problem: / share \d+px of line | meet at /, source: "examples/interaction-overview/withdraw-cash.json" },
   { finding: 'F-A-10', kind: 'package', title: "Shop platform", gate: 'route-length', problem: / detours$| wraps around/, source: "examples/package/stress.json" },
-  { finding: 'F-B-08', kind: 'use-case', title: "Online shop", gate: 'shared-segments', problem: / share \d+px of line | meet at /, source: "examples/use-case/online-shop.json" },
-  { finding: 'F-B-08', kind: 'use-case', title: "Hospital", gate: 'edge-endpoints', problem: /runs through the header/, source: "examples/use-case/stress.json" },
-  { finding: 'F-B-08', kind: 'use-case', title: "Hospital", gate: 'shared-segments', problem: / share \d+px of line | meet at /, source: "examples/use-case/stress.json" },
   { finding: 'F-A-01', kind: 'component', hash: '726e47c27536', gate: 'route-length', problem: / detours$| wraps around/, source: "test/fixtures/component/valid.json: assemblies in both directions (a cycle)" },
   { finding: 'F-B-08', kind: 'component', hash: '4e38578be907', gate: 'shared-segments', problem: / share \d+px of line | meet at /, source: "test/fixtures/component/valid.json: port providing and requiring unconnected interfaces" },
   { finding: 'F-B-08', kind: 'component', hash: '2ee2ab4da134', gate: 'shared-segments', problem: / share \d+px of line | meet at /, source: "test/fixtures/component/valid.json: three requirers of one provided port" },
@@ -42,14 +39,7 @@ export const KNOWN_GATE_FAILURES = [
   { finding: 'F-A-04', kind: 'composite-structure', title: "Build agent", gate: 'shared-segments', problem: / share \d+px of line | meet at /, source: "test/fixtures/regression/cs-ci.json" },
   { finding: 'F-A-05', kind: 'deployment', title: "Wide-area network", gate: 'label-proximity', problem: /another line must be/, source: "test/fixtures/regression/deployment-awkward.json and deployment-d2-awkward.json" },
   { finding: 'F-B-16', kind: 'interaction-overview', title: "Negotiation with a really long overview title for the frame", gate: 'shared-segments', problem: / share \d+px of line | meet at /, source: "test/fixtures/regression/interaction-overview-i2-awkward.json" },
-  { finding: 'F-B-08', kind: 'use-case', title: "ATM", gate: 'shared-segments', problem: / share \d+px of line | meet at /, source: "test/fixtures/regression/use-case-u1-atm.json" },
-  { finding: 'F-B-18', kind: 'use-case', title: "Permits", gate: 'label-proximity', problem: /another line must be/, source: "test/fixtures/regression/use-case-u2-awkward.json" },
-  { finding: 'F-B-08', kind: 'use-case', title: "Permits", gate: 'shared-segments', problem: / share \d+px of line | meet at /, source: "test/fixtures/regression/use-case-u2-awkward.json" },
-  { finding: 'F-B-08', kind: 'use-case', title: "Expense management", gate: 'shared-segments', problem: / share \d+px of line | meet at /, source: "test/fixtures/regression/use-case-uc-awk.json" },
-  { finding: 'F-B-08', kind: 'use-case', title: "Expense management", gate: 'route-length', problem: / detours$| wraps around/, source: "test/fixtures/regression/use-case-uc-awk.json" },
-  { finding: 'F-B-08', kind: 'use-case', title: "Food delivery platform", gate: 'edge-endpoints', problem: /runs through the header/, source: "test/fixtures/regression/use-case-uc-lib.json" },
   { finding: 'F-B-16', kind: 'interaction-overview', title: "<script>x</script>", gate: 'shared-segments', problem: / share \d+px of line | meet at /, source: "test/interaction-overview.test.mjs: hostile text" },
-  { finding: 'F-B-08', kind: 'use-case', title: "Hospital", gate: 'route-length', problem: / detours$| wraps around/, source: "examples/use-case/stress.json" },
 ];
 
 const hashOf = (doc) => createHash('sha1').update(JSON.stringify(doc)).digest('hex').slice(0, 12);

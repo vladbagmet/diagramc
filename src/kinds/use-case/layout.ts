@@ -8,9 +8,9 @@ import { center, contains, direction, distance, inflate, overlapArea, segmentInt
 import { placeLabels, type LabelRequest } from '../../engine/labels.js';
 import { measureFrameHeading, measureNote } from '../../engine/shapes.js';
 import { wrapText } from '../../engine/text.js';
-import { countCrossings, layoutScore, routesLength } from '../../engine/aspect.js';
+import { countCrossings, layoutScore, routesDetour, routesLength, wrapsAround } from '../../engine/aspect.js';
 import type { Actor, Element, Extend, Relationship, Subject, UseCase, UseCaseDiagram } from './model.js';
-import { properCross, Router, type Obstacle, type RouteEnd } from './route.js';
+import { properCross, Router, sharedPairs, type Obstacle, type RouteEnd } from './route.js';
 
 /** A line of text inside a shape: centered at `x`, baseline from `top`. */
 export interface TextRow { text: string; style: TextStyle; fill?: string | undefined; width: number; /** Rows of one input string share a group. */ group: number }
@@ -76,7 +76,7 @@ export async function layoutUseCaseDiagram(model: UseCaseDiagram, metrics: FontM
   // crossing per PAST_COST px.
   const measure = ({ scene }: { scene: UseCaseScene }) => {
     const lines = scene.edges.map(e => e.points);
-    return { width: scene.width, height: scene.height, crossings: countCrossings(lines) + pastSubjects(scene) / PAST_COST, edgeLength: routesLength(lines) };
+    return { width: scene.width, height: scene.height, crossings: countCrossings(lines) + pastSubjects(scene) / PAST_COST, edgeLength: routesLength(lines), detour: routesDetour(lines) };
   };
   return layoutScore(measure(row)) < layoutScore(measure(stacked)) - 1e-6 ? row.scene : stacked.scene;
 }
@@ -107,6 +107,8 @@ const PAST = 24;
 /** How far the bend of a repeated line between two elements lies beside the first line. */
 const PARALLEL_OFFSET = 24;
 const PAST_COST = 40;
+/** More spots along a line for its center label: long straight lines in crowded diagrams. */
+const LABEL_FRACTIONS = [0.2, 0.25, 0.35, 0.45, 0.55, 0.65, 0.75, 0.8, 0.9, 0.1];
 
 async function layoutVariant(model: UseCaseDiagram, metrics: FontMetrics, separate: boolean): Promise<{ scene: UseCaseScene; separated: boolean }> {
   const lineHeight = metrics.lineHeight(LABEL.size);
@@ -283,8 +285,8 @@ async function layoutVariant(model: UseCaseDiagram, metrics: FontMetrics, separa
   const subjectHeader = (id: string): Rect => {
     const b = rect(id), rows = subjectRows.get(id)!;
     const height = rows.reduce((sum, r) => sum + metrics.lineHeight(r.style.size), 0) + 2 * theme.spacing.headerPadY;
-    const width = Math.max(...rows.map(r => r.width)) + 8;
-    return { x: b.x + (b.width - width) / 2, y: b.y, width, height };
+    // The whole band across the subject: no line runs through it (gate edge-endpoints).
+    return { x: b.x, y: b.y, width: b.width, height };
   };
 
   // Lines: straight, bent around elements in the way (see route.ts).
@@ -309,7 +311,8 @@ async function layoutVariant(model: UseCaseDiagram, metrics: FontMetrics, separa
       end.attach = (side, toward) => {
         const c = center(r);
         if (Math.abs(side.y - c.y) < 0.5) return { x: side.x, y: toward.y > c.y ? Math.max(r.y + 2, c.y - apart) : Math.min(r.y + r.height - 2, c.y + apart) };
-        return { x: c.x + (toward.x > c.x ? -1 : 1) * Math.min(apart, r.width / 2 - 2), y: side.y };
+        // On the top of the head: toward the other end, away from the associations on the far side.
+        return { x: c.x + (toward.x > c.x ? 1 : -1) * Math.min(apart, r.width / 2 - 2), y: side.y };
       };
     }
     return end;
@@ -320,7 +323,7 @@ async function layoutVariant(model: UseCaseDiagram, metrics: FontMetrics, separa
   // Two or more generalizations to one element form a tree: one hollow triangle on
   // the general element, a short trunk out of it, and the lines from the specific
   // elements meeting at the trunk's end (UML 2.5.1 shared target style).
-  const trees = new Map<string, { tip: Point; hub: Point }>();
+  const trees = new Map<string, { tip: Point; hub: Point; out: Point; trunk: number }>();
   for (const [target, members] of groupBy(plans.filter(p => p.r.type === 'generalization'), p => p.r.to)) {
     if (members.length < 2) continue;
     const r = rect(target), c = center(r), type = byId.get(target)?.type;
@@ -340,16 +343,32 @@ async function layoutVariant(model: UseCaseDiagram, metrics: FontMetrics, separa
       tip = outlineHit({ x: c.x + out.x * 4 * (r.width + r.height), y: c.y + out.y * 4 * (r.width + r.height) }, c, r, type === 'useCase' ? 'ellipse' : 'rect');
     }
     const trunk = markerLength('hollow-triangle') + theme.spacing.bendRadius + 18;
-    trees.set(target, { tip, hub: { x: tip.x + out.x * trunk, y: tip.y + out.y * trunk } });
+    trees.set(target, { tip, hub: { x: tip.x + out.x * trunk, y: tip.y + out.y * trunk }, out, trunk });
   }
+  /** Route of a tree member to the hub and on to the shared tip. */
+  const treeRoute = (p: Plan, tree: { tip: Point; hub: Point }): Point[] => {
+    const hub: RouteEnd = { id: `${p.r.to}::tree`, rect: { ...tree.hub, width: 0, height: 0 }, shape: 'rect' };
+    return [...router.route(endOf(p.r.from, 'none'), hub, around(rect(p.r.from), rect(p.r.to)), `${p.r.to}::tree`).slice(0, -1), tree.hub, tree.tip];
+  };
+  const settled = new Set<string>();
   const pairs = new Map<string, number>();
   for (const p of [...plans].sort((a, b) => rank(a) - rank(b))) {
     const gen = p.r.type === 'generalization', labelled = (end: string) => p.ends.some(e => e.end === end);
     const tree = gen ? trees.get(p.r.to) : undefined;
     if (tree) {
-      const hub: RouteEnd = { id: `${p.r.to}::tree`, rect: { ...tree.hub, width: 0, height: 0 }, shape: 'rect' };
-      const route = [...router.route(endOf(p.r.from, 'none'), hub, around(rect(p.r.from), rect(p.r.to))).slice(0, -1), tree.hub, tree.tip];
-      router.add(route);
+      // A member that would wrap round its neighbours to reach the hub (specific
+      // actors above the general one in its column) gets a longer trunk: the hub moves
+      // out until no member's line turns the same way three times.
+      if (!settled.has(p.r.to)) {
+        settled.add(p.r.to);
+        const members = plans.filter(m => m.r.type === 'generalization' && m.r.to === p.r.to);
+        for (const extra of [0, 20, 40, 60]) {
+          const hub = { x: tree.tip.x + tree.out.x * (tree.trunk + extra), y: tree.tip.y + tree.out.y * (tree.trunk + extra) };
+          if (!members.some(m => wrapsAround(treeRoute(m, { tip: tree.tip, hub })))) { tree.hub = hub; break; }
+        }
+      }
+      const route = treeRoute(p, tree);
+      router.add(route, `${p.r.to}::tree`);
       routes.set(p.key, route);
       continue;
     }
@@ -379,8 +398,8 @@ async function layoutVariant(model: UseCaseDiagram, metrics: FontMetrics, separa
     sceneEdges.push({ id: a.id, type: 'note-anchor', source: a.note, target: a.target, points: route, style: 'dashed', sourceMarker: 'none', targetMarker: 'none' });
   }
   // Ends on one use case keep apart around its ellipse (no overlapping arrowheads).
-  for (const e of model.elements) {
-    if (e.type !== 'useCase') continue;
+  const spread = (id: string): void => {
+    const e = byId.get(id)!;
     // A generalization tree's shared tip counts once.
     const tree = trees.get(e.id);
     const members = sceneEdges.filter(s => tree && s.type === 'generalization' && s.target === e.id).map(s => s.id);
@@ -403,7 +422,8 @@ async function layoutVariant(model: UseCaseDiagram, metrics: FontMetrics, separa
       if (!swapped) break;
     }
     for (const id of members.slice(1)) { const r = routes.get(id)!; r[r.length - 1] = routes.get(members[0]!)!.at(-1)!; }
-  }
+  };
+  for (const e of model.elements) if (e.type === 'useCase') spread(e.id);
   // An end moved along its ellipse may have brought its first segment onto an
   // element the router had passed: the segment bends round that element's corner.
   for (const x of sceneEdges) {
@@ -420,6 +440,58 @@ async function layoutVariant(model: UseCaseDiagram, metrics: FontMetrics, separa
     }
   }
   for (const s of sceneEdges) s.points = routes.get(s.id)!;
+  // Lines that still run on top of each other (the router saw only the lines
+  // routed before each one): each line of such a pair is routed again, against all
+  // other lines, and the new route is kept when fewer pairs remain.
+  const reroutable = new Map<string, () => Point[]>();
+  for (const p of plans) {
+    if (p.r.type === 'generalization' && trees.has(p.r.to)) continue;
+    if (sceneEdges.filter(e => [e.source, e.target].sort().join('\u0000') === [p.r.from, p.r.to].sort().join('\u0000')).length > 1) continue;
+    const labelled = (end: string) => p.ends.some(e => e.end === end), gen = p.r.type === 'generalization';
+    reroutable.set(p.key, () => {
+      const others = new Router([...routeObstacles, ...subjectIds.map(id => ({ id, rect: rect(id) }))]);
+      for (const e of sceneEdges) if (e.id !== p.key) others.add(e.points);
+      return others.route(endOf(p.r.from, 'none', gen, labelled('source')), endOf(p.r.to, p.target, gen, labelled('target')), around(rect(p.r.from), rect(p.r.to)));
+    });
+  }
+  // Ends on one side of a node closer than the gate allows (end-spacing) count too.
+  const crowded = (): number => {
+    const ends = sceneEdges.flatMap(e => e.source === e.target ? [] : [
+      { e, node: e.source, p: e.points[0]!, half: markerHalf(e.sourceMarker) },
+      { e, node: e.target, p: e.points.at(-1)!, half: markerHalf(e.targetMarker) },
+    ]).filter(o => byId.has(o.node));
+    const side = (node: string, p: Point): number => {
+      const r = rect(node), d = [Math.abs(p.y - r.y), Math.abs(p.x - r.x - r.width), Math.abs(p.y - r.y - r.height), Math.abs(p.x - r.x)];
+      return d.indexOf(Math.min(...d));
+    };
+    let n = 0;
+    ends.forEach((a, i) => { for (const b of ends.slice(i + 1)) {
+      if (a.node !== b.node || a.e === b.e || side(a.node, a.p) !== side(b.node, b.p)) continue;
+      const d = distance(a.p, b.p);
+      if (d > 0.5 && d < Math.max(theme.spacing.edgeEdge, a.half + b.half + 6) + 0.5) n++;
+    } });
+    return n;
+  };
+  const problems = (): number => sharedPairs(sceneEdges).length + crowded();
+  for (let pass = 0; pass < 6; pass++) {
+    const pairs = sharedPairs(sceneEdges);
+    if (!pairs.length) break;
+    let improved = false;
+    for (const id of [...new Set(pairs.flat())].reverse()) {
+      const again = reroutable.get(id), e = sceneEdges.find(x => x.id === id);
+      if (!again || !e) continue;
+      const old = e.points, count = problems();
+      e.points = again();
+      routes.set(id, e.points);
+      const olds = new Map(sceneEdges.map(x => [x.id, x.points.map(q => ({ ...q }))]));
+      for (const node of [e.source, e.target]) if (byId.get(node)?.type === 'useCase') spread(node);
+      for (const x of sceneEdges) x.points = routes.get(x.id)!;
+      if (problems() < count) { routes.set(id, e.points); improved = true; break; }
+      for (const x of sceneEdges) { const q = olds.get(x.id)!; x.points = x.id === id ? old : q; routes.set(x.id, x.points); }
+    }
+    if (!improved) break;
+  }
+
   for (const [key, c] of conditions) {
     // The condition note is attached to its «extend» line, at the point nearest
     // to the note whose dashed anchor crosses no other element or line end.
@@ -463,7 +535,7 @@ async function layoutVariant(model: UseCaseDiagram, metrics: FontMetrics, separa
     const route = routes.get(p.key)!;
     p.ends.forEach((e, k) => {
       const id = `${p.key}::end${k}`;
-      requests.push({ id, width: e.width, height: lineHeight, route, at: e.end, side: 1, clearance: 4 + (e.end === 'target' ? markerHalf(p.target) : 0) });
+      requests.push({ id, owner: p.key, width: e.width, height: lineHeight, route, at: e.end, side: 1, clearance: 4 + (e.end === 'target' ? markerHalf(p.target) : 0) });
       meta.set(id, { owner: p.key, lines: [e.text], widths: [e.width], end: e.end, anchor: e.end === 'source' ? route[0]! : route.at(-1)! });
     });
   }
@@ -472,7 +544,7 @@ async function layoutVariant(model: UseCaseDiagram, metrics: FontMetrics, separa
     if (!c) continue;
     const id = `${p.key}::center`;
     const width = Math.max(...c.widths), height = c.lines.length * lineHeight;
-    requests.push({ id, owner: p.key, width, height, route: routes.get(p.key)!, at: 'center' });
+    requests.push({ id, owner: p.key, width, height, route: routes.get(p.key)!, at: 'center', fractions: LABEL_FRACTIONS });
     meta.set(id, { owner: p.key, ...c });
   }
   const labelledEnds = plans.flatMap(p => [...new Set(p.ends.map(e => e.end))].map(end => end === 'source' ? routes.get(p.key)![0]! : routes.get(p.key)!.at(-1)!));
