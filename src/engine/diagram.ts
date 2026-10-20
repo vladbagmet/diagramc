@@ -9,7 +9,7 @@ import { repairRoutes, type RepairNode } from './repair.js';
 import { bundleHub, bundlePitch, type BundleMember } from './bundles.js';
 import { chooseLayout, countCrossings, LAYOUT_VARIANTS, layoutScore, routesDetour, routesLength, type LayoutMeasure, type LayoutVariant } from './aspect.js';
 import { placeNotes } from './notes.js';
-import { planSelfLoops, selfLoopRoute, type SelfLoopPlan } from './selfloops.js';
+import { planSelfLoops, selfLoopLabelSide, selfLoopRoute, type SelfLoopPlan } from './selfloops.js';
 import { baselineOffset, startsData, drawBox, drawFrame, drawNote, measureBox, measureFrameHeading, measureNote, type Compartment, type MeasuredBox } from './shapes.js';
 import { Canvas, el, num } from './svg.js';
 import { wrapText } from './text.js';
@@ -283,6 +283,9 @@ export async function layoutDiagram(spec: DiagramSpec, metrics: FontMetrics): Pr
   const loopsByNode = new Map<string, EdgePlan[]>();
   for (const p of plans) if (p.spec.source === p.spec.target) loopsByNode.set(p.spec.source, [...(loopsByNode.get(p.spec.source) ?? []), p]);
   const loopPlans = new Map<string, SelfLoopPlan>();
+  /** Index of each self-loop among its node's loops (its slot in the plan). */
+  const loopOrder = new Map<string, number>();
+  for (const loops of loopsByNode.values()) loops.forEach((l, i) => loopOrder.set(l.spec.id, i));
   for (const [node, loops] of loopsByNode) {
     loopPlans.set(node, planSelfLoops(loops.map(l => ({
       endLabelWidth: Math.max(0, ...l.ends.map(e => e.width)),
@@ -291,7 +294,7 @@ export async function layoutDiagram(spec: DiagramSpec, metrics: FontMetrics): Pr
       endLabelRows: Math.max(l.ends.filter(e => e.end === 'source').length, l.ends.filter(e => e.end === 'target').length),
       labelHeight: lineHeight,
       centerLabel: l.center ? { width: Math.max(...l.center.widths), height: l.center.lines.length * lineHeight } : undefined,
-    }))));
+    })), { leftCorners: true }));
   }
 
   /**
@@ -383,7 +386,7 @@ export async function layoutDiagram(spec: DiagramSpec, metrics: FontMetrics): Pr
           portSpacing: CONTAINER_PORT_SPACING,
         } : {}),
         ...(nodePorts?.length ? { ports: nodePorts } : {}),
-        ...(loops ? { reserveRight: loops.reserveRight, reserveAbove: loops.reserveAbove, reserveBelow: loops.reserveBelow } : {}),
+        ...(loops ? { reserveRight: loops.reserveRight, reserveAbove: loops.reserveAbove, reserveBelow: loops.reserveBelow, reserveLeft: loops.reserveLeft, reserveAboveLeft: loops.reserveAboveLeft, reserveBelowLeft: loops.reserveBelowLeft } : {}),
       };
     };
     const edges: LayoutEdge[] = plans.filter(p => p.spec.source !== p.spec.target).flatMap((p): LayoutEdge[] => {
@@ -559,7 +562,8 @@ export async function layoutDiagram(spec: DiagramSpec, metrics: FontMetrics): Pr
   // The room of a node's self-loops is an obstacle for every other line.
   for (const [id] of loopPlans) {
     const loops = plans.filter(p => p.spec.source === id && p.spec.target === id).map(p => routes.get(p.spec.id)!);
-    repairNodes.push({ id: `${id}::self-loops`, rect: union(loops.flat().map(p => ({ ...p, width: 0, height: 0 }))), parent: all.get(id)!.parent });
+    // One obstacle per loop: together they would cover the whole node.
+    loops.forEach((loop, k) => repairNodes.push({ id: `${id}::self-loop-${k}`, rect: union(loop.map(p => ({ ...p, width: 0, height: 0 }))), parent: all.get(id)!.parent }));
   }
   const labelObstacles = [...all.keys()].flatMap(id => all.get(id)!.spec.children?.length ? [tabs.get(id)!] : [rects.get(id)!]);
   const containerBorders: [Point, Point][] = [];
@@ -659,7 +663,7 @@ export async function layoutDiagram(spec: DiagramSpec, metrics: FontMetrics): Pr
         const id = `${e.id}::end${k}`;
         const marker = l.end === 'source' ? e.sourceMarker : e.targetMarker;
         const suggested = repaired.changed.has(e.id) ? undefined : result.edges.get(e.id)?.labels.get(id);
-        const inside = e.source === e.target ? { onlySide: l.end === 'source' ? -1 as const : 1 as const } : {};
+        const inside = e.source === e.target ? { onlySide: selfLoopLabelSide(loopPlans.get(e.source)!, loopOrder.get(e.id)!, l.end) } : {};
         requests.push({
           owner: e.id, lines: [{ text: l.text }], widths: [l.width], end: l.end, anchor: l.end === 'source' ? route[0]! : route.at(-1)!,
           request: { id, owner: e.id, width: l.width, height: lineHeight, route, at: l.end, side: l.kind === 'multiplicity' ? 1 : -1, clearance: markerExtent(marker).half + 3, ...inside, suggestion: suggested && { x: suggested.x + 2, y: suggested.y, width: l.width, height: lineHeight } },

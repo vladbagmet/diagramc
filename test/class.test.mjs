@@ -94,10 +94,10 @@ test('self-associations stay inside the canvas with labels inside their loop', a
   const node = scene.nodes[0].bounds;
   const right = node.x + node.width, bottom = node.y + node.height;
   const [first, second, third] = scene.edges;
-  // Top-right corner, bottom-right corner, then the right side between them.
+  // Top-right corner, bottom-right corner, then the top-left corner (F-A-07: a third loop does not stretch the box).
   assert.ok(first.points[0].y === node.y && first.points.at(-1).x === right, 'first loop on the top-right corner');
   assert.ok(second.points[0].x === right && second.points.at(-1).y === bottom, 'second loop on the bottom-right corner');
-  assert.ok(third.points[0].x === right && third.points.at(-1).x === right, 'third loop on the right side');
+  assert.ok(third.points[0].y === node.y && third.points.at(-1).x === node.x, 'third loop on the top-left corner');
   // Labels of a loop's ends sit inside the loop's bounding box.
   for (const label of scene.texts.filter(t => t.end)) {
     const loop = scene.edges.find(e => e.id === label.owner);

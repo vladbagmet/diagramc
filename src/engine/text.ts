@@ -92,8 +92,15 @@ export function wrapText(metrics: FontMetrics, text: string, style: TextStyle, m
     if (PUNCTUATION_ONLY.test(lines[i]!.trim()) || !lines[i]!.trim()) { lines[i - 1] += lines[i]!; lines.splice(i, 1); }
   }
   if (lines.length > 1 && (PUNCTUATION_ONLY.test(lines[0]!.trim()) || !lines[0]!.trim())) { lines[1] = lines[0]! + lines[1]!; lines.shift(); }
+  // A word kept whole widens the text anyway: when the whole text is not much wider
+  // than that, one line reads better than a stub ("r2 :" above a long classifier name).
+  const widest = Math.max(maxWidth, ...lines.map(width));
+  if (lines.length > 1 && widest > maxWidth && width(text) <= widest * ONE_LINE_SLACK) return [text];
   return lines;
 }
+
+/** See wrapText: how much wider than its widest whole word a text may stay on one line. */
+const ONE_LINE_SLACK = 1.25;
 
 /** Widest line of `text` when wrapped to `maxWidth` (the width a box needs for it). */
 export function wrappedWidth(metrics: FontMetrics, text: string, style: TextStyle, maxWidth: number, options: WrapOptions = {}): number {
