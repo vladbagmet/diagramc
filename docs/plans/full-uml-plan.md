@@ -121,12 +121,14 @@ Released as 1.0.0 on 2026-10-20 (see [CHANGELOG.md](../../CHANGELOG.md)).
   (`--backend plantuml`). `uml kinds` lists the backends of each kind.
 - **Quality gates.** `src/qa` runs 16 geometry and text gates (markup safety,
   canvas bounds, node and label overlap, labels on lines and near their ends, edge
-  endpoints, arrowheads, message arrows, literal text, minimum font size, text
-  fitting its box, ports, plus engine-only spacing and route-length checks) on
-  every fixture and example of every kind. PlantUML sequence and timing drawings
-  also get a dedicated reader for lifelines, activation bars and messages, with
-  the `message-endpoints` and `lifeline-crossing` gates. Every example passes them
-  with `--strict`.
+  endpoints, shared line segments, arrowheads, message arrows, literal text,
+  minimum font size, text fitting its box, ports, plus engine-only spacing and
+  route-length checks) on every fixture and example of every kind. PlantUML
+  sequence and timing drawings also get a dedicated reader for lifelines,
+  activation bars and messages, with the `message-endpoints` and
+  `lifeline-crossing` gates. The gates were tightened late; the remaining known
+  failures are listed with their review findings in
+  `test/known-gate-failures.mjs`, a list that only shrinks.
 - **Render-time warnings and `--strict`.** `uml render` runs the same gates on
   every drawing. A drawing that fails one is still written with exit code 0, and
   stderr carries one JSON object with a `LAYOUT_QUALITY` warning per failed gate,

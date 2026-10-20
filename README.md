@@ -484,10 +484,12 @@ one JSON object with one warning per failed gate:
 ```
 
 `problems` holds up to five of the gate's findings; `advice` says what usually
-helps, in terms of the model. With `--strict` the same finding is an error
-instead: exit code 5, code `LAYOUT_QUALITY`, the warnings in `details.warnings`,
-and no output is written or changed. Every shipped example renders without
-warnings.
+helps for those kinds of problem, in terms of the model, or that the problem is a
+renderer defect the model cannot avoid (`src/qa/advice.ts`). With `--strict` the
+same finding is an error instead: exit code 5, code `LAYOUT_QUALITY`, the
+warnings in `details.warnings`, and no output is written or changed. Some dense
+layouts still produce warnings; the ones the test suite tolerates for now are
+listed with their review findings in `test/known-gate-failures.mjs`.
 
 ## Limits and known limitations
 
@@ -505,9 +507,9 @@ warnings.
   equivalent nested two-way decisions), branches must each occupy their own run
   of adjacent swimlanes (`BRANCHES_SHARE_PARTITIONS`), and the flow must be well
   structured (`UNSTRUCTURED_FLOW`).
-- **Very large diagrams** get wide or tall rather than crowded: the stress
-  examples reach about 4700 x 1100 px (component), a 1:4 column (state machine)
-  or 3:1 (50 classes). Splitting a model into several diagrams reads better.
+- **Very large diagrams** get wide or tall rather than crowded (several thousand
+  pixels on one side, or a long column), and dense ones keep long routes and can
+  produce layout warnings. Splitting a model into several diagrams reads better.
   Timing diagrams too dense for a 3200 px axis are rejected with
   `TIMELINE_TOO_DENSE` and the room they need. Inline interactions in an
   interaction overview have at most 6 lifelines and 12 messages.
@@ -543,14 +545,17 @@ Per-kind limitations are in each `docs/kinds/<kind>.md`.
 `src/qa` inspects rendered SVGs and enforces hard gates on every fixture and
 example: markup safety, everything inside the canvas, no node overlap (containment
 allowed), no label overlapping a node, label or line, end labels near and
-unambiguous at their end, edges ending on node borders, arrowheads present and
+unambiguous at their end, edges ending on node borders, no two lines sharing a
+segment, no needless detours, arrowheads present and
 pointing inward, message arrows beside their own link, every input text drawn
 literally, minimum font size 11 px, text inside its box, ports on their owner's
 border and interface symbols facing outward. Own-engine SVGs carry `data-uml-*`
 attributes so gates are exact; PlantUML SVGs are checked best-effort, with a
 dedicated reader for sequence and timing diagrams (lifelines, activation bars,
 messages, state lines) that adds the `message-endpoints` and `lifeline-crossing`
-gates. Gates without data are reported as skipped.
+gates. Gates without data are reported as skipped. Known failures that are
+still being fixed are listed, each with its review finding, in
+`test/known-gate-failures.mjs`; that list only shrinks.
 
 ## Development
 
