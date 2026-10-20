@@ -18,8 +18,9 @@ test('every example and regression model renders without layout warnings (--stri
   for (const file of files) {
     const text = await readFile(file, 'utf8');
     const { warnings } = await renderChecked(parseDocument(text), 'svg');
-    // Only the problems listed in KNOWN_GATE_FAILURES are tolerated (all of a gate's problems must be listed in the warning).
-    const message = judgementMessage(text, warnings.map(w => ({ gate: w.gate, problems: w.count > w.problems.length ? [...w.problems, `${w.count - w.problems.length} more not listed`] : w.problems })));
+    // Only the problems listed in KNOWN_GATE_FAILURES are tolerated (a warning lists the first few;
+    // assertGates in the unit tests judges every problem of the same documents).
+    const message = judgementMessage(text, warnings.map(w => ({ gate: w.gate, problems: w.problems })));
     assert.ok(!message, `${file}: ${message}`);
   }
 });

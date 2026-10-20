@@ -231,7 +231,7 @@ export function repairRoutes(nodes: readonly RepairNode[], edges: readonly Repai
     return size ? size.width + LABEL_END_ROOM : 0;
   };
 
-  const reroute = (e: RepairEdge, forLabel = false): Point[] | undefined => {
+  const reroute = (e: RepairEdge, forLabel = false, detour = false): Point[] | undefined => {
     const route = routes.get(e.id)!;
     const s = byId.get(e.source)!, t = byId.get(e.target)!;
     const ends = endsOf(e.id);
@@ -252,7 +252,7 @@ export function repairRoutes(nodes: readonly RepairNode[], edges: readonly Repai
     let next = routeOrthogonal({ ...request, area: inflate(union([s.rect, t.rect]), 160) });
     if (!next || problem(e, next) === 'crosses') next = routeOrthogonal({ ...request, area: inflate(all, 40) });
     // A detour avoids crossings at any length: a direct route across a few lines reads better.
-    if (next && problem(e, next) === 'detour') {
+    if (detour && next && problem(e, next) === 'detour') {
       const direct = routeOrthogonal({ ...request, area: inflate(all, 40), crossCost: DIRECT_CROSS_COST });
       if (direct && severity(problem(e, direct)) < severity('detour')) next = direct;
     }
@@ -269,7 +269,7 @@ export function repairRoutes(nodes: readonly RepairNode[], edges: readonly Repai
       const route = routes.get(e.id)!;
       const was = problem(e, route) ?? (options.force?.has(e.id) && pass === 0 ? 'forced' : undefined);
       if (!was) continue;
-      const next = reroute(e, was === 'label');
+      const next = reroute(e, was === 'label', was === 'detour');
       if (!next) continue;
       const now = problem(e, next);
       // Only an improvement counts: the new route breaks a less severe rule, or none.
