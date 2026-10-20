@@ -1,6 +1,6 @@
 node_modules/
 dist/
-.tools/
+.tools
 *.tmp
 .DS_Store
 artifacts/gallery/

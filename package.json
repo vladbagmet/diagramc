@@ -1,6 +1,6 @@
 {
   "name": "agent-uml-cli",
-  "version": "0.2.0",
+  "version": "1.0.0",
   "private": true,
   "description": "Agent-first CLI: validated JSON UML models to SVG/PNG, offline",
   "type": "module",
@@ -10,15 +10,17 @@
   "files": [
     "dist/",
     "schema/",
-    "assets/",
+    "assets/fonts/",
     "scripts/setup-renderer.mjs",
-    "examples/"
+    "examples/",
+    "THIRD_PARTY_NOTICES.md",
+    "CHANGELOG.md"
   ],
   "engines": {
     "node": ">=22"
   },
   "scripts": {
-    "build": "tsc && node scripts/finish-build.mjs",
+    "build": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\" && tsc && node scripts/finish-build.mjs",
     "prepack": "npm run build",
     "setup:renderer": "node scripts/setup-renderer.mjs",
     "test": "npm run build && node --test \"test/*.test.mjs\"",

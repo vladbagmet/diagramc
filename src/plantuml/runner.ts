@@ -16,7 +16,10 @@ export interface RendererOptions {
 
 /** Locates the pinned local Java and PlantUML jar, or trusted UML_JAVA/PLANTUML_JAR overrides. */
 export async function rendererOptions(tools = fileURLToPath(new URL('../../.tools/', import.meta.url))): Promise<RendererOptions> {
-  const missing = () => new UmlError('RENDERER_MISSING', 'Run npm run setup:renderer, or set both UML_JAVA and PLANTUML_JAR', 3);
+  const setup = fileURLToPath(new URL('../../scripts/setup-renderer.mjs', import.meta.url));
+  const missing = () => new UmlError('RENDERER_MISSING',
+    `The PlantUML renderer is not set up. Run: node ${JSON.stringify(setup)} (npm run setup:renderer in a source checkout), or set both UML_JAVA and PLANTUML_JAR`, 3,
+    { setup: `node ${JSON.stringify(setup)}`, env: ['UML_JAVA', 'PLANTUML_JAR'] });
   if (process.env.UML_JAVA || process.env.PLANTUML_JAR) {
     if (!process.env.UML_JAVA || !process.env.PLANTUML_JAR) throw missing();
     return { java: process.env.UML_JAVA, jar: process.env.PLANTUML_JAR };
