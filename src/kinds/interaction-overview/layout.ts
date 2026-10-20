@@ -1,5 +1,6 @@
 import { theme } from '../../core/theme.js';
-import { countCrossings, routesLength } from '../../engine/aspect.js';
+import { countCrossings, routeLimit, routesLength, wrapsAround } from '../../engine/aspect.js';
+import { routeOrthogonal } from '../../engine/router.js';
 import { layout, type LayoutEdge, type LayoutNode, type LayoutPort, type LayoutResult } from '../../engine/elk.js';
 import type { FontMetrics, TextStyle } from '../../engine/fonts.js';
 import { inflate, segmentIntersectsRect, simplify, straightenJogs, union, type Point, type Rect } from '../../engine/geometry.js';
@@ -28,6 +29,8 @@ const REF_PAD_Y = 10, REF_PAD_X = 24, MIN_REF = 150, MAX_REF_NAME = 260;
 const WIDE = 360, SPINE_INSET = 48;
 /** Length of the trunk branches that share a decision vertex run on together. */
 const SPLIT = 14;
+/** Two flows into one final vertex end this far left and right of its middle, on the circle. */
+const FINAL_SPREAD = 9;
 
 export interface OverviewSceneNode {
   node: OverviewNode;
@@ -288,6 +291,42 @@ export async function layoutInteractionOverview(model: InteractionOverviewDiagra
   for (const f of flows) {
     const r = routes.get(f.id)!;
     routes.set(f.id, straightenJogs(r, { source: endRect(f.from, r[0]!), target: endRect(f.to, r.at(-1)!) }));
+  }
+  // A flow longer than the route limit between its ends (ELK runs a loop-back far
+  // around the drawing) is routed afresh between the same end points, around the
+  // nodes and clear of the other flows, when that is shorter and crosses no more.
+  for (const f of flows) {
+    const r = routes.get(f.id)!;
+    if (r.length < 2 || (routesLength([r]) <= routeLimit(r[0]!, r.at(-1)!) + 0.5 && !wrapsAround(r))) continue;
+    const others = flows.filter(o => o.id !== f.id).map(o => routes.get(o.id)!);
+    const out = (p: Point, q: Point): Point => ({ x: Math.sign(Math.round(q.x - p.x)), y: Math.sign(Math.round(q.y - p.y)) });
+    const end = (p: Point, q: Point) => ({ rect: { x: p.x, y: p.y, width: 0, height: 0 }, fixed: { point: p, out: out(p, q) }, stub: theme.size.arrow.length + theme.spacing.bendRadius + 6 });
+    const obstacles = model.nodes.filter(n => n.id !== f.from && n.id !== f.to).map(n => rects.get(n.id)!);
+    const request = { source: end(r[0]!, r[1]!), target: end(r.at(-1)!, r.at(-2)!), obstacles, lines: others };
+    const next = routeOrthogonal({ ...request, area: inflate(union([...rects.values()]), 40) });
+    if (!next || routesLength([next]) >= routesLength([r]) || countCrossings([next, ...others]) > countCrossings([r, ...others])) continue;
+    routes.set(f.id, simplify(next));
+  }
+  // Two flows that still reach a final node at one vertex (it has more inputs than
+  // vertices) end side by side on its circle instead, each on its own line.
+  for (const n of model.nodes) {
+    if (n.type !== 'final' && n.type !== 'flow-final') continue;
+    const into = flows.filter(f => f.to === n.id);
+    const byPoint = new Map<string, typeof flows>();
+    for (const f of into) { const p = routes.get(f.id)!.at(-1)!; const key = `${Math.round(p.x)},${Math.round(p.y)}`; byPoint.set(key, [...byPoint.get(key) ?? [], f]); }
+    const box = rects.get(n.id)!, c = { x: box.x + box.width / 2, y: box.y + box.height / 2 }, radius = box.width / 2;
+    for (const group of byPoint.values()) {
+      if (group.length !== 2) continue;
+      const ok = group.every(f => { const r = routes.get(f.id)!; return r.length >= 3 && Math.abs(r.at(-1)!.x - r.at(-2)!.x) < 0.5 && Math.abs(r.at(-2)!.y - r.at(-3)!.y) < 0.5; });
+      if (!ok) continue;
+      const sorted = [...group].sort((a, b) => routes.get(a.id)!.at(-3)!.x - routes.get(b.id)!.at(-3)!.x);
+      sorted.forEach((f, k) => {
+        const r = routes.get(f.id)!, dx = (k === 0 ? -1 : 1) * FINAL_SPREAD;
+        const sign = Math.sign(r.at(-1)!.y - r.at(-2)!.y) || 1;
+        const end = { x: c.x + dx, y: c.y - sign * Math.sqrt(radius * radius - dx * dx) };
+        routes.set(f.id, simplify([...r.slice(0, -2), { x: end.x, y: r.at(-2)!.y }, end]));
+      });
+    }
   }
   const vectorOf = (v: Vertex): Point => v === 'SOUTH' ? { x: 0, y: 1 } : v === 'WEST' ? { x: -1, y: 0 } : v === 'EAST' ? { x: 1, y: 0 } : { x: 0, y: -1 };
 

@@ -2,12 +2,12 @@ import { theme } from '../../core/theme.js';
 import type { LineStyle, Marker } from '../../engine/edges.js';
 import { layout, type Direction, type LayoutEdge, type LayoutLabel, type LayoutNode, type LayoutPort, type Side } from '../../engine/elk.js';
 import type { FontMetrics, TextStyle } from '../../engine/fonts.js';
-import { contains, direction, distance, distanceToSegment, inflate, overlaps, segmentIntersectsRect, simplify, straightenJogs, union, type Point, type Rect } from '../../engine/geometry.js';
+import { contains, direction, distance, distanceToSegment, segmentDistance, inflate, overlaps, segmentIntersectsRect, simplify, straightenJogs, union, type Point, type Rect } from '../../engine/geometry.js';
 import { labelFits, placeLabels, type LabelRequest } from '../../engine/labels.js';
 import { measureBox, measureFrameHeading, measureNote, type Compartment, type MeasuredBox } from '../../engine/shapes.js';
 import { ballBounds, socketBounds } from '../../engine/symbols.js';
 import { wrapText } from '../../engine/text.js';
-import { chooseLayout, countCrossings, LAYOUT_VARIANTS, routesLength, type LayoutVariant } from '../../engine/aspect.js';
+import { chooseLayout, countCrossings, LAYOUT_VARIANTS, routeLimit, routesDetour, routesLength, wrapsAround, type LayoutVariant } from '../../engine/aspect.js';
 import { rectGap, repairRoutes, type RepairNode } from '../../engine/repair.js';
 import { routeOrthogonal } from '../../engine/router.js';
 import { spreadEllipseEnds } from '../../engine/clip.js';
@@ -233,7 +233,7 @@ export async function layoutStructure(graph: StructGraph, metrics: FontMetrics):
       if (!a || !b || contains(a, b) || contains(b, a)) return sum;
       return sum + Math.max(0, routesLength([e.points]) - 1.5 * rectGap(a, b) - 100);
     }, 0);
-    return { width: scene.width, height: scene.height, crossings: countCrossings(lines) + 8 * slanted + detour / 80, edgeLength: routesLength(lines) };
+    return { width: scene.width, height: scene.height, crossings: countCrossings(lines) + 8 * slanted + detour / 80, edgeLength: routesLength(lines), detour: routesDetour(lines) };
   }, { wrap: true, maxAspect: MAX_ASPECT, penalty: i => i ? 0.05 : 0 }));
 }
 
@@ -838,6 +838,9 @@ async function layoutIn(graph: StructGraph, metrics: FontMetrics, dir: 'RIGHT' |
       const width = Math.max(0, ...header.lines.flatMap(l => l.widths));
       const top = r.y + (node.shape === 'node3d' ? depth : 0);
       texts.push({ x: r.x + (r.width - (node.shape === 'node3d' ? depth : 0) - width) / 2 - 4, y: top, width: width + 8, height: header.height });
+      // The whole header band (gate edge-endpoints): no line runs through it, beside the name either.
+      // Inset at the sides by less than the router's margin: lines may still pass just outside the border.
+      texts.push({ x: r.x + 8, y: r.y, width: Math.max(1, r.width - 16), height: top - r.y + header.height });
     }
     repairNodes.push({ id, rect: r, parent, container, texts });
   }
@@ -857,7 +860,9 @@ async function layoutIn(graph: StructGraph, metrics: FontMetrics, dir: 'RIGHT' |
     if (x.kind !== 'port' || x.parent === undefined) continue;
     const ownerInfo = info.get(x.parent)!;
     if (ownerInfo.node.shape !== 'box' || !ownerInfo.node.children?.length) continue;
-    if (symbols.some(y => y.kind !== 'port' && stubOwner.get(y.id)?.owner === x.id)) continue;
+    // A port with one lollipop or socket takes it along (beside the side border); with more it stays.
+    const ownStubs = symbols.filter(y => y.kind !== 'port' && stubOwner.get(y.id)?.owner === x.id);
+    if (ownStubs.length > 1) continue;
     const owner = rects.get(x.parent)!, header = boxes.get(x.parent)?.compartments[0];
     if (!header) continue;
     const headerBottom = owner.y + header.height;
@@ -898,9 +903,37 @@ async function layoutIn(graph: StructGraph, metrics: FontMetrics, dir: 'RIGHT' |
     const left = tries[0]!.isLeft, y = tries[0]!.y!;
     const bx = left ? owner.x : owner.x + owner.width;
     const moved = { x: bx, y }, half = portSize / 2;
+    // Its lollipop or socket: on a short stem straight out from the new place, name above it.
+    let stubPlace: { center: Point; bounds: Rect; u?: Point; stem: Point[]; name: Rect } | undefined;
+    if (ownStubs.length) {
+      const sym = ownStubs[0]!, out = left ? -1 : 1, STEM = 24;
+      const start = { x: bx + out * half, y };
+      const name = fixedLabels.find(l => l.owner === sym.id);
+      if (sym.kind === 'ball') {
+        const r = theme.size.ball, center = { x: start.x + out * (STEM + r), y };
+        stubPlace = { center, bounds: ballBounds(center), stem: [start, { x: center.x - out * r, y }], name: name ? { ...name.rect, x: center.x - name.rect.width / 2, y: center.y - r - LABEL_GAP - lh } : { x: center.x, y, width: 0, height: 0 } };
+      } else {
+        const R = theme.size.socket, u = { x: out, y: 0 }, back = { x: start.x + out * STEM, y }, center = { x: back.x + out * R, y };
+        stubPlace = { center, u, bounds: socketBounds(center, u), stem: [start, back], name: name ? { ...name.rect, x: center.x - name.rect.width / 2, y: center.y - R - LABEL_GAP - lh } : { x: center.x, y, width: 0, height: 0 } };
+      }
+      const room = inflate(union([stubPlace.bounds, stubPlace.name]), 3);
+      const taken = [...rects].some(([id, r]) => id !== x.parent && !info.get(id)!.node.children?.length && overlaps(room, r))
+        || overlaps(room, inflate(owner, -1)) || symbols.some(o => o !== x && o !== sym && overlaps(room, o.bounds));
+      if (taken) continue;
+    }
     x.bounds = translateRect(x.bounds, { x: moved.x - c.x, y: moved.y - c.y });
     x.center = moved;
     const node = repairNodes.find(n => n.id === x.id);
+    if (stubPlace) {
+      const sym = ownStubs[0]!;
+      sym.center = stubPlace.center;
+      sym.bounds = stubPlace.bounds;
+      if (stubPlace.u) sym.u = stubPlace.u;
+      for (const l of fixedLabels) if (l.owner === sym.id) l.rect = stubPlace.name;
+      routes.set(`${sym.id}::stem`, stubPlace.stem);
+      const n = repairNodes.find(m => m.id === sym.id);
+      if (n) { n.rect = sym.bounds; n.texts = fixedLabels.filter(l => l.owner === sym.id).map(l => l.rect); }
+    }
     if (text !== undefined) reservedNames.set(x.id, nameRect(left, y));
     if (node) {
       node.rect = x.bounds;
@@ -910,7 +943,7 @@ async function layoutIn(graph: StructGraph, metrics: FontMetrics, dir: 'RIGHT' |
     }
     for (const p of plans) {
       const route = routes.get(p.id);
-      if (!route || (p.source !== x.id && p.target !== x.id)) continue;
+      if (!route || (p.source !== x.id && p.target !== x.id) || ownStubs.some(o => p.id === `${o.id}::stem`)) continue;
       const fromPort = p.source === x.id ? route : [...route].reverse();
       const other = p.source === x.id ? p.target : p.source;
       const inward = inside(ownerNode(other), x.parent);
@@ -1032,32 +1065,182 @@ async function layoutIn(graph: StructGraph, metrics: FontMetrics, dir: 'RIGHT' |
     ...[...rects].filter(([id]) => !info.get(id)!.node.children?.length).map(([, r]) => r),
     ...symbols.map(x => x.bounds), ...fixedLabels.map(l => l.rect), ...repairNodes.flatMap(n => n.texts ?? []),
   ];
+  const centerLabelFits = (id: string, route: readonly Point[], current: ReadonlyMap<string, Point[]>): boolean => {
+    const p = plans.find(q => q.id === id);
+    if (!p?.center) return true;
+    const others = [...current].filter(([other]) => other !== id);
+    const segments: [Point, Point][] = [];
+    for (const [, r] of others) r.slice(1).forEach((q, k) => segments.push([r[k]!, q]));
+    const request: LabelRequest = { id: `${id}::center`, owner: id, width: Math.max(...p.center.widths), height: p.center.lines.length * lh, route: [...route], at: 'center' };
+    return labelFits(request, { rects: labelRects, segments, lines: others.map(([owner, points]) => ({ owner, points })) });
+  };
+  /** Room a line needs from its neighbours for its label: the label's extent across the line's longest segment. */
+  const centerLabelSpacing = (id: string): number | undefined => {
+    const p = plans.find(q => q.id === id), r = routes.get(id);
+    if (!p?.center || !r) return undefined;
+    const longest = r.slice(1).map((q, k) => [r[k]!, q] as const).sort(([a, b], [c, d]) => distance(c, d) - distance(a, b))[0];
+    const vertical = longest ? Math.abs(longest[0].x - longest[1].x) < 0.5 : false;
+    return (vertical ? Math.max(...p.center.widths) : p.center.lines.length * lh) + 16;
+  };
   const repaired = repairRoutes(repairNodes, plans.filter(p => routes.has(p.id)).map(p => ({
     id: p.id, source: p.source, target: p.target, route: routes.get(p.id)!, sourceMarker: p.sourceMarker, targetMarker: p.targetMarker,
     fixedSource: pinned(p.source), fixedTarget: pinned(p.target),
   })), {
-    keep: new Set(plans.filter(p => p.symbol !== undefined && !lowered.has(p.id)).map(p => p.id)), force: unrouted, junctions: true,
+    // A candidate of a large drawing (not final, see layoutStructure) only routes the
+    // lines ELK left out: comparing candidates needs their shape, not every repair.
+    keep: new Set(plans.filter(p => (p.symbol !== undefined && !lowered.has(p.id)) || (!final && !unrouted.has(p.id))).map(p => p.id)), force: unrouted, junctions: final,
     // Center labels need a clean spot beside their own line, clearly nearer to it
     // than to any other line; lines without one (parallel paths) are spread apart.
-    labelFits: (id, route, current) => {
-      const p = plans.find(q => q.id === id);
-      if (!p?.center) return true;
-      const others = [...current].filter(([other]) => other !== id);
-      const segments: [Point, Point][] = [];
-      for (const [, r] of others) r.slice(1).forEach((q, k) => segments.push([r[k]!, q]));
-      const request: LabelRequest = { id: `${id}::center`, owner: id, width: Math.max(...p.center.widths), height: p.center.lines.length * lh, route, at: 'center' };
-      return labelFits(request, { rects: labelRects, segments, lines: others.map(([owner, points]) => ({ owner, points })) });
-    },
-    labelSpacing: id => {
-      const p = plans.find(q => q.id === id);
-      return p?.center ? p.center.lines.length * lh + 16 : undefined;
-    },
+    ...(final ? { labelFits: centerLabelFits, labelSpacing: centerLabelSpacing } : { shorten: false }),
   });
   for (const id of repaired.changed) { routes.set(id, repaired.routes.get(id)!); for (const key of [...suggestions.keys()]) if (key.startsWith(`${id}::`)) suggestions.delete(key); }
   if (final) swapCrossedNeighbours();
   if (final) routeEllipseLines();
   straightenZigZags();
   if (final) separateSharedRuns();
+  if (final) keepOffBorders();
+  if (final) spreadForLabels();
+
+  /** Lines whose center label has no clean spot by now are spread from their neighbours (route repair). */
+  function spreadForLabels(): void {
+    const live = plans.filter(p => routes.has(p.id));
+    const current = new Map(live.map(p => [p.id, routes.get(p.id)!]));
+    const crowded = new Set(live.filter(p => p.center && !centerLabelFits(p.id, routes.get(p.id)!, current)).map(p => p.id));
+    if (!crowded.size) return;
+    const fixed = (id: string): boolean => symbolIds.has(id) || info.get(id)?.node.shape === 'ellipse';
+    const again = repairRoutes(repairNodes, live.map(p => ({
+      id: p.id, source: p.source, target: p.target, route: routes.get(p.id)!, sourceMarker: p.sourceMarker, targetMarker: p.targetMarker,
+      fixedSource: fixed(p.source), fixedTarget: fixed(p.target),
+    })), { keep: new Set(live.filter(p => !crowded.has(p.id)).map(p => p.id)), labelFits: centerLabelFits, labelSpacing: centerLabelSpacing, shorten: false });
+    for (const id of again.changed) {
+      const next = again.routes.get(id)!;
+      if (routesLength([next]) > routeLimit(next[0]!, next.at(-1)!) + 0.5 || wrapsAround(next)) continue;
+      routes.set(id, next);
+      for (const key of [...suggestions.keys()]) if (key.startsWith(`${id}::`)) suggestions.delete(key);
+    }
+  }
+
+  /**
+   * A line running along a node it does not touch, closer than NODE_CLEARANCE px
+   * outside its border, reads as part of the outline (gate edge-endpoints): such
+   * lines are routed afresh, which keeps the router's margin.
+   */
+  function keepOffBorders(): void {
+    const CLEARANCE = 4, MIN_RUN = 10;
+    const along = (a: Point, b: Point, r: Rect): boolean => {
+      if (Math.abs(a.y - b.y) < 0.5) {
+        const overlap = Math.min(Math.max(a.x, b.x), r.x + r.width) - Math.max(Math.min(a.x, b.x), r.x);
+        return overlap > MIN_RUN && Math.min(Math.abs(a.y - r.y), Math.abs(a.y - r.y - r.height)) < CLEARANCE && (a.y <= r.y + 0.5 || a.y >= r.y + r.height - 0.5);
+      }
+      if (Math.abs(a.x - b.x) < 0.5) {
+        const overlap = Math.min(Math.max(a.y, b.y), r.y + r.height) - Math.max(Math.min(a.y, b.y), r.y);
+        return overlap > MIN_RUN && Math.min(Math.abs(a.x - r.x), Math.abs(a.x - r.x - r.width)) < CLEARANCE && (a.x <= r.x + 0.5 || a.x >= r.x + r.width - 0.5);
+      }
+      return false;
+    };
+    const outlines: { id: string; rect: Rect }[] = [...[...rects].map(([id, rect]) => ({ id, rect })), ...symbols.filter(x => x.kind !== 'port').map(x => ({ id: x.id, rect: x.bounds }))];
+    const hugging = new Set<string>();
+    for (const p of plans) {
+      const r = routes.get(p.id);
+      if (!r) continue;
+      const ends = [p.source, p.target, ownerNode(p.source), ownerNode(p.target)];
+      const related = new Set([...ends, ...ancestors(ownerNode(p.source)), ...ancestors(ownerNode(p.target))]);
+      if (outlines.some(o => !related.has(o.id) && r.slice(1).some((q, k) => along(r[k]!, q, o.rect)))) hugging.add(p.id);
+      // And detours: longer than the route limit between its ends, or wrapping around (gate route-length).
+      else if (routesLength([r]) > routeLimit(r[0]!, r.at(-1)!) + 0.5 || wrapsAround(r)) hugging.add(p.id);
+    }
+    if (!hugging.size) return;
+    const fixed = (id: string): boolean => symbolIds.has(id) || info.get(id)?.node.shape === 'ellipse';
+    const again = repairRoutes(repairNodes, plans.filter(p => routes.has(p.id)).map(p => ({
+      id: p.id, source: p.source, target: p.target, route: routes.get(p.id)!, sourceMarker: p.sourceMarker, targetMarker: p.targetMarker,
+      fixedSource: fixed(p.source), fixedTarget: fixed(p.target),
+    })), { keep: new Set(plans.filter(p => !hugging.has(p.id)).map(p => p.id)), force: hugging, shorten: false });
+    for (const id of again.changed) {
+      // A detour is replaced only by a route that is no detour itself.
+      const next = again.routes.get(id)!;
+      if (routesLength([next]) > routeLimit(next[0]!, next.at(-1)!) + 0.5 || wrapsAround(next)) continue;
+      routes.set(id, next);
+      for (const key of [...suggestions.keys()]) if (key.startsWith(`${id}::`)) suggestions.delete(key);
+    }
+    // A detour the repair could not shorten (the corridor beside it is taken by other
+    // lines): the shortest route around the nodes, crossing lines if it must, but never
+    // running along one.
+    const isDetour = (r: readonly Point[]): boolean => routesLength([r]) > routeLimit(r[0]!, r.at(-1)!) + 0.5 || wrapsAround(r);
+    const runsWith = (next: readonly Point[], o: readonly Point[]): boolean => next.slice(1).some((q, k) => o.slice(1).some((s, m) => {
+      const a = next[k]!, c = o[m]!;
+      const horizontal = Math.abs(a.y - q.y) < 0.5 && Math.abs(c.y - s.y) < 0.5 && Math.abs(a.y - c.y) <= 1.5;
+      const vertical = Math.abs(a.x - q.x) < 0.5 && Math.abs(c.x - s.x) < 0.5 && Math.abs(a.x - c.x) <= 1.5;
+      const key = horizontal ? 'x' as const : 'y' as const;
+      return (horizontal || vertical) && Math.min(Math.max(a[key], q[key]), Math.max(c[key], s[key])) - Math.max(Math.min(a[key], q[key]), Math.min(c[key], s[key])) > 10;
+    }));
+    /** The shortest route of a line around the nodes, clear of the lines not ignored; undefined when it would detour. */
+    const direct = (id: string, ignore: ReadonlySet<string>): Point[] | undefined => {
+      const p = plans.find(q => q.id === id)!, r = routes.get(id)!;
+      const related = new Set([...ancestors(ownerNode(p.source)), ...ancestors(ownerNode(p.target)), p.source, p.target]);
+      const obstacles: Rect[] = [
+        ...[...rects].filter(([k]) => !related.has(k) && !ancestors(k).some(x => x === ownerNode(p.source) || x === ownerNode(p.target))).map(([, rect]) => rect),
+        ...symbols.filter(x => x.id !== p.source && x.id !== p.target && x.kind !== 'port').map(x => x.bounds),
+        ...repairNodes.filter(n => n.id !== p.source && n.id !== p.target).flatMap(n => n.texts ?? []),
+      ];
+      const endOf = (which: 'source' | 'target') => {
+        const nodeId = which === 'source' ? p.source : p.target, at = which === 'source' ? r[0]! : r.at(-1)!, next = which === 'source' ? r[1]! : r.at(-2)!;
+        const rect = rects.get(nodeId) ?? symbols.find(x => x.id === nodeId)?.bounds ?? { x: at.x, y: at.y, width: 0, height: 0 };
+        const stub = markerExtent(which === 'source' ? p.sourceMarker : p.targetMarker).length + theme.spacing.bendRadius + 6;
+        return fixed(nodeId) || portOwner.has(nodeId) ? { rect, stub, fixed: { point: at, out: { x: Math.sign(Math.round(next.x - at.x)), y: Math.sign(Math.round(next.y - at.y)) } } } : { rect, stub };
+      };
+      const others = plans.filter(o => o.id !== id && !ignore.has(o.id) && routes.has(o.id)).map(o => routes.get(o.id)!);
+      const source = endOf('source'), target = endOf('target');
+      const area = inflate(union([source.rect, target.rect]), 160);
+      let next = routeOrthogonal({ source, target, obstacles, lines: others, area });
+      if (next && others.some(o => runsWith(next!, o))) {
+        // The router only charges for running along a line: the other lines become thin
+        // obstacles (away from this line's ends), so it keeps a lane of its own.
+        const ends = [r[0]!, r.at(-1)!];
+        const lanes = others.flatMap(o => o.slice(1).map((q, k) => [o[k]!, q] as const))
+          .filter(([a, b]) => !ends.some(e => distanceToSegment(e, a, b) < 20))
+          .map(([a, b]) => inflate({ x: Math.min(a.x, b.x), y: Math.min(a.y, b.y), width: Math.abs(a.x - b.x), height: Math.abs(a.y - b.y) }, 1));
+        next = routeOrthogonal({ source, target, obstacles: [...obstacles, ...lanes], lines: others, area, margin: 7 });
+      }
+      if (!next || isDetour(next) || others.some(o => runsWith(next!, o))) return undefined;
+      return simplify(next);
+    };
+    const settle = (id: string, route: Point[]): void => {
+      routes.set(id, route);
+      for (const key of [...suggestions.keys()]) if (key.startsWith(`${id}::`)) suggestions.delete(key);
+    };
+    // A detour the repair could not shorten (the corridor beside it is taken by another
+    // line): the shortest route around the nodes; failing that, it takes the corridor
+    // of a nearby line, which is then routed afresh beside it (both must stay within
+    // their limits, or nothing changes).
+    for (const id of hugging) {
+      const r = routes.get(id)!;
+      if (!isDetour(r)) continue;
+      const alone = direct(id, new Set());
+      if (alone) { settle(id, alone); continue; }
+      const near = plans.filter(o => o.id !== id && routes.has(o.id) && o.symbol === undefined).map(o => ({ o, d: Math.min(...routes.get(o.id)!.slice(1).flatMap((q, k) => r.slice(1).map((s, m) => segmentDistance(routes.get(o.id)![k]!, q, r[m]!, s)))) }))
+        .filter(x => x.d < 40).sort((x, y) => x.d - y.d).slice(0, 3);
+      for (const { o } of near) {
+        const mine = direct(id, new Set([o.id]));
+        if (!mine) continue;
+        // The router may have kept off that line further than it needs to: then the new route stands as it is.
+        if (!runsWith(mine, routes.get(o.id)!)) { settle(id, mine); break; }
+        const before = routes.get(o.id)!;
+        routes.set(id, mine);
+        let theirs = direct(o.id, new Set());
+        if (!theirs) {
+          // Or the route repair moves it off the line that took its corridor.
+          const moved = repairRoutes(repairNodes, plans.filter(q => routes.has(q.id)).map(q => ({
+            id: q.id, source: q.source, target: q.target, route: routes.get(q.id)!, sourceMarker: q.sourceMarker, targetMarker: q.targetMarker,
+            fixedSource: fixed(q.source), fixedTarget: fixed(q.target),
+          })), { keep: new Set(plans.filter(q => q.id !== o.id).map(q => q.id)), force: new Set([o.id]), shorten: false }).routes.get(o.id)!;
+          if (!isDetour(moved) && !plans.some(q => q.id !== o.id && routes.has(q.id) && runsWith(moved, routes.get(q.id)!))) theirs = moved;
+        }
+        if (theirs && !runsWith(theirs, mine)) { settle(id, mine); settle(o.id, theirs); break; }
+        routes.set(id, r);
+        routes.set(o.id, before);
+      }
+    }
+  }
 
   /**
    * Two lines must never run on top of each other (a reader cannot tell where
@@ -1550,7 +1733,7 @@ async function layoutIn(graph: StructGraph, metrics: FontMetrics, dir: 'RIGHT' |
         }
         return out.length ? out : undefined;
       })() : undefined;
-      requests.push({ id, width: e.width, height: lh, route, at: e.end, side: e.kind === 'multiplicity' ? 1 : -1, clearance: markerExtent(marker).half + 3, ...(atPort ? { candidates: atPort } : { suggestion: suggested && { x: suggested.x + 2, y: suggested.y, width: e.width, height: lh } }) });
+      requests.push({ id, owner: p.id, width: e.width, height: lh, route, at: e.end, side: e.kind === 'multiplicity' ? 1 : -1, clearance: markerExtent(marker).half + 3, ...(atPort ? { candidates: atPort } : { suggestion: suggested && { x: suggested.x + 2, y: suggested.y, width: e.width, height: lh } }) });
       meta.set(id, { owner: p.id, lines: [e.text], widths: [e.width], end: e.end, anchor: e.end === 'source' ? route[0]! : route.at(-1)! });
     });
   }

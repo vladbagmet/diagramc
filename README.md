@@ -512,7 +512,12 @@ listed with their review findings in `test/known-gate-failures.mjs`.
   produce layout warnings. Splitting a model into several diagrams reads better.
   Timing diagrams too dense for a 3200 px axis are rejected with
   `TIMELINE_TOO_DENSE` and the room they need. Inline interactions in an
-  interaction overview have at most 6 lifelines and 12 messages.
+  interaction overview have at most 6 lifelines and 12 messages. Component,
+  deployment and composite structure diagrams stay within 2.5:1 when a layout
+  achieves it, so large ones grow tall rather than wide.
+- **Ports with many connectors.** A port takes up to three connectors on separate
+  lines (its outer face and two side faces); with more, for example seven
+  assemblies into one provider port, the connectors share a trunk next to it.
 - **Two backends, one look.** Colors, sizes and the font match, but PlantUML
   kinds draw glyphs through Java, so they can differ slightly from own-engine
   kinds. PlantUML output is checked by the same gates on a best-effort reading of

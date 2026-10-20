@@ -36,16 +36,17 @@ function drawNode(canvas: Canvas, entry: OverviewSceneNode): string {
     case 'initial':
       return group(id, node.type, b, [el('circle', { cx, cy, r: b.width / 2, fill: edge })]);
     case 'final':
+      // Ellipse outline: flows may end anywhere on the circle (two at one vertex end side by side).
       return group(id, node.type, b, [
         el('circle', { cx, cy, r: b.width / 2 - 0.6, fill: theme.color.background, stroke: edge, 'stroke-width': theme.stroke.edge }),
         el('circle', { cx, cy, r: b.width / 2 - 5.5, fill: edge }),
-      ]);
+      ], undefined, 'ellipse');
     case 'flow-final': {
       const r = b.width / 2 - 0.6, k = r * Math.SQRT1_2;
       return group(id, node.type, b, [
         el('circle', { cx, cy, r, fill: theme.color.background, stroke: edge, 'stroke-width': theme.stroke.edge }),
         el('path', { d: `M${num(cx - k)},${num(cy - k)} L${num(cx + k)},${num(cy + k)} M${num(cx - k)},${num(cy + k)} L${num(cx + k)},${num(cy - k)}`, stroke: edge, 'stroke-width': theme.stroke.edge, fill: 'none' }),
-      ]);
+      ], undefined, 'ellipse');
     }
     case 'decision': case 'merge':
       // Flows may start anywhere on the diamond's outline (branches sharing a vertex start on its edges).
