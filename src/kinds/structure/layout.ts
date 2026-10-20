@@ -1465,6 +1465,24 @@ async function layoutIn(graph: StructGraph, metrics: FontMetrics, dir: 'RIGHT' |
     }
   }
 
+  // A route that runs past a point, steps aside a few px and comes back (a hook the
+  // router makes to give an end its straight stub) runs straight to it instead.
+  for (const p of plans) {
+    const r = routes.get(p.id);
+    if (!r) continue;
+    let pts = r.map(q => ({ ...q }));
+    for (let i = 0; i + 4 < pts.length; i++) {
+      const [a, b, c, d, e] = [pts[i]!, pts[i + 1]!, pts[i + 2]!, pts[i + 3]!, pts[i + 4]!];
+      const u = direction(a, b), w = direction(c, d);
+      if (u.x * w.x + u.y * w.y > -0.99 || distance(b, c) >= 5 || distance(c, d) > distance(a, b)) continue;
+      const bent = Math.abs(a.y - b.y) < 0.01 ? { x: d.x, y: a.y } : { x: a.x, y: d.y };
+      if (i + 4 === pts.length - 1 && p.targetMarker !== 'none' && distance(bent, e) < markerExtent(p.targetMarker).length + theme.spacing.bendRadius) continue;
+      pts = simplify([...pts.slice(0, i + 1), bent, ...pts.slice(i + 4)]);
+      i = -1;
+    }
+    if (pts.length !== r.length) routes.set(p.id, pts);
+  }
+
   // ---- Scene edges ----
   const sceneEdges: PlacedEdge[] = [];
   for (const p of plans) {
