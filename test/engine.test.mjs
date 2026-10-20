@@ -432,3 +432,12 @@ test('QA gates for the review findings: crowded ends, detours, bent arrowheads, 
   const fine = broken.replace('OrderLineIt', 'OrderLine').replace('>emFactory', '>ItemFactory');
   assert.deepEqual(failed(await checkSvg(doc(fine))), []);
 });
+
+test('repairRoutes (lines): extra lines such as region separators are not followed', () => {
+  const nodes = [{ id: 'a', rect: { x: 0, y: 0, width: 60, height: 40 } }, { id: 'b', rect: { x: 300, y: 0, width: 60, height: 40 } }];
+  const edges = [{ id: 'e', source: 'a', target: 'b', route: [{ x: 60, y: 20 }, { x: 300, y: 20 }], sourceMarker: 'none', targetMarker: 'open-arrow' }];
+  const separator = [{ x: 60, y: 20 }, { x: 300, y: 20 }];
+  assert.deepEqual(repairRoutes(nodes, edges, { force: new Set(['e']) }).routes.get('e'), separator, 'without the option the straight line stays');
+  const route = repairRoutes(nodes, edges, { force: new Set(['e']), lines: [separator] }).routes.get('e');
+  assert.ok(route.slice(1).every((q, k) => !(Math.abs(q.y - 20) < 1 && Math.abs(route[k].y - 20) < 1)), JSON.stringify(route));
+});

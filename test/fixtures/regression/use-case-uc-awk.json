@@ -1,0 +1,216 @@
+{
+ "kind": "use-case",
+ "title": "Expense management",
+ "elements": [
+  {
+   "id": "emp",
+   "type": "actor",
+   "name": "Employee"
+  },
+  {
+   "id": "mgr",
+   "type": "actor",
+   "name": "Line manager with budget approval authority"
+  },
+  {
+   "id": "fin",
+   "type": "actor",
+   "name": "Finance controller"
+  },
+  {
+   "id": "erp",
+   "type": "actor",
+   "name": "SAP S/4HANA ERP",
+   "stereotypes": [
+    "system"
+   ]
+  },
+  {
+   "id": "bank",
+   "type": "actor",
+   "name": "Corporate bank",
+   "stereotypes": [
+    "system"
+   ]
+  },
+  {
+   "id": "exp",
+   "type": "subject",
+   "name": "Travel and expense management portal",
+   "stereotypes": [
+    "subsystem"
+   ]
+  },
+  {
+   "id": "pay",
+   "type": "subject",
+   "name": "Payments"
+  },
+  {
+   "id": "submit",
+   "type": "useCase",
+   "name": "Submit expense report with receipts and cost centre allocation",
+   "subject": "exp",
+   "extensionPoints": [
+    "foreign currency",
+    "over policy limit",
+    "missing receipt"
+   ]
+  },
+  {
+   "id": "fx",
+   "type": "useCase",
+   "name": "Convert foreign currency at ECB reference rate",
+   "subject": "exp"
+  },
+  {
+   "id": "just",
+   "type": "useCase",
+   "name": "Write policy exception justification",
+   "subject": "exp"
+  },
+  {
+   "id": "affid",
+   "type": "useCase",
+   "name": "Sign missing receipt affidavit",
+   "subject": "exp"
+  },
+  {
+   "id": "approve",
+   "type": "useCase",
+   "name": "Approve expense report",
+   "subject": "exp",
+   "extensionPoints": [
+    "escalation"
+   ]
+  },
+  {
+   "id": "esc",
+   "type": "useCase",
+   "name": "Escalate to next approver",
+   "subject": "exp"
+  },
+  {
+   "id": "audit",
+   "type": "useCase",
+   "name": "Audit expense report",
+   "subject": "exp"
+  },
+  {
+   "id": "auth",
+   "type": "useCase",
+   "name": "Authenticate via SSO",
+   "subject": "exp"
+  },
+  {
+   "id": "post",
+   "type": "useCase",
+   "name": "Post to general ledger",
+   "subject": "exp"
+  },
+  {
+   "id": "reimb",
+   "type": "useCase",
+   "name": "Reimburse employee",
+   "subject": "pay"
+  },
+  {
+   "id": "n1",
+   "type": "note",
+   "text": "Reports over 5000 EUR always need a finance audit, regardless of approval.",
+   "attachedTo": [
+    "audit",
+    "approve"
+   ]
+  }
+ ],
+ "relationships": [
+  {
+   "type": "association",
+   "from": "emp",
+   "to": "submit"
+  },
+  {
+   "type": "association",
+   "from": "mgr",
+   "to": "approve"
+  },
+  {
+   "type": "association",
+   "from": "fin",
+   "to": "audit"
+  },
+  {
+   "type": "association",
+   "from": "erp",
+   "to": "post"
+  },
+  {
+   "type": "association",
+   "from": "bank",
+   "to": "reimb"
+  },
+  {
+   "type": "generalization",
+   "from": "mgr",
+   "to": "emp"
+  },
+  {
+   "type": "generalization",
+   "from": "fin",
+   "to": "emp"
+  },
+  {
+   "type": "include",
+   "from": "submit",
+   "to": "auth"
+  },
+  {
+   "type": "include",
+   "from": "approve",
+   "to": "auth"
+  },
+  {
+   "type": "include",
+   "from": "audit",
+   "to": "auth"
+  },
+  {
+   "type": "include",
+   "from": "audit",
+   "to": "post"
+  },
+  {
+   "type": "include",
+   "from": "post",
+   "to": "reimb"
+  },
+  {
+   "type": "extend",
+   "from": "fx",
+   "to": "submit",
+   "extensionPoint": "foreign currency",
+   "condition": "receipt currency differs from home currency"
+  },
+  {
+   "type": "extend",
+   "from": "just",
+   "to": "submit",
+   "extensionPoint": "over policy limit",
+   "condition": "amount exceeds per-diem or category limit"
+  },
+  {
+   "type": "extend",
+   "from": "affid",
+   "to": "submit",
+   "extensionPoint": "missing receipt"
+  },
+  {
+   "type": "extend",
+   "from": "esc",
+   "to": "approve",
+   "extensionPoint": "escalation",
+   "condition": "no decision within 5 working days"
+  }
+ ]
+}

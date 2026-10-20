@@ -15,14 +15,14 @@ export interface QaReport { ok: boolean; renderer: Scene['renderer']; gates: Gat
 
 export const GATES = [
   'safe-markup', 'inside-canvas', 'node-overlap', 'label-overlap', 'label-edge-crossing', 'label-proximity',
-  'edge-endpoints', 'end-spacing', 'route-length', 'markers', 'message-arrows', 'literal-text', 'min-font-size', 'text-fits', 'ports',
+  'edge-endpoints', 'use-case-lines', 'end-spacing', 'route-length', 'markers', 'message-arrows', 'literal-text', 'min-font-size', 'text-fits', 'ports',
 ] as const;
 
 /**
  * Gates that judge layout choices only the own engine makes (end spacing, route
  * length); PlantUML output reports them as skipped.
  */
-export const ENGINE_ONLY_GATES: readonly string[] = ['end-spacing', 'route-length'];
+export const ENGINE_ONLY_GATES: readonly string[] = ['use-case-lines', 'end-spacing', 'route-length'];
 
 /** Minimum gap between a label and a node border it does not overlap (labels must not touch outlines). */
 export const LABEL_BORDER_CLEARANCE = LABEL_CLEARANCE;
@@ -232,6 +232,33 @@ export function runGates(scene: Scene, expectedTexts: readonly string[] = []): Q
       }
     }
   }, !exactEdges);
+
+  gate('use-case-lines', fail => {
+    // Use case diagrams: two lines running on top of each other read as one (several
+    // actors' lines sharing one trunk), so no stretch longer than OVERLAP_LENGTH
+    // where one line lies within OVERLAP_DISTANCE of another, at any angle. Lines
+    // leaving one point (an actor's fan) are not judged within OVERLAP_FAN of it;
+    // lines sharing an arrowhead tip (a generalization tree) share their trunk by
+    // design; a note's line to another line ends on it.
+    if (scene.kind !== 'use-case') return;
+    const lines = scene.edges.filter(e => e.points.length >= 2);
+    const tip = (e: Scene['edges'][number]): Point[] => [
+      ...(e.sourceMarker !== 'none' ? [e.points[0]!] : []), ...(e.targetMarker !== 'none' ? [e.points.at(-1)!] : []),
+    ];
+    lines.forEach((a, i) => {
+      for (const b of lines.slice(i + 1)) {
+        if (a.source === b.id || a.target === b.id || b.source === a.id || b.target === a.id) continue;
+        if (tip(a).some(p => tip(b).some(q => distance(p, q) < 0.5))) continue;
+        // Lines fanning out from one shared point are close near it by design.
+        const shared = [a.points[0]!, a.points.at(-1)!].find(p => [b.points[0]!, b.points.at(-1)!].some(q => distance(p, q) < 0.5));
+        let worst = 0;
+        for (let k = 1; k < a.points.length; k++) for (let m = 1; m < b.points.length; m++) {
+          worst = Math.max(worst, nearRun(a.points[k - 1]!, a.points[k]!, b.points[m - 1]!, b.points[m]!, OVERLAP_DISTANCE, shared));
+        }
+        if (worst > OVERLAP_LENGTH) fail(`edges ${a.id} and ${b.id} run within ${OVERLAP_DISTANCE}px of each other for ${worst.toFixed(0)}px`);
+      }
+    });
+  }, !engine);
 
   gate('end-spacing', fail => {
     // Different lines ending on one node keep apart (two arrowheads side by side plus
@@ -462,4 +489,30 @@ export async function checkSvg(svg: string, expectedTexts: readonly string[] = [
 
 export function formatReport(report: QaReport): string {
   return report.gates.filter(g => !g.ok).map(g => `${g.gate}:\n  ${g.failures.slice(0, 20).join('\n  ')}`).join('\n');
+}
+
+/** See the use-case-lines gate. */
+export const OVERLAP_DISTANCE = 2;
+export const OVERLAP_LENGTH = 40;
+/** Length near a point shared by two lines (an actor's fan point) that the use-case-lines gate does not judge. */
+export const OVERLAP_FAN = 60;
+
+/**
+ * Length of the longest stretch of segment c-d that lies within `tol` of segment
+ * a-b (sampled every 2 px; the distance to a segment is convex along a line, so
+ * the stretch is one interval), leaving out OVERLAP_FAN px around `fan`.
+ */
+export function nearRun(a: Point, b: Point, c: Point, d: Point, tol: number, fan?: Point): number {
+  if (Math.min(a.x, b.x) - tol > Math.max(c.x, d.x) || Math.min(c.x, d.x) - tol > Math.max(a.x, b.x)) return 0;
+  if (Math.min(a.y, b.y) - tol > Math.max(c.y, d.y) || Math.min(c.y, d.y) - tol > Math.max(a.y, b.y)) return 0;
+  const length = distance(c, d);
+  if (length < 1) return 0;
+  const steps = Math.ceil(length / 2);
+  let first = -1, last = -1;
+  for (let s = 0; s <= steps; s++) {
+    const t = s / steps, p = { x: c.x + (d.x - c.x) * t, y: c.y + (d.y - c.y) * t };
+    if (fan && distance(p, fan) < OVERLAP_FAN) continue;
+    if (distanceToSegment(p, a, b) <= tol) { if (first < 0) first = s; last = s; }
+  }
+  return first < 0 ? 0 : (last - first) / steps * length;
 }
