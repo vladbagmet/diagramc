@@ -13,7 +13,8 @@ import { walk, type XmlElement } from './xml.js';
  * geometry the `message-endpoints` gate checks.
  */
 
-export interface InteractionLifeline { id: string; x: number; top: number; bottom: number }
+/** `order`: position in drawing order; a shape hides only what was drawn before it. */
+export interface InteractionLifeline { id: string; x: number; top: number; bottom: number; order?: number }
 export interface InteractionArrowhead { style: 'filled' | 'open'; tip: Point; direction: Point }
 export interface InteractionMessage {
   id: string;
@@ -32,7 +33,7 @@ export interface Interaction {
   diagram: 'sequence' | 'timing';
   lifelines: InteractionLifeline[];
   /** Activation bars (sequence) with the lifeline they sit on. */
-  bars: (Rect & { lifeline: string })[];
+  bars: (Rect & { lifeline: string; order?: number })[];
   messages: InteractionMessage[];
   /** Heads of created lifelines: messages to them end on the head's border. */
   createdHeads: Map<string, Rect>;
@@ -41,9 +42,12 @@ export interface Interaction {
   /**
    * Sequence: opaque shapes drawn on top of lifelines and activation bars (heads,
    * notes, state invariants, interaction uses, fragment tabs, label halos). A
-   * lifeline or bar passing under one of them is hidden, not crossing its text.
+   * lifeline or bar drawn before one of them and passing under it is hidden, not
+   * crossing its text; one drawn after it is still seen. `text`: the shape only
+   * backs a text (label halo, state invariant), so an activation bar hidden by it
+   * reads as interrupted.
    */
-  occluders: Rect[];
+  occluders: (Rect & { order?: number; text?: boolean })[];
 }
 
 const num = (s: string | undefined): number => Number(s ?? 0);
@@ -179,14 +183,14 @@ export function readSequence(root: XmlElement, scene: Scene): void {
       const box = kids.find(k => k.tag === 'rect');
       const bounds = box ? shapeBounds(box)! : union([...shapes, ...texts.map(t => t.bounds)]);
       scene.nodes.push({ id, type: 'lifeline-head', bounds });
-      if (box) interaction.occluders.push(bounds);
+      if (box) interaction.occluders.push({ ...bounds, order: i });
       if (texts.length) out.push(merge(texts, { role: 'text', node: id }));
       continue;
     }
     if (e.tag === 'g' && cls.includes('message')) {
       const id = `message${interaction.messages.length}`;
       const message = readMessage(e, id);
-      for (const halo of kids.filter(k => k.tag === 'rect' && fill(k) === color.labelHalo)) interaction.occluders.push(shapeBounds(halo)!);
+      for (const halo of kids.filter(k => k.tag === 'rect' && fill(k) === color.labelHalo)) interaction.occluders.push({ ...shapeBounds(halo)!, order: i, text: true });
       const source = e.attrs['data-participant-1'], target = e.attrs['data-participant-2'];
       const texts = message.texts.map(take);
       const numbers = texts.filter(t => t.bold && /^\d+$/u.test(t.content));
@@ -207,11 +211,11 @@ export function readSequence(root: XmlElement, scene: Scene): void {
       const line = kids.find(k => k.tag === 'line');
       if (hit && line) {
         const [a, b] = lineEnds(line);
-        interaction.lifelines.push({ id: '', x: a.x, top: Math.min(a.y, b.y), bottom: Math.max(a.y, b.y) });
+        interaction.lifelines.push({ id: '', x: a.x, top: Math.min(a.y, b.y), bottom: Math.max(a.y, b.y), order: i });
         continue;
       }
       const bar = kids.find(k => k.tag === 'rect');
-      if (bar) interaction.bars.push({ ...shapeBounds(bar)!, lifeline: '' });
+      if (bar) interaction.bars.push({ ...shapeBounds(bar)!, lifeline: '', order: i });
       continue;
     }
     // Loose primitives.
@@ -222,7 +226,7 @@ export function readSequence(root: XmlElement, scene: Scene): void {
       while (items[i + 1]?.tag === 'text' && contains(bounds, textOf.get(items[i + 1]!)!.bounds, 2)) texts.push(take(items[++i]!));
       scene.nodes.push({ id: lastTarget, type: 'lifeline-head', bounds });
       interaction.createdHeads.set(lastTarget, bounds);
-      interaction.occluders.push(bounds);
+      interaction.occluders.push({ ...bounds, order: i });
       if (texts.length) out.push(merge(texts, { role: 'text', node: lastTarget }));
       continue;
     }
@@ -244,7 +248,7 @@ export function readSequence(root: XmlElement, scene: Scene): void {
       const texts: InspectedText[] = [];
       while (items[i + 1]?.tag === 'text' && contains(bounds, textOf.get(items[i + 1]!)!.bounds, 2)) texts.push(take(items[++i]!));
       scene.nodes.push({ id, type: 'note', bounds });
-      interaction.occluders.push(bounds);
+      interaction.occluders.push({ ...bounds, order: i });
       if (texts.length) out.push(merge(texts, { role: 'text', node: id }));
       continue;
     }
@@ -255,7 +259,7 @@ export function readSequence(root: XmlElement, scene: Scene): void {
       const texts: InspectedText[] = [];
       while (items[i + 1]?.tag === 'text' && contains(bounds, textOf.get(items[i + 1]!)!.bounds, 2)) texts.push(take(items[++i]!));
       scene.nodes.push({ id, type: 'state-invariant', bounds });
-      interaction.occluders.push(bounds);
+      interaction.occluders.push({ ...bounds, order: i, text: true });
       if (texts.length) out.push(merge(texts, { role: 'text', node: id }));
       continue;
     }
@@ -263,9 +267,9 @@ export function readSequence(root: XmlElement, scene: Scene): void {
       // Interaction use: frame (opaque), "ref" tab, then the referenced name inside.
       const bounds = shapeBounds(e)!;
       const id = `ref${nodeCount++}`;
-      if (fill(e) === color.background) interaction.occluders.push(bounds);
+      if (fill(e) === color.background) interaction.occluders.push({ ...bounds, order: i });
       i++;
-      interaction.occluders.push(shapeBounds(items[i]!)!);
+      interaction.occluders.push({ ...shapeBounds(items[i]!)!, order: i });
       const texts: InspectedText[] = [];
       while (items[i + 1]?.tag === 'text' && contains(bounds, textOf.get(items[i + 1]!)!.bounds, 2)) texts.push(take(items[++i]!));
       scene.nodes.push({ id, type: 'interaction-use', bounds });
@@ -276,12 +280,12 @@ export function readSequence(root: XmlElement, scene: Scene): void {
     }
     if (e.tag === 'path' && fill(e) === color.frameHeadingFill && i > 1) {
       // Fragment pentagon (operator tab), drawn over lifelines and bars.
-      interaction.occluders.push(shapeBounds(e)!);
+      interaction.occluders.push({ ...shapeBounds(e)!, order: i });
       continue;
     }
     if (e.tag === 'rect' && fill(e) === color.labelHalo && e.attrs.style === undefined && i > 0) {
       // Halo painted behind a guard by post-processing.
-      interaction.occluders.push(shapeBounds(e)!);
+      interaction.occluders.push({ ...shapeBounds(e)!, order: i, text: true });
       continue;
     }
     if (e.tag === 'line' && items[i + 1]?.tag === 'line' && isCross(e, items[i + 1]!)) {
@@ -384,12 +388,15 @@ export function interactionGates(scene: Scene): GateResult[] {
  * `lifeline-crossing` (sequence): no visible lifeline or activation bar runs
  * through drawn text (message labels and numbers, operators, guards, state
  * invariants, notes, heads). A crossing is allowed only where an opaque shape
- * drawn on top (note, invariant, head, interaction use, tab, label halo) hides
- * the line under the text.
+ * drawn later, on top (note, invariant, head, interaction use, tab, label halo),
+ * hides the line under the text. An activation bar is never hidden by a shape
+ * that only backs a text (label halo, state invariant): the bar would look
+ * interrupted.
  */
 export function lifelineCrossing(scene: Scene, interaction: Interaction): GateResult {
   const failures: string[] = [];
-  const hidden = (r: Rect): boolean => interaction.occluders.some(o => contains(o, r, 0.5));
+  // An opaque shape hides what was drawn before it (unknown order: anything).
+  const hidden = (r: Rect, order = -Infinity, bar = false): boolean => interaction.occluders.some(o => (o.order ?? Infinity) > order && !(bar && o.text) && contains(o, r, 0.5));
   const name = (t: InspectedText): string => JSON.stringify(t.content.length > 40 ? `${t.content.slice(0, 40)}…` : t.content);
   for (const t of scene.texts) {
     if (t.role === 'frame-label') continue;
@@ -399,13 +406,13 @@ export function lifelineCrossing(scene: Scene, interaction: Interaction): GateRe
         if (l.x <= box.x + 0.5 || l.x >= box.x + box.width - 0.5) continue;
         const y0 = Math.max(top, l.top), y1 = Math.min(bottom, l.bottom);
         if (y1 <= y0) continue;
-        if (!hidden({ x: l.x - 0.5, y: y0, width: 1, height: y1 - y0 })) { failures.push(`text ${name(t)} is crossed by lifeline ${l.id || '?'} at x=${l.x.toFixed(1)}`); break; }
+        if (!hidden({ x: l.x - 0.5, y: y0, width: 1, height: y1 - y0 }, l.order)) { failures.push(`text ${name(t)} is crossed by lifeline ${l.id || '?'} at x=${l.x.toFixed(1)}`); break; }
       }
       for (const b of interaction.bars) {
         const x0 = Math.max(box.x + 0.5, b.x), x1 = Math.min(box.x + box.width - 0.5, b.x + b.width);
         const y0 = Math.max(top, b.y), y1 = Math.min(bottom, b.y + b.height);
         if (x1 <= x0 || y1 <= y0) continue;
-        if (!hidden({ x: x0, y: y0, width: x1 - x0, height: y1 - y0 })) { failures.push(`text ${name(t)} overlaps the activation bar of ${b.lifeline || '?'}`); break; }
+        if (!hidden({ x: x0, y: y0, width: x1 - x0, height: y1 - y0 }, b.order, true)) { failures.push(`text ${name(t)} overlaps the activation bar of ${b.lifeline || '?'}`); break; }
       }
     }
   }

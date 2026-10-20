@@ -80,8 +80,10 @@ operators, guards), `label-edge-crossing` (labels against message lines),
 `literal-text`, `min-font-size`, `text-fits`, `message-endpoints`, and
 `lifeline-crossing`: no visible lifeline or activation bar runs through any
 drawn text (message labels and numbers, operators, guards, invariants, notes,
-heads) unless an opaque shape drawn on top hides it there (note, invariant,
-head, interaction use, operator tab, label halo). Skipped (no
+heads) unless an opaque shape drawn on top of it (later in the SVG) hides it
+there (note, invariant, head, interaction use, operator tab, label halo). An
+activation bar under text is never excused by a halo or an invariant box: the
+bar would look interrupted. Skipped (no
 data in this kind): `label-proximity`, `edge-endpoints`, `markers`, `ports`;
 `message-endpoints` replaces the last two.
 
@@ -94,8 +96,11 @@ data in this kind): `label-proximity`, `edge-endpoints`, `markers`, `ports`;
 - The X reaches 9 px below its message and would touch the border of a fragment it ends; a destruction that ends an operand or the diagram is followed by 12 px of space.
 - A self-message that opens a nested activation starts 5 px right of its bar; post-processing attaches it.
 - The `mainframe` heading is an unfilled polyline; it is closed and filled like the own engine's frame.
-- Message labels start at the sending end and guards right after the operator pentagon, whatever lies beneath. A label or guard crossed by a lifeline or activation bar is moved to the nearest position within its arrow (labels) or fragment (guards) where nothing runs through it, 4 px clear; when no such position exists (a label longer than every gap), a halo in the background color is painted behind it, as the own engine does for edge labels.
+- Message labels start at the sending end and guards right after the operator pentagon, whatever lies beneath. A label or guard crossed by a lifeline or activation bar is moved to the nearest position within its arrow (labels) or fragment (guards) where nothing runs through it, 4 px clear; when no such position exists (a label longer than every gap), it moves to the nearest position off every activation bar and a halo in the background color is painted behind it, hiding only the dashed lifelines under it, as the own engine does for edge labels.
 - State invariants use a borderless `rnote` in the background color, so they read as a constraint in braces on the lifeline, not as a note.
+- A state invariant on a lifeline with an active execution starts 2 px right of the activation bar instead of covering it, so the bar stays whole.
+- Nested combined fragments that PlantUML ends at one x get right borders 10 px apart (each fragment reaches 10 px beyond the ones nested in it), with their operand separators; the diagram frame and canvas grow when needed.
+- A note over several lifelines is narrowed to its text (still covering each of those lifelines by 16 px) and its text starts at the usual 10 px padding instead of being centred as a narrow block.
 - Long notes are emitted in block form, one source line per wrapped line. Wrapping breaks after spaces, then after identifier punctuation, then at camelCase boundaries, and only then inside a word.
 - PlantUML does not move lifelines apart for a note beside a lifeline. Hidden messages at the very end, labelled with no-break spaces as wide as the note needs, push the pair apart; the empty rows they add at the bottom are cropped.
 - Guards are drawn in the regular weight; only the operator is bold (17.6.4).
