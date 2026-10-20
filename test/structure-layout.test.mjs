@@ -84,3 +84,23 @@ test('layout: role bindings each leave their collaboration use from their own po
     }
   }
 });
+
+test('notation: an interface appears once, as a box joined by lines or as one symbol, never as a second unjoined symbol (F-A-12)', async () => {
+  const docs = [
+    await regression('component-cmp-awk.json'), await regression('component-cmp-food.json'),
+    await example('component', 'stress.json'), await example('component', 'webshop.json'), await example('component', 'notation.json'),
+  ];
+  for (const doc of docs) {
+    const { scene: s } = await scene(doc);
+    const loose = s.nodes.filter(n => n.type === 'provided-interface' || n.type === 'required-interface').map(n => n.id.split('::').at(-1));
+    const boxes = s.nodes.filter(n => n.type === 'interface').map(n => n.id);
+    for (const i of loose) {
+      assert.ok(!boxes.includes(i), `${i} is both a box and an unconnected symbol`);
+      assert.equal(loose.filter(x => x === i).length, 1, `${i} appears as several unconnected symbols`);
+    }
+  }
+  const { scene: stress } = await scene(await example('component', 'stress.json'));
+  assert.ok(stress.nodes.some(n => n.id === 'iCharge'), 'ICharge, provided and required without an assembly, is a box');
+  assert.ok(stress.edges.some(e => e.source === 'payments' && e.target === 'iCharge' && e.targetMarker === 'hollow-triangle'), 'realized by Payment Provider');
+  assert.ok(stress.edges.some(e => e.source === 'billing2' && e.target === 'iCharge' && e.targetMarker === 'open-arrow'), 'used by Tax Engine');
+});

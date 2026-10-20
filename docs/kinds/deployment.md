@@ -64,9 +64,10 @@ node, below its name.
 
 - The cut corners of a 3D box (top left and bottom right) are inside the node's
   bounds: a line arriving exactly there ends a few pixels short of the outline.
-- Drawings larger than 1000 x 1000 px are also laid out top to bottom and the
-  more readable one wins; top to bottom, line ends on a container attach to the
-  container itself (ELK 0.11 fails on side-fixed ports of crossed containers).
+- Drawings larger than 1000 x 1000 px are also laid out top to bottom (and, when
+  neither is close to square, wrapped) and the more readable one wins, within
+  2.5:1 when a layout achieves it; top to bottom, line ends on a container attach
+  to the container itself (ELK 0.11 fails on side-fixed ports of crossed containers).
 - Large nested deployments grow wide; nested nodes keep generous padding, so
   regions with many small hosts leave white space (see the stress example).
 - Lines leaving a nested element cross its containers' borders (and the 3D side

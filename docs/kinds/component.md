@@ -16,12 +16,21 @@ fixture and example also passes all QA gates, including the `ports` gate.
   ball-and-socket joint, to the providing element on the right.
 - A drawing larger than 1000 x 1000 px is also laid out top to bottom (provided
   interfaces up, required down) and the more readable result wins
-  (`chooseLayout`, src/engine/aspect.ts). Ports on a container's top border
-  slide beside its name, with their lollipops and sockets.
+  (`chooseLayout`, src/engine/aspect.ts); a layout within 2.5:1 wins over any
+  wider or taller one unless it is much worse, and a wrapped layout is tried
+  only when no plain one comes close to square.
+- Lines never cross a container's name compartment: a port on its top border, or
+  level with the compartment, moves onto the side border below it, with room
+  kept outside for its name (ports with their own lollipops or sockets keep
+  their place beside the name).
 - Joints line up with their ports (ELK straightness priority on stems and
   assembly halves); zig-zags and small jogs between neighbours are straightened.
-- An interface with its own box and a «use» or realization line from an element
-  gets no second, unconnected socket or lollipop on that element.
+- An interface is drawn once. With its own box (a relationship or note touches
+  it, nothing provides or requires it, or it would otherwise appear as several
+  unconnected lollipops and sockets), every element or port providing it is
+  joined to the box by a realization line and every one requiring it by a «use»
+  line; none gets a second, unconnected symbol. An element whose own port
+  provides or requires the interface shows it at the port only.
 - A port's side follows its connections: outward connectors leave from the side
   facing their partner; delegations into the owner come from the opposite side.
 - Nested elements are laid out inside their component's body, below the name
