@@ -2,13 +2,14 @@ import { theme } from '../core/theme.js';
 import { drawEdge, type LineStyle, type Marker } from './edges.js';
 import { layout, type Direction, type LayoutEdge, type LayoutLabel, type LayoutNode, type LayoutPort, type LayoutResult, type Side } from './elk.js';
 import type { FontMetrics, TextStyle } from './fonts.js';
-import { direction, simplify, union, type Point, type Rect } from './geometry.js';
+import { direction, distance, simplify, union, type Point, type Rect } from './geometry.js';
 import { labelCost, labelFits, placeLabels, type LabelRequest } from './labels.js';
 import { drawPackageNode, measurePackage, packageTabRect, type MeasuredPackage, type PackageHeader } from './packages.js';
 import { repairRoutes, type RepairNode } from './repair.js';
-import { bundleHub, bundleSpacing, type BundleMember } from './bundles.js';
-import { chooseLayout, countCrossings, LAYOUT_VARIANTS, routesLength, type LayoutVariant } from './aspect.js';
-import { planSelfLoops, selfLoopRoute, type SelfLoopPlan } from './selfloops.js';
+import { bundleHub, bundlePitch, type BundleMember } from './bundles.js';
+import { chooseLayout, countCrossings, LAYOUT_VARIANTS, layoutScore, routesDetour, routesLength, type LayoutMeasure, type LayoutVariant } from './aspect.js';
+import { placeNotes } from './notes.js';
+import { planSelfLoops, selfLoopLabelSide, selfLoopRoute, type SelfLoopPlan } from './selfloops.js';
 import { baselineOffset, startsData, drawBox, drawFrame, drawNote, measureBox, measureFrameHeading, measureNote, type Compartment, type MeasuredBox } from './shapes.js';
 import { Canvas, el, num } from './svg.js';
 import { wrapText } from './text.js';
@@ -129,13 +130,15 @@ function markerRect(tip: Point, from: Point, marker: Marker): Rect | undefined {
 }
 
 const JOG = 12;
+/** A subclass farther than this below its superclass (along the layout direction) is pulled up (see withFlips). */
+const FAR_SUBCLASS = 300;
 
 /**
  * Removes a short jog next to the start of an orthogonal route (ELK sometimes
  * leaves a few-pixel sidestep between a port and the main line) by sliding the
  * start point along the node's border, if it stays clear of the corners.
  */
-function straightenJog(route: Point[], node: Rect, max = JOG): Point[] {
+function straightenJog(route: Point[], node: Rect, max = JOG, avoid: readonly Point[] = [], gap = 0): Point[] {
   if (route.length < 4) return route;
   const [p0, p1, p2, p3] = route as [Point, Point, Point, Point];
   const vertical = Math.abs(p0.x - p1.x) < 0.01 && Math.abs(p2.x - p3.x) < 0.01 && Math.abs(p1.y - p2.y) < 0.01;
@@ -146,6 +149,8 @@ function straightenJog(route: Point[], node: Rect, max = JOG): Point[] {
   const margin = 8;
   if (vertical && (start.x < node.x + margin || start.x > node.x + node.width - margin)) return route;
   if (horizontal && (start.y < node.y + margin || start.y > node.y + node.height - margin)) return route;
+  // Never slide onto the room of another line's end.
+  if (avoid.some(p => distance(p, start) < gap)) return route;
   return simplify([start, ...route.slice(2)]);
 }
 
@@ -184,6 +189,8 @@ function fitToTab(route: Point[], tab: Rect | undefined, node: Rect): Point[] {
   out[1] = { x: q.x, y };
   return out;
 }
+
+interface Attempt { result: LayoutResult; dir: Direction; variant: LayoutVariant; flipped: ReadonlySet<string> }
 
 interface EdgePlan {
   spec: DiagramEdgeSpec;
@@ -278,6 +285,9 @@ export async function layoutDiagram(spec: DiagramSpec, metrics: FontMetrics): Pr
   const loopsByNode = new Map<string, EdgePlan[]>();
   for (const p of plans) if (p.spec.source === p.spec.target) loopsByNode.set(p.spec.source, [...(loopsByNode.get(p.spec.source) ?? []), p]);
   const loopPlans = new Map<string, SelfLoopPlan>();
+  /** Index of each self-loop among its node's loops (its slot in the plan). */
+  const loopOrder = new Map<string, number>();
+  for (const loops of loopsByNode.values()) loops.forEach((l, i) => loopOrder.set(l.spec.id, i));
   for (const [node, loops] of loopsByNode) {
     loopPlans.set(node, planSelfLoops(loops.map(l => ({
       endLabelWidth: Math.max(0, ...l.ends.map(e => e.width)),
@@ -286,7 +296,7 @@ export async function layoutDiagram(spec: DiagramSpec, metrics: FontMetrics): Pr
       endLabelRows: Math.max(l.ends.filter(e => e.end === 'source').length, l.ends.filter(e => e.end === 'target').length),
       labelHeight: lineHeight,
       centerLabel: l.center ? { width: Math.max(...l.center.widths), height: l.center.lines.length * lineHeight } : undefined,
-    }))));
+    })), { leftCorners: true }));
   }
 
   /**
@@ -294,8 +304,10 @@ export async function layoutDiagram(spec: DiagramSpec, metrics: FontMetrics): Pr
    * src/engine/aspect.ts. Edges that ELK sends against the direction (cycles)
    * leave their fixed-side port the wrong way; repairRoutes reroutes them.
    */
-  const attempt = async (dir: Direction, variant: LayoutVariant): Promise<{ result: LayoutResult; dir: Direction }> => {
+  const run = async (dir: Direction, variant: LayoutVariant, flipped: ReadonlySet<string>): Promise<Attempt> => {
     const side = sides(dir);
+    /** Laid out from the target to the source (extensions, and edges flipped against the layer order). */
+    const backward = (e: DiagramEdgeSpec): boolean => !!e.reversed !== flipped.has(e.id);
     const ports = new Map<string, LayoutPort[]>();
     // Compound nodes get no ports: ELK's hierarchical layout fails on some port
     // configurations of compound nodes. Their edges attach freely.
@@ -303,6 +315,7 @@ export async function layoutDiagram(spec: DiagramSpec, metrics: FontMetrics): Pr
     const addPort = (node: string, port: LayoutPort) => ports.set(node, [...(ports.get(node) ?? []), port]);
     const endPort = new Map<string, string>();
     const treePorts = new Set<string>();
+    const labelledNodes = new Set(plans.filter(p => p.spec.source !== p.spec.target && !p.spec.tree && !bundleOf.has(p.spec.id)).flatMap(p => p.ends.map(l => l.end === 'source' ? p.spec.source : p.spec.target)));
     for (const p of plans) {
       const e = p.spec;
       if (e.source === e.target) continue;
@@ -314,8 +327,8 @@ export async function layoutDiagram(spec: DiagramSpec, metrics: FontMetrics): Pr
           if (isContainer(node)) continue;
           const marker = (end === 'source') === member.forward ? e.sourceMarker : e.targetMarker;
           const id = `${e.id}::port-${end}`;
-          // Ports as far apart as the lines inside the hub, so the lines run straight into it.
-          addPort(node, { id, side: end === 'source' ? side.out : side.in, width: Math.max(2 * markerExtent(marker).half + 2, bundleSpacing(member.bundle.info) - BUNDLE_PORT_GAP) });
+          // Ports one lane pitch apart, as far as the lanes inside the hub, so the lines run straight through it.
+          addPort(node, { id, side: end === 'source' ? side.out : side.in, width: Math.max(2 * markerExtent(marker).half + 2, bundlePitch(member.bundle.info, dir === 'DOWN' || dir === 'UP') - BUNDLE_PORT_GAP) });
           endPort.set(`${e.id}\u0000${end}`, id);
         }
         continue;
@@ -329,17 +342,19 @@ export async function layoutDiagram(spec: DiagramSpec, metrics: FontMetrics): Pr
         continue;
       }
       // Ends with labels or a marker get their own port, as wide as what is drawn
-      // beside the line, so ELK keeps neighbouring edges far enough apart.
+      // beside the line, so ELK keeps neighbouring edges far enough apart. On a node
+      // with labelled ends, plain ends get a narrow port too: a free end may land in
+      // the room of a neighbour's labels.
       for (const end of ['source', 'target'] as const) {
         const labels = p.ends.filter(l => l.end === end);
         const marker = markerExtent(end === 'source' ? e.sourceMarker : e.targetMarker);
-        if (!labels.length && !marker.length) continue;
+        if (!labels.length && !marker.length && (e.type === 'note-anchor' || !labelledNodes.has(end === 'source' ? e.source : e.target))) continue;
         if (isContainer(end === 'source' ? e.source : e.target)) continue;
         const id = `${e.id}::port-${end}`;
         const horizontalSide = side.out === 'SOUTH' || side.out === 'NORTH';
         const across = horizontalSide ? Math.max(0, ...labels.map(l => l.width)) : labels.length * (lineHeight + 2);
         const half = Math.max(labels.length ? across + marker.half + 8 : 0, marker.half + 5);
-        const leaving = (end === 'source') !== !!e.reversed;
+        const leaving = (end === 'source') !== backward(e);
         addPort(end === 'source' ? e.source : e.target, { id, side: leaving ? side.out : side.in, width: 2 * half });
         endPort.set(`${e.id}\u0000${end}`, id);
       }
@@ -373,7 +388,7 @@ export async function layoutDiagram(spec: DiagramSpec, metrics: FontMetrics): Pr
           portSpacing: CONTAINER_PORT_SPACING,
         } : {}),
         ...(nodePorts?.length ? { ports: nodePorts } : {}),
-        ...(loops ? { reserveRight: loops.reserveRight, reserveAbove: loops.reserveAbove, reserveBelow: loops.reserveBelow } : {}),
+        ...(loops ? { reserveRight: loops.reserveRight, reserveAbove: loops.reserveAbove, reserveBelow: loops.reserveBelow, reserveLeft: loops.reserveLeft, reserveAboveLeft: loops.reserveAboveLeft, reserveBelowLeft: loops.reserveBelowLeft } : {}),
       };
     };
     const edges: LayoutEdge[] = plans.filter(p => p.spec.source !== p.spec.target).flatMap((p): LayoutEdge[] => {
@@ -388,12 +403,12 @@ export async function layoutDiagram(spec: DiagramSpec, metrics: FontMetrics): Pr
       }
       const labels: LayoutLabel[] = [];
       if (p.center) labels.push({ id: `${e.id}::center`, width: Math.max(...p.center.widths) + 4, height: p.center.lines.length * lineHeight, placement: 'center' });
-      p.ends.forEach((l, k) => labels.push({ id: `${e.id}::end${k}`, width: l.width + 4, height: lineHeight, placement: (l.end === 'source') !== !!(e.tree || e.reversed) ? 'tail' : 'head' }));
+      p.ends.forEach((l, k) => labels.push({ id: `${e.id}::end${k}`, width: l.width + 4, height: lineHeight, placement: (l.end === 'source') !== (!!e.tree || backward(e)) ? 'tail' : 'head' }));
       const sourcePort = endPort.get(`${e.id}\u0000source`) ?? e.source, targetPort = endPort.get(`${e.id}\u0000target`) ?? e.target;
       return [{
         id: e.id,
-        source: e.tree ? p.elkSource : e.reversed ? targetPort : sourcePort,
-        target: e.tree ? e.source : e.reversed ? sourcePort : targetPort,
+        source: e.tree ? p.elkSource : backward(e) ? targetPort : sourcePort,
+        target: e.tree ? e.source : backward(e) ? sourcePort : targetPort,
         labels,
         directionPriority: e.priority ?? (e.tree || e.reversed ? 10 : 1),
       }];
@@ -413,17 +428,62 @@ export async function layoutDiagram(spec: DiagramSpec, metrics: FontMetrics): Pr
       if (!changed) break;
       result = await layout(roots(), edges, options);
     }
-    return { result, dir };
+    return { result, dir, variant, flipped };
   };
+  /**
+   * Ends with markers or labels sit on fixed-side ports: sources on the side facing
+   * the layout direction, targets on the opposite side. When the layering places an
+   * edge's target before its source (a cycle, or an edge against the hierarchy),
+   * those ports face away from each other and the line loops around the drawing.
+   * The chosen layout is run once more with such edges laid out from target to
+   * source (ports swapped), and the better of the two is kept.
+   */
+  const withFlips = async (first: Attempt): Promise<Attempt> => {
+    const dir = first.dir;
+    const along = (r: Rect): [number, number] => dir === 'DOWN' ? [r.y, r.y + r.height] : dir === 'UP' ? [-(r.y + r.height), -r.y] : dir === 'RIGHT' ? [r.x, r.x + r.width] : [-(r.x + r.width), -r.x];
+    const flips = new Set<string>();
+    for (const p of plans) {
+      const e = p.spec;
+      if (e.source === e.target || e.tree || bundleOf.has(e.id) || (!p.ends.length && e.sourceMarker === 'none' && e.targetMarker === 'none')) continue;
+      const s = first.result.nodes.get(e.source), t = first.result.nodes.get(e.target);
+      if (!s || !t) continue;
+      // The line runs against its layout order: the far end lies entirely before the near one.
+      const against = e.reversed ? along(s)[1] <= along(t)[0] : along(t)[1] <= along(s)[0];
+      if (against) flips.add(e.id);
+    }
+    // A subclass pushed far below its superclass by a relationship into it (F-A-08):
+    // that relationship is laid out from the subclass instead, so the subclass can
+    // sit right under its parent.
+    let hierarchy = false;
+    for (const t of plans) {
+      if (!t.spec.tree) continue;
+      const sub = first.result.nodes.get(t.spec.source), sup = first.result.nodes.get(t.spec.target);
+      if (!sub || !sup || along(sub)[0] - along(sup)[1] <= FAR_SUBCLASS) continue;
+      for (const p of plans) {
+        const e = p.spec;
+        if (e.target !== t.spec.source || e.source === e.target || e.tree || e.reversed || bundleOf.has(e.id) || e.type === 'note-anchor') continue;
+        const s = first.result.nodes.get(e.source);
+        if (s && along(s)[0] > along(sup)[1]) { flips.add(e.id); hierarchy = true; }
+      }
+    }
+    // Only worth another layout run when some line detours or a subclass sits far from its parent.
+    if (!flips.size || (!measureAttempt(first).detour && !hierarchy)) return first;
+    try {
+      const second = await run(dir, first.variant, flips);
+      return layoutScore(measureAttempt(second)) < layoutScore(measureAttempt(first)) ? second : first;
+    } catch { return first; }
+  };
+  function measureAttempt({ result: r }: Attempt): LayoutMeasure {
+    const lines = [...r.edges.values()].map(e => e.points);
+    return { width: r.width, height: r.height, crossings: countCrossings(lines), edgeLength: routesLength(lines), detour: routesDetour(lines) };
+  }
 
   // Try each direction (and variants); keep the most readable result.
   // The kind's first direction is its convention; others must be clearly better,
   // the more so the more of the diagram is a hierarchy (generalizations, extensions).
   const hierarchy = spec.edges.filter(e => e.tree || e.reversed).length / Math.max(1, spec.edges.filter(e => e.type !== 'note-anchor').length);
-  const best = await chooseLayout(spec.directions ?? ['DOWN'], attempt, ({ result: r }) => {
-    const lines = [...r.edges.values()].map(e => e.points);
-    return { width: r.width, height: r.height, crossings: countCrossings(lines), edgeLength: routesLength(lines) };
-  }, { penalty: i => i ? 0.15 + 0.6 * hierarchy : 0, wrap: !!spec.wrap });
+  const chosen = await chooseLayout(spec.directions ?? ['DOWN'], (dir, variant) => run(dir, variant, new Set()), measureAttempt, { penalty: i => i ? 0.15 + 0.6 * hierarchy : 0, wrap: !!spec.wrap });
+  const best = await withFlips(chosen);
   const result = best.result;
   const rects = new Map<string, Rect>([...all.keys()].map(id => {
     const r = result.nodes.get(id)!, pkg = packages.get(id);
@@ -460,14 +520,20 @@ export async function layoutDiagram(spec: DiagramSpec, metrics: FontMetrics): Pr
         bundleLabels.set(e.id, { ...l, x: r.x + l.x, y: r.y + l.y });
       }
       // The pieces outside the hub lose small jogs at the nodes (all members slide alike: one pitch).
-      const jog = 2 * bundleSpacing(bundle.info);
-      const enter = straightenJog(result.edges.get(`${e.id}::in`)!.points, rects.get(bundle.source)!, jog);
-      const leave = straightenJog([...result.edges.get(`${e.id}::out`)!.points].reverse(), rects.get(bundle.target)!, jog).reverse();
+      const jog = 2 * bundlePitch(bundle.info, best.dir === 'DOWN' || best.dir === 'UP');
+      // Ends of other lines on a node, which a sliding member must keep a pitch away from.
+      const others = (node: string): Point[] => {
+        const r = rects.get(node)!;
+        return [...result.edges].filter(([id]) => !bundle.members.some(m => id.startsWith(`${m.spec.id}::`)))
+          .flatMap(([, x]) => [x.points[0]!, x.points.at(-1)!]).filter(q => q && Math.min(Math.abs(q.x - r.x), Math.abs(q.x - r.x - r.width), Math.abs(q.y - r.y), Math.abs(q.y - r.y - r.height)) < 1);
+      };
+      const enter = straightenJog(result.edges.get(`${e.id}::in`)!.points, rects.get(bundle.source)!, jog, others(bundle.source), jog / 2);
+      const leave = straightenJog([...result.edges.get(`${e.id}::out`)!.points].reverse(), rects.get(bundle.target)!, jog, others(bundle.target), jog / 2).reverse();
       points = simplify([...enter.slice(0, -1), ...inside, ...leave.slice(1)]);
       if (!forward) points = points.reverse();
       bundled.add(e.id);
     }
-    let route = e.tree || e.reversed ? [...points].reverse() : [...points];
+    let route = e.tree || (!!e.reversed !== best.flipped.has(e.id)) ? [...points].reverse() : [...points];
     // Shared tree ports must stay put; other ends may slide to remove small jogs.
     if (!member) {
       route = straightenJog(route, rects.get(e.source)!);
@@ -479,6 +545,27 @@ export async function layoutDiagram(spec: DiagramSpec, metrics: FontMetrics): Pr
     route = fitToTab([...route].reverse(), tabs.get(e.target), rects.get(e.target)!).reverse();
     routes.set(e.id, route);
   }
+  // Notes far from what they annotate move to a free spot near it (src/engine/notes.ts).
+  const parentChain = (id: string): Set<string> => new Set(chain(id));
+  const movedNotes = placeNotes(
+    [...all].filter(([, n]) => n.spec.shape.kind === 'note').map(([id, n]) => ({
+      id, rect: rects.get(id)!, parent: n.parent,
+      targets: plans.filter(p => p.spec.source === id && p.spec.target !== id && rects.has(p.spec.target)).map(p => rects.get(p.spec.target)!),
+    })),
+    [...all].map(([id, n]) => ({ id, rect: rects.get(id)!, container: !!n.spec.children?.length })),
+    plans.map(p => ({ source: p.spec.source, target: p.spec.target, points: routes.get(p.spec.id) ?? [] })),
+    parentChain, union([...rects.values()]),
+  );
+  for (const [id, r] of movedNotes) rects.set(id, r);
+  /** Anchors of moved notes: routed from scratch by repairRoutes. */
+  const rerouteAnchors = new Set(plans.filter(p => movedNotes.has(p.spec.source) || movedNotes.has(p.spec.target)).map(p => p.spec.id));
+  for (const p of plans) {
+    if (!rerouteAnchors.has(p.spec.id)) continue;
+    // Provisional straight line between the two outlines; repairRoutes routes it.
+    const a = rects.get(p.spec.source)!, b = rects.get(p.spec.target)!;
+    const ca = { x: a.x + a.width / 2, y: a.y + a.height / 2 }, cb = { x: b.x + b.width / 2, y: b.y + b.height / 2 };
+    routes.set(p.spec.id, [{ x: Math.min(Math.max(cb.x, a.x), a.x + a.width), y: Math.min(Math.max(cb.y, a.y), a.y + a.height) }, { x: Math.min(Math.max(ca.x, b.x), b.x + b.width), y: Math.min(Math.max(ca.y, b.y), b.y + b.height) }]);
+  }
   // Repair routes that cross texts or nodes, detour, crowd other ends or bend under a marker.
   const repairNodes: RepairNode[] = [...all.keys()].map(id => {
     const r = rects.get(id)!, tab = tabs.get(id);
@@ -486,12 +573,14 @@ export async function layoutDiagram(spec: DiagramSpec, metrics: FontMetrics): Pr
       id, parent: all.get(id)!.parent, container: !!all.get(id)!.spec.children?.length,
       rect: tab ? { x: r.x, y: r.y + tab.height, width: r.width, height: r.height - tab.height } : r,
       texts: tab ? [tab] : [],
+      ...(tab && !all.get(id)!.spec.children?.length ? { bounds: r } : {}),
     };
   });
   // The room of a node's self-loops is an obstacle for every other line.
   for (const [id] of loopPlans) {
     const loops = plans.filter(p => p.spec.source === id && p.spec.target === id).map(p => routes.get(p.spec.id)!);
-    repairNodes.push({ id: `${id}::self-loops`, rect: union(loops.flat().map(p => ({ ...p, width: 0, height: 0 }))), parent: all.get(id)!.parent });
+    // One obstacle per loop: together they would cover the whole node.
+    loops.forEach((loop, k) => repairNodes.push({ id: `${id}::self-loop-${k}`, rect: union(loop.map(p => ({ ...p, width: 0, height: 0 }))), parent: all.get(id)!.parent }));
   }
   const labelObstacles = [...all.keys()].flatMap(id => all.get(id)!.spec.children?.length ? [tabs.get(id)!] : [rects.get(id)!]);
   const containerBorders: [Point, Point][] = [];
@@ -502,6 +591,16 @@ export async function layoutDiagram(spec: DiagramSpec, metrics: FontMetrics): Pr
     c.forEach((q, k) => containerBorders.push([q, c[(k + 1) % 4]!]));
   }
   const baseRoutes = new Map(routes);
+  // Room of each edge's end labels (widest label, rows on one side), kept free by rerouted lines.
+  const endLabels = new Map<string, { source?: { width: number; height: number }; target?: { width: number; height: number } }>();
+  for (const p of plans) {
+    if (!p.ends.length || p.spec.source === p.spec.target) continue;
+    const size = (end: 'source' | 'target') => {
+      const ls = p.ends.filter(l => l.end === end);
+      return ls.length ? { [end]: { width: Math.max(...ls.map(l => l.width)), height: ls.length * lineHeight } } : {};
+    };
+    endLabels.set(p.spec.id, { ...size('source'), ...size('target') });
+  }
   /**
    * Repairs routes, then places labels. `crowded`: edges whose center label found
    * no clean spot in an earlier pass; their lines are spread apart from the others.
@@ -514,6 +613,8 @@ export async function layoutDiagram(spec: DiagramSpec, metrics: FontMetrics): Pr
       group: p.spec.tree ? `${p.spec.type}@${p.spec.target}` : undefined,
     })), {
       keep: bundled,
+      endLabels,
+      force: rerouteAnchors,
       // Center labels need a clean spot beside their own line (no crossing, not as
       // close to another line); bundled lines without one are spread apart.
       labelFits: (id, route, current) => {
@@ -579,10 +680,10 @@ export async function layoutDiagram(spec: DiagramSpec, metrics: FontMetrics): Pr
         const id = `${e.id}::end${k}`;
         const marker = l.end === 'source' ? e.sourceMarker : e.targetMarker;
         const suggested = repaired.changed.has(e.id) ? undefined : result.edges.get(e.id)?.labels.get(id);
-        const inside = e.source === e.target ? { onlySide: l.end === 'source' ? -1 as const : 1 as const } : {};
+        const inside = e.source === e.target ? { onlySide: selfLoopLabelSide(loopPlans.get(e.source)!, loopOrder.get(e.id)!, l.end) } : {};
         requests.push({
           owner: e.id, lines: [{ text: l.text }], widths: [l.width], end: l.end, anchor: l.end === 'source' ? route[0]! : route.at(-1)!,
-          request: { id, width: l.width, height: lineHeight, route, at: l.end, side: l.kind === 'multiplicity' ? 1 : -1, clearance: markerExtent(marker).half + 3, ...inside, suggestion: suggested && { x: suggested.x + 2, y: suggested.y, width: l.width, height: lineHeight } },
+          request: { id, owner: e.id, width: l.width, height: lineHeight, route, at: l.end, side: l.kind === 'multiplicity' ? 1 : -1, clearance: markerExtent(marker).half + 3, ...inside, suggestion: suggested && { x: suggested.x + 2, y: suggested.y, width: l.width, height: lineHeight } },
         });
       });
     }
@@ -604,7 +705,7 @@ export async function layoutDiagram(spec: DiagramSpec, metrics: FontMetrics): Pr
       placedRects.push(placed);
       labels.push({ owner: r.owner, rect: placed, lines: r.lines, widths: r.widths, ...(r.end ? { end: r.end, anchor: r.anchor! } : {}) });
       // A center label that found no clean spot: its line gets spread from the others in a second pass.
-      if (!r.end && labelCost(placed, { rects: [...baseRects, ...placedRects.slice(0, -1), ...foreign.get(r.owner)!], segments, lines: lineOwners }, [], undefined, r.request) > 0) unplaced.add(r.owner);
+      if (!r.end && labelCost(placed, { rects: [...baseRects, ...placedRects.slice(0, -1), ...foreign.get(r.owner)!], segments, lines: lineOwners }, [], undefined, r.request) >= 1) unplaced.add(r.owner);
     }
     return { repaired, routes, sceneEdges, baseRects, labels, unplaced };
   };

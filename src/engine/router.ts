@@ -41,6 +41,8 @@ export interface RouteRequest {
   margin?: number;
   /** Lines closer than this to existing lines count as running along them (default: line spacing). */
   spacing?: number;
+  /** Cost of crossing an existing line, in px of length (default 30). Lower it to prefer a direct route over a detour. */
+  crossCost?: number;
 }
 
 const BEND = 24;
@@ -199,7 +201,7 @@ export function routeOrthogonal(request: RouteRequest): Point[] | undefined {
     else if (Math.abs(a.x - b.x) < 0.5) vertical.push({ x: a.x, y0: Math.min(a.y, b.y), y1: Math.max(a.y, b.y), ends });
   }
   /** Cost of crossing a line at point p. */
-  const crossCost = (p: Point, ends: readonly Point[]): number => CROSS + (ends.some(e => distance(e, p) < NEAR_END) ? CROSS_NEAR_END : 0);
+  const crossCost = (p: Point, ends: readonly Point[]): number => (request.crossCost ?? CROSS) + (ends.some(e => distance(e, p) < NEAR_END) ? CROSS_NEAR_END : 0);
   const near = request.spacing ?? theme.spacing.edgeEdge - 1;
   const rowNear = ys.map(y => horizontal.filter(s => Math.abs(s.y - y) < near));
   const rowCross = ys.map(y => vertical.filter(s => y > s.y0 && y < s.y1));
