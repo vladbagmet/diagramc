@@ -88,9 +88,11 @@ const halo = (b: Box): string =>
  * operator pentagon, without looking at the lifelines and activation bars under
  * them, so a label can be crossed by a lifeline it passes. Each crossed label or
  * guard is moved horizontally to the nearest position within its arrow (labels)
- * or fragment (guards) where nothing runs through it; when there is none, a halo
- * in the background color is painted behind it, as the own engine does for edge
- * labels. Deterministic; only x coordinates change and fixed rects are added.
+ * or fragment (guards) where nothing runs through it; when there is none, to the
+ * nearest position off every activation bar, with a halo in the background color
+ * painted behind it that hides the dashed lifelines under it, as the own engine
+ * does for edge labels. Deterministic; only x coordinates change and fixed rects
+ * are added.
  */
 export function clearLabels(svg: string): string {
   const lifelines: { x: number; top: number; bottom: number }[] = [];
@@ -102,17 +104,31 @@ export function clearLabels(svg: string): string {
     const b = { height: Number(m[1]), width: Number(m[2]), x: Number(m[3]), y: Number(m[4]) };
     if (!bars.some(o => o.x === b.x && o.y === b.y && o.width === b.width && o.height === b.height)) bars.push(b);
   }
-  const crossed = (b: Box): boolean =>
-    lifelines.some(l => l.x > b.x - LABEL_CLEARANCE && l.x < b.x + b.width + LABEL_CLEARANCE && l.bottom > b.y && l.top < b.y + b.height)
-    || bars.some(r => r.x < b.x + b.width + LABEL_CLEARANCE && r.x + r.width > b.x - LABEL_CLEARANCE && r.y < b.y + b.height && r.y + r.height > b.y);
-  /** Nearest free left edge within [min, max], trying positions just beside every obstacle. */
-  const place = (b: Box, min: number, max: number): number | undefined => {
-    if (!crossed(b)) return b.x;
-    const edges = [
+  const onLifeline = (b: Box): boolean => lifelines.some(l => l.x > b.x - LABEL_CLEARANCE && l.x < b.x + b.width + LABEL_CLEARANCE && l.bottom > b.y && l.top < b.y + b.height);
+  const onBar = (b: Box): boolean => bars.some(r => r.x < b.x + b.width + LABEL_CLEARANCE && r.x + r.width > b.x - LABEL_CLEARANCE && r.y < b.y + b.height && r.y + r.height > b.y);
+  const crossed = (b: Box): boolean => onLifeline(b) || onBar(b);
+  /**
+   * Nearest left edge within [min, max] where nothing runs through the text,
+   * trying positions just beside every obstacle; else the nearest where only
+   * dashed lifelines do (hidden by a halo, `halo: true`). Activation bars are
+   * drawn over halos, so a text never stays on a bar when it can move off it.
+   */
+  const place = (b: Box, min: number, max: number): { x: number; halo: boolean } | undefined => {
+    if (!crossed(b)) return { x: b.x, halo: false };
+    const edges = [b.x,
       ...lifelines.flatMap(l => [l.x + LABEL_CLEARANCE + 0.5, l.x - LABEL_CLEARANCE - 0.5 - b.width]),
       ...bars.flatMap(r => [r.x + r.width + LABEL_CLEARANCE + 0.5, r.x - LABEL_CLEARANCE - 0.5 - b.width]),
     ].filter(x => x >= min && x <= max).sort((p, q) => Math.abs(p - b.x) - Math.abs(q - b.x) || p - q);
-    return edges.find(x => !crossed({ ...b, x }));
+    const free = edges.find(x => !crossed({ ...b, x }));
+    if (free !== undefined) return { x: free, halo: false };
+    const offBars = edges.find(x => !onBar({ ...b, x }));
+    return offBars === undefined ? undefined : { x: offBars, halo: true };
+  };
+  /** The text moved to `spot` (with a halo when lifelines still pass under it), or haloed in place. */
+  const settle = (texts: string, block: Box, spot: { x: number; halo: boolean } | undefined): string => {
+    if (!spot) return `${halo(block)}${texts}`;
+    const moved = moveTexts(texts, spot.x - block.x);
+    return spot.halo ? `${halo({ ...block, x: spot.x })}${moved}` : moved;
   };
 
   // Message labels: within the horizontal extent of their arrow.
@@ -121,8 +137,8 @@ export function clearLabels(svg: string): string {
     const block = textBlock(tags);
     const xs = [...shapes.matchAll(/<line [^>]*x1="(-?[\d.]+)" x2="(-?[\d.]+)" y1="(-?[\d.]+)" y2="\3"\/>/gu)].flatMap(l => [Number(l[1]), Number(l[2])]);
     if (!xs.length || !crossed(block)) return match;
-    const x = place(block, Math.min(...xs) + LABEL_CLEARANCE, Math.max(...xs) - LABEL_CLEARANCE - block.width);
-    return x === undefined ? `${open}${shapes}${halo(block)}${texts}${close}` : `${open}${shapes}${moveTexts(texts, x - block.x)}${close}`;
+    const spot = place(block, Math.min(...xs) + LABEL_CLEARANCE, Math.max(...xs) - LABEL_CLEARANCE - block.width);
+    return `${open}${shapes}${settle(texts, block, spot)}${close}`;
   });
 
   // Guards: bold "[...]" texts, within their fragment's frame.
@@ -134,10 +150,127 @@ export function clearLabels(svg: string): string {
     if (!crossed(block)) return guard;
     const frame = frames.filter(f => block.x >= f.x && block.x <= f.x + f.width && block.y >= f.y && block.y <= f.y + f.height)
       .sort((p, q) => p.width * p.height - q.width * q.height)[0];
-    const x = frame ? place(block, block.x, frame.x + frame.width - LABEL_CLEARANCE - block.width) : undefined;
-    return x === undefined ? `${halo(block)}${guard}` : moveTexts(guard, x - block.x);
+    return settle(guard, block, frame ? place(block, block.x, frame.x + frame.width - LABEL_CLEARANCE - block.width) : undefined);
   });
   return out;
+}
+
+/** Padding left of a note's text, and the room right of it (padding plus folded corner), as PlantUML draws notes. */
+const NOTE_LEFT = 10, NOTE_RIGHT = 19;
+/** A note over lifelines extends at least this far beyond the outermost lifeline it covers. */
+export const NOTE_OVERHANG = 16;
+
+/**
+ * PlantUML stretches a note over several lifelines between them and centres its
+ * wrapped text block, leaving a narrow block with wide padding on both sides.
+ * The note is narrowed to its text (it still covers every lifeline it was over,
+ * by NOTE_OVERHANG px, and stays within its old box) and the text starts at the
+ * usual left padding; a note that cannot narrow keeps its box.
+ */
+export function tightenNotes(svg: string): string {
+  const lifelines = [...svg.matchAll(new RegExp(`<g><title>[^<]*</title><rect fill="#000000" fill-opacity="0.00000"[^>]*/><line style="[^"]*" x1="${NUM}" x2="\\1" y1="${NUM}" y2="${NUM}"/></g>`, 'gu'))]
+    .map(m => ({ x: Number(m[1]), top: Number(m[2]), bottom: Number(m[3]) }));
+  const fill = theme.color.noteFill;
+  const note = new RegExp(`<path d="M${NUM},${NUM} L\\1,${NUM} L${NUM},\\3 L\\4,${NUM} L${NUM},\\2 L\\1,\\2" fill="${fill}"([^>]*)/><path d="M\\6,\\2 L\\6,\\5 L\\4,\\5 L\\6,\\2" fill="${fill}"([^>]*)/>((?:<text [^>]*>[^<]*</text>)+)`, 'gu');
+  return svg.replace(note, (match, left: string, top: string, bottom: string, right: string, foldY: string, cornerX: string, s1: string, s2: string, texts: string) => {
+    const l = Number(left), r = Number(right), t = Number(top), b = Number(bottom);
+    const block = textBlock([...texts.matchAll(/<text [^>]*>/gu)].map(m => m[0]));
+    if (block.x - l <= NOTE_LEFT + 2) return match;
+    const covered = lifelines.filter(x => x.x > l && x.x < r && x.top < b && x.bottom > t).map(x => x.x);
+    const width = Math.max(block.width + NOTE_LEFT + NOTE_RIGHT, covered.length ? Math.max(...covered) - Math.min(...covered) + 2 * NOTE_OVERHANG : 0);
+    // Without room to narrow it, the note keeps its box and its text moves to the usual padding.
+    const keep = moveTexts(texts, l + NOTE_LEFT - block.x);
+    const narrowed = (): string => match.slice(0, match.indexOf('<text ')) + keep;
+    if (width >= r - l - 1) return narrowed();
+    const middle = covered.length ? (Math.min(...covered) + Math.max(...covered)) / 2 : (l + r) / 2;
+    const nl = Math.min(Math.max(l, middle - width / 2), r - width), nr = nl + width;
+    if (covered.length && (Math.min(...covered) - nl < NOTE_OVERHANG - 0.5 || nr - Math.max(...covered) < NOTE_OVERHANG - 0.5)) return narrowed();
+    const L = round(nl), R = round(nr), C = round(nr - (r - Number(cornerX)));
+    return `<path d="M${L},${top} L${L},${bottom} L${R},${bottom} L${R},${foldY} L${C},${top} L${L},${top}" fill="${fill}"${s1}/>`
+      + `<path d="M${C},${top} L${C},${foldY} L${R},${foldY} L${C},${top}" fill="${fill}"${s2}/>`
+      + moveTexts(texts, nl + NOTE_LEFT - block.x);
+  });
+}
+
+/** Step between the right borders of nested combined fragments, as PlantUML steps their left borders. */
+export const FRAGMENT_INSET = 10;
+
+/**
+ * PlantUML ends nested combined fragments that reach the same rightmost element
+ * at one x, so their right borders are drawn on top of each other and a reader
+ * cannot tell which fragment a border closes. Each fragment is widened to reach
+ * FRAGMENT_INSET px beyond the fragments nested in it (with its operand
+ * separators); the diagram frame and canvas grow when needed.
+ */
+export function separateFragmentEdges(svg: string): string {
+  const pattern = new RegExp(`<rect fill="none" height="${NUM}" style="stroke:${theme.color.frameStroke};[^"]*" width="${NUM}" x="${NUM}" y="${NUM}"/>`, 'gu');
+  const frames = new Map<string, Box>();
+  for (const m of svg.matchAll(pattern)) {
+    const b = { height: Number(m[1]), width: Number(m[2]), x: Number(m[3]), y: Number(m[4]) };
+    frames.set(`${m[2]},${m[3]},${m[4]},${m[1]}`, b);
+  }
+  const list = [...frames.values()];
+  const inside = (a: Box, b: Box): boolean => a !== b && a.x >= b.x - 0.5 && a.y >= b.y - 0.5 && a.x + a.width <= b.x + b.width + 0.5 && a.y + a.height <= b.y + b.height + 0.5;
+  const right = new Map<Box, number>();
+  const reach = (f: Box): number => {
+    const known = right.get(f);
+    if (known !== undefined) return known;
+    const children = list.filter(c => inside(c, f));
+    const r = Math.max(f.x + f.width, ...children.map(c => reach(c) + FRAGMENT_INSET));
+    right.set(f, r);
+    return r;
+  };
+  let grow = 0;
+  for (const f of list) grow = Math.max(grow, reach(f) - (f.x + f.width));
+  if (grow < 0.01) return svg;
+  svg = svg.replace(pattern, (match, h: string, w: string, x: string, y: string) => {
+    const f = frames.get(`${w},${x},${y},${h}`)!;
+    const r = right.get(f)!;
+    return r - (f.x + f.width) < 0.01 ? match : match.replace(` width="${w}"`, ` width="${round(r - f.x)}"`);
+  });
+  // Operand separators run across their fragment: from its left to its right border.
+  svg = svg.replace(new RegExp(`(<line style="stroke:${theme.color.frameStroke};[^"]*stroke-dasharray[^"]*" x1="${NUM}" x2=")${NUM}(" y1="${NUM}" y2="\\5"/>)`, 'gu'), (match, a: string, x1: string, x2: string, b: string, y: string) => {
+    const f = list.filter(o => Math.abs(o.x - Number(x1)) < 0.5 && Math.abs(o.x + o.width - Number(x2)) < 0.5 && Number(y) > o.y && Number(y) < o.y + o.height)
+      .sort((p, q) => p.height - q.height)[0];
+    return f ? `${a}${round(right.get(f)!)}${b}` : match;
+  });
+  // The diagram frame (and the canvas) keep their margin right of every fragment.
+  const widest = Math.max(...list.map(f => right.get(f)!));
+  const outer = svg.match(new RegExp(`<rect fill="${theme.color.background}" height="${NUM}" style="stroke:${theme.color.frameStroke};[^"]*" width="${NUM}" x="${NUM}" y="${NUM}"/>`, 'u'));
+  const view = Number(svg.match(/ viewBox="[-\d.]+ [-\d.]+ ([\d.]+) /u)?.[1] ?? Infinity);
+  const extra = Math.max(0, widest + FRAGMENT_INSET - (outer ? Number(outer[3]) + Number(outer[2]) : view));
+  if (extra < 0.01) return svg;
+  if (outer) svg = svg.replace(outer[0], outer[0].replace(` width="${outer[2]}"`, ` width="${round(Number(outer[2]) + extra)}"`));
+  return svg.replace(/<svg\s[^>]*>/u, root => root
+    .replace(/ width="([\d.]+)px"/u, (_, v: string) => ` width="${Math.ceil(Number(v) + extra)}px"`)
+    .replace(/width:([\d.]+)px;/u, (_, v: string) => `width:${Math.ceil(Number(v) + extra)}px;`)
+    .replace(/ viewBox="([-\d.]+) ([-\d.]+) ([\d.]+) ([\d.]+)"/u, (_, x: string, y: string, w: string, h: string) => ` viewBox="${x} ${y} ${Math.ceil(Number(w) + extra)} ${h}"`));
+}
+
+/**
+ * PlantUML centres a state invariant on its lifeline even while an activation
+ * bar runs there, so the invariant's opaque box cuts the bar in two. Such an
+ * invariant is moved right until its box starts at the bar's right border: the
+ * constraint stays at its place on the lifeline's execution and the bar stays
+ * whole. Kept in place when that spot is taken by another text or bar.
+ */
+export function invariantsBesideBars(svg: string): string {
+  const bars: Box[] = [...svg.matchAll(new RegExp(`<rect fill="${theme.color.nodeFill}" height="${NUM}" style="stroke:${theme.color.edge};stroke-width:[\\d.]+;" width="${NUM}" x="${NUM}" y="${NUM}"/>`, 'gu'))]
+    .map(m => ({ height: Number(m[1]), width: Number(m[2]), x: Number(m[3]), y: Number(m[4]) }));
+  if (!bars.length) return svg;
+  const texts = [...svg.matchAll(/<text [^>]*>/gu)].map(m => ({ tag: m[0], box: textBlock([m[0]]) }));
+  const overlaps = (a: Box, b: Box): boolean => a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
+  const bg = theme.color.background;
+  return svg.replace(new RegExp(`<rect fill="${bg}" height="${NUM}" style="stroke:${bg};stroke-width:[\\d.]+;" width="${NUM}" x="${NUM}" y="${NUM}"/>((?:<text [^>]*>[^<]*</text>)+)`, 'gu'), (match, h: string, w: string, x: string, y: string, inner: string) => {
+    const box = { height: Number(h), width: Number(w), x: Number(x), y: Number(y) };
+    const under = bars.filter(b => overlaps(b, box));
+    if (!under.length) return match;
+    const dx = Math.max(...under.map(b => b.x + b.width)) + 2 - box.x;
+    const moved = { ...box, x: box.x + dx };
+    const own = new Set([...inner.matchAll(/<text [^>]*>/gu)].map(m => m[0]));
+    if (bars.some(b => !under.includes(b) && overlaps(b, moved)) || texts.some(t => !own.has(t.tag) && overlaps(t.box, moved))) return match;
+    return match.replace(/ x="(-?[\d.]+)"/gu, (_m, v: string) => ` x="${round(Number(v) + dx)}"`);
+  });
 }
 
 /** Distance lifelines run on below the last drawn element, as PlantUML leaves it without spacer rows. */
@@ -263,7 +396,7 @@ export function alignHeads(svg: string): string {
 /** All fix-ups applied to PlantUML's sequence SVG. */
 export function postProcessSequence(svg: string, model?: SequenceDiagram): string {
   const cropped = model && noteSpacers(model).size ? cropSpacerRows(svg) : svg;
-  const fixed = regularGuards(clearLabels(keepFoundAndLostInside(attachSelfMessages(endDestroyedLifelines(alignHeads(fillFrameHeading(cropped)))))));
+  const fixed = regularGuards(clearLabels(tightenNotes(invariantsBesideBars(keepFoundAndLostInside(separateFragmentEdges(attachSelfMessages(endDestroyedLifelines(alignHeads(fillFrameHeading(cropped))))))))));
   // Without a title there is no frame: give the drawing the own engine's canvas margin.
   return model && model.title === undefined ? padCanvas(fixed, theme.spacing.canvas) : fixed;
 }

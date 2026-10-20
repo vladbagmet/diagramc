@@ -1,0 +1,279 @@
+{
+ "kind": "activity",
+ "title": "Cross-border wire transfer with compliance screening and manual review escalation",
+ "partitions": [
+  {
+   "id": "ui",
+   "name": "Mobile banking application frontend"
+  },
+  {
+   "id": "core",
+   "name": "Core banking"
+  },
+  {
+   "id": "aml",
+   "name": "Anti money laundering compliance office"
+  },
+  {
+   "id": "swift",
+   "name": "SWIFT gateway"
+  }
+ ],
+ "nodes": [
+  {
+   "id": "i",
+   "type": "initial",
+   "partition": "ui"
+  },
+  {
+   "id": "enter",
+   "type": "action",
+   "name": "Enter beneficiary IBAN, BIC, amount and payment reference text",
+   "partition": "ui",
+   "note": "Validation of IBAN checksum happens client-side before submission to avoid round trips."
+  },
+  {
+   "id": "lm",
+   "type": "merge"
+  },
+  {
+   "id": "auth",
+   "type": "action",
+   "name": "Authenticate with strong customer authentication (SCA)",
+   "partition": "ui"
+  },
+  {
+   "id": "ad",
+   "type": "decision",
+   "partition": "ui"
+  },
+  {
+   "id": "ad2",
+   "type": "decision",
+   "partition": "ui"
+  },
+  {
+   "id": "f",
+   "type": "fork",
+   "partition": "core"
+  },
+  {
+   "id": "reserve",
+   "type": "action",
+   "name": "Reserve funds on the debtor account",
+   "partition": "core"
+  },
+  {
+   "id": "screen",
+   "type": "action",
+   "name": "Screen parties against sanctions lists (OFAC, EU, UN, HMT)",
+   "partition": "aml",
+   "note": "Fuzzy matching with a threshold of 0.85; hits go to a human analyst."
+  },
+  {
+   "id": "sd",
+   "type": "decision",
+   "partition": "aml"
+  },
+  {
+   "id": "manual",
+   "type": "action",
+   "name": "Manual review by compliance analyst",
+   "partition": "aml"
+  },
+  {
+   "id": "sm",
+   "type": "merge"
+  },
+  {
+   "id": "fx",
+   "type": "action",
+   "name": "Quote FX rate",
+   "partition": "core"
+  },
+  {
+   "id": "j",
+   "type": "join"
+  },
+  {
+   "id": "rd",
+   "type": "decision",
+   "partition": "core"
+  },
+  {
+   "id": "rd2",
+   "type": "decision",
+   "partition": "core"
+  },
+  {
+   "id": "rm2",
+   "type": "merge"
+  },
+  {
+   "id": "send",
+   "type": "sendSignal",
+   "name": "MT103 customer credit transfer",
+   "partition": "swift"
+  },
+  {
+   "id": "ack",
+   "type": "acceptEvent",
+   "name": "ACK/NAK from correspondent bank",
+   "partition": "swift"
+  },
+  {
+   "id": "release",
+   "type": "action",
+   "name": "Release reservation and notify customer of rejection",
+   "partition": "core"
+  },
+  {
+   "id": "block",
+   "type": "action",
+   "name": "Freeze account and file suspicious activity report",
+   "partition": "aml"
+  },
+  {
+   "id": "rm",
+   "type": "merge"
+  },
+  {
+   "id": "done",
+   "type": "activityFinal",
+   "partition": "core"
+  },
+  {
+   "id": "fail",
+   "type": "flowFinal",
+   "partition": "ui"
+  }
+ ],
+ "edges": [
+  {
+   "from": "i",
+   "to": "enter"
+  },
+  {
+   "from": "enter",
+   "to": "lm"
+  },
+  {
+   "from": "lm",
+   "to": "auth"
+  },
+  {
+   "from": "auth",
+   "to": "ad"
+  },
+  {
+   "from": "ad",
+   "to": "lm",
+   "guard": "authentication failed and fewer than three attempts made"
+  },
+  {
+   "from": "ad",
+   "to": "ad2",
+   "guard": "else"
+  },
+  {
+   "from": "ad2",
+   "to": "fail",
+   "guard": "locked out"
+  },
+  {
+   "from": "ad2",
+   "to": "f",
+   "guard": "authenticated"
+  },
+  {
+   "from": "f",
+   "to": "reserve"
+  },
+  {
+   "from": "f",
+   "to": "screen"
+  },
+  {
+   "from": "f",
+   "to": "fx"
+  },
+  {
+   "from": "screen",
+   "to": "sd"
+  },
+  {
+   "from": "sd",
+   "to": "manual",
+   "guard": "potential match"
+  },
+  {
+   "from": "sd",
+   "to": "sm",
+   "guard": "no match"
+  },
+  {
+   "from": "manual",
+   "to": "sm"
+  },
+  {
+   "from": "reserve",
+   "to": "j"
+  },
+  {
+   "from": "sm",
+   "to": "j"
+  },
+  {
+   "from": "fx",
+   "to": "j"
+  },
+  {
+   "from": "j",
+   "to": "rd"
+  },
+  {
+   "from": "send",
+   "to": "ack"
+  },
+  {
+   "from": "rm",
+   "to": "done"
+  },
+  {
+   "from": "rd",
+   "to": "send",
+   "guard": "cleared"
+  },
+  {
+   "from": "rd",
+   "to": "rd2",
+   "guard": "else"
+  },
+  {
+   "from": "rd2",
+   "to": "release",
+   "guard": "insufficient funds"
+  },
+  {
+   "from": "rd2",
+   "to": "block",
+   "guard": "confirmed sanctions hit"
+  },
+  {
+   "from": "release",
+   "to": "rm2"
+  },
+  {
+   "from": "block",
+   "to": "rm2"
+  },
+  {
+   "from": "ack",
+   "to": "rm"
+  },
+  {
+   "from": "rm2",
+   "to": "rm"
+  }
+ ]
+}

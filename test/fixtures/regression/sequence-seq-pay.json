@@ -1,0 +1,163 @@
+{
+ "kind": "sequence",
+ "title": "Card payment with 3-D Secure",
+ "lifelines": [
+  {
+   "id": "shopper",
+   "name": "Shopper",
+   "symbol": "actor"
+  },
+  {
+   "id": "checkout",
+   "name": "checkout",
+   "classifier": "CheckoutUI",
+   "symbol": "boundary"
+  },
+  {
+   "id": "psp",
+   "name": "psp",
+   "classifier": "PaymentServiceProvider"
+  },
+  {
+   "id": "acs",
+   "name": "acs",
+   "classifier": "IssuerACS"
+  },
+  {
+   "id": "ledger",
+   "name": "ledger",
+   "classifier": "Ledger",
+   "symbol": "entity"
+  }
+ ],
+ "items": [
+  {
+   "type": "message",
+   "sort": "synchronous",
+   "from": "shopper",
+   "to": "checkout",
+   "name": "pay",
+   "arguments": [
+    "card",
+    "amount"
+   ],
+   "activate": true
+  },
+  {
+   "type": "message",
+   "sort": "synchronous",
+   "from": "checkout",
+   "to": "psp",
+   "name": "authorize",
+   "arguments": [
+    "token",
+    "amount"
+   ],
+   "activate": true
+  },
+  {
+   "type": "fragment",
+   "operator": "alt",
+   "operands": [
+    {
+     "guard": "card enrolled in 3DS",
+     "items": [
+      {
+       "type": "message",
+       "sort": "synchronous",
+       "from": "psp",
+       "to": "acs",
+       "name": "challenge",
+       "arguments": [
+        "pareq"
+       ],
+       "activate": true
+      },
+      {
+       "type": "note",
+       "position": "right",
+       "lifelines": [
+        "acs"
+       ],
+       "text": "The issuer shows a one-time password page to the shopper."
+      },
+      {
+       "type": "message",
+       "sort": "reply",
+       "from": "acs",
+       "to": "psp",
+       "name": "challenge",
+       "returnValue": "pares",
+       "deactivate": true
+      }
+     ]
+    },
+    {
+     "guard": "else",
+     "items": [
+      {
+       "type": "stateInvariant",
+       "lifeline": "psp",
+       "constraint": "liability shift = false"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "type": "message",
+   "sort": "asynchronous",
+   "from": "psp",
+   "to": "ledger",
+   "name": "record",
+   "arguments": [
+    "authorization"
+   ]
+  },
+  {
+   "type": "fragment",
+   "operator": "alt",
+   "operands": [
+    {
+     "guard": "approved",
+     "items": [
+      {
+       "type": "message",
+       "sort": "reply",
+       "from": "psp",
+       "to": "checkout",
+       "name": "authorize",
+       "returnValue": "approved"
+      }
+     ]
+    },
+    {
+     "guard": "declined",
+     "items": [
+      {
+       "type": "message",
+       "sort": "reply",
+       "from": "psp",
+       "to": "checkout",
+       "name": "authorize",
+       "returnValue": "declined"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "type": "deactivate",
+   "lifeline": "psp"
+  },
+  {
+   "type": "message",
+   "sort": "reply",
+   "from": "checkout",
+   "to": "shopper",
+   "name": "pay",
+   "returnValue": "receipt",
+   "deactivate": true
+  }
+ ]
+}

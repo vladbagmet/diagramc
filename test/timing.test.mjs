@@ -4,7 +4,7 @@ import { readFile, readdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { parseDocument } from '../dist/model/parse.js';
 import { timingToPlantUml, niceStep } from '../dist/kinds/timing/to-plantuml.js';
-import { encloseFooter, liftConstraints, placeMessageLabels, CONSTRAINT_LIFT } from '../dist/kinds/timing/postprocess.js';
+import { cutGuides, encloseFooter, liftConstraints, nudgeMessages, placeMessageLabels, CONSTRAINT_LIFT } from '../dist/kinds/timing/postprocess.js';
 import { estimateWidth, VALUE_PAD } from '../dist/kinds/timing/scale.js';
 import { checkSvg, inspectSvg } from '../dist/qa/index.js';
 import { cli, root } from './helpers.mjs';
@@ -144,6 +144,32 @@ test('QA reader: the gates catch a message that misses the state lines and a lab
   const onLine = svg.replace(/(<text[^>]* x=")[\d.]+(" y=")[\d.]+(">&#8203;quiet)/, `$1${Number(line[1]) + 2}$2${Number(line[3]) + 4}$3`);
   const crossing = (await checkSvg(onLine)).gates.find(g => g.gate === 'label-edge-crossing');
   assert.ok(!crossing.ok, 'label-edge-crossing fails');
+});
+
+test('post-processing moves an instant message off the state change it would run along, onto the state lines beside it, and cuts guides around text', async () => {
+  const robust = (x1, y1, x2, y2) => `<line style="stroke:#334155;stroke-width:1.5;" x1="${x1}" x2="${x2}" y1="${y1}" y2="${y2}"/>`;
+  // Sender: robust line at y=100. Middle lifeline: steps at x=200 between y=180 and 160. Receiver: line at y=300.
+  const lifelines = robust(0, 100, 400, 100) + robust(0, 180, 200, 180) + robust(200, 180, 200, 160) + robust(200, 160, 400, 160) + robust(0, 300, 400, 300);
+  const message = '<line style="stroke:#334155;stroke-width:1.25;" x1="200" x2="200" y1="100" y2="300"/><polygon fill="#334155" points="197.3,292.5,202.7,292.5,200,300" style="stroke:#334155;stroke-width:1.25;"/><text fill="#1E293B" font-size="12" textLength="20" x="204" y="200">go</text>';
+  const out = nudgeMessages(`<svg>${lifelines}${message}</svg>`);
+  assert.match(out, /x1="208" x2="208" y1="100" y2="300"\/><polygon fill="#334155" points="205.3,292.5,210.7,292.5,208,300"/, 'moved 8 px right, still from line to line');
+  // The gate sees the original message run along the step, and not the moved one.
+  const gate = async svg => (await checkSvg(`<svg xmlns="http://www.w3.org/2000/svg" data-diagram-type="TIMING" viewBox="0 0 400 400" width="400px" height="400px"><g>${svg.slice(5, -6)}</g></svg>`)).gates.find(g => g.gate === 'timing-lines');
+  assert.ok(!(await gate(`<svg>${lifelines}${message}</svg>`)).ok);
+  assert.ok((await gate(out)).ok, JSON.stringify((await gate(out)).failures));
+  // A highlight border is cut where it would run through a text.
+  const guide = '<line style="stroke:#334155;stroke-width:1.25;stroke-dasharray:4,4;" x1="50" x2="50" y1="0" y2="200"/>';
+  const text = '<text fill="#0F172A" font-size="13" textLength="40" x="30" y="100">FULL</text>';
+  const cut = cutGuides(`<svg>${guide}${text}</svg>`);
+  assert.equal((cut.match(/dasharray:4,4/g) ?? []).length, 2, 'two pieces, one above and one below the text');
+  assert.match(cut, /y1="0" y2="85.65"\/><line [^>]*y1="105.25" y2="200"/);
+});
+
+test('duration constraint bounds may be numbers; a wrong type names the bound, not a shared definition', () => {
+  const doc = bound => JSON.stringify({ kind: 'timing', timeUnit: 'ms', lifelines: [{ id: 'a', name: 'A', notation: 'robust', states: ['x', 'y'], changes: [{ at: 0, state: 'x' }, { at: 10, state: 'y' }] }], durationConstraints: [{ lifeline: 'a', from: 0, to: 10, min: bound, max: '3*d' }] });
+  assert.equal(parseDocument(doc(2.5)).model.durationConstraints[0].min, 2.5);
+  assert.match(timingToPlantUml(parseDocument(doc(2)).model), /<U\+007B><U\+0032><U\+002E><U\+002E><U\+0033><U\+002A><U\+0064><U\+007D>/u, 'drawn {2..3*d}');
+  assert.throws(() => parseDocument(doc(true)), e => /durationConstraints\/0\/min boolean true is not valid; it must be one of: a number such as 10 or 2.5; an expression/u.test(e.message) && !/guillemets/u.test(e.message));
 });
 
 test('kinds, schema and validate work for timing diagrams', () => {

@@ -243,3 +243,15 @@ test('CLI errors for agents: JSON position, kind and command suggestions, file r
   result = cli(['validate', '-'], { input: JSON.stringify({ ...JSON.parse(cli(['example', 'timing']).stdout), version: 2 }) });
   assert.equal(result.status, 0, 'a document may state "version": 2, which validate reports');
 });
+
+test('error wording: one diagnostic for an empty name, no quoted input in JSON errors, an operator used as a type names the operator', () => {
+  const lifelines = [{ id: 'a', name: '' }, { id: 'b', name: 'B' }];
+  const error = errorOf({ kind: 'sequence', lifelines, items: [{ type: 'alt', operands: [{ guard: 'x', items: [] }] }] });
+  assert.deepEqual(error.diagnostics.filter(d => d.path === '/lifelines/0/name').map(d => d.details?.rule ?? d.code), ['minLength']);
+  const alt = error.diagnostics.find(d => d.path === '/items/0/type');
+  assert.match(alt.message, /use \{"type": "fragment", "operator": "alt"\}/u);
+  const result = cli(['validate', '-'], { input: '{"kind": "activity", "nodes": [}' });
+  const json = JSON.parse(result.stderr).error;
+  assert.equal(json.message, "Input is not valid JSON at line 1, column 32: Unexpected character '}'");
+  assert.equal(json.details.near, '{"kind": "activity", "nodes": [}');
+});

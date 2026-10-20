@@ -36,8 +36,8 @@ export interface DurationConstraint {
   from: number;
   to: number;
   /** Bounds of the allowed duration, drawn {min..max}. */
-  min: string;
-  max: string;
+  min: string | number;
+  max: string | number;
 }
 
 export interface TimeConstraint {

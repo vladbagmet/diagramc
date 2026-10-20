@@ -9,7 +9,7 @@ import { fixActivitySvg } from '../dist/kinds/activity/postprocess.js';
 import { loadFonts } from '../dist/engine/fonts.js';
 import { ENGINE_ONLY_GATES, inspectSvg, runGates } from '../dist/qa/index.js';
 import { cli, fakeJava, root, workspace } from './helpers.mjs';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 
 // Java-free tests of the activity kind: validation, structuring, PlantUML source
 // generation and the SVG post-processor. Real renders: test/integration/activity.test.mjs.
@@ -139,6 +139,59 @@ test('activity: post-processor mirrors accept event notches, trims bars and anch
   assert.match(fixed, /<rect fill="#334155" height="6" [^>]*width="72" x="134" y="120"\/>/, 'bar spans its flows plus 16 px');
   assert.match(fixed, /<path d="M240,200 L240,240 A0,0/, 'note pointer removed');
   assert.match(fixed, /<line x1="240" y1="214" x2="220" y2="214" style="[^"]*stroke-dasharray:7,4;"\/>/, 'dashed anchor to the node');
+});
+
+test('activity: post-processor draws a fork branch beyond the bar straight from the bar, and a join input straight into it', () => {
+  const line = (x1, y1, x2, y2) => `<line style="stroke:#334155;stroke-width:1.25;" x1="${x1}" x2="${x2}" y1="${y1}" y2="${y2}"/>`;
+  const svg = '<svg data-diagram-type="ACTIVITY" viewBox="0 0 600 400" width="600px" height="400px" style="width:600px;height:400px;"><g>'
+    // Fork bar from 40 to 240 with an incoming flow on top and two branches below,
+    // the second attached at the bar's right end with a stub and a jog to x=400.
+    + '<rect fill="#334155" height="6" rx="2.5" ry="2.5" style="stroke:#334155;stroke-width:1;" width="200" x="40" y="100"/>'
+    + line(140, 60, 140, 100) + '<polyline fill="none" points="134,89 140,100 146,89" style="stroke:#334155;stroke-width:1.25;"/>'
+    + line(80, 106, 80, 200) + line(238, 106, 238, 110) + line(238, 110, 400, 110) + line(400, 110, 400, 200)
+    // Join bar with the same shape upside down: the jog ends in an arrowhead at the bar's end.
+    + '<rect fill="#334155" height="6" rx="2.5" ry="2.5" style="stroke:#334155;stroke-width:1;" width="200" x="40" y="300"/>'
+    + line(80, 240, 80, 300) + line(400, 240, 400, 290) + line(400, 290, 238, 290) + line(238, 290, 238, 300)
+    + '<polyline fill="none" points="232,289 238,300 244,289" style="stroke:#334155;stroke-width:1.25;"/>'
+    + line(140, 306, 140, 340)
+    + '</g></svg>';
+  const fixed = fixActivitySvg(svg);
+  assert.doesNotMatch(fixed, /x1="238"/, 'stubs and jogs are gone');
+  assert.match(fixed, /x1="400" x2="400" y1="106" y2="200"/, 'the fork branch leaves the underside of the bar');
+  assert.match(fixed, /x1="400" x2="400" y1="240" y2="300"/, 'the join input runs into the top of the bar');
+  assert.match(fixed, /points="394,289 400,300 406,289"/, 'its arrowhead moved with it');
+  assert.match(fixed, /x1="140" x2="140" y1="60" y2="100"/, 'the flow into the fork keeps its route');
+  assert.equal((fixed.match(/<rect fill="#334155"[^>]*x="64" y="(100|300)"/g) ?? []).length, 2, 'both bars span their branches plus the overhang');
+});
+
+test('activity: branches are ordered by the swimlanes they occupy; interleaving branches and cross-lane multiway decisions are rejected with a rewrite', async () => {
+  const lanes = ['a', 'b', 'c'].map(id => ({ id, name: id.toUpperCase() }));
+  const doc = {
+    kind: 'activity', partitions: lanes,
+    nodes: [{ id: 'i', type: 'initial', partition: 'b' }, { id: 'd', type: 'decision', partition: 'b' },
+      { id: 'x', type: 'action', name: 'Right', partition: 'c' }, { id: 'y', type: 'action', name: 'Left', partition: 'a' },
+      { id: 'm', type: 'merge' }, { id: 'f', type: 'activityFinal', partition: 'b' }],
+    edges: [{ from: 'i', to: 'd' }, { from: 'd', to: 'x', guard: 'p' }, { from: 'd', to: 'y', guard: 'else' },
+      { from: 'x', to: 'm' }, { from: 'y', to: 'm' }, { from: 'm', to: 'f' }],
+  };
+  const source = activityToPlantUml(model(doc));
+  assert.ok(source.indexOf('<U+004C><U+0065><U+0066><U+0074>') < source.indexOf('<U+0052><U+0069><U+0067><U+0068><U+0074>'), 'the branch in the left lane comes first');
+  // A third branch in another lane: the error spells out the nested two-way decisions.
+  const three = structuredClone(doc);
+  three.nodes.push({ id: 'z', type: 'action', name: 'Middle', partition: 'b' });
+  three.edges.push({ from: 'd', to: 'z', guard: 'q' }, { from: 'z', to: 'm' });
+  assert.throws(() => parseDocument(JSON.stringify(three)), error => {
+    assert.equal(error.code, 'DECISION_SPANS_PARTITIONS');
+    assert.match(error.message, /Rewrite it as nested two-way decisions, which may cross partitions: decision "d" keeps \[p\] to "x" and gets a flow \[else\] to a new decision "d_2" in partition "a", whose branches meet at a new merge "m_2" that flows into "m"; decision "d_2" gets \[else\] to "y" and \[q\] to "z"$/u);
+    assert.doesNotMatch(error.message, /keeps \[else\]/u, 'the [else] branch is never kept by an outer decision');
+    return true;
+  });
+  // The reviewers' deeply nested decisions over five swimlanes: rejected, not drawn 30000 px wide.
+  assert.throws(() => parseDocument(readFileSync(join(root, 'test/fixtures/review/act-awkward.json'), 'utf8')), error => {
+    assert.equal(error.code, 'BRANCHES_SHARE_PARTITIONS');
+    assert.match(error.diagnostics[0].message, /^The branches of decision "n2" overlap in swimlanes: branch \[condition 4-a is satisfied by the request\] \(from node "n4"\) uses partitions "p1" to "p4" and branch \[else\] \(from node "n26"\) uses partitions "p0" to "p4"/u);
+    return true;
+  });
 });
 
 test('activity: post-processor moves a guard off a crossing line and the QA reader sees flows', async () => {

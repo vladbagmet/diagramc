@@ -26,7 +26,8 @@ export function parseJson(text: string): unknown {
 /** V8's message without its own position suffix or a copy of the input. */
 const clean = (reason: string): string => reason
   .replace(/\s*(?:in JSON\s*)?at position \d+(?: \(line \d+ column \d+\))?/u, '')
-  .replace(/, "[\s\S]*" is not valid JSON$/u, '')
+  // V8 quotes the input around the error, cut with "..." at either end: never repeated.
+  .replace(/, (?:\.\.\.)?"[\s\S]*"(?:\.\.\.)? is not valid JSON$/u, '')
   .replace(/^Unexpected token/u, 'Unexpected character');
 
 /**
