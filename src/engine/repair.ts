@@ -3,7 +3,7 @@ import { markerHalf, markerLength, type Marker } from './edges.js';
 import { contains, distance, inflate, segmentIntersectsRect, union, type Point, type Rect } from './geometry.js';
 import { routeOrthogonal } from './router.js';
 export { markerHalf, markerLength } from './edges.js';
-import { countCrossings } from './aspect.js';
+import { countCrossings, isDetour } from './aspect.js';
 
 /**
  * Route repair for node-and-edge diagrams, shared by the own-engine kinds. After
@@ -32,6 +32,8 @@ export interface RepairNode {
   container?: boolean;
   /** Areas no line may cross: a container's name, keywords or tab. */
   texts?: readonly Rect[];
+  /** Whole drawn extent when larger than `rect` (a package with its tab row): an obstacle for unrelated lines. */
+  bounds?: Rect;
 }
 
 export interface RepairEdge {
@@ -52,6 +54,8 @@ export interface RepairEdge {
 /** Routes may be this factor longer than the gap between their nodes plus SLACK before they count as detours (stricter than the gate). */
 const DETOUR_FACTOR = 2.5;
 const DETOUR_SLACK = 140;
+/** Routes within this many px of the route-length gate's limit (ROUTE_LIMIT in aspect.ts) count as detours too. */
+const DETOUR_MARGIN = 20;
 /** Routes longer than this (factor of the gap plus slack) are worth trying to shorten. */
 const SHORTEN_FACTOR = 1.4;
 const SHORTEN_SLACK = 120;
@@ -97,11 +101,23 @@ export interface RepairOptions {
   /** Also shorten long routes that break no rule (default true). */
   shorten?: boolean;
   /**
+   * Size of the labels at an edge's ends (role names, multiplicities: the widest
+   * label and the total height on one side). A rerouted line keeps out of the room
+   * these labels need beside other lines' ends, so they still find a clean spot.
+   */
+  endLabels?: ReadonlyMap<string, { source?: { width: number; height: number }; target?: { width: number; height: number } }>;
+  /**
    * Also reroute a line that crosses another line within JUNCTION_DISTANCE of
    * either line's end: there the crossing reads as a junction at the node.
    */
   junctions?: boolean;
 }
+
+/** Room beyond an end label's width that its end keeps from other ends (gaps on both sides of the label). */
+const LABEL_END_ROOM = 30;
+
+/** Crossing cost of the router's second try for a route that came out as a detour. */
+const DIRECT_CROSS_COST = 6;
 
 /** See RepairOptions.junctions. */
 export const JUNCTION_DISTANCE = 30;
@@ -143,8 +159,8 @@ export function repairRoutes(nodes: readonly RepairNode[], edges: readonly Repai
       out.push(...n.texts ?? []);
       if (related.has(n.id)) continue;
       // A node inside one of the ends (a port, a nested element) is not in the way of lines that end on its container border.
-      if (ancestors(n.id).has(e.source) || ancestors(n.id).has(e.target)) { if (!n.container) out.push(n.rect); continue; }
-      out.push(n.rect);
+      if (ancestors(n.id).has(e.source) || ancestors(n.id).has(e.target)) { if (!n.container) out.push(n.bounds ?? n.rect); continue; }
+      out.push(n.bounds ?? n.rect);
     }
     return out;
   };
@@ -162,7 +178,11 @@ export function repairRoutes(nodes: readonly RepairNode[], edges: readonly Repai
     const s = byId.get(e.source), t = byId.get(e.target);
     if (!s || !t || route.length < 2) return undefined;
     if (crosses(route, obstaclesFor(e))) return 'crosses';
-    if (!contains(s.rect, t.rect) && !contains(t.rect, s.rect) && routeLength(route) > DETOUR_FACTOR * rectGap(s.rect, t.rect) + DETOUR_SLACK) return 'detour';
+    if (!contains(s.rect, t.rect) && !contains(t.rect, s.rect)) {
+      const length = routeLength(route);
+      // Much longer than the gap between the nodes, longer than the route-length gate allows between its ends, or wrapping around.
+      if (length > DETOUR_FACTOR * rectGap(s.rect, t.rect) + DETOUR_SLACK || isDetour(route, DETOUR_MARGIN)) return 'detour';
+    }
     for (const [end, marker, p, q] of [['source', e.sourceMarker, route[0]!, route[1]!], ['target', e.targetMarker, route.at(-1)!, route.at(-2)!]] as const) {
       const need = markerLength(marker) + (route.length > 2 ? theme.spacing.bendRadius : 0);
       if (marker !== 'none' && distance(p, q) < need - 0.25) return `short ${end}`;
@@ -185,6 +205,32 @@ export function repairRoutes(nodes: readonly RepairNode[], edges: readonly Repai
     return undefined;
   };
 
+  /** Room the end labels of other edges need beside their end segments (see RepairOptions.endLabels). */
+  const labelRoom = (exclude: string): Rect[] => {
+    const out: Rect[] = [];
+    for (const [id, ends] of options.endLabels ?? []) {
+      if (id === exclude) continue;
+      const route = routes.get(id);
+      if (!route || route.length < 2) continue;
+      for (const [size, p, q] of [[ends.source, route[0]!, route[1]!], [ends.target, route.at(-1)!, route.at(-2)!]] as const) {
+        if (!size) continue;
+        const pad = 6, vertical = Math.abs(q.x - p.x) < Math.abs(q.y - p.y);
+        const along = (vertical ? size.height : size.width) + pad, across = (vertical ? size.width : size.height) + pad;
+        const dir = vertical ? Math.sign(q.y - p.y) : Math.sign(q.x - p.x);
+        out.push(vertical
+          ? { x: p.x - across, y: dir > 0 ? p.y : p.y - along, width: 2 * across, height: along }
+          : { x: dir > 0 ? p.x : p.x - along, y: p.y - across, width: along, height: 2 * across });
+      }
+    }
+    return out;
+  };
+
+  /** Distance a labelled end keeps from other ends: its labels beside it, and twice their gap beyond (gate label-proximity). */
+  const ownLabelRoom = (id: string, end: 'source' | 'target'): number => {
+    const size = options.endLabels?.get(id)?.[end];
+    return size ? size.width + LABEL_END_ROOM : 0;
+  };
+
   const reroute = (e: RepairEdge, forLabel = false): Point[] | undefined => {
     const route = routes.get(e.id)!;
     const s = byId.get(e.source)!, t = byId.get(e.target)!;
@@ -194,17 +240,22 @@ export function repairRoutes(nodes: readonly RepairNode[], edges: readonly Repai
     const fixed = (end: Point, next: Point) => ({ fixed: { point: end, out: { x: Math.sign(Math.round(next.x - end.x)), y: Math.sign(Math.round(next.y - end.y)) } } });
     const request = {
       source: {
-        rect: s.rect, stub: markerLength(e.sourceMarker) + theme.spacing.bendRadius + 6, occupied: occupied(e.source), spacing: minSpacing(e.sourceMarker, 'open-arrow'),
+        rect: s.rect, stub: markerLength(e.sourceMarker) + theme.spacing.bendRadius + 6, occupied: occupied(e.source), spacing: Math.max(minSpacing(e.sourceMarker, 'open-arrow'), ownLabelRoom(e.id, 'source')),
         ...(e.fixedSource ? fixed(route[0]!, route[1]!) : {}),
       },
       target: {
-        rect: t.rect, stub: markerLength(e.targetMarker) + theme.spacing.bendRadius + 6, occupied: occupied(e.target), spacing: minSpacing(e.targetMarker, 'open-arrow'),
+        rect: t.rect, stub: markerLength(e.targetMarker) + theme.spacing.bendRadius + 6, occupied: occupied(e.target), spacing: Math.max(minSpacing(e.targetMarker, 'open-arrow'), ownLabelRoom(e.id, 'target')),
         ...(e.group !== undefined || e.fixedTarget ? fixed(route.at(-1)!, route.at(-2)!) : {}),
       },
-      obstacles: obstaclesFor(e), lines, ...(forLabel && options.labelSpacing?.(e.id) ? { spacing: options.labelSpacing(e.id) } : {}),
+      obstacles: [...obstaclesFor(e), ...labelRoom(e.id)], lines, ...(forLabel && options.labelSpacing?.(e.id) ? { spacing: options.labelSpacing(e.id) } : {}),
     };
     let next = routeOrthogonal({ ...request, area: inflate(union([s.rect, t.rect]), 160) });
     if (!next || problem(e, next) === 'crosses') next = routeOrthogonal({ ...request, area: inflate(all, 40) });
+    // A detour avoids crossings at any length: a direct route across a few lines reads better.
+    if (next && problem(e, next) === 'detour') {
+      const direct = routeOrthogonal({ ...request, area: inflate(all, 40), crossCost: DIRECT_CROSS_COST });
+      if (direct && severity(problem(e, direct)) < severity('detour')) next = direct;
+    }
     return next && problem(e, next) !== 'crosses' ? next : undefined;
   };
   const crossingsWith = (route: readonly Point[], id: string): number =>

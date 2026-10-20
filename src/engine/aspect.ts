@@ -11,6 +11,10 @@ import type { Point } from './geometry.js';
  *   band the score grows with the logarithmic distance to it, so 1:3 portrait and 5:1
  *   panoramas lose against a compact alternative of similar size;
  * - crossings and total line length: each crossing costs, and so do long lines;
+ * - detours: every pixel a route runs beyond the route-length limit (ROUTE_LIMIT,
+ *   the same rule the route-length gate applies) costs as much as a pixel of size,
+ *   so a compact candidate whose lines loop around the drawing loses against a
+ *   longer one whose lines are short and direct;
  * - preference: a kind's conventional direction (superclasses above) gets a bonus
  *   over the alternatives, so the convention wins unless it is clearly worse.
  */
@@ -22,6 +26,8 @@ export interface LayoutMeasure {
   crossings?: number;
   /** Sum of all route lengths. */
   edgeLength?: number;
+  /** Sum of route lengths beyond ROUTE_LIMIT (see `routesDetour`). */
+  detour?: number;
   /** Added to the score as a factor of the size term (0 = preferred, 0.1 = 10 % worse). */
   penalty?: number;
 }
@@ -41,8 +47,73 @@ export function aspectPenalty(width: number, height: number): number {
 /** Lower is better. See the module comment for the terms. */
 export function layoutScore(m: LayoutMeasure): number {
   const size = Math.sqrt(m.width * m.height);
-  return size * (1 + 0.9 * aspectPenalty(m.width, m.height) + (m.penalty ?? 0)) + 40 * (m.crossings ?? 0) + 0.04 * (m.edgeLength ?? 0);
+  return size * (1 + 0.9 * aspectPenalty(m.width, m.height) + (m.penalty ?? 0)) + 40 * (m.crossings ?? 0) + 0.04 * (m.edgeLength ?? 0) + (m.detour ?? 0);
 }
+
+/**
+ * A route may be at most `factor` times the Manhattan distance between its two
+ * ends plus `slack` px long, and it may run at most `wander` px (plus `wanderShare`
+ * of that distance) longer than the distance itself. Longer routes are detours: a
+ * line leaving a node on the far side and running around the drawing. Shared by
+ * layout scoring and the route-length gate (src/qa/gates.ts).
+ */
+export const ROUTE_LIMIT = { factor: 2.5, slack: 80, wander: 320, wanderShare: 0.05 } as const;
+
+export const routeLength = (r: readonly Point[]): number => r.slice(1).reduce((s, p, k) => s + Math.hypot(p.x - r[k]!.x, p.y - r[k]!.y), 0);
+
+/** The length limit of a route between two end points. */
+export function routeLimit(a: Point, b: Point): number {
+  const d = Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
+  return Math.min(ROUTE_LIMIT.factor * d + ROUTE_LIMIT.slack, d * (1 + ROUTE_LIMIT.wanderShare) + ROUTE_LIMIT.wander);
+}
+
+/** Segments shorter than this do not count as a leg of a wrap-around (small jogs). */
+const WRAP_LEG = 20;
+/** Length a wrapping route must run beyond the distance between its ends to count. */
+const WRAP_EXCESS = 60;
+
+/**
+ * Whether a route wraps around: it turns the same way three times in a row (its
+ * heading rotates by 270 degrees, as when a line leaves the bottom of a node and
+ * climbs round the drawing to enter its target from above) over legs of at least
+ * WRAP_LEG px, and is at least WRAP_EXCESS px longer than the Manhattan distance
+ * between its ends. A direct orthogonal route never rotates more than 180 degrees.
+ */
+export function wrapsAround(route: readonly Point[]): boolean {
+  if (route.length < 5) return false;
+  const a = route[0]!, b = route.at(-1)!;
+  if (routeLength(route) - (Math.abs(a.x - b.x) + Math.abs(a.y - b.y)) < WRAP_EXCESS) return false;
+  const turn = (k: number): number => {
+    const p = route[k - 1]!, q = route[k]!, r = route[k + 1]!;
+    return Math.sign((q.x - p.x) * (r.y - q.y) - (q.y - p.y) * (r.x - q.x));
+  };
+  const leg = (k: number): number => Math.hypot(route[k + 1]!.x - route[k]!.x, route[k + 1]!.y - route[k]!.y);
+  for (let k = 1; k + 3 < route.length; k++) {
+    const t = turn(k);
+    if (t !== 0 && turn(k + 1) === t && turn(k + 2) === t && leg(k) >= WRAP_LEG && leg(k + 1) >= WRAP_LEG) return true;
+  }
+  return false;
+}
+
+/** Whether a route is a detour: longer than its routeLimit, or wrapping around. */
+export function isDetour(route: readonly Point[], margin = 0): boolean {
+  return route.length >= 2 && (routeLength(route) > routeLimit(route[0]!, route.at(-1)!) - margin || wrapsAround(route));
+}
+
+/**
+ * Detour cost of routes: the length by which each exceeds its limit (or, for a
+ * route that wraps around, its whole excess over the distance between its ends),
+ * plus a fixed DETOUR_COST per such route (0 when every route is direct enough).
+ */
+export function routesDetour(routes: readonly (readonly Point[])[]): number {
+  return routes.reduce((sum, r) => {
+    if (r.length < 2) return sum;
+    const length = routeLength(r), a = r[0]!, b = r.at(-1)!;
+    const over = wrapsAround(r) ? length - (Math.abs(a.x - b.x) + Math.abs(a.y - b.y)) : length - routeLimit(a, b);
+    return over > 0 ? sum + over + DETOUR_COST : sum;
+  }, 0);
+}
+const DETOUR_COST = 200;
 
 /** Proper crossings between orthogonal or straight routes (shared end points and overlaps do not count). */
 export function countCrossings(routes: readonly (readonly Point[])[]): number {
@@ -63,8 +134,7 @@ export function countCrossings(routes: readonly (readonly Point[])[]): number {
   return count;
 }
 
-export const routesLength = (routes: readonly (readonly Point[])[]): number =>
-  routes.reduce((sum, r) => sum + r.slice(1).reduce((s, p, k) => s + Math.hypot(p.x - r[k]!.x, p.y - r[k]!.y), 0), 0);
+export const routesLength = (routes: readonly (readonly Point[])[]): number => routes.reduce((sum, r) => sum + routeLength(r), 0);
 
 /**
  * Runs the candidates in order and returns the best one by `layoutScore` (the
