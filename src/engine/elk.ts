@@ -118,6 +118,17 @@ export async function layout(nodes: readonly LayoutNode[], edges: readonly Layou
   // swapped when the layout direction is vertical (INCLUDE_CHILDREN); compensate.
   const vertical = options.direction === 'DOWN' || options.direction === 'UP';
   const minimum = (node: LayoutNode): string => node.children?.length && vertical ? `(${node.height}, ${node.width})` : `(${node.width}, ${node.height})`;
+  /** Minimum size of a vertical compound node with ports: wide and tall enough for the ports on each side (swapped, see above). */
+  const portMinimum = (node: LayoutNode): string => {
+    const spacing = node.portSpacing ?? 6;
+    const along = (sides: Side[]): number => {
+      const ports = (node.ports ?? []).filter(p => sides.includes(p.side));
+      const per = (side: Side) => ports.filter(p => p.side === side);
+      return Math.max(0, ...sides.map(side => per(side).reduce((sum, p) => sum + (p.width ?? 0), 0) + (per(side).length + 1) * spacing));
+    };
+    const width = Math.max(node.width, along(['NORTH', 'SOUTH'])), height = Math.max(node.height, along(['WEST', 'EAST']));
+    return `(${height}, ${width})`;
+  };
   // Spacing applies per graph level: compound nodes (packages) need it too, or
   // their children are laid out with ELK's tight defaults.
   const spacing = {
@@ -160,7 +171,12 @@ export async function layout(nodes: readonly LayoutNode[], edges: readonly Layou
       ...(node.ports?.length ? {
         'elk.portConstraints': node.ports.some(p => p.position) ? 'FIXED_POS' : 'FIXED_SIDE',
         // Grow the node if its ports need more room than its content.
-        ...(node.fixedSize ? { 'elk.nodeSize.constraints': '[]' } : {
+        ...(node.fixedSize ? { 'elk.nodeSize.constraints': '[]' } : node.children?.length && vertical ? {
+          // elkjs 0.11.1 also swaps the room ports need on a vertical compound node
+          // (ports along the top border make it that tall): size it from its ports here.
+          'elk.nodeSize.constraints': '[MINIMUM_SIZE]',
+          'elk.nodeSize.minimum': portMinimum(node),
+        } : {
           'elk.nodeSize.constraints': '[PORTS, MINIMUM_SIZE]',
           'elk.nodeSize.minimum': minimum(node),
         }),

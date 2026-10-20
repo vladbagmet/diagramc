@@ -107,7 +107,20 @@ export interface ChooseOptions {
   penalty?: (index: number) => number;
   /** Also try graph wrapping when a layout runs too far along its direction. */
   wrap?: boolean;
+  /**
+   * Opt-in: the longer side may be at most this many times the shorter one. A
+   * candidate within the limit beats every candidate outside it, unless its score
+   * is more than MAX_ASPECT_TOLERANCE times the best score.
+   */
+  maxAspect?: number;
 }
+
+/** See ChooseOptions.maxAspect. */
+export const MAX_ASPECT_TOLERANCE = 1.6;
+/** See chooseLayout: no wrapped variant once a layout is at most this elongated. */
+const WRAP_UNLESS = 2;
+
+const elongation = (m: LayoutMeasure): number => m.width > 0 && m.height > 0 ? Math.max(m.width / m.height, m.height / m.width) : 1;
 
 /**
  * The layout chooser every layered own-engine kind uses: for each direction (the
@@ -117,10 +130,13 @@ export interface ChooseOptions {
  */
 export async function chooseLayout<T>(directions: readonly Direction[], run: (dir: Direction, variant: LayoutVariant) => Promise<T>, measure: (result: T) => LayoutMeasure, options: ChooseOptions = {}): Promise<T> {
   let best: T | undefined, bestScore = Infinity;
+  const all: { result: T; score: number; within: boolean }[] = [];
   const consider = (result: T, penalty: number): void => {
     const score = layoutScore({ ...measure(result), penalty });
+    all.push({ result, score, within: options.maxAspect === undefined || elongation(measure(result)) <= options.maxAspect });
     if (score < bestScore - 1e-6) { best = result; bestScore = score; }
   };
+  const wraps: { dir: Direction; penalty: number; tryRun: (variant: LayoutVariant) => Promise<T | undefined> }[] = [];
   for (const [i, dir] of directions.entries()) {
     const penalty = options.penalty?.(i) ?? (i ? 0.15 : 0);
     // ELK fails on some port configurations in some directions: only the conventional layout must succeed.
@@ -134,8 +150,20 @@ export async function chooseLayout<T>(directions: readonly Direction[], run: (di
     const { across, along } = extents(dir, measure(plain));
     const narrow = across > along * ASPECT_BAND.max ? await tryRun('narrow') : undefined;
     if (narrow !== undefined) consider(narrow, penalty + 0.05);
-    const wrapped = options.wrap && along > across / ASPECT_BAND.min ? await tryRun('wrap') : undefined;
-    if (wrapped !== undefined) consider(wrapped, penalty + 0.15);
+    // With an aspect limit, a plain layout within it needs no wrapping.
+    const inLimit = options.maxAspect !== undefined && elongation(measure(plain)) <= options.maxAspect;
+    if (options.wrap && !inLimit && along > across / ASPECT_BAND.min) wraps.push({ dir, penalty, tryRun });
+  }
+  // Wrapping is the last resort (slow, long lines): with an aspect limit, only when no
+  // layout so far comes within WRAP_UNLESS of a square at a score close to the best.
+  const settled = options.maxAspect !== undefined && all.some(c => elongation(measure(c.result)) <= WRAP_UNLESS && c.score <= bestScore * 1.15);
+  for (const w of settled ? [] : wraps) {
+    const wrapped = await w.tryRun('wrap');
+    if (wrapped !== undefined) consider(wrapped, w.penalty + 0.15);
+  }
+  if (options.maxAspect !== undefined && !all.find(c => c.result === best)?.within) {
+    const within = all.filter(c => c.within && c.score <= bestScore * MAX_ASPECT_TOLERANCE).sort((a, b) => a.score - b.score)[0];
+    if (within) return within.result;
   }
   return best!;
 }
