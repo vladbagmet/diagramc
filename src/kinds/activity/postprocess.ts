@@ -15,6 +15,8 @@ import { padCanvas } from '../../plantuml/geometry.js';
  *   (UML 16.3.4). They are found by the marker stroke color the skin gives them.
  * - Fork and join branches that PlantUML attaches at a bar's end with a sideways
  *   jog leave or enter the bar straight; bars are trimmed to their flows.
+ * - Swimlanes are widened where a node, note or text comes within LANE_PADDING
+ *   of a lane border.
  * - A guard label that PlantUML placed across a flow line (it happens beside
  *   narrow loops) is moved to the nearest free spot beside the same line; if
  *   there is none (a loop in a narrow swimlane), a column is opened for it.
@@ -49,7 +51,7 @@ export function fixActivitySvg(svg: string, model?: { title?: string }): string 
     const d = `M${fmt(cx)},${fmt(top)} V${fmt(bottom)} M${fmt(left)},${fmt(bottom)} V${fmt(bar)} H${fmt(right)} V${fmt(bottom)}`;
     return `${fixed}<path d="${d}" fill="none" style="stroke:${theme.color.nodeStroke};stroke-width:${theme.stroke.node};"/>`;
   });
-  const fixed = moveCrossedLabels(anchorNotes(trimBars(straightenBarBranches(mirrorAcceptEvents(svg)))), 0);
+  const fixed = padLanes(moveCrossedLabels(anchorNotes(trimBars(straightenBarBranches(mirrorAcceptEvents(svg)))), 0));
   // Without a title there is no frame: give the drawing the own engine's canvas margin.
   return model && model.title === undefined ? padCanvas(fixed, theme.spacing.canvas) : fixed;
 }
@@ -74,6 +76,62 @@ function mirrorAcceptEvents(svg: string): string {
   });
 }
 
+/** Least room between a swimlane border and the shapes, notes, texts and vertical flows beside it. */
+export const LANE_PADDING = 12;
+
+/**
+ * PlantUML leaves as little as 4 px between a swimlane border and the widest
+ * node or note in the lane. Each border with something closer than LANE_PADDING
+ * on either side gets a column of the missing width (everything beyond moves).
+ */
+function padLanes(svg: string): string {
+  let widened = false;
+  for (let round = 0; round < 40; round++) {
+    const borders: { x: number; y0: number; y1: number }[] = [];
+    const items: Rect[] = [];
+    for (const [tag, name] of svg.matchAll(/<(rect|polygon|ellipse|path|text|line)\b[^>]*>/gu)) {
+      const a = attrs(tag);
+      if (name === 'line') {
+        const x1 = Number(a.x1), x2 = Number(a.x2), y1 = Number(a.y1), y2 = Number(a.y2);
+        if (x1 !== x2) continue;
+        if (tag.includes(`stroke:${theme.color.frameStroke};`)) borders.push({ x: x1, y0: Math.min(y1, y2), y1: Math.max(y1, y2) });
+        else if (tag.includes(`stroke:${theme.color.edge};`)) items.push({ x: x1, y: Math.min(y1, y2), width: 0, height: Math.abs(y2 - y1) });
+        continue;
+      }
+      if (name === 'rect' && a.fill !== theme.color.nodeFill && a.fill !== theme.color.edge) continue;
+      if (name === 'polygon' && a.fill !== theme.color.nodeFill) continue;
+      if (name === 'path' && a.fill !== theme.color.noteFill) continue;
+      const r = elementBox(name!, a);
+      if (r) items.push(r);
+    }
+    let fix: { x0: number; width: number } | undefined;
+    for (const b of borders.sort((p, q) => q.x - p.x)) {
+      const beside = items.filter(r => r.y < b.y1 && r.y + r.height > b.y0);
+      const left = Math.min(Infinity, ...beside.filter(r => r.x + r.width <= b.x).map(r => b.x - r.x - r.width));
+      const right = Math.min(Infinity, ...beside.filter(r => r.x >= b.x).map(r => r.x - b.x));
+      if (left < LANE_PADDING - 0.25) { fix = { x0: b.x - left / 2, width: Math.ceil(LANE_PADDING - left) }; break; }
+      if (right < LANE_PADDING - 0.25) { fix = { x0: b.x + right / 2, width: Math.ceil(LANE_PADDING - right) }; break; }
+    }
+    if (!fix) return widened ? centerLaneTitles(svg, borders) : svg;
+    svg = insertColumn(svg, fix.x0, fix.width, Math.min(...borders.map(b => b.y0)));
+    widened = true;
+  }
+  return svg;
+}
+
+/** Centers each swimlane title (bold text at the top of the lanes) between its lane's borders again. */
+function centerLaneTitles(svg: string, borders: readonly { x: number; y0: number }[]): string {
+  const xs = borders.map(b => b.x).sort((a, b) => a - b), top = Math.min(...borders.map(b => b.y0));
+  return svg.replace(/<text\b[^>]*>/gu, tag => {
+    const a = attrs(tag);
+    if (a['font-weight'] !== 'bold' || !(Number(a.y) > top && Number(a.y) < top + 48)) return tag;
+    const width = Number(a.textLength), middle = Number(a.x) + width / 2;
+    const left = xs.filter(x => x < middle).at(-1), right = xs.find(x => x > middle);
+    if (left === undefined || right === undefined || right - left < width) return tag;
+    return tag.replace(/ x="[^"]*"/u, ` x="${fmt((left + right) / 2 - width / 2)}"`);
+  });
+}
+
 /** Longest stub PlantUML draws between a bar and the sideways jog of a branch flow. */
 const STUB_MAX = 24;
 
@@ -83,7 +141,9 @@ const STUB_MAX = 24;
  * bar and a vertical line to the branch. UML draws each branch straight from the
  * bar's underside (fork) or into its top (join), so the bar is lengthened to the
  * branch, the stub and jog are dropped and the vertical line runs to the bar.
- * Done only when nothing else lies on the lengthened part of the bar.
+ * Done only when nothing else lies on the lengthened part of the bar. The one
+ * flow into a fork (out of a join) is straightened the same way when it lies
+ * over the bar.
  */
 function straightenBarBranches(svg: string): string {
   const flow = `stroke:${theme.color.edge};`;
@@ -114,9 +174,10 @@ function straightenBarBranches(svg: string): string {
     // Branches are on the side with several flows (below a fork, above a join);
     // the single flow into a fork or out of a join keeps its route.
     const count = (y: number): number => lines.filter(l => [l.p, l.q].some(p => Math.abs(p.y - y) < 0.5 && p.x >= bar.x - 0.5 && p.x <= bar.x + bar.width + 0.5)).length;
-    const side = count(bottom) > 1 ? bottom : count(top) > 1 ? top : undefined;
-    if (side === undefined) continue;
-    for (const stub of lines) {
+    const branches = count(bottom) > 1 ? bottom : count(top) > 1 ? top : undefined;
+    if (branches === undefined) continue;
+    // Branches may lengthen the bar; the single flow on the other side only moves along it.
+    for (const [side, grow] of [[branches, true], [branches === bottom ? top : bottom, false]] as const) for (const stub of lines) {
       if (edits.has(stub.tag) || !vertical(stub)) continue;
       // The stub starts on the bar's top or bottom edge, within the bar.
       const start = [stub.p, stub.q].find(p => p.x >= bar.x - 0.5 && p.x <= bar.x + bar.width + 0.5 && Math.abs(p.y - side) < 0.5);
@@ -133,6 +194,7 @@ function straightenBarBranches(svg: string): string {
       // The leg must continue away from the bar, and nothing else may meet the knee or corner.
       if (below ? far.y <= corner.y : far.y >= corner.y) continue;
       if (lines.some(l => l !== stub && l !== jog && l !== leg && [l.p, l.q].some(p => at(p, knee) || at(p, corner)))) continue;
+      if (!grow && (corner.x < bar.x + BAR_OVERHANG || corner.x > bar.x + bar.width - BAR_OVERHANG)) continue;
       const left = Math.min(bar.x, corner.x - BAR_OVERHANG), right = Math.max(bar.x + bar.width, corner.x + BAR_OVERHANG);
       const grown = { x: left, y: bar.y - 1, width: right - left, height: bar.height + 2 };
       // Nothing but this bar and the flows ending on it may lie where the bar grows.
@@ -389,10 +451,13 @@ function shiftBand(svg: string, x0: number, width: number, y0: number, y1: numbe
   });
 }
 
-/** Shifts everything right of `x0` by `width` px, stretching what spans `x0` (frame, lines). */
-function insertColumn(svg: string, x0: number, width: number): string {
+/** Shifts everything right of `x0` by `width` px, stretching what spans `x0` (frame, lines); nothing above `heading` moves. */
+function insertColumn(svg: string, x0: number, width: number, heading = -Infinity): string {
   const shift = (x: number): number => x > x0 ? x + width : x;
   return svg.replace(/<(\w+)\b[^>]*>/gu, (tag, name: string) => {
+    // The frame heading (everything above `heading`) keeps its place and shape.
+    const box = name === 'rect' ? undefined : elementBox(name, attrs(tag));
+    if (box && box.y + box.height <= heading) return tag;
     if (name === 'svg') {
       return tag.replace(/ width="([\d.]+)px"/u, (_, w: string) => ` width="${fmt(Number(w) + width)}px"`)
         .replace(/width:([\d.]+)px;/u, (_, w: string) => `width:${fmt(Number(w) + width)}px;`)
