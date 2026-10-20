@@ -16,7 +16,7 @@ const PROPERTY_SYNONYMS: Record<string, readonly string[]> = {
   messages: ['items', 'messages'], steps: ['items'], interactions: ['items'],
   classes: ['elements'], components: ['elements'], entities: ['elements'], states: ['states', 'vertices', 'elements'], vertices: ['vertices', 'nodes'],
   relations: ['relationships'], relationships: ['relationships', 'edges', 'links'], associations: ['relationships'], connections: ['relationships', 'edges', 'links'],
-  edges: ['edges', 'relationships', 'transitions'], links: ['links', 'relationships'], flows: ['edges'], transitions: ['transitions'],
+  edges: ['edges', 'relationships', 'transitions', 'flows'], links: ['links', 'relationships'], flows: ['edges'], transitions: ['transitions'],
   stereotype: ['keyword', 'stereotypes', 'appliedStereotypes'], keywords: ['stereotypes', 'keyword'], tag: ['keyword'],
   extends: ['generalization', 'general'], inherits: ['generalization', 'general'], parents: ['generalization'],
   params: ['parameters', 'arguments'], args: ['arguments', 'parameters'], argument: ['arguments'], parameter: ['parameters'],
@@ -40,6 +40,9 @@ const VALUE_SYNONYMS: Record<string, readonly string[]> = {
   database: ['component', 'node', 'artifact'], db: ['component', 'node', 'artifact'], service: ['component'], module: ['component', 'package'], library: ['component', 'artifact'],
   server: ['node', 'device'], container: ['executionEnvironment', 'node'], vm: ['executionEnvironment', 'node'], file: ['artifact'], jar: ['artifact'],
   final: ['finalState', 'activityFinal', 'final'], end: ['finalState', 'activityFinal'], stop: ['activityFinal', 'finalState'], start: ['initial'],
+  // Activity and interaction overview name the same control nodes differently.
+  activityfinal: ['activityFinal', 'final'], callbehavior: ['callBehavior', 'interaction-use'], interactionuse: ['callBehavior', 'interaction-use'], ref: ['interaction-use', 'callBehavior'],
+  action: ['action', 'interaction-use'], sd: ['interaction'], inline: ['interaction'],
   task: ['action'], activity: ['action'], step: ['action'], process: ['action'], condition: ['decision'], branch: ['decision'], if: ['decision'], join: ['merge'],
   sync: ['synchronous'], async: ['asynchronous'], synchronous: ['synchronous'], asynchronous: ['asynchronous'], reply: ['reply'], call: ['synchronous'], return: ['reply'], response: ['reply'], signal: ['asynchronous'], new: ['create'], destroy: ['delete'],
   alt: ['fragment'], opt: ['fragment'], loop: ['fragment'], par: ['fragment'], break: ['fragment'], critical: ['fragment'],

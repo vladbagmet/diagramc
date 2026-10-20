@@ -1,82 +1,120 @@
 # Agent UML CLI
 
-An agent-first CLI: validated JSON UML models in, readable SVG or PNG out. No
-server, API key, browser, Graphviz or global installation. Rendering is offline.
+`uml` turns a JSON model into a UML diagram, as SVG or PNG. It supports all 14
+UML 2.5.1 diagram kinds: class, object, package, profile, component, deployment,
+composite structure, communication, interaction overview, sequence, timing,
+activity, state machine and use case. It is built for agents as users: every
+model is validated against a published JSON Schema, errors are one JSON object
+that lists every problem (with a fix where one is clear), and each drawing is checked for
+layout defects before it is written. Rendering is offline and needs no server,
+API key, browser, Graphviz or global installation.
 
-Status (0.2.0): all 14 UML 2.5.1 diagram kinds are implemented: class, object,
-package, profile, component, deployment, composite structure, communication,
-interaction overview, state machine and use case on the own layout engine;
-sequence, timing and activity on a pinned, sandboxed PlantUML (see
-[`docs/plans/full-uml-plan.md`](docs/plans/full-uml-plan.md) and the per-kind
-checklists in [`docs/kinds/`](docs/kinds/README.md)).
+Version 1.0.0. Changes: [CHANGELOG.md](CHANGELOG.md).
 
-## Setup
+## Install
 
-Requires Node.js 22+ and npm.
+Requires Node.js 22 or later and npm.
+
+From a source checkout:
 
 ```sh
 npm ci
-npm run build
-npm test                    # unit tests, no Java needed
+npm run build              # dist/cli.js, run it as ./dist/cli.js or npm exec --offline -- uml
+npm test                   # unit tests, no Java needed
 ```
 
-Own-engine kinds (class, object, package, profile, component, deployment,
-composite structure, communication, interaction overview, state machine, use case)
-need nothing else. PlantUML kinds (sequence, timing, activity, and the
-`--backend plantuml` class fallback) need the pinned local renderer:
+As a package in another project (the package is not published to a registry;
+build the tarball with `npm pack` in a checkout):
 
 ```sh
-npm run setup:renderer      # PlantUML 1.2025.10 + Temurin JRE 21.0.11+10 into ignored .tools/
-npm run test:integration    # real-renderer tests
-npm run gallery             # every example of every kind -> artifacts/gallery/index.html
+npm install /path/to/agent-uml-cli-1.0.0.tgz
+npx uml --help             # or npm exec --offline -- uml --help
 ```
 
-The setup script downloads SHA-256-verified, pinned official artifacts into
-`.tools/` (macOS and Linux, arm64 and x64; Linux needs glibc), installs the pinned
-Inter font into that runtime, and repairs interrupted or broken installs. About 70
-MiB of downloads; nothing system-wide changes. For separately managed, trusted tools
-set both `UML_JAVA` and `PLANTUML_JAR`.
+### PlantUML renderer (sequence, timing, activity)
 
-## Use
+Eleven kinds use the built-in engine and need nothing else. Sequence, timing and
+activity diagrams (and class diagrams with `--backend plantuml`) are drawn by a
+pinned PlantUML running on a private Java runtime, which a setup script downloads
+once:
 
 ```sh
+npm run setup:renderer                                     # in a source checkout
+node node_modules/agent-uml-cli/scripts/setup-renderer.mjs # in a project that installed the package
+```
+
+It downloads PlantUML 1.2025.10 and the Eclipse Temurin JRE 21.0.11+10 (about 70
+MiB, about 220 MiB on disk) from their official GitHub releases, checks each
+against a pinned SHA-256, and unpacks them into the package's own `.tools/`
+directory. It runs on macOS and Linux, arm64 and x64 (Linux needs glibc and
+`tar`), changes nothing system-wide, and repairs an interrupted or broken
+install when run again. After that, rendering is offline. `uml --help` prints
+the exact setup command for the installed copy. The runtime lives inside the
+installed package, so after npm replaces the package (an upgrade, a clean
+install) run the setup again; `RENDERER_MISSING` says so. To use a separately managed,
+trusted Java and PlantUML jar instead, set both `UML_JAVA` and `PLANTUML_JAR`.
+
+### Fonts
+
+Nothing to install. The Inter font (SIL Open Font License) ships with the
+package: the built-in engine measures text with it, every SVG embeds the subset
+it uses, PNG output uses it, and the setup script installs it into the private
+Java runtime so PlantUML measures with the same font. Glyphs Inter lacks (CJK,
+emoji) come from the viewer's fonts in SVG.
+
+## Quick start
+
+```sh
+uml example class > model.json                # a minimal valid model to start from
+uml schema class                              # JSON Schema of a kind: every property, allowed values
+uml validate model.json                       # {"valid":true,"kind":"class","version":2}
 uml render model.json -o diagram.svg          # or .png (2x by default)
 cat model.json | uml render - -o diagram.png --scale 3
 uml render model.json -o diagram.svg --backend plantuml
 uml render model.json -o diagram.svg --strict # fail instead of warning on layout defects
-uml validate model.json                       # {"valid":true,"kind":"class","version":2}
-uml example sequence                          # a minimal valid model to start from
-uml schema class                              # JSON Schema of a kind: every property, allowed values
-uml kinds                                     # the 14 kinds as JSON
-uml --help
+uml kinds                                     # the 14 kinds and their backends as JSON
+uml render --help                             # every command has its own help
 ```
 
 Writing a model: start from `uml example <kind>`, look properties up in
 `uml schema <kind>`, then `uml validate`. When validation fails, the error lists
-every problem with a corrected value where one is clear (see [Errors](#errors)).
+every problem with a corrected value where one is clear (see
+[Errors](#errors)).
 
-Run it with `npm exec --offline -- uml ...` or `./dist/cli.js ...`. The output
-format follows the `-o` extension unless `--format svg|png` is given. Output is
-replaced atomically, only after a successful render; its parent must exist. An
-existing device or pipe (`-o /dev/null --format svg`, `-o /dev/stdout`) is
-written directly.
-Successful runs print nothing on stdout (except `validate`, `example`, `kinds`,
-`schema`).
+The output format follows the `-o` extension unless `--format svg|png` is given;
+`--scale 1` to `4` sets the PNG pixel density. The output is replaced
+atomically, only after a successful render, and its parent directory must
+exist. An existing device or pipe (`-o /dev/null --format svg`,
+`-o /dev/stdout`) is written directly. Successful runs print nothing on stdout,
+except `validate`, `example`, `kinds` and `schema`.
 
-### Layout checks: warnings and `--strict`
+## Diagram kinds
 
-Every render runs the same QA gates the test suite uses (a few milliseconds; see
-[Quality assurance](#quality-assurance)). When the drawing fails one, the file is
-still written and the exit code is 0, but stderr carries one JSON object:
+| Kind | `kind` | Backend | Frame keyword | Checklist | Examples |
+|---|---|---|---|---|---|
+| Class | `class` | own engine (PlantUML with `--backend plantuml`) | `class` | [class.md](docs/kinds/class.md) | [examples/class](examples/class/) |
+| Object | `object` | own engine | `object` | [object.md](docs/kinds/object.md) | [examples/object](examples/object/) |
+| Package | `package` | own engine | `package` | [package.md](docs/kinds/package.md) | [examples/package](examples/package/) |
+| Profile | `profile` | own engine | `profile` | [profile.md](docs/kinds/profile.md) | [examples/profile](examples/profile/) |
+| Communication | `communication` | own engine | `sd` | [communication.md](docs/kinds/communication.md) | [examples/communication](examples/communication/) |
+| Interaction overview | `interaction-overview` | own engine | `sd` | [interaction-overview.md](docs/kinds/interaction-overview.md) | [examples/interaction-overview](examples/interaction-overview/) |
+| Component | `component` | own engine | `cmp` | [component.md](docs/kinds/component.md) | [examples/component](examples/component/) |
+| Deployment | `deployment` | own engine | `dep` | [deployment.md](docs/kinds/deployment.md) | [examples/deployment](examples/deployment/) |
+| Composite structure | `composite-structure` | own engine | `class` | [composite-structure.md](docs/kinds/composite-structure.md) | [examples/composite-structure](examples/composite-structure/) |
+| Sequence | `sequence` | PlantUML | `sd` | [sequence.md](docs/kinds/sequence.md) | [examples/sequence](examples/sequence/) |
+| Timing | `timing` | PlantUML | `sd` | [timing.md](docs/kinds/timing.md) | [examples/timing](examples/timing/) |
+| Activity | `activity` | PlantUML | `act` | [activity.md](docs/kinds/activity.md) | [examples/activity](examples/activity/) |
+| State machine | `state-machine` | own engine | `stm` | [state-machine.md](docs/kinds/state-machine.md) | [examples/state-machine](examples/state-machine/) |
+| Use case | `use-case` | own engine | `uc` | [use-case.md](docs/kinds/use-case.md) | [examples/use-case](examples/use-case/) |
 
-```json
-{"warnings":[{"code":"LAYOUT_QUALITY","gate":"label-edge-crossing","message":"Layout check \"label-edge-crossing\" found 1 problem: label \"places\" crosses edge r3","count":1,"problems":["label \"places\" crosses edge r3"],"advice":"A line runs through a label. Shorter labels or fewer crossing relationships usually help."}]}
-```
+The own engine is elkjs 0.11.1 layout with hand-written SVG. PlantUML 1.2025.10
+uses its dedicated sequence, timing and activity engines (and Smetana for the
+class fallback, never Graphviz), and its output is post-processed to UML
+notation. Both share one theme (`src/core/theme.ts`). Each checklist lists the
+supported notation, the semantic rules, what is rejected, and the kind's known
+limitations.
 
-With `--strict` the same finding is an error instead: exit code 5, code
-`LAYOUT_QUALITY`, `details.warnings` as above, and no output is written or changed.
-
-## Model
+## Writing models
 
 Every document is a JSON object with a `kind`, an optional `title` (drawn as the
 UML frame heading, for example **class** Ordering) and the kind's vocabulary.
@@ -112,6 +150,10 @@ Rules shared by all kinds:
   U+FFFE/U+FFFF; nonblank. Names 1 to 100 code points, other text 1 to 180, notes
   1 to 1000 (wrapped). Quotes, braces, HTML-like syntax and repeated spaces stay literal.
 - Input is UTF-8 JSON of at most 256 KiB. Unknown properties are errors.
+- v1 documents (the 0.1 format: `classes` + `relationships`, no `kind`, see
+  [`schema/model-v1.schema.json`](schema/model-v1.schema.json) and
+  [`examples/v1/`](examples/v1/)) keep working as class diagrams; members are
+  drawn verbatim and error paths refer to the v1 document.
 
 ### Class diagrams
 
@@ -169,11 +211,6 @@ multiplicities, collaborations (dashed ellipses with roles) and collaboration us
 whose bindings link roles to parts. Checklist and rules:
 [`docs/kinds/composite-structure.md`](docs/kinds/composite-structure.md).
 Examples: [`examples/composite-structure/`](examples/composite-structure/).
-
-**v1 documents** (the MVP format: `classes` + `relationships`, no `kind`, see
-[`schema/model-v1.schema.json`](schema/model-v1.schema.json) and
-[`examples/v1/`](examples/v1/)) keep working as class diagrams; members are drawn
-verbatim and error paths refer to the v1 document.
 
 ### Object diagrams
 
@@ -423,6 +460,8 @@ Written so an agent can fix a model in one round:
   with their brackets are rejected with the bare text (the diagram adds them).
 - `INVALID_JSON` gives the line, column and a hint (trailing comma, comment,
   single quotes); file errors name the path and the reason (`errno`).
+- `RENDERER_MISSING` names the setup command for the installed copy in
+  `details.setup`.
 
 Exit codes: `0` success (possibly with layout warnings), `2` usage or input
 validation, `3` renderer, `4` file I/O, `5` layout check failed under `--strict`,
@@ -433,17 +472,63 @@ rule codes (see `docs/kinds/<kind>.md`), `UNSUPPORTED_BACKEND`,
 `RENDERER_MISSING`, `RENDER_FAILED`, `RENDER_TIMEOUT`, `RENDER_OUTPUT_LIMIT`,
 `RENDER_INTERRUPTED`, `RASTERIZE_FAILED`, `OUTPUT_WRITE_FAILED`, `LAYOUT_QUALITY`.
 
+### Layout warnings and `--strict`
+
+Every render runs the same quality gates the test suite uses (a few
+milliseconds; see [Quality assurance](#quality-assurance)). When the drawing
+fails one, the file is still written and the exit code is 0, but stderr carries
+one JSON object with one warning per failed gate:
+
+```json
+{"warnings":[{"code":"LAYOUT_QUALITY","gate":"label-edge-crossing","message":"Layout check \"label-edge-crossing\" found 1 problem: label \"places\" crosses edge r3","count":1,"problems":["label \"places\" crosses edge r3"],"advice":"A line runs through a label. Shorter labels or fewer crossing relationships usually help."}]}
+```
+
+`problems` holds up to five of the gate's findings; `advice` says what usually
+helps for those kinds of problem, in terms of the model, or that the problem is a
+renderer defect the model cannot avoid (`src/qa/advice.ts`). With `--strict` the
+same finding is an error instead: exit code 5, code `LAYOUT_QUALITY`, the
+warnings in `details.warnings`, and no output is written or changed. Some dense
+layouts still produce warnings; the ones the test suite tolerates for now are
+listed with their review findings in `test/known-gate-failures.mjs`.
+
+## Limits and known limitations
+
+- **Input.** UTF-8 JSON, at most 256 KiB. Names 1 to 100 code points, other text
+  1 to 180, notes 1 to 1000. Rendered SVG is capped at 8 MiB; PlantUML gets a 20 s
+  timeout and a 256 MiB heap.
+- **Emoji in PNG.** No emoji font is bundled, so PNG output draws an emoji as a
+  box ("□"); the SVG keeps the emoji for the viewer's fonts. CJK and other scripts
+  Inter lacks come from system fonts in PNG
+  ([decision 0003](docs/decisions/0003-png-text.md)).
+- **Activity swimlanes.** PlantUML draws the branches of a decision or fork side
+  by side in every swimlane they use, so structures that would cross are rejected
+  rather than drawn badly: a decision with more than two branches must keep them
+  in its own swimlane (`DECISION_SPANS_PARTITIONS`, the error spells out the
+  equivalent nested two-way decisions), branches must each occupy their own run
+  of adjacent swimlanes (`BRANCHES_SHARE_PARTITIONS`), and the flow must be well
+  structured (`UNSTRUCTURED_FLOW`).
+- **Very large diagrams** get wide or tall rather than crowded (several thousand
+  pixels on one side, or a long column), and dense ones keep long routes and can
+  produce layout warnings. Splitting a model into several diagrams reads better.
+  Timing diagrams too dense for a 3200 px axis are rejected with
+  `TIMELINE_TOO_DENSE` and the room they need. Inline interactions in an
+  interaction overview have at most 6 lifelines and 12 messages. Component,
+  deployment and composite structure diagrams stay within 2.5:1 when a layout
+  achieves it, so large ones grow tall rather than wide.
+- **Ports with many connectors.** A port takes up to three connectors on separate
+  lines (its outer face and two side faces); with more, for example seven
+  assemblies into one provider port, the connectors share a trunk next to it.
+- **Two backends, one look.** Colors, sizes and the font match, but PlantUML
+  kinds draw glyphs through Java, so they can differ slightly from own-engine
+  kinds. PlantUML output is checked by the same gates on a best-effort reading of
+  its SVG.
+- **Platforms.** The renderer setup supports macOS and Linux (glibc) on arm64 and
+  x64. Other systems are not tested.
+
+Per-kind limitations are in each `docs/kinds/<kind>.md`.
+
 ## Rendering and safety
 
-- **Hybrid backends.**
-
-  | Backend | Kinds |
-  |---|---|
-  | Own engine (elkjs 0.11.1 layout + hand-written SVG) | class, object, package, profile, component, deployment, composite structure, communication, interaction overview, state machine, use case |
-  | PlantUML 1.2025.10 (Smetana or its own engines, no Graphviz), post-processed to UML notation | sequence, timing, activity; class with `--backend plantuml` |
-
-  Both share theme tokens (`src/core/theme.ts`). Untitled PlantUML drawings get
-  the own engine's 16 px canvas margin.
 - **Validation first.** The whole document is validated before any renderer is
   discovered or started.
 - **Own engine SVG** is written by an escaping writer that only knows presentation
@@ -453,12 +538,10 @@ rule codes (see `docs/kinds/<kind>.md`), `UNSUPPORTED_BACKEND`,
   cannot become source lines, includes, links or markup. Java runs without a shell,
   with PlantUML's SECURE profile, 256 MiB heap, 20 s timeout, 8 MiB SVG and 64 KiB
   diagnostics limits; Java option injection variables are removed.
-- **Fonts.** Text is measured with HarfBuzz using the pinned Inter font, and every
-  SVG embeds the subset it uses, so it looks the same everywhere (within 0.2 % of
-  Chrome's own measurement). See [`docs/decisions/0001-fonts.md`](docs/decisions/0001-fonts.md).
-  Glyphs Inter lacks (CJK, emoji) come from the viewer's fonts. PNG export uses
-  resvg; it keeps Inter and bold for the Latin part of mixed-script lines and shows
-  emoji as "□" (no emoji font is bundled, see [`docs/decisions/0003-png-text.md`](docs/decisions/0003-png-text.md)).
+- **Fonts.** Text is measured with HarfBuzz using the pinned Inter font, within
+  0.2 % of Chrome's own measurement
+  ([decision 0001](docs/decisions/0001-fonts.md)). PNG export uses resvg and keeps
+  Inter and bold for the Latin part of mixed-script lines.
 - **Deterministic.** Repeated renders are byte-identical in the same environment.
 - **Budgets.** A 50-class, 80-relationship diagram renders in well under 2 s.
 
@@ -467,26 +550,30 @@ rule codes (see `docs/kinds/<kind>.md`), `UNSUPPORTED_BACKEND`,
 `src/qa` inspects rendered SVGs and enforces hard gates on every fixture and
 example: markup safety, everything inside the canvas, no node overlap (containment
 allowed), no label overlapping a node, label or line, end labels near and
-unambiguous at their end, edges ending on node borders (a package's tab or body, an
-ellipse's outline), arrowheads present at the right end and pointing inward, message
-arrows parallel to and beside their own link and pointing at the receiver, every input
-text drawn literally, minimum font size 11 px, text inside its box, ports on their
-owner's border and interface symbols facing outward with aligned ball-and-socket
-joints. Own-engine SVGs carry `data-uml-*` attributes so gates
-are exact; PlantUML SVGs are checked best-effort. For PlantUML sequence and timing
-diagrams a dedicated reader (`src/qa/plantuml-interaction.ts`) recovers lifelines,
-activation bars, messages, state lines and labels, so label overlaps, labels on
-lines, the `message-endpoints` gate (every message starts and ends on its
-lifeline or state line, arrowhead at the receiving end, found/lost circles) and
-the `lifeline-crossing` gate (no lifeline or activation bar through any text)
-are evaluated; gates without data are reported as skipped. `uml render` runs the
-same gates on every drawing (see [Layout checks](#layout-checks-warnings-and---strict)).
-`npm run gallery` renders every example to SVG and PNG with an `index.html` overview.
+unambiguous at their end, edges ending on node borders, no two lines sharing a
+segment, no needless detours, arrowheads present and
+pointing inward, message arrows beside their own link, every input text drawn
+literally, minimum font size 11 px, text inside its box, ports on their owner's
+border and interface symbols facing outward. Own-engine SVGs carry `data-uml-*`
+attributes so gates are exact; PlantUML SVGs are checked best-effort, with a
+dedicated reader for sequence and timing diagrams (lifelines, activation bars,
+messages, state lines) that adds the `message-endpoints` and `lifeline-crossing`
+gates. Gates without data are reported as skipped. Known failures that are
+still being fixed are listed, each with its review finding, in
+`test/known-gate-failures.mjs`; that list only shrinks.
 
-## Repository layout
+## Development
+
+```sh
+npm test                   # build, then unit tests (no Java needed)
+npm run setup:renderer     # once, for the PlantUML kinds
+npm run test:integration   # real-renderer tests, every gate on every example
+npm run gallery            # every example of every kind -> artifacts/gallery/index.html
+```
 
 ```
-src/cli.ts         commands
+src/cli.ts         commands and help
+src/render.ts      backend selection, rendering, layout warnings
 src/core/          errors, io, limits, text rules, theme tokens
 src/model/         kind interface, registry, schema envelope, shared rules, parsing
 src/kinds/<kind>/  one folder per diagram kind
@@ -494,15 +581,16 @@ src/engine/        fonts, text, SVG writer, ELK adapter, shapes, edges, labels, 
 src/plantuml/      encoding, runner, skinparams, font embedding
 src/qa/            SVG inspection and gates
 docs/kinds/        recipe for new kinds and per-kind notation checklists
+docs/decisions/    design decisions
 ```
 
-## Third-party licenses
+## Licenses
 
-Runtime npm dependencies: elkjs (EPL-2.0), harfbuzzjs (MIT), subset-font and
-fontverter (BSD-3-Clause), wawoff2 (MIT), @resvg/resvg-js (MPL-2.0), Ajv (MIT;
-fast-uri BSD-3-Clause). Notices stay under `node_modules/`. The Inter font is
-under the SIL Open Font License 1.1 ([`assets/fonts/OFL.txt`](assets/fonts/OFL.txt)).
-The downloaded PlantUML jar reports GPL v3 or later (`java -jar <jar> -license`,
-which also states that generated images are not covered by its GPL); Temurin's
-`NOTICE` and `legal/` directory carry GPL v2 with Classpath Exception. Downloaded
-tools are not part of the npm package.
+Third-party components keep their own licenses, listed with their texts in
+[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md): the Inter font (SIL Open Font
+License 1.1, [`assets/fonts/OFL.txt`](assets/fonts/OFL.txt)), the npm
+dependencies (elkjs EPL-2.0, @resvg/resvg-js MPL-2.0, harfbuzzjs MIT,
+subset-font BSD-3-Clause, Ajv MIT and their dependencies), and the PlantUML jar
+(GPL v3 or later; generated images are not covered by it) and Temurin JRE (GPL v2
+with Classpath Exception) that the setup script downloads. Downloaded tools are
+not part of the package.

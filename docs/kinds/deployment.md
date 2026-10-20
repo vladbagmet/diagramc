@@ -44,7 +44,7 @@ node, below its name.
 | INVALID_DEPLOYMENT | only artifacts and deployment specifications are deployed, onto nodes, devices or execution environments, and not onto the node they are already drawn in | `/relationships/0/from`, `/relationships/0/to` |
 | INVALID_MANIFEST | an artifact manifests a component | `/relationships/0/from`, `/relationships/0/to` |
 | INVALID_DEPENDENCY | a dependency does not connect an element to something nested in it | `/relationships/0/to` |
-| INVALID_NESTING | an execution environment contains no nodes or devices | `/elements/0/elements/0/type` |
+| INVALID_NESTING | an execution environment contains no devices (nodes, such as virtual machines in a hypervisor, are allowed) | `/elements/0/elements/0/type` |
 | NOTE_IN_RELATIONSHIP | relationships do not connect notes | `/relationships/0/to` |
 | INVALID_ATTACHMENT | a note is not attached to a note | `/elements/1/attachedTo/0` |
 | NESTING_TOO_DEEP | at most six levels of nesting | `/elements/0/elements/0/elements/0/elements/0/elements/0/elements/0/elements/0/elements/0` |
@@ -62,11 +62,16 @@ node, below its name.
 
 ## Known limitations
 
+- Where several long lines run side by side down a narrow corridor (the stress
+  example's right edge), a center label may find no spot twice as far from the
+  neighbouring line as from its own (gate label-proximity, a known failure).
+
 - The cut corners of a 3D box (top left and bottom right) are inside the node's
   bounds: a line arriving exactly there ends a few pixels short of the outline.
-- Drawings larger than 1000 x 1000 px are also laid out top to bottom and the
-  more readable one wins; top to bottom, line ends on a container attach to the
-  container itself (ELK 0.11 fails on side-fixed ports of crossed containers).
+- Drawings larger than 1000 x 1000 px are also laid out top to bottom (and, when
+  neither is close to square, wrapped) and the more readable one wins, within
+  2.5:1 when a layout achieves it; top to bottom, line ends on a container attach
+  to the container itself (ELK 0.11 fails on side-fixed ports of crossed containers).
 - Large nested deployments grow wide; nested nodes keep generous padding, so
   regions with many small hosts leave white space (see the stress example).
 - Lines leaving a nested element cross its containers' borders (and the 3D side

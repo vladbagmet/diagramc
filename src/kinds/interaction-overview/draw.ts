@@ -9,9 +9,9 @@ import { GUARD, NAME, type OverviewScene, type OverviewSceneNode } from './layou
 
 const stroke = { stroke: theme.color.nodeStroke, 'stroke-width': theme.stroke.node };
 
-function group(id: string, type: string, bounds: Rect, parts: string[], parent?: string): string {
+function group(id: string, type: string, bounds: Rect, parts: string[], parent?: string, shape?: string): string {
   return el('g', {
-    'data-uml-role': 'node', 'data-uml-id': id, 'data-uml-type': type, 'data-uml-parent': parent,
+    'data-uml-role': 'node', 'data-uml-id': id, 'data-uml-type': type, 'data-uml-parent': parent, 'data-uml-shape': shape,
     'data-uml-bounds': `${num(bounds.x)} ${num(bounds.y)} ${num(bounds.width)} ${num(bounds.height)}`,
   }, parts);
 }
@@ -36,19 +36,21 @@ function drawNode(canvas: Canvas, entry: OverviewSceneNode): string {
     case 'initial':
       return group(id, node.type, b, [el('circle', { cx, cy, r: b.width / 2, fill: edge })]);
     case 'final':
+      // Ellipse outline: flows may end anywhere on the circle (two at one vertex end side by side).
       return group(id, node.type, b, [
         el('circle', { cx, cy, r: b.width / 2 - 0.6, fill: theme.color.background, stroke: edge, 'stroke-width': theme.stroke.edge }),
         el('circle', { cx, cy, r: b.width / 2 - 5.5, fill: edge }),
-      ]);
+      ], undefined, 'ellipse');
     case 'flow-final': {
       const r = b.width / 2 - 0.6, k = r * Math.SQRT1_2;
       return group(id, node.type, b, [
         el('circle', { cx, cy, r, fill: theme.color.background, stroke: edge, 'stroke-width': theme.stroke.edge }),
         el('path', { d: `M${num(cx - k)},${num(cy - k)} L${num(cx + k)},${num(cy + k)} M${num(cx - k)},${num(cy + k)} L${num(cx + k)},${num(cy - k)}`, stroke: edge, 'stroke-width': theme.stroke.edge, fill: 'none' }),
-      ]);
+      ], undefined, 'ellipse');
     }
     case 'decision': case 'merge':
-      return group(id, node.type, b, [el('polygon', { points: pointsAttr([{ x: cx, y: b.y }, { x: b.x + b.width, y: cy }, { x: cx, y: b.y + b.height }, { x: b.x, y: cy }]), fill: theme.color.nodeFill, ...stroke, 'stroke-linejoin': 'miter' })]);
+      // Flows may start anywhere on the diamond's outline (branches sharing a vertex start on its edges).
+      return group(id, node.type, b, [el('polygon', { points: pointsAttr([{ x: cx, y: b.y }, { x: b.x + b.width, y: cy }, { x: cx, y: b.y + b.height }, { x: b.x, y: cy }]), fill: theme.color.nodeFill, ...stroke, 'stroke-linejoin': 'miter' })], undefined, 'diamond');
     case 'fork': case 'join':
       return group(id, node.type, b, [el('rect', { x: b.x, y: b.y, width: b.width, height: b.height, rx: 1, fill: edge })]);
     case 'interaction-use': {
@@ -77,6 +79,8 @@ function drawNode(canvas: Canvas, entry: OverviewSceneNode): string {
       }
       for (const arrow of f.arrows) {
         parts.push(drawEdge({ id: arrow.id, type: 'message', source: arrow.source, target: arrow.target, points: arrow.points.map(p => ({ x: ox + p.x, y: oy + p.y })), style: arrow.style, sourceMarker: 'none', targetMarker: arrow.marker, triangleSize: theme.size.messageTriangle }));
+        // The label covers the dashed lifelines it crosses (a halo alone leaves them showing between the letters).
+        arrow.rows.forEach((_, k) => parts.push(el('rect', { x: ox + arrow.labelX[k]! - 2, y: oy + arrow.labelTop + k * lh + 2, width: arrow.widths[k]! + 4, height: lh - 4, fill: theme.color.nodeFill })));
         parts.push(canvas.lines(arrow.rows, arrow.labelX.map(x => ox + x), oy + arrow.labelTop + base, lh, { ...FRAGMENT_TEXT, fill: theme.color.edgeText, role: 'text', owner: arrow.id, halo: true }));
       }
       return group(id, node.type, b, parts);

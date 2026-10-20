@@ -1,0 +1,27 @@
+{
+  "kind":"deployment",
+  "title":"Smart farm IoT deployment",
+  "elements":[
+    {"id":"sensor","type":"device","name":"Soil Sensor","stereotypes":["embedded"],"elements":[{"id":"fw","type":"artifact","name":"sensor-fw.hex"}]},
+    {"id":"valve","type":"device","name":"Irrigation Valve","stereotypes":["embedded"]},
+    {"id":"gw","type":"device","name":"LoRa Gateway","elements":[{"id":"gwos","type":"executionEnvironment","name":"OpenWrt","elements":[{"id":"fwd","type":"artifact","name":"packet-forwarder"}]}]},
+    {"id":"cloud","type":"node","name":"Cloud VPC","stereotypes":["aws"],"elements":[
+      {"id":"k8s","type":"executionEnvironment","name":"EKS","elements":[
+         {"id":"ingest","type":"artifact","name":"ingest-svc.jar"},
+         {"id":"rules","type":"artifact","name":"rules-engine.jar"},
+         {"id":"cfg","type":"deploymentSpecification","name":"rules.yaml","properties":[{"name":"threshold","value":"18%"}]}]},
+      {"id":"db","type":"node","name":"Timescale DB","stereotypes":["managed"]}]},
+    {"id":"phone","type":"device","name":"Farmer Phone","stereotypes":["mobile"],"elements":[{"id":"apk","type":"artifact","name":"farm-app.apk"}]},
+    {"id":"comp","type":"component","name":"Rules Engine"},
+    {"id":"n","type":"note","text":"LoRa range is about 5 km in open fields.","attachedTo":["gw"]}
+  ],
+  "relationships":[
+    {"type":"communicationPath","from":"sensor","to":"gw","protocol":"LoRaWAN","fromEnd":{"multiplicity":"*"},"toEnd":{"multiplicity":"1"}},
+    {"type":"communicationPath","from":"valve","to":"gw","protocol":"LoRaWAN","fromEnd":{"multiplicity":"*"},"toEnd":{"multiplicity":"1"}},
+    {"type":"communicationPath","from":"gw","to":"k8s","protocol":"MQTT/TLS"},
+    {"type":"communicationPath","from":"k8s","to":"db","protocol":"TCP","name":"JDBC"},
+    {"type":"communicationPath","from":"phone","to":"k8s","protocol":"HTTPS"},
+    {"type":"dependency","from":"cfg","to":"rules","keyword":"configures"},
+    {"type":"manifest","from":"rules","to":"comp"}
+  ]
+}

@@ -108,6 +108,15 @@ test('communication: horizontal and vertical links dominate the grid layout', as
   assert.ok(axis.length >= 5, `${axis.length} of ${scene.edges.length} links are axis-aligned`);
 });
 
+test('communication: a crossing costs more than a slightly larger grid (F-B-21)', async () => {
+  const { countCrossings } = await import('../dist/engine/aspect.js');
+  const svg = await render(await readFile(join(root, 'test/fixtures/regression/communication-com-awk.json'), 'utf8'));
+  const scene = await inspectSvg(svg);
+  assert.equal(countCrossings(scene.edges.filter(e => e.type === 'link').map(e => e.points)), 0, 'no link crosses another');
+  const [, w, h] = /width="([\d.]+)" height="([\d.]+)"/.exec(svg).map(Number);
+  assert.ok(w / h <= 2.5, `${w}x${h}`);
+});
+
 test('communication: hostile and markup-like text stays literal and cannot create active SVG', async () => {
   const hostile = '" } <b>bold</b> [[https://evil.invalid]] **x** \\n @enduml';
   const doc = {

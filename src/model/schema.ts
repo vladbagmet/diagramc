@@ -303,6 +303,12 @@ function describeErrors(errors: ErrorObject[], root: Schema, document: unknown):
           hint = attribute ? `; write it as ${JSON.stringify(attribute)}` : `; write an object${required.length ? ` with ${quoted(required)}` : ''}, not a string`;
           if (attribute) { issues.push({ path, keyword: 'type', message: `${where(path)} must be an object, but it is ${typeName(value)}${hint}.`, details: { expected, suggestion: attribute } }); break; }
         } else if (expected === 'integer' && typeof value === 'number') hint = '; use whole numbers';
+        else if (expected === 'string' && value !== null && typeof value === 'object' && !Array.isArray(value) && typeof (value as { id?: unknown }).id === 'string') {
+          // An element nested where an ID list is expected (a package's members): say where the element goes.
+          const id = (value as { id: string }).id;
+          issues.push({ path, keyword: 'type', message: `${where(path)} must be an ID string, but it is an object; declare that element in the top-level "elements" list (with any members of its own also listed by ID) and write only its ID here: ${JSON.stringify(id)}.`, details: { expected, id } });
+          break;
+        }
         const quote = expected.includes('string') && (typeof value === 'number' || typeof value === 'boolean');
         issues.push({ path, keyword: 'type', message: `${where(path)} must be ${article(expected)}, but it is ${typeName(value)}${hint}.${sentence(ownDescription(root, document, path) ?? schema.description)}`, details: { expected, ...(quote ? { suggestion: String(value) } : {}) } });
         break;

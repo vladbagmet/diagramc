@@ -238,6 +238,8 @@ function snap(ids: readonly string[], centers: Map<string, Point>, threshold: nu
  */
 /** Two links of one lifeline closer than 20 degrees count as crowded. */
 const NARROW_COS = Math.cos(20 * Math.PI / 180);
+/** Cost of two links crossing, in grid cells of link length. */
+const CROSSING = 6;
 
 function gridCost(pos: ReadonlyMap<string, Point>, pairs: readonly [string, string][], loops: ReadonlySet<string> = new Set()): number {
   let cost = 0;
@@ -267,7 +269,7 @@ function gridCost(pos: ReadonlyMap<string, Point>, pairs: readonly [string, stri
       const [c, d] = placed[j]!;
       if (c === a || c === b || d === a || d === b) continue;
       const [r, t] = segments[j]!;
-      if (segmentDistance(p, q, r, t) < 1e-9) cost += 2.5;
+      if (segmentDistance(p, q, r, t) < 1e-9) cost += CROSSING;
     }
   });
   // Links leaving one lifeline at a narrow angle crowd each other's message blocks.

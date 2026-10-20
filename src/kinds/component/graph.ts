@@ -80,6 +80,43 @@ export function componentGraph(model: ComponentDiagram): StructGraph {
   const touched = new Set(relationships.flatMap(r => r.type === 'assembly' || r.type === 'delegation' ? [] : [r.from, r.to]));
   for (const e of model.elements) if (e.type === 'note') for (const id of e.attachedTo ?? []) touched.add(id);
 
+  // An interface is drawn once (F-A-12). An element whose own port provides or
+  // requires it shows it at the port only.
+  for (const [id, v] of values) {
+    if (portOf.has(id)) continue;
+    const own = [...portOf].filter(([, owner]) => owner === id).map(([port]) => values.get(port));
+    for (const which of ['provides', 'requires'] as const) {
+      for (const i of v[which] ?? []) if (own.some(p => p?.[which]?.includes(i))) joined.add(`${id}\u0000${which}\u0000${i}`);
+    }
+  }
+  // Lollipops and sockets nothing joins, by interface.
+  const loose = new Map<string, { owner: string; which: 'provides' | 'requires' }[]>();
+  for (const [owner, v] of values) {
+    for (const which of ['provides', 'requires'] as const) {
+      for (const i of v[which] ?? []) {
+        if (joined.has(`${owner}\u0000${which}\u0000${i}`)) continue;
+        loose.set(i, [...loose.get(i) ?? [], { owner, which }]);
+      }
+    }
+  }
+  // An interface gets a box when a relationship or note touches it, nothing provides
+  // or requires it, or it would otherwise appear as several unconnected symbols. Every
+  // element or port providing or requiring a boxed interface is then joined to the box
+  // by a realization or «use» line (unless the model already draws one there).
+  const boxed = new Set([...interfaces.keys()].filter(i => touched.has(i) || !referenced.has(i) || (loose.get(i)?.length ?? 0) >= 2));
+  const derived: StructEdge[] = [];
+  for (const i of boxed) {
+    for (const { owner, which } of loose.get(i) ?? []) {
+      joined.add(`${owner}\u0000${which}\u0000${i}`);
+      const type = which === 'provides' ? 'realization' : 'usage';
+      const element = portOf.get(owner) ?? owner;
+      if (relationships.some(r => r.type === type && r.to === i && (r.from === owner || r.from === element))) continue;
+      derived.push(which === 'provides'
+        ? { id: `${owner}::realizes::${i}`, type, source: owner, target: i, style: 'dashed', sourceMarker: 'none', targetMarker: 'hollow-triangle' }
+        : { id: `${owner}::uses::${i}`, type, source: owner, target: i, style: 'dashed', sourceMarker: 'none', targetMarker: 'open-arrow', keyword: 'use' });
+    }
+  }
+
   const node = (e: Element | Nested): StructNode | undefined => {
     switch (e.type) {
       case 'component':
@@ -92,7 +129,7 @@ export function componentGraph(model: ComponentDiagram): StructGraph {
       case 'class':
         return { id: e.id, type: 'class', shape: 'box', header: headerLines({ stereotypes: e.stereotypes, name: e.name }), ports: ports(e.ports), stubs: stubs(e.id, e) };
       case 'interface':
-        if (referenced.has(e.id) && !touched.has(e.id)) return undefined;
+        if (!boxed.has(e.id)) return undefined;
         return {
           id: e.id, type: 'interface', shape: 'box',
           header: headerLines({ keyword: 'interface', stereotypes: e.stereotypes, name: e.name }),
@@ -123,7 +160,7 @@ export function componentGraph(model: ComponentDiagram): StructGraph {
   return {
     kind: 'component', frameKeyword: 'cmp', title: model.title, directions: ['RIGHT', 'DOWN'],
     nodes: model.elements.flatMap(e => node(e) ?? []),
-    edges, assemblies,
+    edges: [...edges, ...derived], assemblies,
     anchors: model.elements.flatMap(e => e.type === 'note' ? (e.attachedTo ?? []).map(target => ({ note: e.id, target })) : []),
   };
 }
