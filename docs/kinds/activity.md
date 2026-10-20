@@ -22,7 +22,15 @@ PlantUML's activity syntax is structured (`switch`, `fork`, `while`, `repeat`), 
   swimlanes; a decision with more than two branches is `switch` ... `endswitch`,
   whose branches must stay in the decision's swimlane (PlantUML loses the flows
   and guards of a case that changes swimlane), so such a model is rejected with
-  `DECISION_SPANS_PARTITIONS` (split it into nested two-way decisions);
+  `DECISION_SPANS_PARTITIONS`, whose message spells out the equivalent nested
+  two-way decisions (new decision and merge IDs, partitions and guards);
+- with swimlanes, PlantUML draws the branches of a decision or fork side by side
+  within every swimlane they use. Each branch must therefore occupy its own run of
+  adjacent partitions (neighbouring branches may share one partition at their
+  boundary); branches whose partitions interleave, for example two branches that
+  both use partitions 1 to 3, would have their flows drawn through each other's
+  diamonds and are rejected with `BRANCHES_SHARE_PARTITIONS`. Branches are emitted
+  in the left-to-right order of their partitions;
 - a fork closes at the join all its branches reach (`fork` ... `end fork`);
 - a loop enters at a merge node that receives a returning flow and leaves through
   exactly one flow of a two-way decision: test first is `while`, test last is
@@ -84,6 +92,7 @@ and the semantics unambiguous.
 | INVALID_CONTROL_FLOW | flows into or out of object nodes are object flows | `/edges/1/type` |
 | UNSTRUCTURED_FLOW | the graph is well structured (see above) | `/nodes/1`, `/nodes/3` |
 | DECISION_SPANS_PARTITIONS | a decision with more than two branches keeps them in its own partition | `/nodes/1/partition` |
+| BRANCHES_SHARE_PARTITIONS | with partitions, the branches of a decision or fork occupy separate runs of adjacent partitions (they may share one boundary partition) | `/nodes/1` |
 | SCHEMA_INVALID, INVALID_TEXT, UNKNOWN_KIND | shared rules | see `invalid.json` |
 
 ## Unsupported (rejected by the schema)
@@ -103,8 +112,10 @@ and the semantics unambiguous.
 - Notes are attached with PlantUML's pointer (a speech-bubble corner) instead of a
   dashed anchor line.
 - PlantUML lays swimlanes out with full-height lines and leaves the lane height of
-  the tallest lane; cross-lane flows are horizontal lines. Branch order is chosen by
-  the mean partition of each branch to keep such lines off other nodes.
+  the tallest lane; cross-lane flows are horizontal lines. Branch order follows the
+  partitions of each branch (see `BRANCHES_SHARE_PARTITIONS`). A join is drawn in
+  its fork's partition; fork and join bars are lengthened so every branch leaves or
+  enters a bar straight, so a bar may cross a swimlane border.
 - PlantUML places guards of narrow loops across the return line; the post-processor
   moves such labels beside the line, opening a column for them inside a narrow
   swimlane when needed (lane titles then stay where PlantUML put them).

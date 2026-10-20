@@ -13,6 +13,11 @@ import { padCanvas } from '../../plantuml/geometry.js';
  *   UML draws one arrowhead at the target only, so these are removed.
  * - Call behavior actions get the rake symbol in their lower right corner
  *   (UML 16.3.4). They are found by the marker stroke color the skin gives them.
+ * - Fork and join branches that PlantUML attaches at a bar's end with a sideways
+ *   jog leave or enter the bar straight; bars are trimmed to their flows.
+ * - The flow into a fork (out of a join) moves along the bar off the line of a branch.
+ * - Swimlanes are widened where a node, note or text comes within LANE_PADDING
+ *   of a lane border.
  * - A guard label that PlantUML placed across a flow line (it happens beside
  *   narrow loops) is moved to the nearest free spot beside the same line; if
  *   there is none (a loop in a narrow swimlane), a column is opened for it.
@@ -47,7 +52,7 @@ export function fixActivitySvg(svg: string, model?: { title?: string }): string 
     const d = `M${fmt(cx)},${fmt(top)} V${fmt(bottom)} M${fmt(left)},${fmt(bottom)} V${fmt(bar)} H${fmt(right)} V${fmt(bottom)}`;
     return `${fixed}<path d="${d}" fill="none" style="stroke:${theme.color.nodeStroke};stroke-width:${theme.stroke.node};"/>`;
   });
-  const fixed = moveCrossedLabels(anchorNotes(trimBars(mirrorAcceptEvents(svg))), 0);
+  const fixed = padLanes(moveCrossedLabels(anchorNotes(trimBars(separateBarFlows(straightenBarBranches(mirrorAcceptEvents(svg))))), 0));
   // Without a title there is no frame: give the drawing the own engine's canvas margin.
   return model && model.title === undefined ? padCanvas(fixed, theme.spacing.canvas) : fixed;
 }
@@ -70,6 +75,206 @@ function mirrorAcceptEvents(svg: string): string {
     const points = [[x1, y1], [x2, y2], [x4, y4], [x5, y5], [x1 + depth, y3]].map(([x, y]) => `${fmt(x!)},${fmt(y!)}`).join(',');
     return tag.replace(/ points="[^"]*"/u, ` points="${points}"`);
   });
+}
+
+/** Least room between a swimlane border and the shapes, notes, texts and vertical flows beside it. */
+export const LANE_PADDING = 12;
+
+/**
+ * PlantUML leaves as little as 4 px between a swimlane border and the widest
+ * node or note in the lane. Each border with something closer than LANE_PADDING
+ * on either side gets a column of the missing width (everything beyond moves).
+ */
+function padLanes(svg: string): string {
+  let widened = false;
+  for (let round = 0; round < 40; round++) {
+    const borders: { x: number; y0: number; y1: number }[] = [];
+    const items: Rect[] = [];
+    for (const [tag, name] of svg.matchAll(/<(rect|polygon|ellipse|path|text|line)\b[^>]*>/gu)) {
+      const a = attrs(tag);
+      if (name === 'line') {
+        const x1 = Number(a.x1), x2 = Number(a.x2), y1 = Number(a.y1), y2 = Number(a.y2);
+        if (x1 !== x2) continue;
+        if (tag.includes(`stroke:${theme.color.frameStroke};`)) borders.push({ x: x1, y0: Math.min(y1, y2), y1: Math.max(y1, y2) });
+        else if (tag.includes(`stroke:${theme.color.edge};`)) items.push({ x: x1, y: Math.min(y1, y2), width: 0, height: Math.abs(y2 - y1) });
+        continue;
+      }
+      if (name === 'rect' && a.fill !== theme.color.nodeFill && a.fill !== theme.color.edge) continue;
+      if (name === 'polygon' && a.fill !== theme.color.nodeFill) continue;
+      if (name === 'path' && a.fill !== theme.color.noteFill) continue;
+      const r = elementBox(name!, a);
+      if (r) items.push(r);
+    }
+    let fix: { x0: number; width: number } | undefined;
+    for (const b of borders.sort((p, q) => q.x - p.x)) {
+      const beside = items.filter(r => r.y < b.y1 && r.y + r.height > b.y0);
+      const left = Math.min(Infinity, ...beside.filter(r => r.x + r.width <= b.x).map(r => b.x - r.x - r.width));
+      const right = Math.min(Infinity, ...beside.filter(r => r.x >= b.x).map(r => r.x - b.x));
+      if (left < LANE_PADDING - 0.25) { fix = { x0: b.x - left / 2, width: Math.ceil(LANE_PADDING - left) }; break; }
+      if (right < LANE_PADDING - 0.25) { fix = { x0: b.x + right / 2, width: Math.ceil(LANE_PADDING - right) }; break; }
+    }
+    if (!fix) return widened ? centerLaneTitles(svg, borders) : svg;
+    svg = insertColumn(svg, fix.x0, fix.width, Math.min(...borders.map(b => b.y0)));
+    widened = true;
+  }
+  return svg;
+}
+
+/** Centers each swimlane title (bold text at the top of the lanes) between its lane's borders again. */
+function centerLaneTitles(svg: string, borders: readonly { x: number; y0: number }[]): string {
+  const xs = borders.map(b => b.x).sort((a, b) => a - b), top = Math.min(...borders.map(b => b.y0));
+  return svg.replace(/<text\b[^>]*>/gu, tag => {
+    const a = attrs(tag);
+    if (a['font-weight'] !== 'bold' || !(Number(a.y) > top && Number(a.y) < top + 48)) return tag;
+    const width = Number(a.textLength), middle = Number(a.x) + width / 2;
+    const left = xs.filter(x => x < middle).at(-1), right = xs.find(x => x > middle);
+    if (left === undefined || right === undefined || right - left < width) return tag;
+    return tag.replace(/ x="[^"]*"/u, ` x="${fmt((left + right) / 2 - width / 2)}"`);
+  });
+}
+
+/** Longest stub PlantUML draws between a bar and the sideways jog of a branch flow. */
+const STUB_MAX = 24;
+
+/**
+ * PlantUML attaches a fork or join branch that lies beyond the bar (often in
+ * another swimlane) at the bar's end: a short stub, a horizontal jog along the
+ * bar and a vertical line to the branch. UML draws each branch straight from the
+ * bar's underside (fork) or into its top (join), so the bar is lengthened to the
+ * branch, the stub and jog are dropped and the vertical line runs to the bar.
+ * Done only when nothing else lies on the lengthened part of the bar. The one
+ * flow into a fork (out of a join) is straightened the same way when it lies
+ * over the bar.
+ */
+function straightenBarBranches(svg: string): string {
+  const flow = `stroke:${theme.color.edge};`;
+  interface Line { tag: string; p: Point; q: Point }
+  const lines: Line[] = [];
+  for (const [tag] of svg.matchAll(/<line\b[^>]*>/gu)) {
+    if (!tag.includes(flow) || tag.includes('stroke-dasharray')) continue;
+    const a = attrs(tag);
+    lines.push({ tag, p: { x: Number(a.x1), y: Number(a.y1) }, q: { x: Number(a.x2), y: Number(a.y2) } });
+  }
+  const at = (p: Point, q: Point): boolean => Math.abs(p.x - q.x) < 0.5 && Math.abs(p.y - q.y) < 0.5;
+  const other = (l: Line, p: Point): Point => at(l.p, p) ? l.q : l.p;
+  const vertical = (l: Line): boolean => Math.abs(l.p.x - l.q.x) < 0.01;
+  const horizontal = (l: Line): boolean => Math.abs(l.p.y - l.q.y) < 0.01;
+  const shapes: { tag: string; r: Rect }[] = [];
+  for (const [tag, name] of svg.matchAll(/<(rect|polygon|ellipse|path)\b[^>]*>/gu)) {
+    const a = attrs(tag);
+    const r = elementBox(name!, a);
+    if (r && (a.fill === theme.color.nodeFill || a.fill === theme.color.noteFill || a.fill === theme.color.edge || name === 'ellipse')) shapes.push({ tag, r });
+  }
+  const edits = new Map<string, string>();
+  for (const [tag] of svg.matchAll(/<rect\b[^>]*>/gu)) {
+    const a = attrs(tag);
+    if (a.fill !== theme.color.edge) continue;
+    let bar = { x: Number(a.x), y: Number(a.y), width: Number(a.width), height: Number(a.height) };
+    if (!(bar.height <= 10 && bar.width > bar.height)) continue;
+    const top = bar.y, bottom = bar.y + bar.height;
+    // Branches are on the side with several flows (below a fork, above a join);
+    // the single flow into a fork or out of a join keeps its route.
+    const count = (y: number): number => lines.filter(l => [l.p, l.q].some(p => Math.abs(p.y - y) < 0.5 && p.x >= bar.x - 0.5 && p.x <= bar.x + bar.width + 0.5)).length;
+    const branches = count(bottom) > 1 ? bottom : count(top) > 1 ? top : undefined;
+    if (branches === undefined) continue;
+    // Branches may lengthen the bar; the single flow on the other side only moves along it.
+    for (const [side, grow] of [[branches, true], [branches === bottom ? top : bottom, false]] as const) for (const stub of lines) {
+      if (edits.has(stub.tag) || !vertical(stub)) continue;
+      // The stub starts on the bar's top or bottom edge, within the bar.
+      const start = [stub.p, stub.q].find(p => p.x >= bar.x - 0.5 && p.x <= bar.x + bar.width + 0.5 && Math.abs(p.y - side) < 0.5);
+      if (!start) continue;
+      const knee = other(stub, start);
+      const below = knee.y > start.y;
+      if (Math.abs(knee.y - start.y) > STUB_MAX) continue;
+      const jogs = lines.filter(l => l !== stub && horizontal(l) && (at(l.p, knee) || at(l.q, knee)));
+      if (jogs.length !== 1) continue;
+      const jog = jogs[0]!, corner = other(jog, knee);
+      const legs = lines.filter(l => l !== jog && vertical(l) && (at(l.p, corner) || at(l.q, corner)));
+      if (legs.length !== 1) continue;
+      const leg = legs[0]!, far = other(leg, corner);
+      // The leg must continue away from the bar, and nothing else may meet the knee or corner.
+      if (below ? far.y <= corner.y : far.y >= corner.y) continue;
+      if (lines.some(l => l !== stub && l !== jog && l !== leg && [l.p, l.q].some(p => at(p, knee) || at(p, corner)))) continue;
+      if (!grow && (corner.x < bar.x + BAR_OVERHANG || corner.x > bar.x + bar.width - BAR_OVERHANG)) continue;
+      const left = Math.min(bar.x, corner.x - BAR_OVERHANG), right = Math.max(bar.x + bar.width, corner.x + BAR_OVERHANG);
+      const grown = { x: left, y: bar.y - 1, width: right - left, height: bar.height + 2 };
+      // Nothing but this bar and the flows ending on it may lie where the bar grows.
+      const ends = (l: Line): boolean => [l.p, l.q].some(p => (Math.abs(p.y - top) < 0.5 || Math.abs(p.y - bottom) < 0.5) && p.x >= left && p.x <= right);
+      if (shapes.some(s => s.tag !== tag && overlapArea(s.r, grown) > 0)) continue;
+      if (lines.some(l => l !== stub && l !== jog && l !== leg && !ends(l) && segmentIntersectsRect(l.p, l.q, grown))) continue;
+      const edge = below ? bottom : top;
+      edits.set(stub.tag, '');
+      edits.set(jog.tag, '');
+      edits.set(leg.tag, leg.tag.replace(at(leg.p, corner) ? / y1="[^"]*"/u : / y2="[^"]*"/u, ` ${at(leg.p, corner) ? 'y1' : 'y2'}="${fmt(edge)}"`));
+      // A join's arrowhead moves with the flow from the stub's start to the leg.
+      const dx = corner.x - start.x;
+      for (const [head] of svg.matchAll(/<polyline\b[^>]*>/gu)) {
+        const n = (attrs(head).points ?? '').split(/[ ,]+/u).filter(Boolean).map(Number);
+        if (n.length !== 6 || !at({ x: n[2]!, y: n[3]! }, start)) continue;
+        const moved = [0, 2, 4].map(i => `${fmt(n[i]! + dx)},${fmt(n[i + 1]!)}`).join(' ');
+        edits.set(head, head.replace(/ points="[^"]*"/u, ` points="${moved}"`));
+      }
+      bar = { ...bar, x: left, width: right - left };
+      edits.set(tag, tag.replace(/ x="[^"]*"/u, ` x="${fmt(bar.x)}"`).replace(/ width="[^"]*"/u, ` width="${fmt(bar.width)}"`));
+    }
+  }
+  return edits.size ? svg.replace(/<(?:line|rect|polyline)\b[^>]*>/gu, tag => edits.get(tag) ?? tag) : svg;
+}
+
+/** Least horizontal distance between the flow into a fork (out of a join) and any of its branches. */
+const BAR_FLOW_GAP = 20;
+
+/**
+ * The one flow into a fork (or out of a join) that meets the bar exactly where
+ * a branch leaves it on the other side reads as one line passing through the
+ * bar. When that flow arrives with a horizontal jog, its last leg moves along the
+ * bar to the middle of the nearest gap between branches (at least BAR_FLOW_GAP
+ * px from each), and the jog is shortened or lengthened to it.
+ */
+function separateBarFlows(svg: string): string {
+  const flow = `stroke:${theme.color.edge};`;
+  interface Line { tag: string; p: Point; q: Point }
+  const lines: Line[] = [];
+  for (const [tag] of svg.matchAll(/<line\b[^>]*>/gu)) {
+    if (!tag.includes(flow) || tag.includes('stroke-dasharray')) continue;
+    const a = attrs(tag);
+    lines.push({ tag, p: { x: Number(a.x1), y: Number(a.y1) }, q: { x: Number(a.x2), y: Number(a.y2) } });
+  }
+  const at = (p: Point, q: Point): boolean => Math.abs(p.x - q.x) < 0.5 && Math.abs(p.y - q.y) < 0.5;
+  const edits = new Map<string, string>();
+  const setX = (l: Line, end: Point, x: number): string => {
+    const first = at(l.p, end);
+    return (edits.get(l.tag) ?? l.tag).replace(first ? / x1="[^"]*"/u : / x2="[^"]*"/u, ` ${first ? 'x1' : 'x2'}="${fmt(x)}"`);
+  };
+  for (const [tag] of svg.matchAll(/<rect\b[^>]*>/gu)) {
+    const a = attrs(tag);
+    if (a.fill !== theme.color.edge) continue;
+    const bar = { x: Number(a.x), y: Number(a.y), width: Number(a.width), height: Number(a.height) };
+    if (!(bar.height <= 10 && bar.width > bar.height)) continue;
+    const ends = (y: number): { line: Line; end: Point }[] => lines.flatMap(l => [l.p, l.q].filter(p => Math.abs(p.y - y) < 0.5 && p.x >= bar.x - 0.5 && p.x <= bar.x + bar.width + 0.5).map(end => ({ line: l, end })));
+    const top = ends(bar.y), bottom = ends(bar.y + bar.height);
+    const [single, branches] = top.length === 1 && bottom.length > 1 ? [top[0]!, bottom] : bottom.length === 1 && top.length > 1 ? [bottom[0]!, top] : [undefined, []];
+    if (!single || Math.abs(single.line.p.x - single.line.q.x) > 0.01) continue;
+    const xs = branches.map(b => b.end.x).sort((p, q) => p - q);
+    if (!xs.some(x => Math.abs(x - single.end.x) < BAR_FLOW_GAP)) continue;
+    const corner = at(single.line.p, single.end) ? single.line.q : single.line.p;
+    const jogs = lines.filter(l => l !== single.line && (at(l.p, corner) || at(l.q, corner)));
+    if (jogs.length !== 1 || Math.abs(jogs[0]!.p.y - jogs[0]!.q.y) > 0.01) continue;
+    const jog = jogs[0]!, from = at(jog.p, corner) ? jog.q : jog.p;
+    // Candidate x: middles of the gaps between neighbouring branches, nearest the jog's start first.
+    const gaps = xs.slice(1).map((x, k) => (x + xs[k]!) / 2).filter(m => xs.every(x => Math.abs(x - m) >= BAR_FLOW_GAP));
+    const nx = gaps.sort((p, q) => Math.abs(p - from.x) - Math.abs(q - from.x))[0];
+    if (nx === undefined || Math.abs(nx - from.x) < 1) continue;
+    const dx = nx - single.end.x;
+    edits.set(single.line.tag, single.line.tag.replace(/ x1="[^"]*"/u, ` x1="${fmt(nx)}"`).replace(/ x2="[^"]*"/u, ` x2="${fmt(nx)}"`));
+    edits.set(jog.tag, setX(jog, corner, nx));
+    for (const [head] of svg.matchAll(/<polyline\b[^>]*>/gu)) {
+      const n = (attrs(head).points ?? '').split(/[ ,]+/u).filter(Boolean).map(Number);
+      if (n.length !== 6 || !at({ x: n[2]!, y: n[3]! }, single.end)) continue;
+      edits.set(head, head.replace(/ points="[^"]*"/u, ` points="${[0, 2, 4].map(i => `${fmt(n[i]! + dx)},${fmt(n[i + 1]!)}`).join(' ')}"`));
+    }
+  }
+  return edits.size ? svg.replace(/<(?:line|polyline)\b[^>]*>/gu, tag => edits.get(tag) ?? tag) : svg;
 }
 
 /** Overhang of a fork or join bar beyond its outermost flow (each side), and its minimum length. */
@@ -303,10 +508,13 @@ function shiftBand(svg: string, x0: number, width: number, y0: number, y1: numbe
   });
 }
 
-/** Shifts everything right of `x0` by `width` px, stretching what spans `x0` (frame, lines). */
-function insertColumn(svg: string, x0: number, width: number): string {
+/** Shifts everything right of `x0` by `width` px, stretching what spans `x0` (frame, lines); nothing above `heading` moves. */
+function insertColumn(svg: string, x0: number, width: number, heading = -Infinity): string {
   const shift = (x: number): number => x > x0 ? x + width : x;
   return svg.replace(/<(\w+)\b[^>]*>/gu, (tag, name: string) => {
+    // The frame heading (everything above `heading`) keeps its place and shape.
+    const box = name === 'rect' ? undefined : elementBox(name, attrs(tag));
+    if (box && box.y + box.height <= heading) return tag;
     if (name === 'svg') {
       return tag.replace(/ width="([\d.]+)px"/u, (_, w: string) => ` width="${fmt(Number(w) + width)}px"`)
         .replace(/width:([\d.]+)px;/u, (_, w: string) => `width:${fmt(Number(w) + width)}px;`)

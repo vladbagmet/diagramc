@@ -45,7 +45,8 @@ generalization, from the specific to the general element). Text is drawn
 literally; write keywords without guillemets and guards without brackets.
 Documents without "kind" in the v1 format (classes + relationships) are class diagrams.
 
-Output is replaced atomically only after a successful render. On success render
+Output is replaced atomically only after a successful render (an existing device
+or pipe such as /dev/null is written directly). On success render
 prints nothing, or, when the drawing fails a layout check, one JSON object on
 stderr: {"warnings":[{"code":"LAYOUT_QUALITY","gate","message","count","problems",
 "advice"}]}.

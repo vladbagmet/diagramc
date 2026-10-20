@@ -4,7 +4,7 @@ import { theme } from '../../core/theme.js';
 import { type FontMetrics } from '../../engine/fonts.js';
 import { wrapMeasured } from '../../plantuml/wrap.js';
 import type { ActivityDiagram, ActivityNode, ExecutableNode } from './model.js';
-import { structure, type Block } from './structure.js';
+import { orderBySpan, structure, type Block } from './structure.js';
 
 /**
  * Activity diagram -> PlantUML new activity syntax. The flow graph is first
@@ -26,22 +26,11 @@ export function activityToPlantUml(model: ActivityDiagram, metrics?: FontMetrics
     if (id !== undefined && id !== current) { lines.push(`${indent}${lane(id)}`); current = id; }
   };
   const guard = (text: string): string => `(${displayText(`[${text}]`)})`;
-  // With swimlanes, branches are ordered by the mean position of their partitions,
-  // so flows into far lanes start on the side of those lanes and cross fewer nodes.
+  // With swimlanes, branches are ordered by the lanes they occupy (validate.ts
+  // rejects branches whose lanes interleave), so each branch keeps its own run of
+  // lanes and no flow runs through another branch.
   const index = new Map((model.partitions ?? []).map((p, i) => [p.id, i]));
-  const lanes = (steps: Block): number[] => steps.flatMap(step => {
-    switch (step.kind) {
-      case 'node': return 'partition' in step.node && step.node.partition !== undefined ? [index.get(step.node.partition)!] : [];
-      case 'decision': return step.branches.flatMap(b => lanes(b.body));
-      case 'fork': return step.branches.flatMap(lanes);
-      default: return lanes(step.body);
-    }
-  });
-  const order = <T>(branches: T[], body: (b: T) => Block): T[] => {
-    if (!index.size) return branches;
-    const mean = (b: T): number => { const l = lanes(body(b)); return l.length ? l.reduce((x, y) => x + y, 0) / l.length : Infinity; };
-    return branches.map((b, i) => ({ b, i, m: mean(b) })).sort((x, y) => (x.m - y.m) || (x.i - y.i)).map(x => x.b);
-  };
+  const order = <T>(branches: T[], body: (b: T) => Block): T[] => index.size ? orderBySpan(branches, body, index) : branches;
 
   const executable = (node: ExecutableNode, indent: string, keyword = ''): void => {
     // Long names wrap at natural break points; each line is encoded separately.
@@ -97,6 +86,8 @@ export function activityToPlantUml(model: ActivityDiagram, metrics?: FontMetrics
             lines.push(`${indent}${i ? 'fork again' : 'fork'}`);
             block(b, `${indent}  `);
           });
+          // The join is drawn in the swimlane current at `end fork`: the fork's.
+          enter(step.node, indent);
           lines.push(`${indent}end fork`);
           break;
         case 'while':

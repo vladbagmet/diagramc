@@ -4,7 +4,7 @@ import { readFile, readdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { parseDocument } from '../dist/model/parse.js';
 import { sequenceToPlantUml } from '../dist/kinds/sequence/to-plantuml.js';
-import { attachSelfMessages, clearLabels, endDestroyedLifelines } from '../dist/kinds/sequence/postprocess.js';
+import { attachSelfMessages, clearLabels, endDestroyedLifelines, invariantsBesideBars, separateFragmentEdges } from '../dist/kinds/sequence/postprocess.js';
 import { checkSvg, inspectSvg } from '../dist/qa/index.js';
 import { cli, root } from './helpers.mjs';
 
@@ -230,6 +230,42 @@ test('QA: lifeline-crossing fails when a lifeline crosses a message label or a g
     .map(r => Number(r.match(/ x="([\d.]+)"/)[1])).find(x => x < Number(guard[1]) && Number(guard[1]) - x < 40);
   const onBar = await gate(svg.replace(guard[0], guard[0].replace(`x="${guard[1]}"`, `x="${bar - 4}"`)));
   assert.ok(!onBar.ok && onBar.failures.some(f => /result\.accepted.*activation bar/.test(f)), JSON.stringify(onBar.failures));
+  // A halo behind the guard on the bar does not help: the bar would look interrupted.
+  const box = guard[0].match(/textLength="([\d.]+)"[^>]*y="([\d.]+)"/);
+  const haloed = `<rect fill="#FFFFFF" height="20" rx="3" ry="3" width="${Number(box[1]) + 8}" x="${bar - 8}" y="${Number(box[2]) - 14}"/>`;
+  const behind = await gate(svg.replace(guard[0], haloed + guard[0].replace(`x="${guard[1]}"`, `x="${bar - 4}"`)));
+  assert.ok(!behind.ok && behind.failures.some(f => /result\.accepted.*activation bar/.test(f)), JSON.stringify(behind.failures));
+});
+
+test('post-processing moves a guard off an activation bar, haloing only the dashed lifelines it then covers', () => {
+  const lifeline = x => `<g><title>l</title><rect fill="#000000" fill-opacity="0.00000" height="400" width="8" x="${x - 4}" y="100"/><line style="stroke:#334155;stroke-width:0.5;stroke-dasharray:5,5;" x1="${x}" x2="${x}" y1="100" y2="500"/></g>`;
+  const bar = '<rect fill="#F8FAFC" height="300" style="stroke:#334155;stroke-width:1.25;" width="10" x="145" y="150"/>';
+  const frame = '<rect fill="none" height="200" style="stroke:#475569;stroke-width:1.5;" width="500" x="20" y="200"/>';
+  // A 200px guard from 120 covers the bar at 145..155; no free gap exists (lifelines every 120 px).
+  const guard = '<text fill="#0F172A" font-size="13" font-weight="bold" textLength="200" x="120" y="220">[a long condition]</text>';
+  const out = clearLabels(`<svg>${lifeline(150)}${lifeline(270)}${lifeline(390)}${bar}${frame}${guard}</svg>`);
+  const x = Number(out.match(/textLength="200" x="([\d.]+)"/)[1]);
+  assert.ok(x >= 159, `the guard starts right of the bar (${x})`);
+  assert.match(out, new RegExp(`<rect fill="#FFFFFF" height="[\\d.]+" rx="3" ry="3" width="208" x="${x - 4}" y="[\\d.]+"/><text`), 'halo behind the moved guard');
+});
+
+test('post-processing separates the right borders of nested fragments and moves state invariants off activation bars', () => {
+  const frame = (x, y, w, h) => `<rect fill="none" height="${h}" style="stroke:#475569;stroke-width:1.5;" width="${w}" x="${x}" y="${y}"/>`;
+  const svg = '<svg height="400px" style="width:600px;height:400px;" viewBox="0 0 600 400" width="600px">'
+    + '<rect fill="#FFFFFF" height="390" style="stroke:#475569;stroke-width:1;" width="560" x="5" y="5"/>'
+    + frame(20, 50, 530, 300) + frame(30, 80, 520, 200) + frame(40, 100, 510, 100)
+    + '<line style="stroke:#475569;stroke-width:1;stroke-dasharray:2,2;" x1="30" x2="550" y1="220" y2="220"/></svg>';
+  const out = separateFragmentEdges(svg);
+  assert.match(out, /width="510" x="40" y="100"/, 'the innermost fragment keeps its border');
+  assert.match(out, /width="530" x="30" y="80"/, 'its parent ends 10 px further right');
+  assert.match(out, /width="550" x="20" y="50"/, 'and the outermost 10 px beyond that');
+  assert.match(out, /x1="30" x2="560" y1="220"/, 'the operand separator follows its fragment');
+  assert.match(out, /<rect fill="#FFFFFF" height="390" [^>]*width="575"/, 'the diagram frame keeps 10 px around the fragments');
+  assert.match(out, /viewBox="0 0 615 400"/);
+  const invariant = '<rect fill="#F8FAFC" height="200" style="stroke:#334155;stroke-width:1.25;" width="10" x="95" y="50"/>'
+    + '<rect fill="#FFFFFF" height="31" style="stroke:#FFFFFF;stroke-width:1;" width="120" x="40" y="100"/><text font-size="13" textLength="100" x="50" y="120">{x &gt; 0}</text>';
+  const moved = invariantsBesideBars(`<svg>${invariant}</svg>`);
+  assert.match(moved, /width="120" x="107" y="100"\/><text font-size="13" textLength="100" x="117"/, 'the invariant starts 2 px right of the bar');
 });
 
 test('post-processing moves a crossed label beside the lifeline or paints a halo when no gap fits', () => {

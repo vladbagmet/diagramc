@@ -1,5 +1,5 @@
 import { theme } from '../core/theme.js';
-import { boundsOfPoints, contains, distance, union, type Point, type Rect } from '../engine/geometry.js';
+import { boundsOfPoints, contains, distance, segmentIntersectsRect, union, type Point, type Rect } from '../engine/geometry.js';
 import type { GateResult } from './gates.js';
 import { pathPoints, pointList, type InspectedNode, type InspectedText, type Scene } from './inspect.js';
 import { walk, type XmlElement } from './xml.js';
@@ -13,7 +13,8 @@ import { walk, type XmlElement } from './xml.js';
  * geometry the `message-endpoints` gate checks.
  */
 
-export interface InteractionLifeline { id: string; x: number; top: number; bottom: number }
+/** `order`: position in drawing order; a shape hides only what was drawn before it. */
+export interface InteractionLifeline { id: string; x: number; top: number; bottom: number; order?: number }
 export interface InteractionArrowhead { style: 'filled' | 'open'; tip: Point; direction: Point }
 export interface InteractionMessage {
   id: string;
@@ -32,7 +33,7 @@ export interface Interaction {
   diagram: 'sequence' | 'timing';
   lifelines: InteractionLifeline[];
   /** Activation bars (sequence) with the lifeline they sit on. */
-  bars: (Rect & { lifeline: string })[];
+  bars: (Rect & { lifeline: string; order?: number })[];
   messages: InteractionMessage[];
   /** Heads of created lifelines: messages to them end on the head's border. */
   createdHeads: Map<string, Rect>;
@@ -41,9 +42,16 @@ export interface Interaction {
   /**
    * Sequence: opaque shapes drawn on top of lifelines and activation bars (heads,
    * notes, state invariants, interaction uses, fragment tabs, label halos). A
-   * lifeline or bar passing under one of them is hidden, not crossing its text.
+   * lifeline or bar drawn before one of them and passing under it is hidden, not
+   * crossing its text; one drawn after it is still seen. `text`: the shape only
+   * backs a text (label halo, state invariant), so an activation bar hidden by it
+   * reads as interrupted.
    */
-  occluders: Rect[];
+  occluders: (Rect & { order?: number; text?: boolean })[];
+  /** Timing: dashed highlight and time-window borders and dotted duration-constraint extension lines. */
+  guides?: { a: Point; b: Point }[];
+  /** Timing: the band of each lifeline, top to bottom. */
+  rows?: { top: number; bottom: number }[];
 }
 
 const num = (s: string | undefined): number => Number(s ?? 0);
@@ -179,14 +187,14 @@ export function readSequence(root: XmlElement, scene: Scene): void {
       const box = kids.find(k => k.tag === 'rect');
       const bounds = box ? shapeBounds(box)! : union([...shapes, ...texts.map(t => t.bounds)]);
       scene.nodes.push({ id, type: 'lifeline-head', bounds });
-      if (box) interaction.occluders.push(bounds);
+      if (box) interaction.occluders.push({ ...bounds, order: i });
       if (texts.length) out.push(merge(texts, { role: 'text', node: id }));
       continue;
     }
     if (e.tag === 'g' && cls.includes('message')) {
       const id = `message${interaction.messages.length}`;
       const message = readMessage(e, id);
-      for (const halo of kids.filter(k => k.tag === 'rect' && fill(k) === color.labelHalo)) interaction.occluders.push(shapeBounds(halo)!);
+      for (const halo of kids.filter(k => k.tag === 'rect' && fill(k) === color.labelHalo)) interaction.occluders.push({ ...shapeBounds(halo)!, order: i, text: true });
       const source = e.attrs['data-participant-1'], target = e.attrs['data-participant-2'];
       const texts = message.texts.map(take);
       const numbers = texts.filter(t => t.bold && /^\d+$/u.test(t.content));
@@ -207,11 +215,11 @@ export function readSequence(root: XmlElement, scene: Scene): void {
       const line = kids.find(k => k.tag === 'line');
       if (hit && line) {
         const [a, b] = lineEnds(line);
-        interaction.lifelines.push({ id: '', x: a.x, top: Math.min(a.y, b.y), bottom: Math.max(a.y, b.y) });
+        interaction.lifelines.push({ id: '', x: a.x, top: Math.min(a.y, b.y), bottom: Math.max(a.y, b.y), order: i });
         continue;
       }
       const bar = kids.find(k => k.tag === 'rect');
-      if (bar) interaction.bars.push({ ...shapeBounds(bar)!, lifeline: '' });
+      if (bar) interaction.bars.push({ ...shapeBounds(bar)!, lifeline: '', order: i });
       continue;
     }
     // Loose primitives.
@@ -222,7 +230,7 @@ export function readSequence(root: XmlElement, scene: Scene): void {
       while (items[i + 1]?.tag === 'text' && contains(bounds, textOf.get(items[i + 1]!)!.bounds, 2)) texts.push(take(items[++i]!));
       scene.nodes.push({ id: lastTarget, type: 'lifeline-head', bounds });
       interaction.createdHeads.set(lastTarget, bounds);
-      interaction.occluders.push(bounds);
+      interaction.occluders.push({ ...bounds, order: i });
       if (texts.length) out.push(merge(texts, { role: 'text', node: lastTarget }));
       continue;
     }
@@ -244,7 +252,7 @@ export function readSequence(root: XmlElement, scene: Scene): void {
       const texts: InspectedText[] = [];
       while (items[i + 1]?.tag === 'text' && contains(bounds, textOf.get(items[i + 1]!)!.bounds, 2)) texts.push(take(items[++i]!));
       scene.nodes.push({ id, type: 'note', bounds });
-      interaction.occluders.push(bounds);
+      interaction.occluders.push({ ...bounds, order: i });
       if (texts.length) out.push(merge(texts, { role: 'text', node: id }));
       continue;
     }
@@ -255,7 +263,7 @@ export function readSequence(root: XmlElement, scene: Scene): void {
       const texts: InspectedText[] = [];
       while (items[i + 1]?.tag === 'text' && contains(bounds, textOf.get(items[i + 1]!)!.bounds, 2)) texts.push(take(items[++i]!));
       scene.nodes.push({ id, type: 'state-invariant', bounds });
-      interaction.occluders.push(bounds);
+      interaction.occluders.push({ ...bounds, order: i, text: true });
       if (texts.length) out.push(merge(texts, { role: 'text', node: id }));
       continue;
     }
@@ -263,9 +271,9 @@ export function readSequence(root: XmlElement, scene: Scene): void {
       // Interaction use: frame (opaque), "ref" tab, then the referenced name inside.
       const bounds = shapeBounds(e)!;
       const id = `ref${nodeCount++}`;
-      if (fill(e) === color.background) interaction.occluders.push(bounds);
+      if (fill(e) === color.background) interaction.occluders.push({ ...bounds, order: i });
       i++;
-      interaction.occluders.push(shapeBounds(items[i]!)!);
+      interaction.occluders.push({ ...shapeBounds(items[i]!)!, order: i });
       const texts: InspectedText[] = [];
       while (items[i + 1]?.tag === 'text' && contains(bounds, textOf.get(items[i + 1]!)!.bounds, 2)) texts.push(take(items[++i]!));
       scene.nodes.push({ id, type: 'interaction-use', bounds });
@@ -276,12 +284,12 @@ export function readSequence(root: XmlElement, scene: Scene): void {
     }
     if (e.tag === 'path' && fill(e) === color.frameHeadingFill && i > 1) {
       // Fragment pentagon (operator tab), drawn over lifelines and bars.
-      interaction.occluders.push(shapeBounds(e)!);
+      interaction.occluders.push({ ...shapeBounds(e)!, order: i });
       continue;
     }
     if (e.tag === 'rect' && fill(e) === color.labelHalo && e.attrs.style === undefined && i > 0) {
       // Halo painted behind a guard by post-processing.
-      interaction.occluders.push(shapeBounds(e)!);
+      interaction.occluders.push({ ...shapeBounds(e)!, order: i, text: true });
       continue;
     }
     if (e.tag === 'line' && items[i + 1]?.tag === 'line' && isCross(e, items[i + 1]!)) {
@@ -377,19 +385,76 @@ export function interactionGates(scene: Scene): GateResult[] {
   }
   const results: GateResult[] = [{ gate: 'message-endpoints', ok: !failures.length, failures }];
   if (interaction.diagram === 'sequence') results.push(lifelineCrossing(scene, interaction));
+  else results.push(timingLines(scene, interaction));
   return results;
+}
+
+/** Length over which two segments run on top of each other (0 unless collinear within 1.5 px). */
+function sharedLength(a: Point, b: Point, c: Point, d: Point): number {
+  const len = distance(a, b);
+  if (len < 0.01) return 0;
+  const u = { x: (b.x - a.x) / len, y: (b.y - a.y) / len };
+  // Parallel (within 2 degrees), with both ends of c-d within 1.5 px of the line through a and b.
+  const other = distance(c, d);
+  if (other < 0.01 || Math.abs(u.x * (d.y - c.y) - u.y * (d.x - c.x)) / other > 0.035) return 0;
+  const off = (p: Point): number => Math.abs((p.x - a.x) * u.y - (p.y - a.y) * u.x);
+  if (off(c) > 1.5 || off(d) > 1.5) return 0;
+  const t = (p: Point): number => (p.x - a.x) * u.x + (p.y - a.y) * u.y;
+  return Math.max(0, Math.min(len, Math.max(t(c), t(d))) - Math.max(0, Math.min(t(c), t(d))));
+}
+
+/**
+ * `timing-lines` (timing): a message never runs along another line (a state
+ * step, a value band edge, a highlight or time-window border, a constraint's
+ * extension line, another message), its label sits in the band of its sender or
+ * its receiver, and no dashed highlight or extension line runs through text.
+ */
+export function timingLines(scene: Scene, interaction: Interaction): GateResult {
+  const failures: string[] = [];
+  const guides = interaction.guides ?? [];
+  const lines = [
+    ...interaction.waveforms.map(w => ({ ...w, what: 'a state line' })),
+    ...guides.map(g => ({ ...g, what: 'a highlight or constraint line' })),
+    ...interaction.messages.flatMap(m => m.points.slice(1).map((q, k) => ({ a: m.points[k]!, b: q, what: `message ${m.id}`, owner: m.id }))),
+  ];
+  const rows = interaction.rows ?? [];
+  const rowOf = (p: Point): number => rows.findIndex(r => p.y >= r.top - 0.5 && p.y <= r.bottom + 0.5);
+  for (const m of interaction.messages) {
+    for (let k = 1; k < m.points.length; k++) {
+      const a = m.points[k - 1]!, b = m.points[k]!;
+      const hit = lines.find(l => (l as { owner?: string }).owner !== m.id && sharedLength(a, b, l.a, l.b) > 2);
+      if (hit) { failures.push(`${m.id} runs along ${hit.what} at x=${a.x.toFixed(1)}`); break; }
+    }
+    if (m.points.length < 2 || !rows.length) continue;
+    const ends = new Set([rowOf(m.points[0]!), rowOf(m.head?.tip ?? m.points.at(-1)!)]);
+    for (const t of scene.texts.filter(t => t.owner === m.id)) {
+      const c = { x: t.bounds.x + t.bounds.width / 2, y: t.bounds.y + t.bounds.height / 2 };
+      if (!ends.has(rowOf(c))) failures.push(`label ${JSON.stringify(t.content)} of ${m.id} is in the band of neither its sender nor its receiver`);
+    }
+  }
+  for (const t of scene.texts) {
+    if (t.role === 'frame-label') continue;
+    for (const box of t.lines) {
+      const inner = { x: box.x + 0.5, y: box.y + 1, width: box.width - 1, height: box.height - 2 };
+      if (guides.some(g => segmentIntersectsRect(g.a, g.b, inner))) { failures.push(`text ${JSON.stringify(t.content)} is crossed by a highlight or constraint line`); break; }
+    }
+  }
+  return { gate: 'timing-lines', ok: !failures.length, failures };
 }
 
 /**
  * `lifeline-crossing` (sequence): no visible lifeline or activation bar runs
  * through drawn text (message labels and numbers, operators, guards, state
  * invariants, notes, heads). A crossing is allowed only where an opaque shape
- * drawn on top (note, invariant, head, interaction use, tab, label halo) hides
- * the line under the text.
+ * drawn later, on top (note, invariant, head, interaction use, tab, label halo),
+ * hides the line under the text. An activation bar is never hidden by a shape
+ * that only backs a text (label halo, state invariant): the bar would look
+ * interrupted.
  */
 export function lifelineCrossing(scene: Scene, interaction: Interaction): GateResult {
   const failures: string[] = [];
-  const hidden = (r: Rect): boolean => interaction.occluders.some(o => contains(o, r, 0.5));
+  // An opaque shape hides what was drawn before it (unknown order: anything).
+  const hidden = (r: Rect, order = -Infinity, bar = false): boolean => interaction.occluders.some(o => (o.order ?? Infinity) > order && !(bar && o.text) && contains(o, r, 0.5));
   const name = (t: InspectedText): string => JSON.stringify(t.content.length > 40 ? `${t.content.slice(0, 40)}…` : t.content);
   for (const t of scene.texts) {
     if (t.role === 'frame-label') continue;
@@ -399,13 +464,13 @@ export function lifelineCrossing(scene: Scene, interaction: Interaction): GateRe
         if (l.x <= box.x + 0.5 || l.x >= box.x + box.width - 0.5) continue;
         const y0 = Math.max(top, l.top), y1 = Math.min(bottom, l.bottom);
         if (y1 <= y0) continue;
-        if (!hidden({ x: l.x - 0.5, y: y0, width: 1, height: y1 - y0 })) { failures.push(`text ${name(t)} is crossed by lifeline ${l.id || '?'} at x=${l.x.toFixed(1)}`); break; }
+        if (!hidden({ x: l.x - 0.5, y: y0, width: 1, height: y1 - y0 }, l.order)) { failures.push(`text ${name(t)} is crossed by lifeline ${l.id || '?'} at x=${l.x.toFixed(1)}`); break; }
       }
       for (const b of interaction.bars) {
         const x0 = Math.max(box.x + 0.5, b.x), x1 = Math.min(box.x + box.width - 0.5, b.x + b.width);
         const y0 = Math.max(top, b.y), y1 = Math.min(bottom, b.y + b.height);
         if (x1 <= x0 || y1 <= y0) continue;
-        if (!hidden({ x: x0, y: y0, width: x1 - x0, height: y1 - y0 })) { failures.push(`text ${name(t)} overlaps the activation bar of ${b.lifeline || '?'}`); break; }
+        if (!hidden({ x: x0, y: y0, width: x1 - x0, height: y1 - y0 }, b.order, true)) { failures.push(`text ${name(t)} overlaps the activation bar of ${b.lifeline || '?'}`); break; }
       }
     }
   }
@@ -446,6 +511,7 @@ export function readTiming(root: XmlElement, scene: Scene): void {
   const items = elements(main);
   const robustWidth = theme.stroke.node + 0.25;
   const owned = new Map<XmlElement, { role: string; owner: string }>();
+  const separators: number[] = [];
   const containers: { id: string; bounds: Rect }[] = [];
   let count = 0;
 
@@ -480,9 +546,16 @@ export function readTiming(root: XmlElement, scene: Scene): void {
       if (items[i + 1]?.tag === 'path' && items[i + 1]!.attrs.fill === color.noteFill) i++;
       continue;
     }
+    if (e.tag === 'line' && style.dashed && style.stroke === color.edge && !/dasharray:3,5/u.test(e.attrs.style ?? '')) {
+      // Highlight and time-window borders (4,4) and duration-constraint extension lines (2,2); not the time grid (3,5).
+      const [a, b] = lineEnds(e);
+      (interaction.guides ??= []).push({ a, b });
+      continue;
+    }
     if (e.tag === 'line' && !style.dashed && style.stroke === color.edge) {
       const [a, b] = lineEnds(e);
       if (a.y === b.y && Math.abs(b.x - a.x) > scene.viewBox.width / 2) {
+        separators.push(a.y);
         // Band separator between lifelines (or the time axis): labels must not sit on it.
         scene.edges.push({ id: `separator${count++}`, type: 'separator', source: '', target: '', points: [a, b], sourceMarker: 'none', targetMarker: 'none' });
         continue;
@@ -519,5 +592,8 @@ export function readTiming(root: XmlElement, scene: Scene): void {
   }
   for (const p of pending) out.push(merge(p.parts, { role: 'text', node: p.container }));
   scene.texts = out;
+  // Lifeline bands: between consecutive separators (the last one is the time axis).
+  const ys = [...new Set(separators)].sort((a, b) => a - b);
+  interaction.rows = ys.slice(1).map((y, k) => ({ top: ys[k]!, bottom: y }));
   addExtents(root, scene);
 }

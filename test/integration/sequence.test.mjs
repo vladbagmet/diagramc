@@ -176,3 +176,22 @@ test('review models (sequence) render and pass every QA gate', async () => {
   assert.throws(() => parseDocument(reviewText('seq-llm2.json')), e => e.diagnostics.some(d => d.path === '/items/3/operands/0/guard' && d.details.suggestion === 'ok'));
 });
 const reviewText = name => readFileSync(join(root, 'test/fixtures/review', name), 'utf8');
+
+test('nested fragments never share a right border; notes over lifelines keep the usual text padding', async () => {
+  const files = [...await examples(), join(root, 'test/fixtures/review/seq-awkward.json'), join(root, 'test/fixtures/regression/sequence-seq-pay.json')];
+  let nested = 0;
+  for (const file of files) {
+    const svg = await renderToSvg(parseDocument(await readFile(file, 'utf8')));
+    const frames = [...new Set([...svg.matchAll(/<rect fill="none" height="([\d.]+)" style="stroke:#475569;[^"]*" width="([\d.]+)" x="([\d.]+)" y="([\d.]+)"\/>/gu)].map(m => m.slice(1).join(',')))]
+      .map(k => k.split(',').map(Number)).map(([h, w, x, y]) => ({ x, y, r: x + w, b: y + h }));
+    for (const a of frames) for (const b of frames) {
+      if (a === b || !(b.x >= a.x && b.y >= a.y && b.r <= a.r && b.b <= a.b)) continue;
+      nested++;
+      assert.ok(a.r - b.r >= 9.5, `${file}: a fragment nested at (${b.x}, ${b.y}) ends ${(a.r - b.r).toFixed(1)} px from its parent's right border`);
+    }
+    for (const m of svg.matchAll(/<path d="M([\d.]+),[\d.]+ L\1,[^"]*" fill="#FFF8DB"[^>]*\/><path [^>]*\/><text [^>]* x="([\d.]+)"/gu)) {
+      assert.ok(Number(m[2]) - Number(m[1]) <= 12.5, `${file}: note text starts ${(Number(m[2]) - Number(m[1])).toFixed(1)} px inside its note`);
+    }
+  }
+  assert.ok(nested >= 10);
+});

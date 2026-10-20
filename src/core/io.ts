@@ -1,5 +1,5 @@
 import { createReadStream } from 'node:fs';
-import { open, rename, unlink } from 'node:fs/promises';
+import { open, rename, stat, unlink } from 'node:fs/promises';
 import { dirname, basename, join } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { UmlError } from './errors.js';
@@ -46,8 +46,25 @@ export async function readInput(path: string): Promise<string> {
   catch { throw new UmlError('INVALID_ENCODING', 'Input must be valid UTF-8'); }
 }
 
-/** Writes through a temporary sibling and renames, so existing output is replaced only on success. */
+/**
+ * Writes through a temporary sibling and renames, so an existing file is replaced
+ * only on success. An existing target that is not a regular file (a device such
+ * as /dev/null or /dev/stdout, a named pipe) cannot be replaced by a rename: it
+ * is written directly.
+ */
 export async function writeOutput(path: string, data: Buffer): Promise<void> {
+  const existing = await stat(path).catch(() => undefined);
+  if (existing && !existing.isFile() && !existing.isDirectory()) {
+    try {
+      const target = await open(path, 'w');
+      try { await target.writeFile(data); }
+      finally { await target.close(); }
+      return;
+    } catch (error) {
+      const details = ioDetails(path, error);
+      throw new UmlError('OUTPUT_WRITE_FAILED', `Could not write output ${JSON.stringify(path)}: ${details.reason}`, 4, { ...details, output: path });
+    }
+  }
   const temporary = join(dirname(path), `.${basename(path)}.${randomUUID()}.tmp`);
   let created = false;
   try {

@@ -135,3 +135,27 @@ test('activity: hostile text stays literal in every text slot and creates no act
     assert.doesNotMatch(svg, /<[^>]*\s(?:[\w:]*href|on\w+)\s*=/);
   }
 });
+
+test('activity: nodes, notes and texts keep 12 px from every swimlane border; fork branches leave their bar straight', async () => {
+  const files = [...await examples(), join(root, 'test/fixtures/regression/activity-act-awk.json'), join(root, 'test/fixtures/review/act-ci.json')];
+  for (const file of files) {
+    const svg = await svgOf(await readFile(file, 'utf8'));
+    const scene = await inspectSvg(svg);
+    const borders = [...svg.matchAll(/<line style="stroke:#475569;[^"]*" x1="([\d.]+)" x2="\1" y1="([\d.]+)" y2="([\d.]+)"\/>/gu)].map(m => ({ x: Number(m[1]), y0: Number(m[2]), y1: Number(m[3]) }));
+    const boxes = [...scene.nodes.filter(n => n.type !== 'bar').map(n => ({ what: n.id, r: n.bounds })), ...scene.texts.filter(t => t.role !== 'frame-label').map(t => ({ what: t.content, r: t.bounds }))];
+    for (const b of borders) for (const { what, r } of boxes) {
+      if (r.y > b.y1 || r.y + r.height < b.y0) continue;
+      const gap = r.x >= b.x ? r.x - b.x : b.x - r.x - r.width;
+      assert.ok(gap >= 11.75 || (r.x < b.x && r.x + r.width > b.x), `${file}: ${what} is ${gap.toFixed(1)} px from the swimlane border at x=${b.x}`);
+    }
+    if (file.endsWith('act-awk.json')) assert.ok(borders.length >= 5 && scene.nodes.filter(n => n.type === 'bar').length === 2);
+    // Every branch of a fork or join leaves or enters its bar straight: a vertical
+    // segment of at least 15 px, not a stub and a jog.
+    for (const bar of scene.nodes.filter(n => n.type === 'bar')) {
+      const all = scene.edges.flatMap(e => [...(e.source === bar.id ? [[e.points[0], e.points[1]]] : []), ...(e.target === bar.id ? [[e.points.at(-1), e.points.at(-2)]] : [])]);
+      const below = ([p]) => p.y > bar.bounds.y + bar.bounds.height / 2;
+      const many = all.filter(below).length > 1;
+      for (const [p, q] of all.filter(end => below(end) === many)) assert.ok(Math.abs(p.x - q.x) < 0.5 && Math.abs(p.y - q.y) >= 15, `${file}: a branch meets ${bar.id} at (${p.x}, ${p.y}) with a ${Math.abs(p.y - q.y).toFixed(1)} px stub`);
+    }
+  }
+});
