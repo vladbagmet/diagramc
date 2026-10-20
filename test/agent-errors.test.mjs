@@ -194,6 +194,15 @@ test('agent first attempts: typical mistakes get the intended suggestion', async
   assert.ok(seq.diagnostics.some(d => d.path === '/items/0/type' && d.details.suggestion === 'message' && d.details.also?.sort === 'synchronous'));
 });
 
+test('an element nested where an ID list is expected says where it goes (F-A-14)', () => {
+  const doc = { kind: 'package', elements: [{ id: 'p', type: 'package', name: 'P', members: [{ id: 'q', type: 'package', name: 'Q', members: [{ id: 'c', type: 'class', name: 'C' }] }] }] };
+  const error = errorOf(doc);
+  const d = error.diagnostics.find(x => x.path === '/elements/0/members/0');
+  assert.match(d.message, /must be an ID string, but it is an object; declare that element in the top-level "elements" list/);
+  assert.match(d.message, /write only its ID here: "q"/);
+  assert.ok(!error.diagnostics.some(x => x.details?.afterFixes), 'no confusing follow-up about a name');
+});
+
 test('CLI errors for agents: JSON position, kind and command suggestions, file reasons', () => {
   let result = cli(['validate', '-'], { input: '{\n  "kind": "class",\n  "elements": [],\n}' });
   assert.equal(result.status, 2);

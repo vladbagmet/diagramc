@@ -108,6 +108,8 @@ const MAX_ASPECT = 2.5;
 const DEFER_BINDINGS = 24;
 /** Jogs shorter than this are removed from lines between plain nodes (an end slides along its side). */
 const JOG = 16;
+/** Drawings with more lines than this skip the neighbour swap (render time). */
+const SWAP_LINES = 40;
 /** Inner padding of containers; sides with ports get more for delegation stubs. */
 const PAD = { side: 20, portSide: 34, bottom: 18, belowHeader: 14 };
 
@@ -1044,9 +1046,11 @@ async function layoutIn(graph: StructGraph, metrics: FontMetrics, dir: 'RIGHT' |
    * Two plain nodes one above the other (no ports, interface symbols or nested
    * nodes) whose lines cross each other trade places when that, with their lines
    * routed afresh, leaves fewer crossings (ELK's crossing reduction does not see
-   * lines that leave containers).
+   * lines that leave containers). Up to three trials, in drawings of up to SWAP_LINES lines.
    */
   function swapCrossedNeighbours(): void {
+    // Each trial reroutes lines: only in drawings of moderate size (render time).
+    if (plans.filter(p => routes.has(p.id)).length > SWAP_LINES) return;
     const plain = (id: string): boolean => {
       const n = info.get(id)!.node;
       return !n.children?.length && !n.ports?.length && !n.stubs?.length && n.shape !== 'ellipse'
