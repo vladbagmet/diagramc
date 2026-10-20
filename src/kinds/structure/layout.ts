@@ -554,16 +554,72 @@ async function layoutIn(graph: StructGraph, metrics: FontMetrics, dir: 'RIGHT' |
       });
     }
 
+    const allNodes = (nodes: readonly LayoutNode[]): LayoutNode[] => nodes.flatMap(n => [n, ...allNodes(n.children ?? [])]);
+    /** Gives the UML ports of each node an ELK index by the position of their lines' far ends; true when ELK's order differs. */
+    const orderPorts = (nodes: readonly LayoutNode[], laid: Awaited<ReturnType<typeof layout>>): boolean => {
+      let changed = false;
+      const centerOf = (id: string): Point | undefined => {
+        const port = laid.ports.get(id);
+        if (port) return port;
+        const r = laid.nodes.get(id);
+        return r && { x: r.x + r.width / 2, y: r.y + r.height / 2 };
+      };
+      for (const n of allNodes(nodes)) {
+        const ports = n.ports ?? [];
+        if (ports.length < 2 || ports.some(p => p.position || !laid.ports.has(p.id))) continue;
+        const along = (side: Side) => side === 'NORTH' || side === 'SOUTH' ? 'x' as const : 'y' as const;
+        const key = new Map<string, number>(), current = new Map<string, number>();
+        for (const p of ports) {
+          const at = laid.ports.get(p.id);
+          if (!at) continue;
+          const k = along(p.side);
+          current.set(p.id, at[k]);
+          // Far ends of the port's own lines, outside its owner first.
+          const far: Point[] = [], inner: Point[] = [];
+          for (const e of elkEdges) {
+            const other = e.source === p.id ? e.target : e.target === p.id ? e.source : undefined;
+            if (other === undefined) continue;
+            const c = centerOf(other);
+            if (!c) continue;
+            const otherOwner = ownerNode(other.split('::')[0]!);
+            (portOwner.has(p.id) && info.has(otherOwner) && inside(otherOwner, portOwner.get(p.id)!) ? inner : far).push(c);
+          }
+          const use = far.length ? far : inner;
+          key.set(p.id, use.length && portOwner.has(p.id) ? use.reduce((sum, c) => sum + c[k], 0) / use.length : at[k]);
+        }
+        const sides: Side[] = ['NORTH', 'EAST', 'SOUTH', 'WEST'];
+        let index = 0, differs = false;
+        for (const side of sides) {
+          const own = ports.filter(p => p.side === side);
+          const clockwise = side === 'NORTH' || side === 'EAST' ? 1 : -1;
+          const desired = [...own].sort((a, b) => clockwise * ((key.get(a.id)! - key.get(b.id)!) || (current.get(a.id)! - current.get(b.id)!)));
+          const actual = [...own].sort((a, b) => clockwise * (current.get(a.id)! - current.get(b.id)!));
+          if (desired.some((p, i) => p !== actual[i])) differs = true;
+          for (const p of desired) p.index = index++;
+        }
+        if (differs) changed = true;
+        else for (const p of ports) delete p.index;
+      }
+      return changed;
+    };
     const options = { direction: dir, nodeSpacing: NODE_SPACING, layerSpacing: LAYER_SPACING, ...(rootContainer === undefined ? { elk: LAYOUT_VARIANTS[variant] } : {}) };
     // ELK 0.11 fails on some hierarchy-crossing lines (a note anchor or role binding into
     // a nested part, with many ports on a container, top to bottom): lay out without
     // the hierarchy-crossing anchors and bindings then; repairRoutes routes them.
-    let result: Awaited<ReturnType<typeof layout>>;
-    try { result = await layout(elkNodes, elkEdges, options); }
-    catch {
-      const parentOf = (id: string) => info.get(ownerNode(lift(id)))?.parent;
-      const anchorIds = new Set(levelPlans.filter(p => p.symbol === undefined && p.sourceMarker === 'none' && p.targetMarker === 'none' && p.style === 'dashed' && parentOf(p.source) !== parentOf(p.target)).map(p => p.id));
-      result = await layout(elkNodes, elkEdges.filter(e => !anchorIds.has(e.id)), options);
+    const runElk = async (): Promise<Awaited<ReturnType<typeof layout>>> => {
+      try { return await layout(elkNodes, elkEdges, options); }
+      catch {
+        const parentOf = (id: string) => info.get(ownerNode(lift(id)))?.parent;
+        const anchorIds = new Set(levelPlans.filter(p => p.symbol === undefined && p.sourceMarker === 'none' && p.targetMarker === 'none' && p.style === 'dashed' && parentOf(p.source) !== parentOf(p.target)).map(p => p.id));
+        return layout(elkNodes, elkEdges.filter(e => !anchorIds.has(e.id)), options);
+      }
+    };
+    let result = await runElk();
+    // Ports on one side of a node follow the order of what their lines lead to
+    // (ELK leaves ports of compound nodes in a poor order, and lines cross next to
+    // them): when the order differs, ELK runs again with the ports in that order.
+    if (orderPorts(elkNodes, result)) {
+      try { result = await runElk(); } catch { for (const n of allNodes(elkNodes)) for (const p of n.ports ?? []) delete p.index; }
     }
 
     const rects = new Map<string, Rect>();

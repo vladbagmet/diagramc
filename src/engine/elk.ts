@@ -33,6 +33,12 @@ export interface LayoutPort {
    * points of a diamond on its bounding box).
    */
   position?: Point;
+  /**
+   * Opt-in order of the ports around the node, clockwise from the left end of the
+   * top side (ELK port index). When any port of a node has one, the node keeps
+   * its ports in this order (FIXED_ORDER); give every port of the node an index.
+   */
+  index?: number;
 }
 export interface LayoutNode {
   id: string;
@@ -149,7 +155,7 @@ export async function layout(nodes: readonly LayoutNode[], edges: readonly Layou
       const horizontal = p.side === 'NORTH' || p.side === 'SOUTH';
       const width = horizontal ? p.width ?? 0 : 0, height = horizontal ? 0 : p.width ?? 0;
       return {
-        id: p.id, width, height, layoutOptions: { 'elk.port.side': p.side },
+        id: p.id, width, height, layoutOptions: { 'elk.port.side': p.side, ...(p.index !== undefined ? { 'elk.port.index': String(p.index) } : {}) },
         ...(p.position ? { x: p.position.x - width / 2, y: p.position.y - height / 2 } : {}),
       };
     }) } : {}),
@@ -169,7 +175,7 @@ export async function layout(nodes: readonly LayoutNode[], edges: readonly Layou
         'elk.nodeSize.minimum': minimum(node),
       } : {}),
       ...(node.ports?.length ? {
-        'elk.portConstraints': node.ports.some(p => p.position) ? 'FIXED_POS' : 'FIXED_SIDE',
+        'elk.portConstraints': node.ports.some(p => p.position) ? 'FIXED_POS' : node.ports.some(p => p.index !== undefined) ? 'FIXED_ORDER' : 'FIXED_SIDE',
         // Grow the node if its ports need more room than its content.
         ...(node.fixedSize ? { 'elk.nodeSize.constraints': '[]' } : node.children?.length && vertical ? {
           // elkjs 0.11.1 also swaps the room ports need on a vertical compound node

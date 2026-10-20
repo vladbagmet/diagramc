@@ -85,6 +85,44 @@ test('layout: role bindings each leave their collaboration use from their own po
   }
 });
 
+/** Proper crossing point of two segments, or undefined. */
+function crossing([a, b], [c, d]) {
+  const cross = (o, p, q) => (p.x - o.x) * (q.y - o.y) - (p.y - o.y) * (q.x - o.x);
+  const d1 = cross(c, d, a), d2 = cross(c, d, b), d3 = cross(a, b, c), d4 = cross(a, b, d);
+  if (!(((d1 > 0 && d2 < 0) || (d1 < 0 && d2 > 0)) && ((d3 > 0 && d4 < 0) || (d3 < 0 && d4 > 0)))) return undefined;
+  const k = d1 / (d1 - d2);
+  return { x: a.x + (b.x - a.x) * k, y: a.y + (b.y - a.y) * k };
+}
+
+test('layout: no line crosses another next to a port, and none runs along a box it does not touch (F-A-06)', async () => {
+  const docs = [await regression('component-cmp-awk.json'), await regression('component-cmp-food.json'), await example('component', 'webshop.json'), await example('component', 'notation.json')];
+  for (const doc of docs) {
+    const { scene: s } = await scene(doc);
+    const ports = s.nodes.filter(n => n.type === 'port');
+    for (const [i, e] of s.edges.entries()) {
+      for (const f of s.edges.slice(i + 1)) {
+        for (const p of segments(e.points)) for (const q of segments(f.points)) {
+          const x = crossing(p, q);
+          if (!x) continue;
+          for (const port of ports) {
+            const c = { x: port.bounds.x + port.bounds.width / 2, y: port.bounds.y + port.bounds.height / 2 };
+            assert.ok(Math.hypot(x.x - c.x, x.y - c.y) > 30, `${e.id} crosses ${f.id} next to port ${port.id}`);
+          }
+        }
+      }
+    }
+    const ancestors = id => { const out = new Set(); for (let n = s.nodes.find(m => m.id === id); n?.parent; n = s.nodes.find(m => m.id === n.parent)) out.add(n.parent); return out; };
+    for (const e of s.edges) {
+      const related = new Set([e.source, e.target, ...ancestors(e.source), ...ancestors(e.target)]);
+      for (const n of s.nodes) {
+        if (related.has(n.id) || n.type === 'port' || s.nodes.some(m => m.parent === n.id && m.type !== 'port')) continue;
+        if (ancestors(n.id).has(e.source) || ancestors(n.id).has(e.target)) continue;
+        for (const [a, b] of segments(e.points)) assert.ok(!segmentIntersectsRect(a, b, inflate(n.bounds, 4)), `${e.id} runs along or through ${n.id}`);
+      }
+    }
+  }
+});
+
 test('notation: an interface appears once, as a box joined by lines or as one symbol, never as a second unjoined symbol (F-A-12)', async () => {
   const docs = [
     await regression('component-cmp-awk.json'), await regression('component-cmp-food.json'),
