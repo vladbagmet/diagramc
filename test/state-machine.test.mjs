@@ -158,29 +158,37 @@ const crosses = (a, b) => {
   return false;
 };
 
-test('state machine layout: fork branches enter the regions of a composite straight from above, in region order', async () => {
-  for (const [model, fork, order] of [
-    [await readFile(join(root, 'examples/state-machine/notation.json'), 'utf8'), 'split', ['charging', 'packing']],
-    [await regression('state-machine-sm-awk.json'), 'fork1', ['plan', 'locked', 'stream']],
+test('state machine layout: fork branches enter the regions of a composite straight from beside it, in region order, clear of its header', async () => {
+  // In the robot machine the branch into navigation crosses the lines that loop inside that region.
+  for (const [model, fork, owner, order, crossingFree] of [
+    [await readFile(join(root, 'examples/state-machine/notation.json'), 'utf8'), 'split', 'work', ['charging', 'packing'], true],
+    [await regression('state-machine-sm-awk.json'), 'fork1', 'mission', ['plan', 'locked', 'stream'], false],
   ]) {
     const scene = await inspectSvg(await svgOf(model));
-    const bar = scene.nodes.find(n => n.id === fork).bounds;
+    const bar = scene.nodes.find(n => n.id === fork).bounds, composite = scene.nodes.find(n => n.id === owner).bounds;
+    // The regions are stacked, so the bar stands beside the composite, below its header.
+    assert.ok(bar.height > bar.width && bar.x + bar.width < composite.x, JSON.stringify({ bar, composite }));
     for (const e of scene.edges.filter(e => e.source === fork)) {
-      // One straight line down from the bar's underside to the top of its state.
+      // One straight line across from the bar's side to the side of its state facing the bar.
       assert.equal(e.points.length, 2, `${e.id}: ${JSON.stringify(e.points)}`);
       const [p, q] = e.points, target = scene.nodes.find(n => n.id === e.target).bounds;
-      assert.ok(Math.abs(p.x - q.x) < 0.01 && Math.abs(p.y - (bar.y + bar.height)) < 0.5 && Math.abs(q.y - target.y) < 0.5, `${e.id}: ${JSON.stringify(e.points)}`);
-      for (const other of scene.edges.filter(o => o.type === 'transition' && o !== e)) assert.ok(!crosses(e.points, other.points), `${e.id} crosses ${other.id}`);
+      assert.ok(Math.abs(p.y - q.y) < 0.01 && Math.abs(p.x - (bar.x + bar.width)) < 0.5 && Math.abs(q.x - target.x) < 0.5, `${e.id}: ${JSON.stringify(e.points)}`);
+      if (crossingFree) for (const other of scene.edges.filter(o => o.type === 'transition' && o !== e)) assert.ok(!crosses(e.points, other.points), `${e.id} crosses ${other.id}`);
     }
-    // Regions (and so the branches) left to right in model order.
-    const xs = order.map(id => center(scene.nodes.find(n => n.id === id).bounds).x);
-    assert.deepEqual([...xs].sort((a, b) => a - b), xs, `${order} at ${xs}`);
+    // Regions (and so the branches) top to bottom in model order.
+    const ys = order.map(id => center(scene.nodes.find(n => n.id === id).bounds).y);
+    assert.deepEqual([...ys].sort((a, b) => a - b), ys, `${order} at ${ys}`);
   }
 });
 
-test('state machine layout: join inputs arrive straight; a line to the far side of side by side regions stays inside', async () => {
+test('state machine layout: join inputs arrive head-on; a line to the far side of the regions stays inside', async () => {
   const scene = await inspectSvg(await svgOf(await regression('state-machine-sm-awk.json')));
-  for (const e of scene.edges.filter(e => e.target === 'join1')) assert.equal(e.points.length, 2, `${e.id}: ${JSON.stringify(e.points)}`);
+  const join = scene.nodes.find(n => n.id === 'join1').bounds;
+  for (const e of scene.edges.filter(e => e.target === 'join1')) {
+    // The last segment runs straight down onto the bar, within its extent.
+    const [p, q] = e.points.slice(-2);
+    assert.ok(Math.abs(p.x - q.x) < 0.01 && p.y < q.y && Math.abs(q.y - join.y) < 0.5 && q.x > join.x && q.x < join.x + join.width, `${e.id}: ${JSON.stringify(e.points)}`);
+  }
   // Driving to the exit point "abort mission" crosses the other regions inside the composite, not below its border.
   const mission = scene.nodes.find(n => n.id === 'mission').bounds;
   const lidar = scene.edges.find(e => e.source === 'drive' && e.target === 'xp');

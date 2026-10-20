@@ -31,6 +31,11 @@ export interface LabelRequest {
    */
   candidates?: readonly Rect[];
   /**
+   * Center labels: positions along each segment (0 to 1) tried after the default
+   * ones, for crowded drawings where the default spots are all taken.
+   */
+  fractions?: readonly number[];
+  /**
    * The edge the label belongs to. With `Obstacles.lines`, a spot where another
    * line is less than twice as far as this one is avoided (the reader could not
    * tell which line the label names); center labels also avoid spots far from
@@ -153,7 +158,7 @@ function centerCandidates(request: LabelRequest): Rect[] {
   for (const { a, b, length } of segments) {
     const vertical = Math.abs(b.x - a.x) < Math.abs(b.y - a.y);
     const diagonal = Math.abs(b.x - a.x) > 1 && Math.abs(b.y - a.y) > 1;
-    for (const f of [0.5, 0.3, 0.7, 0.15, 0.85, 0.4, 0.6, 0.05, 0.95]) {
+    for (const f of [0.5, 0.3, 0.7, 0.15, 0.85, 0.4, 0.6, 0.05, 0.95, ...request.fractions ?? []]) {
       const m = { x: a.x + (b.x - a.x) * f, y: a.y + (b.y - a.y) * f };
       if (length < 2 && f !== 0.5) continue;
       if (diagonal) {
