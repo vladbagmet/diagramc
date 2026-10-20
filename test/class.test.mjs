@@ -143,3 +143,18 @@ test('the published schema describes the v2 contract', async () => {
   assert.deepEqual(schema.definitions.relationship.oneOf.map(b => b.properties.type.const),
     ['generalization', 'realization', 'association', 'aggregation', 'composition', 'dependency', 'containment']);
 });
+
+test('validation hints: a swapped composition names the swap with its ends; references never suggest a note', () => {
+  const errorOf = doc => { try { parseDocument(JSON.stringify(doc)); } catch (error) { return error; } assert.fail('expected a validation error'); };
+  const swapped = errorOf({ kind: 'class', elements: [{ id: 'order', type: 'class', name: 'Order' }, { id: 'line', type: 'class', name: 'OrderLine' }], relationships: [{ type: 'composition', from: 'line', to: 'order', fromEnd: { multiplicity: '1..*' }, toEnd: { multiplicity: '1' } }] });
+  assert.equal(swapped.code, 'INVALID_COMPOSITION');
+  assert.match(swapped.message, /look swapped.*"fromEnd" and "toEnd" exchanged/);
+  assert.deepEqual(swapped.diagnostics[0].details.swap, { from: 'order', to: 'line', fromEnd: { multiplicity: '1' }, toEnd: { multiplicity: '1..*' } });
+  for (const kind of ['class', 'object']) {
+    const type = kind === 'class' ? 'class' : 'instance', link = kind === 'class' ? 'association' : 'link';
+    const error = errorOf({ kind, elements: [{ id: 'a', type, name: 'a' }, { id: 'b', type, name: 'b' }, { id: 'n1', type: 'note', text: 'note', attachedTo: ['a'] }], relationships: [{ type: link, from: 'a', to: 'n2' }] });
+    assert.equal(error.code, 'MISSING_REFERENCE');
+    assert.doesNotMatch(error.message, /"n1"/, `${kind}: a note is not a valid link end`);
+    assert.equal(error.diagnostics[0].details?.suggestion, undefined);
+  }
+});

@@ -14,13 +14,15 @@ export function validateClassDiagram(model: ClassDiagram): Diagnostic[] {
     ...relationships.flatMap((r, i) => r.id === undefined ? [] : [{ id: r.id, path: pointer('', 'relationships', i) }]),
   ], diagnostics);
   const elements = new Map<string, Element>(model.elements.map(e => [e.id, e]));
+  // Relationships and note anchors name classifiers; a note is never a useful suggestion.
+  const classifierIds = model.elements.filter(e => !isNote(e)).map(e => e.id);
 
   model.elements.forEach((element, i) => {
     const at = pointer('', 'elements', i);
     if (isNote(element)) {
       (element.attachedTo ?? []).forEach((id, j) => {
         const path = pointer(at, 'attachedTo', j);
-        if (!reference(id, path, elements, diagnostics)) return;
+        if (!reference(id, path, elements, diagnostics, 'element', undefined, classifierIds)) return;
         if (isNote(elements.get(id)!)) diagnostics.push({ code: 'INVALID_ATTACHMENT', path, message: `Note "${element.id}" cannot be attached to another note ("${id}")` });
       });
       return;
@@ -34,8 +36,8 @@ export function validateClassDiagram(model: ClassDiagram): Diagnostic[] {
   const owners = new Map<string, string>();
   relationships.forEach((r, i) => {
     const at = pointer('', 'relationships', i);
-    const fromOk = reference(r.from, pointer(at, 'from'), elements, diagnostics, 'element', { from: r.from, to: r.to });
-    const toOk = reference(r.to, pointer(at, 'to'), elements, diagnostics, 'element', { from: r.from, to: r.to });
+    const fromOk = reference(r.from, pointer(at, 'from'), elements, diagnostics, 'element', { from: r.from, to: r.to }, classifierIds);
+    const toOk = reference(r.to, pointer(at, 'to'), elements, diagnostics, 'element', { from: r.from, to: r.to }, classifierIds);
     for (const end of ['fromEnd', 'toEnd'] as const) checkMultiplicity(r[end]?.multiplicity, pointer(at, end, 'multiplicity'), diagnostics);
     if (!fromOk || !toOk) return;
     const from = elements.get(r.from)!, to = elements.get(r.to)!;
