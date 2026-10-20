@@ -615,6 +615,7 @@ export async function layoutDiagram(spec: DiagramSpec, metrics: FontMetrics): Pr
       keep: bundled,
       endLabels,
       force: rerouteAnchors,
+      tighten: true,
       // Center labels need a clean spot beside their own line (no crossing, not as
       // close to another line); bundled lines without one are spread apart.
       labelFits: (id, route, current) => {

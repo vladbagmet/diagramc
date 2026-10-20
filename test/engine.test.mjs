@@ -507,3 +507,19 @@ test('routeOrthogonal: a small target whose every point is near another end stil
   const end = route.at(-1);
   assert.equal(end.y, 114, JSON.stringify(route));
 });
+
+test('repairRoutes tighten: a detour no reroute replaces slides its U-shaped part inwards', () => {
+  const nodes = [
+    { id: 'a', rect: { x: 0, y: 0, width: 40, height: 40 } },
+    { id: 'b', rect: { x: 400, y: 0, width: 40, height: 40 } },
+    { id: 'wall', rect: { x: 150, y: -200, width: 100, height: 700 } },
+  ];
+  const route = [{ x: 20, y: 40 }, { x: 20, y: 600 }, { x: 420, y: 600 }, { x: 420, y: 40 }];
+  const edge = { id: 'e', source: 'a', target: 'b', route, sourceMarker: 'none', targetMarker: 'open-arrow' };
+  const bottom = r => Math.max(...r.map(p => p.y));
+  const plain = repairRoutes(nodes, [edge]).routes.get('e');
+  const tight = repairRoutes(nodes, [edge], { tighten: true }).routes.get('e');
+  assert.ok(bottom(tight) < bottom(plain), JSON.stringify({ plain, tight }));
+  // Still clear of the wall.
+  assert.ok(bottom(tight) >= 508, JSON.stringify(tight));
+});

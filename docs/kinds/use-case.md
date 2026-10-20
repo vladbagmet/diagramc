@@ -31,10 +31,19 @@ and a specialised actor in the column of its general actor. Within a column, two
 elements trade places, and actors and use cases no actor uses move into free space,
 whenever that removes a crossing of the straight lines between them. Lines are
 drawn by `src/kinds/use-case/route.ts`: straight, as use case diagrams are usually
-drawn, and bent around any element, note, actor name or subject name in the way
+drawn, and bent around any element, note, actor name or subject header in the way
 (shortest path over the corners of the obstacles, with costs for bends, crossings
 and running along another line, at any angle, so lines toward nearly the same
-point do not share a trunk; each corner offers several lanes). An actor's lines fan out from one point per side
+point do not share a trunk; each corner offers several lanes). A subject's whole
+header band is an obstacle, so a line into a subject from above bends round its
+corner and enters below the header. Running within the `shared-segments` gate's
+tolerance of a routed line (a shallow crossing counts) and a bend on another line
+cost heavily; lines of one generalization tree do not count against each other. A
+cheapest route that wraps round an element (turns the same way three times) is
+replaced by the cheapest one with one or two bends that does not. Pairs of lines
+the gate would still reject are routed again against all other lines (each line
+was routed only against the lines before it), kept when fewer pairs and crowded
+ends remain. An actor's lines fan out from one point per side
 of the figure (never its bottom, where the name is); lines meet a use case aiming
 at its center, and ends with a multiplicity near the ellipse's left or right
 vertex so the label sits next to them. Ends on one ellipse keep apart
@@ -46,7 +55,8 @@ stand above each other; both layouts are made and `layoutScore` picks the more
 readable one, counting every 40 px of association line that runs past a subject
 holding neither of its ends (within 24 px of it) as a crossing, so actors stand
 beside the subject they use. Two or more generalizations to one element share one
-hollow triangle and a short trunk (a generalization tree); a repeated association
+hollow triangle and a short trunk (a generalization tree; the trunk grows when a
+member's line would wrap round its column to reach it); a repeated association
 between the same two elements bends beside the first. Actor names are captions under the figure (QA role `label`, owned
 by the actor) for which ELK keeps room (`labelBelow`).
 
@@ -89,3 +99,7 @@ by the actor) for which ELK keeps room (`labelBelow`).
   ELK's crossing minimisation reorders them where that saves crossings.
 - Notes are laid out after the element they annotate, which can put them a layer
   width away in large diagrams.
+- Lines between subjects stacked above each other cannot cross a subject's header,
+  so they go round the subject's side; in large diagrams (`examples/use-case/stress.json`)
+  such lines run long ways past the actor fans, and lines from one actor into a
+  subject below it can run as close parallel pairs round its corner.

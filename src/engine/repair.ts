@@ -1,6 +1,6 @@
 import { theme } from '../core/theme.js';
 import { markerHalf, markerLength, type Marker } from './edges.js';
-import { contains, distance, inflate, segmentIntersectsRect, union, type Point, type Rect } from './geometry.js';
+import { contains, distance, inflate, segmentIntersectsRect, simplify, union, type Point, type Rect } from './geometry.js';
 import { routeOrthogonal } from './router.js';
 export { markerHalf, markerLength } from './edges.js';
 import { countCrossings, isDetour } from './aspect.js';
@@ -116,6 +116,11 @@ export interface RepairOptions {
    * borders (a composite state's dashed region separators).
    */
   lines?: readonly (readonly Point[])[];
+  /**
+   * Last, a detour no reroute replaced has its U-shaped parts slid inwards as far
+   * as they stay clear of nodes and other lines (opt-in).
+   */
+  tighten?: boolean;
 }
 
 /** Room beyond an end label's width that its end keeps from other ends (gaps on both sides of the label). */
@@ -303,6 +308,54 @@ export function repairRoutes(nodes: readonly RepairNode[], edges: readonly Repai
       if (!next || problem(e, next) || routeLength(next) > 0.75 * length) continue;
       if (crossingsWith(next, e.id) > crossingsWith(route, e.id)) continue;
       routes.set(e.id, next);
+      changed.add(e.id);
+    }
+  }
+  // 3. (opt-in) Detours no reroute replaced: a U-shaped part of the route (a segment whose
+  //    two neighbours leave it towards the same side) slides inwards, as far as it
+  //    stays clear of nodes, texts and other lines and adds no crossing.
+  for (const e of options.tighten ? edges : []) {
+    if (e.source === e.target || options.keep?.has(e.id)) continue;
+    for (let round = 0; round < 4 && isDetour(routes.get(e.id)!); round++) {
+      const route = routes.get(e.id)!;
+      let best: Point[] | undefined;
+      for (let k = 1; k + 2 < route.length; k++) {
+        const p = route[k - 1]!, a = route[k]!, b = route[k + 1]!, q = route[k + 2]!;
+        const horizontal = Math.abs(a.y - b.y) < 0.5, axis = horizontal ? 'y' as const : 'x' as const;
+        const s1 = Math.sign(p[axis] - a[axis]), s2 = Math.sign(q[axis] - b[axis]);
+        if (!s1 || s1 !== s2) continue;
+        // End segments keep room for their marker and a bend.
+        const room = (end: Point, next: Point, marker: Marker) => Math.abs(end[axis] - next[axis]) - markerLength(marker) - theme.spacing.bendRadius - 6;
+        const reach = Math.min(k - 1 === 0 ? room(p, a, e.sourceMarker) : Math.abs(p[axis] - a[axis]), k + 2 === route.length - 1 ? room(q, b, e.targetMarker) : Math.abs(q[axis] - b[axis]));
+        for (let d = Math.floor(reach / 4) * 4; d >= 4; d -= 4) {
+          const next = simplify(route.map((pt, i) => i === k || i === k + 1 ? { ...pt, [axis]: pt[axis] + s1 * d } : pt));
+          if (best && routeLength(next) >= routeLength(best)) break;
+          if (severity(problem(e, next)) > severity('detour') || crossingsWith(next, e.id) > crossingsWith(route, e.id)) continue;
+          const moved: [Point, Point] = [next[k]!, next[k + 1]!];
+          // Not along a node's outline either (gate edge-endpoints: 4 px).
+          if (obstaclesFor(e).some(r => segmentIntersectsRect(moved[0], moved[1], inflate(r, 8)))) continue;
+          const tooNear = edges.some(o => o.id !== e.id && routes.get(o.id)!.slice(1).some((c, i) => {
+            const c0 = routes.get(o.id)![i]!;
+            const parallel = horizontal ? Math.abs(c0.y - c.y) < 0.5 : Math.abs(c0.x - c.x) < 0.5;
+            if (!parallel) return false;
+            const lo = Math.max(Math.min(moved[0][horizontal ? 'x' : 'y'], moved[1][horizontal ? 'x' : 'y']), Math.min(c0[horizontal ? 'x' : 'y'], c[horizontal ? 'x' : 'y']));
+            const hi = Math.min(Math.max(moved[0][horizontal ? 'x' : 'y'], moved[1][horizontal ? 'x' : 'y']), Math.max(c0[horizontal ? 'x' : 'y'], c[horizontal ? 'x' : 'y']));
+            return hi - lo > 0 && Math.abs(c0[axis] - moved[0][axis]) < baseSpacing;
+          }));
+          if (tooNear) continue;
+          // No bend of one line on the other (gate shared-segments).
+          const distToSeg = (pt: Point, c: Point, f: Point): number => {
+            const l2 = (f.x - c.x) ** 2 + (f.y - c.y) ** 2, t = l2 ? Math.max(0, Math.min(1, ((pt.x - c.x) * (f.x - c.x) + (pt.y - c.y) * (f.y - c.y)) / l2)) : 0;
+            return Math.hypot(pt.x - c.x - t * (f.x - c.x), pt.y - c.y - t * (f.y - c.y));
+          };
+          const onLine = (pt: Point, line: readonly Point[]): boolean => line.slice(1).some((c, i) => distToSeg(pt, line[i]!, c) < 2);
+          if (edges.some(o => o.id !== e.id && (next.slice(1, -1).some(pt => onLine(pt, routes.get(o.id)!)) || routes.get(o.id)!.slice(1, -1).some(pt => onLine(pt, next))))) continue;
+          best = next;
+          break;
+        }
+      }
+      if (!best) break;
+      routes.set(e.id, best);
       changed.add(e.id);
     }
   }

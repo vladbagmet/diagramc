@@ -24,7 +24,6 @@ export const KNOWN_GATE_FAILURES = [
   { finding: 'F-B-16', kind: 'interaction-overview', title: "Onboarding (stress)", gate: 'shared-segments', problem: / share \d+px of line | meet at /, source: "examples/interaction-overview/stress.json" },
   { finding: 'F-B-15', kind: 'interaction-overview', title: "Onboarding (stress)", gate: 'route-length', problem: / detours$| wraps around/, source: "examples/interaction-overview/stress.json" },
   { finding: 'F-B-16', kind: 'interaction-overview', title: "WithdrawCash", gate: 'shared-segments', problem: / share \d+px of line | meet at /, source: "examples/interaction-overview/withdraw-cash.json" },
-  { finding: 'F-A-10', kind: 'package', title: "Shop platform", gate: 'route-length', problem: / detours$| wraps around/, source: "examples/package/stress.json" },
   { finding: 'F-A-01', kind: 'component', hash: '726e47c27536', gate: 'route-length', problem: / detours$| wraps around/, source: "test/fixtures/component/valid.json: assemblies in both directions (a cycle)" },
   { finding: 'F-B-08', kind: 'component', hash: '4e38578be907', gate: 'shared-segments', problem: / share \d+px of line | meet at /, source: "test/fixtures/component/valid.json: port providing and requiring unconnected interfaces" },
   { finding: 'F-B-08', kind: 'component', hash: '2ee2ab4da134', gate: 'shared-segments', problem: / share \d+px of line | meet at /, source: "test/fixtures/component/valid.json: three requirers of one provided port" },
