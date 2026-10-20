@@ -239,3 +239,29 @@ export function blockPartitions(block: Block): Set<string> {
   }
   return out;
 }
+
+/** The run of swimlanes a block occupies: lowest and highest partition index, or undefined without nodes in partitions. */
+export interface Span { min: number; max: number }
+
+export function blockSpan(block: Block, index: ReadonlyMap<string, number>): Span | undefined {
+  const lanes = [...blockPartitions(block)].map(p => index.get(p)).filter((i): i is number => i !== undefined);
+  return lanes.length ? { min: Math.min(...lanes), max: Math.max(...lanes) } : undefined;
+}
+
+/**
+ * Two branches of one decision or fork can be drawn side by side in swimlanes
+ * when one lies entirely left of the other; they may meet in one boundary lane.
+ */
+export const spansApart = (a: Span, b: Span): boolean => a.max <= b.min || b.max <= a.min;
+
+/**
+ * Branches ordered left to right by the lanes they occupy (lowest lane first,
+ * then the narrower one); branches without nodes in partitions keep their place
+ * after the others. PlantUML places the branches of a block side by side within
+ * every swimlane, so this order keeps each branch in its own run of lanes.
+ */
+export function orderBySpan<T>(branches: readonly T[], body: (b: T) => Block, index: ReadonlyMap<string, number>): T[] {
+  return branches.map((b, i) => ({ b, i, s: blockSpan(body(b), index) }))
+    .sort((x, y) => (x.s?.min ?? Infinity) - (y.s?.min ?? Infinity) || (x.s?.max ?? Infinity) - (y.s?.max ?? Infinity) || x.i - y.i)
+    .map(x => x.b);
+}
