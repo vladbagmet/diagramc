@@ -22,7 +22,7 @@ in `examples/interaction-overview/`.
 | Control flow | `flows[]`, `from` -> `to` | Solid line, open arrowhead at the target (15.2.4) | iod: 13 flows, markers `none` / `open-arrow` |
 | Guard | `flows[].guard` | `[guard]` next to the flow where it leaves the decision; where the branch parts from the others when several share a vertex (15.2.4) | iod: guards are source end labels; "branches of a decision part right below it"; fixture "decision with four branches" |
 | Interaction use | `type: "interaction-use"`, `name`, `arguments` | Frame with `ref` in the pentagon, the referenced interaction's name centered, `Name(args)` (17.7.4) | iod: `ref` bold in the frame, `Wait(5 s)` |
-| Inline interaction | `type: "interaction"`, `lifelines`, `messages` | Frame with `sd <name>`, lifeline heads `name : Type` with dashed lifelines, messages as horizontal arrows in list order, labels above them (17.10, 17.3.4, 17.4.4) | iod: "inline sd fragments ..." |
+| Inline interaction | `type: "interaction"`, `lifelines`, `messages` | Frame with `sd <name>`, lifeline heads `name : Type` (`:Type` when anonymous, as in the frame heading's lifelines list) with dashed lifelines, messages as horizontal arrows in list order, labels above them (17.10, 17.3.4, 17.4.4) | iod: "inline sd fragments ..." |
 | Synchronous / asynchronous / reply message | `messages[].sort` | Filled arrowhead (the smaller message head) / open arrowhead / dashed line with open arrowhead (17.4.4) | iod: markers in list order, reply dashed |
 | Self-message | message with `from` = `to` | Small loop right of the lifeline, label beside it | fixtures "fork into three inline interactions", "wide inline interaction" |
 | Lifelines header | `lifelines: [":A", ":B"]` | Frame heading `sd <title> lifelines :A, :B` (figure 17.27) | iod: frame label `WithdrawCash lifelines :Customer, :ATM, :Bank` |
@@ -40,8 +40,12 @@ vertices are chosen from where the previous pass placed the neighbours (one bran
 straight down, the leftmost west, the rightmost east; with three branches, one
 to a node right below goes straight) and the layout is repeated until the choice
 is stable; the pass with the fewest crossings wins. Branches that still share a
-vertex run on a 14 px trunk and then part, each on its own line, with its guard
-where that line begins. Guards at a vertex sit right of a line going down and
+vertex run on a 14 px trunk and then part, each on its own line (branches
+turning the same way leave the trunk 18 px apart, the farthest first), with its
+guard where that line begins. A branch whose path loops back above the decision
+leaves from its east vertex, so the loop returns beside the other branches
+instead of across one. Several flows into a final node arrive at different
+vertices of its circle (top, left, right). Guards at a vertex sit right of a line going down and
 above a line leaving sideways. A loop-back leaves an interaction from its east
 side, and a wide interaction on a loop takes its flows near its east edge, so the
 loop stays short. Jogs under 8 px are straightened. Inline `sd` fragments use a small fixed layout (no
@@ -90,10 +94,11 @@ All rules are errors (none are warnings): an invalid overview is not rendered.
 
 ## Known limitations
 
-- More than three branches of a decision share a vertex and part on a short
-  trunk; branches going the same way share the line they part along, so their
-  guards sit where each turns off it. Inputs of a merge share the straight vertex.
-- Several flows into a final node meet at its top point, which reads like a merge
-  just above the node (valid UML, since a final node accepts any token).
+- More than three branches of a decision share a vertex and its short trunk
+  (14 px plus 18 px per further branch going the same way); their guards sit
+  where each turns off it. Inputs of a merge share the straight vertex.
+- More than three flows into one final node share a vertex of its circle.
+- Message labels in inline interactions are drawn on a background box, so the
+  dashed lifelines they cross are interrupted under them.
 - Inline interactions have at most 6 lifelines and 12 messages, so they stay
   readable at overview scale.

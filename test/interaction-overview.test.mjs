@@ -95,6 +95,41 @@ test('interaction overview: a loop-back leaves its interaction from the east sid
   assert.ok(Math.abs(loop.points[0].x - (wait.x + wait.width)) < 0.5, `loop starts at ${JSON.stringify(loop.points[0])}`);
 });
 
+test('interaction overview: flows never share a sideways run or the last segment into a final node; loops return without crossing (F-B-15, F-B-16)', async () => {
+  const segments = e => e.points.slice(1).map((q, k) => [e.points[k], q]);
+  const horizontalOverlap = ([a, b], [c, d]) => Math.abs(a.y - b.y) < 0.5 && Math.abs(c.y - d.y) < 0.5 && Math.abs(a.y - c.y) < 0.5
+    ? Math.min(Math.max(a.x, b.x), Math.max(c.x, d.x)) - Math.max(Math.min(a.x, b.x), Math.min(c.x, d.x)) : 0;
+  const verticalOverlap = ([a, b], [c, d]) => Math.abs(a.x - b.x) < 0.5 && Math.abs(c.x - d.x) < 0.5 && Math.abs(a.x - c.x) < 0.5
+    ? Math.min(Math.max(a.y, b.y), Math.max(c.y, d.y)) - Math.max(Math.min(a.y, b.y), Math.min(c.y, d.y)) : 0;
+  const docs = [['withdraw-cash', await example('withdraw-cash.json')], ['notation', await example('notation.json')], ['stress', await example('stress.json')],
+    ['i2-awkward', await readFile(join(root, 'test/fixtures/regression/interaction-overview-i2-awkward.json'), 'utf8')]];
+  for (const [name, text] of docs) {
+    const scene = await inspectSvg(await render(text));
+    for (const [i, e] of scene.edges.entries()) for (const f of scene.edges.slice(i + 1)) {
+      for (const s of segments(e)) for (const t of segments(f)) {
+        assert.ok(horizontalOverlap(s, t) <= 1, `${name}: ${e.id} and ${f.id} share a sideways run`);
+        if (e.target === f.target && scene.nodes.find(n => n.id === e.target)?.type?.includes('final')) assert.ok(verticalOverlap(s, t) <= 1, `${name}: ${e.id} and ${f.id} share their way into ${e.target}`);
+      }
+    }
+  }
+  const stress = await inspectSvg(await render(await example('stress.json')));
+  const { countCrossings } = await import('../dist/engine/aspect.js');
+  assert.equal(countCrossings(stress.edges.map(e => e.points)), 0, 'no flow crosses another');
+});
+
+test('interaction overview: inline message labels cover the lifelines they cross; anonymous heads read like the heading (F-B-17, F-B-29)', async () => {
+  const svg = await render(await readFile(join(root, 'test/fixtures/regression/interaction-overview-iod-awk.json'), 'utf8'));
+  const scene = await inspectSvg(svg);
+  const label = scene.texts.find(t => t.content === 'availability(sku, quantity)');
+  assert.ok(label, 'message label drawn');
+  // A filled background box under the label (the lifelines are drawn before it).
+  const box = label.lines[0];
+  const rects = [...svg.matchAll(/<rect x="([\d.]+)" y="([\d.]+)" width="([\d.]+)" height="([\d.]+)" fill="[^"]+"\/>/g)].map(m => m.slice(1).map(Number));
+  assert.ok(rects.some(([x, y, w, h]) => x <= box.x && x + w >= box.x + box.width && y <= box.y + box.height / 2 && y + h >= box.y + box.height / 2), 'label background');
+  const cash = await inspectSvg(await render(await example('withdraw-cash.json')));
+  assert.ok(cash.texts.some(t => t.content === ':Customer' && t.role === 'text'), 'head written :Customer, as in "lifelines :Customer, ..."');
+});
+
 test('interaction overview: UML notation of control nodes, frames and flows', async () => {
   const svg = await render(await example('notation.json'));
   const scene = await inspectSvg(svg);

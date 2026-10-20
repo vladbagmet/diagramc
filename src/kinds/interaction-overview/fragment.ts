@@ -23,8 +23,9 @@ export interface FragmentLine { id: string; x: number; y1: number; y2: number }
 export interface FragmentArrow { id: string; source: string; target: string; points: Point[]; style: LineStyle; marker: Marker; rows: string[]; widths: number[]; labelX: number[]; labelTop: number }
 export interface FragmentLayout { width: number; height: number; headingHeight: number; heads: FragmentHead[]; lines: FragmentLine[]; arrows: FragmentArrow[] }
 
+/** Lifeline head: `name : Type`, or `:Type` for an anonymous one, written like the frame heading's lifelines list. */
 export const headLabel = (l: FragmentLifeline): string =>
-  l.type === undefined ? l.name! : l.name === undefined ? `: ${l.type}` : `${l.name} : ${l.type}`;
+  l.type === undefined ? l.name! : l.name === undefined ? `:${l.type}` : `${l.name} : ${l.type}`;
 
 export const fragmentMessageLabel = (m: FragmentMessage): string =>
   `${m.name}${m.arguments === undefined ? '' : `(${m.arguments.join(', ')})`}`;

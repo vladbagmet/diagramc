@@ -1,0 +1,233 @@
+{
+ "kind": "interaction-overview",
+ "title": "Multi-warehouse fulfilment with restock wait loop",
+ "lifelines": [
+  "FulfilmentOrchestrator",
+  "Warehouse"
+ ],
+ "nodes": [
+  {
+   "id": "s",
+   "type": "initial"
+  },
+  {
+   "id": "m0",
+   "type": "merge"
+  },
+  {
+   "id": "q",
+   "type": "interaction",
+   "name": "QueryAllRegionalInventoryWarehousesForAvailability",
+   "lifelines": [
+    {
+     "id": "o",
+     "name": "orchestrator",
+     "type": "FulfilmentOrchestrator"
+    },
+    {
+     "id": "w1",
+     "name": "eu",
+     "type": "Warehouse"
+    },
+    {
+     "id": "w2",
+     "name": "us",
+     "type": "Warehouse"
+    },
+    {
+     "id": "w3",
+     "name": "apac",
+     "type": "Warehouse"
+    }
+   ],
+   "messages": [
+    {
+     "from": "o",
+     "to": "w1",
+     "name": "availability",
+     "arguments": [
+      "sku",
+      "quantity"
+     ]
+    },
+    {
+     "from": "w1",
+     "to": "o",
+     "name": "stock",
+     "sort": "reply"
+    },
+    {
+     "from": "o",
+     "to": "w2",
+     "name": "availability",
+     "arguments": [
+      "sku",
+      "quantity"
+     ]
+    },
+    {
+     "from": "w2",
+     "to": "o",
+     "name": "stock",
+     "sort": "reply"
+    },
+    {
+     "from": "o",
+     "to": "w3",
+     "name": "availability",
+     "arguments": [
+      "sku",
+      "quantity"
+     ]
+    },
+    {
+     "from": "w3",
+     "to": "o",
+     "name": "stock",
+     "sort": "reply"
+    },
+    {
+     "from": "o",
+     "to": "o",
+     "name": "rankByShippingCostAndDeliveryPromise"
+    }
+   ]
+  },
+  {
+   "id": "d1",
+   "type": "decision"
+  },
+  {
+   "id": "single",
+   "type": "interaction-use",
+   "name": "ShipFromSingleWarehouseWithExpressCarrier",
+   "arguments": [
+    "warehouse",
+    "carrier"
+   ]
+  },
+  {
+   "id": "split",
+   "type": "fork"
+  },
+  {
+   "id": "p1",
+   "type": "interaction-use",
+   "name": "ShipPartialFromEU"
+  },
+  {
+   "id": "p2",
+   "type": "interaction-use",
+   "name": "ShipPartialFromUS"
+  },
+  {
+   "id": "sj",
+   "type": "join"
+  },
+  {
+   "id": "back",
+   "type": "interaction-use",
+   "name": "PlaceBackorderWithSupplier",
+   "arguments": [
+    "sku",
+    "leadTimeDays"
+   ]
+  },
+  {
+   "id": "wait",
+   "type": "interaction-use",
+   "name": "WaitForRestockEvent"
+  },
+  {
+   "id": "cancel",
+   "type": "interaction-use",
+   "name": "CancelOrderAndRefund"
+  },
+  {
+   "id": "m1",
+   "type": "merge"
+  },
+  {
+   "id": "end",
+   "type": "final"
+  },
+  {
+   "id": "ff",
+   "type": "flow-final"
+  }
+ ],
+ "flows": [
+  {
+   "from": "s",
+   "to": "m0"
+  },
+  {
+   "from": "m0",
+   "to": "q"
+  },
+  {
+   "from": "q",
+   "to": "d1"
+  },
+  {
+   "from": "d1",
+   "to": "single",
+   "guard": "one warehouse has the full quantity"
+  },
+  {
+   "from": "d1",
+   "to": "split",
+   "guard": "quantity available only across several warehouses"
+  },
+  {
+   "from": "d1",
+   "to": "back",
+   "guard": "out of stock everywhere and restock expected within 7 days"
+  },
+  {
+   "from": "d1",
+   "to": "cancel",
+   "guard": "else"
+  },
+  {
+   "from": "split",
+   "to": "p1"
+  },
+  {
+   "from": "split",
+   "to": "p2"
+  },
+  {
+   "from": "p1",
+   "to": "sj"
+  },
+  {
+   "from": "p2",
+   "to": "sj"
+  },
+  {
+   "from": "wait",
+   "to": "m0"
+  },
+  {
+   "from": "single",
+   "to": "m1"
+  },
+  {
+   "from": "sj",
+   "to": "m1"
+  },
+  {
+   "from": "m1",
+   "to": "end"
+  },
+  {
+   "from": "cancel",
+   "to": "ff"
+  },
+  {
+   "from": "back",
+   "to": "wait"
+  }
+ ]
+}

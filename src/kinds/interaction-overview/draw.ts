@@ -77,6 +77,8 @@ function drawNode(canvas: Canvas, entry: OverviewSceneNode): string {
       }
       for (const arrow of f.arrows) {
         parts.push(drawEdge({ id: arrow.id, type: 'message', source: arrow.source, target: arrow.target, points: arrow.points.map(p => ({ x: ox + p.x, y: oy + p.y })), style: arrow.style, sourceMarker: 'none', targetMarker: arrow.marker, triangleSize: theme.size.messageTriangle }));
+        // The label covers the dashed lifelines it crosses (a halo alone leaves them showing between the letters).
+        arrow.rows.forEach((_, k) => parts.push(el('rect', { x: ox + arrow.labelX[k]! - 2, y: oy + arrow.labelTop + k * lh + 2, width: arrow.widths[k]! + 4, height: lh - 4, fill: theme.color.nodeFill })));
         parts.push(canvas.lines(arrow.rows, arrow.labelX.map(x => ox + x), oy + arrow.labelTop + base, lh, { ...FRAGMENT_TEXT, fill: theme.color.edgeText, role: 'text', owner: arrow.id, halo: true }));
       }
       return group(id, node.type, b, parts);

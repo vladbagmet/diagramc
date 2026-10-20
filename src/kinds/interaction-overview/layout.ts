@@ -28,6 +28,8 @@ const REF_PAD_Y = 10, REF_PAD_X = 24, MIN_REF = 150, MAX_REF_NAME = 260;
 const WIDE = 360, SPINE_INSET = 48;
 /** Length of the trunk branches that share a decision vertex run on together. */
 const SPLIT = 14;
+/** Distance between the sideways runs of branches that leave one decision vertex to the same side. */
+const STAGGER = 18;
 
 export interface OverviewSceneNode {
   node: OverviewNode;
@@ -144,7 +146,11 @@ export async function layoutInteractionOverview(model: InteractionOverviewDiagra
     const at = (v: Vertex): Point => v === 'NORTH' ? { x: m.width / 2, y: 0 } : v === 'SOUTH' ? { x: m.width / 2, y: m.height } : v === 'WEST' ? { x: 0, y: m.height / 2 } : { x: m.width, y: m.height / 2 };
     switch (n.type) {
       case 'initial': return [{ id: `${n.id}::SOUTH`, side: 'SOUTH', position: at('SOUTH') }];
-      case 'final': case 'flow-final': return [{ id: `${n.id}::NORTH`, side: 'NORTH', position: at('NORTH') }];
+      case 'final': case 'flow-final': {
+        // Several flows into a final node arrive at different vertices (see assign), never on one shared segment.
+        const used = vertices ? [...new Set([...vertices.entries()].filter(([key]) => key.startsWith(`${n.id}\u0000`)).map(([, v]) => v))] : [];
+        return (used.length ? used : ['NORTH' as const]).map(v => ({ id: `${n.id}::${v}`, side: v, position: at(v) }));
+      }
       case 'decision': case 'merge':
         if (!vertices) return [];
         return [...new Set([...vertices.entries()].filter(([key]) => key.startsWith(`${n.id}\u0000`)).map(([, v]) => v))]
@@ -163,7 +169,7 @@ export async function layoutInteractionOverview(model: InteractionOverviewDiagra
       const id = f[which], n = nodeById.get(id)!;
       switch (n.type) {
         case 'initial': return `${id}::SOUTH`;
-        case 'final': case 'flow-final': return `${id}::NORTH`;
+        case 'final': case 'flow-final': return `${id}::${vertices?.get(`${id}\u0000${f.id}`) ?? 'NORTH'}`;
         case 'fork': case 'join': return `${f.id}::${which === 'from' ? 'out' : 'in'}`;
         case 'decision': case 'merge': {
           const v = vertices?.get(`${id}\u0000${f.id}`);
@@ -182,15 +188,27 @@ export async function layoutInteractionOverview(model: InteractionOverviewDiagra
     return layout(nodes, edges, { direction: 'DOWN' });
   };
 
+  /** Nodes reachable from `start` along forward (not loop-back) flows. */
+  const reachable = (start: string): Set<string> => {
+    const seen = new Set([start]), stack = [start];
+    while (stack.length) for (const f of outs(stack.pop()!)) if (!back.has(f.id) && !seen.has(f.to)) { seen.add(f.to); stack.push(f.to); }
+    return seen;
+  };
+  /** True when the forward path from `start` reaches a loop-back to a node at or above `decision`. */
+  const loopsBack = (start: string, decision: string): boolean => {
+    const ahead = reachable(start);
+    return flows.some(f => back.has(f.id) && ahead.has(f.from) && reachable(f.to).has(decision));
+  };
   // Pass 1 without diamond ports; then choose diamond vertices from where the
   // previous pass put the neighbours, and repeat until the choice is stable.
   const assign = (previous: LayoutResult): Map<string, Vertex> => {
     const vertices = new Map<string, Vertex>();
     const center = (id: string): Point => { const r = previous.nodes.get(id)!; return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; };
     for (const n of model.nodes) {
-      if (n.type !== 'decision' && n.type !== 'merge') continue;
+      const final = (n.type === 'final' || n.type === 'flow-final') && ins(n.id).length > 1;
+      if (n.type !== 'decision' && n.type !== 'merge' && !final) continue;
       const c = center(n.id);
-      const fanIn = n.type === 'merge';
+      const fanIn = n.type === 'merge' || final;
       const many = (fanIn ? ins(n.id) : outs(n.id)).map(f => ({ f, p: center(fanIn ? f.from : f.to) }));
       for (const f of fanIn ? outs(n.id) : ins(n.id)) vertices.set(`${n.id}\u0000${f.id}`, fanIn ? 'SOUTH' : 'NORTH');
       // Loops (back flows) run on the east side, leaving the decision and entering
@@ -205,6 +223,17 @@ export async function layoutInteractionOverview(model: InteractionOverviewDiagra
       const available: Vertex[] = loops.length ? ['WEST', straight] : ['WEST', straight, 'EAST'];
       const sorted = many.filter(({ f }) => !back.has(f.id)).sort((x, y) => x.p.x - y.p.x || many.indexOf(x) - many.indexOf(y));
       const aligned = [...sorted].sort((x, y) => Math.abs(x.p.x - c.x) - Math.abs(y.p.x - c.x))[0];
+      // A branch whose path loops back (to a merge above) goes east, where loops
+      // run: its loop then returns beside the other branches instead of across one.
+      const looping = !fanIn && available.includes('EAST') && sorted.length >= 2 ? sorted.filter(({ f }) => loopsBack(f.to, n.id)) : [];
+      if (looping.length === 1) {
+        const rest = sorted.filter(o => o !== looping[0]);
+        set(looping[0]!.f, 'EAST');
+        if (rest.length === 1) set(rest[0]!.f, straight);
+        else if (rest.length === 2) { set(rest[0]!.f, 'WEST'); set(rest[1]!.f, straight); }
+        else rest.forEach(({ f }, k) => set(f, k === 0 ? 'WEST' : straight));
+        continue;
+      }
       if (sorted.length === 1) set(sorted[0]!.f, straight);
       else if (sorted.length === 3 && available.length === 3 && aligned && Math.abs(aligned.p.x - c.x) < 40) {
         // The branch to a node right below goes straight; the others west and east,
@@ -285,14 +314,25 @@ export async function layoutInteractionOverview(model: InteractionOverviewDiagra
       const parallel = (a: Point, b: Point): boolean => Math.abs((b.x - a.x) * d.y - (b.y - a.y) * d.x) < 0.5 && (b.x - a.x) * d.x + (b.y - a.y) * d.y > 0.5;
       const bus = { x: V.x + d.x * SPLIT, y: V.y + d.y * SPLIT };
       const next = new Map<string, Point[]>(), starts = new Map<string, Point>();
+      // Branches turning to one side leave the trunk one below the other, the
+      // farthest first, so each runs on its own line (no shared run sideways).
+      const side = (p: Point): number => Math.sign((p.x - V.x) * d.y - (p.y - V.y) * d.x);
+      const depth = new Map<string, number>();
+      for (const sign of [-1, 1]) {
+        const turning = group.filter(f => { const t = routes.get(f.id)![2]; return t && side(t) === sign; })
+          .sort((a, b) => off(routes.get(b.id)![2]!) - off(routes.get(a.id)![2]!));
+        turning.forEach((f, k) => depth.set(f.id, SPLIT + k * STAGGER));
+      }
       let ok = true, straight = 0;
       for (const f of group) {
         const r = routes.get(f.id)!;
         if (r.length < 2 || off(r[1]!) > 0.5 || along(r[1]!) < SPLIT + 0.5) { ok = false; break; }
         const turn = r[2], after = r[3];
-        if (turn && after && parallel(turn, after) && along(turn) > SPLIT + 0.5) {
-          const corner = d.x === 0 ? { x: turn.x, y: bus.y } : { x: bus.x, y: turn.y };
-          const route = [V, bus, corner, ...r.slice(3)];
+        const own = depth.get(f.id) ?? SPLIT;
+        if (turn && after && parallel(turn, after) && along(turn) > SPLIT + 0.5 && along(after) > own + 0.5) {
+          const knee = { x: V.x + d.x * own, y: V.y + d.y * own };
+          const corner = d.x === 0 ? { x: turn.x, y: knee.y } : { x: knee.x, y: turn.y };
+          const route = [V, knee, corner, ...r.slice(3)];
           const last = route.length - 2;
           const blocked = route.slice(1).some((q, k) => [...rects].some(([id, rect]) =>
             id !== n.id && !(id === f.to && k === last) && segmentIntersectsRect(route[k]!, q, inflate(rect, 2))));
