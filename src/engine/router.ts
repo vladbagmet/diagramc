@@ -56,8 +56,14 @@ const dirIndex = (d: Point): number => DIRS.findIndex(e => Math.abs(e.x - d.x) <
 
 interface Attach { border: Point; stub: Point; dir: number; cost: number }
 
+/** Index of the side of `r` (in DIRS order: right, bottom, left, top) nearest to a point. */
+function sideIndex(r: Rect, p: Point): number {
+  const d = [Math.abs(p.x - r.x - r.width), Math.abs(p.y - r.y - r.height), Math.abs(p.x - r.x), Math.abs(p.y - r.y)];
+  return d.indexOf(Math.min(...d));
+}
+
 /** Candidate attachment points on a node's sides (or the fixed one), with their stub ends. */
-function attachments(end: RouteEnd, toward: Rect, margin: number): Attach[] {
+function attachments(end: RouteEnd, toward: Rect, margin: number, sameSideOnly = false): Attach[] {
   if (end.fixed) {
     const d = dirIndex(end.fixed.out);
     const u = DIRS[d]!;
@@ -90,7 +96,7 @@ function attachments(end: RouteEnd, toward: Rect, margin: number): Attach[] {
       if (v < lo || v > hi || seen.has(v)) continue;
       seen.add(v);
       const border = along === 'x' ? { x: v, y: d === 1 ? r.y + r.height : r.y } : { x: d === 0 ? r.x + r.width : r.x, y: v };
-      if ((end.occupied ?? []).some(p => distance(p, border) < spacing - 0.01)) continue;
+      if ((end.occupied ?? []).some(p => distance(p, border) < spacing - 0.01 && (!sameSideOnly || sideIndex(r, p) === d))) continue;
       // Prefer the middle of a side a little.
       const cost = Math.abs(v - mid) * 0.05;
       out.push({ border, stub: { x: border.x + u.x * Math.max(end.stub, margin + 2), y: border.y + u.y * Math.max(end.stub, margin + 2) }, dir: d, cost });
@@ -141,8 +147,14 @@ export function routeOrthogonal(request: RouteRequest): Point[] | undefined {
   const margin = request.margin ?? 12;
   const { area } = request;
   const blocked = [...request.obstacles, request.source.rect, request.target.rect].map(r => ({ x: r.x - margin, y: r.y - margin, width: r.width + 2 * margin, height: r.height + 2 * margin }));
-  const starts = attachments(request.source, request.target.rect, margin);
-  const goals = attachments(request.target, request.source.rect, margin);
+  // On a small node (a pseudostate) every point may lie within the spacing of
+  // another side's end: then only ends on the same side count.
+  const ends = (end: RouteEnd, toward: Rect): Attach[] => {
+    const strict = attachments(end, toward, margin);
+    return strict.length ? strict : attachments(end, toward, margin, true);
+  };
+  const starts = ends(request.source, request.target.rect);
+  const goals = ends(request.target, request.source.rect);
   const inside = (p: Point, rects: readonly Rect[]): boolean => rects.some(r => p.x > r.x + 0.01 && p.x < r.x + r.width - 0.01 && p.y > r.y + 0.01 && p.y < r.y + r.height - 0.01);
   // Stubs must be clear of other obstacles.
   const stubClear = (a: Attach, own: Rect): boolean => {

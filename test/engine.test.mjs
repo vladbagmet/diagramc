@@ -495,3 +495,15 @@ test('repairRoutes (lines): extra lines such as region separators are not follow
   const route = repairRoutes(nodes, edges, { force: new Set(['e']), lines: [separator] }).routes.get('e');
   assert.ok(route.slice(1).every((q, k) => !(Math.abs(q.y - 20) < 1 && Math.abs(route[k].y - 20) < 1)), JSON.stringify(route));
 });
+
+test('routeOrthogonal: a small target whose every point is near another end still takes a free side', () => {
+  // A 14 px junction with lines leaving its west and east points: every point of its
+  // outline is closer than the spacing to one of them, but the south side is free.
+  const target = { x: 100, y: 100, width: 14, height: 14 };
+  const source = { x: 60, y: 300, width: 100, height: 40 };
+  const occupied = [{ x: 100, y: 107 }, { x: 114, y: 107 }];
+  const route = routeOrthogonal({ source: { rect: source, stub: 20 }, target: { rect: target, stub: 20, occupied, spacing: 16 }, obstacles: [], lines: [], area: { x: 0, y: 0, width: 300, height: 400 } });
+  assert.ok(route, 'a route');
+  const end = route.at(-1);
+  assert.equal(end.y, 114, JSON.stringify(route));
+});

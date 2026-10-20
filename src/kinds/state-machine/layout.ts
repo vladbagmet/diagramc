@@ -8,7 +8,7 @@ import { planSelfLoops, selfLoopRoute, type SelfLoopPlan } from '../../engine/se
 import { markerLength, repairRoutes, type RepairNode } from '../../engine/repair.js';
 import { measureBox, measureFrameHeading, measureNote, type Compartment, type MeasuredBox } from '../../engine/shapes.js';
 import { wrapText } from '../../engine/text.js';
-import { chooseLayout, countCrossings, LAYOUT_VARIANTS, layoutScore, routesLength, type LayoutMeasure } from '../../engine/aspect.js';
+import { chooseLayout, countCrossings, isDetour, LAYOUT_VARIANTS, layoutScore, routesDetour, routesLength, type LayoutMeasure } from '../../engine/aspect.js';
 import { behaviorLabel, isNote, isState, type ConnectionPoint, type Element, type Note, type State, type StateMachineDiagram, type Vertex } from './model.js';
 
 /** Positioned geometry of a state machine diagram, ready to draw. */
@@ -32,6 +32,10 @@ const LABEL_WIDTH = 200;
 const PAD = 16;
 /** Extra inner room beside entry and exit points. */
 const POINT_ROOM = 16;
+/** Crossings a line through a composite's header counts as in layout scoring. */
+const HEADER_COST = 10;
+/** Size of a choice whose four vertices are all taken and that a note is attached to. */
+const BIG_CHOICE = 42;
 
 /** Compartments of a state: name (with `: submachine`), then entry/do/exit and internal transitions. */
 export function stateCompartments(state: State): Compartment[] {
@@ -71,7 +75,9 @@ export const pseudostateSize = (type: string): { width: number; height: number; 
 export async function layoutStateMachine(model: StateMachineDiagram, metrics: FontMetrics): Promise<StateScene> {
   const measure = (scene: StateScene): LayoutMeasure => {
     const lines = scene.edges.filter(e => e.type === 'transition').map(e => e.points);
-    return { width: scene.width, height: scene.height, crossings: countCrossings(lines), edgeLength: routesLength(lines) };
+    // A line through a composite's name compartment counts like several crossings (gate edge-endpoints).
+    const headerHits = lines.reduce((sum, r) => sum + scene.composites.filter(c => r.slice(1).some((q, k) => segmentIntersectsRect(r[k]!, q, inflate({ ...c.bounds, height: c.header.height }, -1)))).length, 0);
+    return { width: scene.width, height: scene.height, crossings: countCrossings(lines) + HEADER_COST * headerHits, edgeLength: routesLength(lines), detour: routesDetour(lines) };
   };
   const hasRegions = (elements: readonly Element[]): boolean => elements.some(e => isState(e) && !!e.regions && (e.regions.length > 1 || e.regions[0]!.name !== undefined || hasRegions(e.regions[0]!.elements)));
   const modes: RegionMode[] = hasRegions(model.elements) ? ['along', 'across'] : ['along'];
@@ -410,7 +416,12 @@ async function layoutOnce(model: StateMachineDiagram, metrics: FontMetrics, dir:
       const length = Math.max(size.width, 44 * degree);
       return { id: e.id, width: down ? length : size.height, height: down ? size.height : length };
     }
-    return { id: e.id, width: size.width, height: size.height, fixedSize: true, ...withPorts };
+    // A choice with more lines than vertices (a note's dashed line among them) grows,
+    // so the dashed line can end on an edge between two vertices, clear of both.
+    const degree = transitions.filter(t => t.from !== t.to && (t.from === e.id || t.to === e.id)).length;
+    const annotated = [...vertices.values()].some(v => isNote(v.element) && (v.element.attachedTo ?? []).includes(e.id));
+    const side = e.type === 'choice' && annotated && degree >= 4 ? BIG_CHOICE : size.width;
+    return { id: e.id, width: side, height: e.type === 'choice' ? side : size.height, fixedSize: true, ...withPorts };
   };
   const nodes = inside('::root', model.elements).map(toNode);
 
@@ -589,6 +600,26 @@ async function layoutOnce(model: StateMachineDiagram, metrics: FontMetrics, dir:
     route = clipRoute(route, 'target', boundsOf(a.target), shapeOf(a.target));
     sceneEdges.push({ id: a.id, type: 'note-anchor', source: a.note, target: a.target, points: route });
   }
+  // A note's dashed line that ends on the vertex of a pseudostate where a transition
+  // ends too would run on top of it: it moves to the middle of the neighbouring edge
+  // on the note's side.
+  for (const e of sceneEdges) {
+    if (e.type !== 'note-anchor' || shapeOf(e.target) === 'rect' || points.has(e.target)) continue;
+    const end = e.points.at(-1)!, prev = e.points.at(-2)!;
+    if (!sceneEdges.some(o => o !== e && o.type === 'transition' && [o.points[0]!, o.points.at(-1)!].some(p => Math.hypot(p.x - end.x, p.y - end.y) < 1))) continue;
+    const r = boundsOf(e.target), note = rect(e.source);
+    const vertical = Math.abs(prev.x - end.x) < 0.5;
+    const axis = vertical ? 'x' as const : 'y' as const;
+    const c = r[axis] + (vertical ? r.width : r.height) / 2, toward = (note[axis] + (vertical ? note.width : note.height) / 2) < c ? -1 : 1;
+    const d = toward * (vertical ? r.width : r.height) / 4;
+    const route = e.points.map(p => ({ ...p }));
+    route[route.length - 1]![axis] += d;
+    if (route.length === 2) {
+      route[0]![axis] += d;
+      if (route[0]![axis] < note[axis] + 2 || route[0]![axis] > note[axis] + (vertical ? note.width : note.height) - 2) continue;
+    } else route[route.length - 2]![axis] += d;
+    e.points = clipRoute(simplify(route), 'target', r, shapeOf(e.target));
+  }
 
   // Shared route repair (src/engine/repair.ts): lines over composite headers or
   // through states, detours, crowded ends, arrowheads on short end segments.
@@ -701,8 +732,14 @@ async function layoutOnce(model: StateMachineDiagram, metrics: FontMetrics, dir:
   const solid = [...vertices.keys()].filter(id => !headers.has(id)).map(rect);
   for (const [id, h] of headers) solid.push({ ...rect(id), height: h.height });
   for (const id of points.keys()) solid.push(pointRect(id));
+  // As in label placement below: region names are in the way, and a label never straddles a composite's border.
+  for (const n of repairNodes) if (n.id.includes('::region')) solid.push(...n.texts ?? []);
+  const borders: [Point, Point][] = [...headers.keys()].flatMap(id => {
+    const r = rect(id), k = [{ x: r.x, y: r.y }, { x: r.x + r.width, y: r.y }, { x: r.x + r.width, y: r.y + r.height }, { x: r.x, y: r.y + r.height }];
+    return k.map((p, i) => [p, k[(i + 1) % 4]!] as [Point, Point]);
+  });
   const fitting = (): number => {
-    const segments: [Point, Point][] = sceneEdges.flatMap(o => o.points.slice(1).map((q, k) => [o.points[k]!, q] as [Point, Point]));
+    const segments: [Point, Point][] = [...borders, ...sceneEdges.flatMap(o => o.points.slice(1).map((q, k) => [o.points[k]!, q] as [Point, Point]))];
     const all = sceneEdges.map(o => ({ owner: o.id, points: o.points }));
     return sceneEdges.filter(o => {
       const l = labelOf.get(o.id);
@@ -729,6 +766,41 @@ async function layoutOnce(model: StateMachineDiagram, metrics: FontMetrics, dir:
       tryRoute(e, next);
     }
   }
+  // A transition label without a clean spot: the room beside the middle of its
+  // longest segment is kept free, and the lines running through that room are
+  // routed again around it; kept only when more labels fit and no crossing is added.
+  for (const e of polish ? sceneEdges : []) {
+    const l = labelOf.get(e.id);
+    if (!l || e.source === e.target || e.type !== 'transition') continue;
+    const width = Math.max(...l.widths) + 4, height = l.lines.length * lineHeight;
+    const lineSegments: [Point, Point][] = [...borders, ...sceneEdges.flatMap(o => o.points.slice(1).map((q, k) => [o.points[k]!, q] as [Point, Point]))];
+    const fitsNow = labelFits({ id: e.id, owner: e.id, width, height, route: e.points, at: 'center' }, { rects: solid, segments: lineSegments, lines: sceneEdges.map(o => ({ owner: o.id, points: o.points })) });
+    if (fitsNow) continue;
+    const k = e.points.slice(1).reduce((best, q, i) => Math.hypot(q.x - e.points[i]!.x, q.y - e.points[i]!.y) > Math.hypot(e.points[best + 1]!.x - e.points[best]!.x, e.points[best + 1]!.y - e.points[best]!.y) ? i : best, 0);
+    const a = e.points[k]!, b = e.points[k + 1]!, m = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+    const vertical = Math.abs(a.x - b.x) < Math.abs(a.y - b.y);
+    const rooms: Rect[] = vertical
+      ? [{ x: m.x + 4, y: m.y - height / 2, width, height }, { x: m.x - 4 - width, y: m.y - height / 2, width, height }]
+      : [{ x: m.x - width / 2, y: m.y - 4 - height, width, height }, { x: m.x - width / 2, y: m.y + 4, width, height }];
+    for (const room of rooms) {
+      // Twice the label's distance from its own line is the room another line must leave (gate label-proximity).
+      const reach = inflate(room, 12);
+      const through = new Set(sceneEdges.filter(o => o !== e && o.source !== o.target && !pinned(o.source) && !pinned(o.target) && o.points.slice(1).some((q, i) => segmentIntersectsRect(o.points[i]!, q, reach))).map(o => o.id));
+      if (!through.size || through.size > 2) continue;
+      const before = { routes: sceneEdges.map(o => o.points), fitting: fitting(), crossings: countCrossings(sceneEdges.filter(o => o.type === 'transition').map(o => o.points)) };
+      const nodesWithRoom: RepairNode[] = [...repairNodes, { id: '::label-room', rect: reach }];
+      const retry = repairRoutes(nodesWithRoom, repairEdges(), { spacing: theme.spacing.edgeEdge, force: through, keep: new Set(sceneEdges.filter(o => !through.has(o.id)).map(o => o.id)), shorten: false });
+      if ([...through].some(id => !retry.changed.has(id))) continue;
+      for (const o of sceneEdges) if (through.has(o.id)) o.points = clipEnds(o, retry.routes.get(o.id)!);
+      const crossings = countCrossings(sceneEdges.filter(o => o.type === 'transition').map(o => o.points));
+      if (fitting() > before.fitting && crossings <= before.crossings && !sceneEdges.some(o => through.has(o.id) && isDetour(o.points))) {
+        for (const id of through) repaired.changed.add(id);
+        break;
+      }
+      sceneEdges.forEach((o, i) => { o.points = before.routes[i]!; });
+    }
+  }
+
   // A Z-shaped transition between two states whose facing sides overlap becomes
   // one straight line (ELK's balanced node placement leaves such jogs in chains);
   // so does one between a state and a pseudostate in line with it (its end stays
@@ -882,39 +954,28 @@ function selfLoopLabel(route: readonly Point[], width: number, height: number): 
 
 /**
  * ELK routes transitions that enter a composite state from outside through its
- * top padding, which holds the name and behaviors. A vertical segment that would
- * cross those texts takes a detour through the nearest free column of the header
- * (above the state, across the header, back below it), or around the state's
- * side when the texts fill the header.
+ * top padding, which holds the name and behaviors. The whole header band is closed
+ * to lines (gate edge-endpoints), so a vertical segment through it takes a detour
+ * around the state's side (above the state, beside it, back below the header).
  */
 function avoidHeaders(route: Point[], composites: { id: string; bounds: Rect; box: MeasuredBox }[], used: Map<string, number>): Point[] {
   let points = route.map(p => ({ ...p }));
-  const { padX } = theme.spacing;
   for (const { id, bounds: c, box } of composites) {
-    const blocked: [number, number][] = [];
-    for (const comp of box.compartments) for (const line of comp.lines) for (const w of line.widths) {
-      const x0 = line.align === 'center' ? c.x + (c.width - w) / 2 : c.x + padX;
-      blocked.push([x0 - 6, x0 + w + 6]);
-    }
     const band = { x: c.x, y: c.y, width: c.width, height: box.height };
-    const lo = c.x + theme.size.state.radius + 6, hi = c.x + c.width - theme.size.state.radius - 6;
-    const free = (x: number): boolean => x >= lo && x <= hi && !blocked.some(([l, r]) => x > l + 0.01 && x < r - 0.01);
     for (let k = 1; k < points.length; k++) {
       const a = points[k - 1]!, b = points[k]!;
-      if (Math.abs(a.x - b.x) > 0.01 || free(a.x) || !segmentIntersectsRect(a, b, inflate(band, -0.5))) continue;
-      // A free column of the header, or else just outside the state's side border.
-      const inside = [lo, hi, ...blocked.flat()].filter(free);
+      if (Math.abs(a.x - b.x) > 0.01 || !segmentIntersectsRect(a, b, inflate(band, -0.5))) continue;
       // Each detour around a state gets its own lane, so detours never share a line.
       const lane = used.get(id) ?? 0;
       used.set(id, lane + 1);
       const gap = theme.spacing.edgeEdge;
-      const columns = inside.length ? inside : [c.x - gap * (lane + 1), c.x + c.width + gap * (lane + 1)];
+      const columns = [c.x - gap * (lane + 1), c.x + c.width + gap * (lane + 1)];
       // Prefer the side the route comes from.
       const prev = points[k - 2];
       const from = prev && Math.abs(prev.y - a.y) < 0.01 ? prev.x : a.x;
       const outside = from < c.x - gap / 2 || from > c.x + c.width + gap / 2;
       // Already coming from beside the state: keep that column instead of a new one.
-      const x = !inside.length && outside ? from : columns.sort((p, q) => Math.abs(p - from) - Math.abs(q - from))[0];
+      const x = outside ? from : columns.sort((p, q) => Math.abs(p - from) - Math.abs(q - from))[0];
       if (x === undefined) continue;
       const above = c.y - 8 - lane * gap / 2, below = c.y + band.height + 8 + lane * gap / 2;
       const [y1, y2] = a.y < b.y ? [above, below] : [below, above];
@@ -1042,20 +1103,10 @@ function alignBars(ctx: BarContext): void {
     for (let p = byId.get(id)?.parent; p !== undefined && !out.has(p); p = byId.get(p)?.parent) out.add(p);
     return out;
   };
-  // The texts a line may not cross: each line of a composite's name compartment
-  // and behaviors (not the whole header band), and region names.
+  // The areas a line may not cross: the whole header band of a composite (its name
+  // compartment and behaviors, gate edge-endpoints), and region names.
   const texts: Rect[] = [];
-  for (const [id, box] of ctx.headers) {
-    const r = rect(id);
-    let y = r.y;
-    for (const comp of box.compartments) {
-      for (const line of comp.lines) for (const w of line.widths) {
-        const x0 = line.align === 'center' ? r.x + (r.width - w) / 2 : r.x + theme.spacing.padX;
-        texts.push({ x: x0 - 8, y, width: w + 16, height: comp.height });
-      }
-      y += comp.height;
-    }
-  }
+  for (const [id, box] of ctx.headers) texts.push({ ...rect(id), height: box.height + 2 });
   for (const n of ctx.repairNodes) if (n.id.includes('::region')) texts.push(...n.texts ?? []);
   const transitionLines = () => ctx.sceneEdges.filter(e => e.type === 'transition').map(e => e.points);
   const minStem = markerLength('open-arrow') + 10;
@@ -1082,7 +1133,86 @@ function alignBars(ctx: BarContext): void {
     const places = [bar[F]];
     const near = fork ? nearest - stem - bar[FS] : nearest + stem;
     if (fork ? near > bar[F] + 1 : near < bar[F] - 1) places.push(near);
-    for (const place of places) if (tryBar(id, fork, bar, place, branches, ends, feeds, faceOf)) break;
+    if (places.some(place => tryBar(id, fork, bar, place, branches, ends, feeds, faceOf))) continue;
+    for (const side of fork ? [-1, 1] : [1, -1]) if (trySideBar(id, fork, bar, side, branches, ends, feeds)) break;
+  }
+
+  /**
+   * Branches that would run through the header of a composite holding all their
+   * vertices (orthogonal regions one after the other) enter it from the side
+   * instead: the bar turns along the layout direction and stands beside the
+   * composite (`side` -1 before it, 1 after it across the direction), each branch
+   * one straight line across to the side of its vertex that faces the bar.
+   */
+  function trySideBar(id: string, fork: boolean, bar: Rect, side: number, branches: StateScene['edges'], ends: string[], feeds: StateScene['edges']): boolean {
+    const barAncestors = ancestors(id);
+    const holders = ends.map(o => new Set([...ancestors(o)].filter(a => !barAncestors.has(a) && ctx.headers.has(a))));
+    const common = [...holders[0]!].filter(a => holders.every(h => h.has(a)));
+    if (!common.length) return false;
+    // The outermost such composite.
+    const comp = common.find(a => common.every(b => b === a || ancestors(b).has(a)))!;
+    const K = rect(comp), header = ctx.headers.get(comp)!;
+    const thickness = bar[down ? 'height' : 'width'];
+    const gap = Math.max(minStem, 28);
+    const barC = side < 0 ? K[C] - gap - thickness : K[C] + K[CS] + gap;
+    const barFace = side < 0 ? barC + thickness : barC;
+    // Vertices in order along the direction, each line at the middle of its vertex if free.
+    const order = ends.map((o, k) => ({ o, k })).sort((a, b) => rect(a.o)[F] - rect(b.o)[F]);
+    const positions = new Array<number>(ends.length);
+    const chosen: number[] = [];
+    const others = ctx.sceneEdges.filter(e => !branches.includes(e));
+    for (const { o, k } of order) {
+      const r = rect(o), mid = r[F] + r[FS] / 2;
+      const inset = ctx.shapeOf(o) === 'rect' ? theme.size.state.radius + 6 : r[FS] / 2;
+      const face = side < 0 ? r[C] : r[C] + r[CS];
+      const related = new Set([o, id, comp, ...ancestors(o), ...barAncestors]);
+      // Other regions too: a branch never cuts through a sibling region.
+      const blockers = [...ctx.repairNodes.filter(n => !related.has(n.id)).map(n => inflate(n.rect, n.container ? 0 : 4)), ...texts];
+      const occupied = others.flatMap(e => [...(e.source === o ? [e.points[0]!] : []), ...(e.target === o ? [e.points.at(-1)!] : [])]);
+      const candidates: number[] = [mid];
+      for (let d = 4; d <= r[FS] / 2 - inset + 0.01; d += 4) candidates.push(mid - d, mid + d);
+      const found = candidates.find(f => {
+        if (f < r[F] + inset - 0.01 || f > r[F] + r[FS] - inset + 0.01) return false;
+        if (f < K[F] + header.height + 8) return false;
+        if (chosen.some(x => Math.abs(x - f) < theme.spacing.edgeEdge + 4)) return false;
+        const p = at(barFace, f), q = at(face, f);
+        if (blockers.some(b => segmentIntersectsRect(p, q, inflate(b, -1)))) return false;
+        return !occupied.some(e => Math.hypot(e.x - q.x, e.y - q.y) < 2 * theme.size.arrow.halfWidth + 6);
+      });
+      if (found === undefined) return false;
+      chosen.push(found);
+      positions[k] = found;
+    }
+    const margin = 12;
+    const lo = Math.min(...positions) - margin, hi = Math.max(...positions) + margin;
+    const grown: Rect = down ? { x: barC, y: lo, width: thickness, height: hi - lo } : { x: lo, y: barC, width: hi - lo, height: thickness };
+    const related = new Set([id, ...barAncestors]);
+    if (ctx.repairNodes.some(n => !related.has(n.id) && !n.container && overlapArea(inflate(grown, 8), n.rect) > 0)) return false;
+    if (ctx.repairNodes.some(n => !related.has(n.id) && n.container && overlapArea(grown, n.rect) > 0)) return false;
+    // Inside the containers that hold the bar, clear of their texts.
+    if ([...barAncestors].some(a => { const r = byId.get(a)?.rect; return r && overlapArea(grown, inflate(r, -8)) < grown.width * grown.height - 0.01; })) return false;
+    if (texts.some(t => overlapArea(inflate(grown, 6), t) > 0)) return false;
+    const before = { routes: ctx.sceneEdges.map(e => e.points), crossings: countCrossings(transitionLines()) };
+    ctx.setRect(id, grown);
+    branches.forEach((e, k) => {
+      const f = positions[k]!, o = rect(ends[k]!), face = side < 0 ? o[C] : o[C] + o[CS];
+      e.points = fork ? [at(barFace, f), at(face, f)] : [at(face, f), at(barFace, f)];
+    });
+    const lines = branches.map(e => e.points);
+    const touchesBar = (e: StateScene['edges'][number], by: number): boolean => e.source !== id && e.target !== id && e.points.slice(1).some((q, k) => segmentIntersectsRect(e.points[k]!, q, inflate(grown, by)));
+    const conflicts = new Set<string>(feeds.map(e => e.id));
+    for (const e of others) if (touchesBar(e, theme.spacing.edgeEdge) || lines.some(l => countCrossings([l, e.points]) > 0)) conflicts.add(e.id);
+    const again = ctx.reroute(conflicts);
+    for (const e of ctx.sceneEdges) if (conflicts.has(e.id) && again.changed.has(e.id)) e.points = ctx.clipEnds(e, again.routes.get(e.id)!);
+    const lost = feeds.some(e => !again.changed.has(e.id));
+    if (lost || others.some(e => touchesBar(e, 6)) || countCrossings(transitionLines()) > before.crossings + 1) {
+      ctx.sceneEdges.forEach((e, k) => { e.points = before.routes[k]!; });
+      ctx.setRect(id, bar);
+      return false;
+    }
+    for (const e of branches) ctx.changed.add(e.id);
+    for (const e of conflicts) ctx.changed.add(e);
+    return true;
   }
 
   function tryBar(id: string, fork: boolean, bar: Rect, place: number, branches: StateScene['edges'], ends: string[], feeds: StateScene['edges'], faceOf: (o: Rect) => number): boolean {

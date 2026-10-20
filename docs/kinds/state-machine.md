@@ -96,14 +96,22 @@ the edge-endpoints gate reads `data-uml-shape`), pseudostates keep their size
   to an exit point on the far side) cross it inside the composite, keeping clear of
   the dashed separators instead of following them.
 - Fork and join bars: each branch is one straight line from the bar to the facing
-  side of its vertex (into the regions of a composite from above, in region order),
-  and the bar spans its branches. When something beside the bar is in the way, the
-  bar moves next to the composite of its vertices; lines the bar or the branches
-  would cross are rerouted, and the change is dropped if it adds a crossing.
+  side of its vertex, and the bar spans its branches. When something beside the bar
+  is in the way, the bar moves next to the composite of its vertices; lines the bar
+  or the branches would cross are rerouted, and the change is dropped if it adds a
+  crossing. No line crosses a composite's header band, so branches into its regions
+  do not come from above: the regions stack one after the other and the bar stands
+  beside the composite, turned along the flow, each branch running straight across
+  into its region (layout scoring counts a line through a header like ten crossings,
+  so this arrangement wins).
+- A choice with all four vertices taken and a note attached is drawn larger, and the
+  note's dashed line ends on the middle of an edge, clear of the vertices.
+- A transition label without a clean spot gets room: the lines running through the
+  space beside its line are routed around it, kept only if more labels fit.
 - A note on several vertices is laid out after the first of them along the flow, so
   its dashed lines stay short.
-- Transitions from outside into a nested vertex enter the composite through its top;
-  when the composite's name fills the header they detour around its side.
+- Transitions from outside into a nested vertex never pass through the composite's
+  header band: they detour around its side and enter below the header.
 - Routes go through the shared repair pass (src/engine/repair.ts): lines over a
   composite's header, detours, crowded ends and arrowheads on short end segments
   are rerouted. The line-over-container-texts check now covers every container.
