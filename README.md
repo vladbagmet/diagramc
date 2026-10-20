@@ -49,7 +49,9 @@ against a pinned SHA-256, and unpacks them into the package's own `.tools/`
 directory. It runs on macOS and Linux, arm64 and x64 (Linux needs glibc and
 `tar`), changes nothing system-wide, and repairs an interrupted or broken
 install when run again. After that, rendering is offline. `uml --help` prints
-the exact setup command for the installed copy. To use a separately managed,
+the exact setup command for the installed copy. The runtime lives inside the
+installed package, so after npm replaces the package (an upgrade, a clean
+install) run the setup again; `RENDERER_MISSING` says so. To use a separately managed,
 trusted Java and PlantUML jar instead, set both `UML_JAVA` and `PLANTUML_JAR`.
 
 ### Fonts
