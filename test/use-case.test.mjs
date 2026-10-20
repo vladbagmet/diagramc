@@ -4,7 +4,7 @@ import { readFile, readdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { parseDocument } from '../dist/model/parse.js';
 import { renderToSvg } from '../dist/render.js';
-import { inspectSvg } from '../dist/qa/index.js';
+import { inspectSvg, runGates } from '../dist/qa/index.js';
 import { distanceToEllipse } from '../dist/engine/geometry.js';
 import { assertGates, cli, root, workspace } from './helpers.mjs';
 
@@ -151,6 +151,24 @@ test('use case: hostile text stays literal in every slot and creates no active S
 });
 
 const regression = name => readFile(join(root, 'test/fixtures/regression', name), 'utf8');
+
+test('use case gate: lines running on top of each other fail use-case-lines, a fan from one point does not', () => {
+  const node = (id, type, x, y, w, h, parent) => ({ id, type, bounds: { x, y, width: w, height: h }, ...(parent ? { parent } : {}) });
+  const edge = (id, target, points) => ({ id, type: 'association', source: 'a', target, points, sourceMarker: 'none', targetMarker: 'none' });
+  const scene = edges => ({
+    renderer: 'engine', kind: 'use-case', viewBox: { x: 0, y: 0, width: 1000, height: 600 }, markers: [], arrows: [], texts: [], extents: [], unsafe: [],
+    nodes: [node('a', 'actor', 10, 100, 30, 60), node('u1', 'useCase', 800, 50, 120, 40), node('u2', 'useCase', 800, 300, 120, 40)], edges,
+  });
+  const verdict = edges => runGates(scene(edges)).gates.find(g => g.gate === 'use-case-lines');
+  // Two lines sharing a trunk to a bend at (600, 130), then fanning out (the old hospital stress drawing).
+  const trunk = verdict([edge('e1', 'u1', [{ x: 40, y: 130 }, { x: 600, y: 131 }, { x: 800, y: 70 }]), edge('e2', 'u2', [{ x: 40, y: 130 }, { x: 600, y: 132 }, { x: 800, y: 320 }])]);
+  assert.equal(trunk.ok, false);
+  assert.match(trunk.failures[0], /e1 and e2 run within 2px/);
+  // Straight lines from one point to the two use cases.
+  assert.equal(verdict([edge('e1', 'u1', [{ x: 40, y: 130 }, { x: 800, y: 70 }]), edge('e2', 'u2', [{ x: 40, y: 130 }, { x: 800, y: 320 }])]).ok, true);
+  // Only use case drawings are judged.
+  assert.equal(runGates({ ...scene([edge('e1', 'u1', [{ x: 40, y: 130 }, { x: 600, y: 131 }]), edge('e2', 'u2', [{ x: 40, y: 130 }, { x: 600, y: 132 }])]), kind: 'class' }).gates.find(g => g.gate === 'use-case-lines').ok, true);
+});
 
 test('use case layout: actors stand beside the subject they mostly use; no line runs along an unrelated subject', async () => {
   const scene = await inspectSvg(await svgOf(await readFile(join(root, 'examples/use-case/stress.json'), 'utf8')));
