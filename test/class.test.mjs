@@ -94,10 +94,10 @@ test('self-associations stay inside the canvas with labels inside their loop', a
   const node = scene.nodes[0].bounds;
   const right = node.x + node.width, bottom = node.y + node.height;
   const [first, second, third] = scene.edges;
-  // Top-right corner, bottom-right corner, then the right side between them.
+  // Top-right corner, bottom-right corner, then the top-left corner (F-A-07: a third loop does not stretch the box).
   assert.ok(first.points[0].y === node.y && first.points.at(-1).x === right, 'first loop on the top-right corner');
   assert.ok(second.points[0].x === right && second.points.at(-1).y === bottom, 'second loop on the bottom-right corner');
-  assert.ok(third.points[0].x === right && third.points.at(-1).x === right, 'third loop on the right side');
+  assert.ok(third.points[0].y === node.y && third.points.at(-1).x === node.x, 'third loop on the top-left corner');
   // Labels of a loop's ends sit inside the loop's bounding box.
   for (const label of scene.texts.filter(t => t.end)) {
     const loop = scene.edges.find(e => e.id === label.owner);
@@ -142,4 +142,37 @@ test('the published schema describes the v2 contract', async () => {
   assert.ok(schema.definitions.element.oneOf.length === 6);
   assert.deepEqual(schema.definitions.relationship.oneOf.map(b => b.properties.type.const),
     ['generalization', 'realization', 'association', 'aggregation', 'composition', 'dependency', 'containment']);
+});
+
+test('validation hints: a swapped composition names the swap with its ends; references never suggest a note', () => {
+  const errorOf = doc => { try { parseDocument(JSON.stringify(doc)); } catch (error) { return error; } assert.fail('expected a validation error'); };
+  const swapped = errorOf({ kind: 'class', elements: [{ id: 'order', type: 'class', name: 'Order' }, { id: 'line', type: 'class', name: 'OrderLine' }], relationships: [{ type: 'composition', from: 'line', to: 'order', fromEnd: { multiplicity: '1..*' }, toEnd: { multiplicity: '1' } }] });
+  assert.equal(swapped.code, 'INVALID_COMPOSITION');
+  assert.match(swapped.message, /look swapped.*"fromEnd" and "toEnd" exchanged/);
+  assert.deepEqual(swapped.diagnostics[0].details.swap, { from: 'order', to: 'line', fromEnd: { multiplicity: '1' }, toEnd: { multiplicity: '1..*' } });
+  for (const kind of ['class', 'object']) {
+    const type = kind === 'class' ? 'class' : 'instance', link = kind === 'class' ? 'association' : 'link';
+    const error = errorOf({ kind, elements: [{ id: 'a', type, name: 'a' }, { id: 'b', type, name: 'b' }, { id: 'n1', type: 'note', text: 'note', attachedTo: ['a'] }], relationships: [{ type: link, from: 'a', to: 'n2' }] });
+    assert.equal(error.code, 'MISSING_REFERENCE');
+    assert.doesNotMatch(error.message, /"n1"/, `${kind}: a note is not a valid link end`);
+    assert.equal(error.diagnostics[0].details?.suggestion, undefined);
+  }
+});
+
+test('layout: a subclass sits right under its superclass even when an association points into it (F-A-08)', async () => {
+  const { svg } = await assertGates(await readFile(join(root, 'test/fixtures/regression/class-final-hotel.json'), 'utf8'));
+  const scene = await inspectSvg(svg);
+  const box = id => scene.nodes.find(n => n.id === id).bounds;
+  const person = box('person');
+  for (const sub of ['staff', 'guest']) assert.ok(box(sub).y - (person.y + person.height) < 300, `${sub} is ${box(sub).y - person.y - person.height}px below Person`);
+});
+
+test('layout: an ordinary model gets short, direct lines, not a wrapped layout with lines round the drawing (F-A-01)', async () => {
+  const { svg } = await assertGates(await readFile(join(root, 'test/fixtures/regression/class-library.json'), 'utf8'));
+  const scene = await inspectSvg(svg);
+  for (const e of scene.edges) {
+    const length = e.points.slice(1).reduce((s, q, k) => s + Math.hypot(q.x - e.points[k].x, q.y - e.points[k].y), 0);
+    const a = e.points[0], b = e.points.at(-1);
+    assert.ok(length <= Math.abs(a.x - b.x) + Math.abs(a.y - b.y) + 200, `${e.id} runs ${length.toFixed(0)}px`);
+  }
 });

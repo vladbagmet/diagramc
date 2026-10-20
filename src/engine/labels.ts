@@ -31,9 +31,10 @@ export interface LabelRequest {
    */
   candidates?: readonly Rect[];
   /**
-   * Center labels: the edge the label names. With `Obstacles.lines`, a spot that is
-   * as near to another line as to this one is avoided (the reader could not tell
-   * which line the label names), and so is a spot far from this line.
+   * The edge the label belongs to. With `Obstacles.lines`, a spot where another
+   * line is less than twice as far as this one is avoided (the reader could not
+   * tell which line the label names); center labels also avoid spots far from
+   * their line.
    */
   owner?: string;
 }
@@ -49,6 +50,12 @@ export interface Obstacles {
 
 /** Gap kept between a label and any node or marker (the QA gate's clearance). */
 export const LABEL_CLEARANCE = 3;
+/** Another line must be at least this many times as far from a label as its own line (the gate's LABEL_RIVAL_FACTOR). */
+const RIVAL_FACTOR = 2;
+/** Extra room for the difference between a label's box and its drawn glyphs, which the gate measures. */
+const RIVAL_MARGIN = 9;
+/** Cost of a spot that is acceptable but not clean (below 1: labelFits still accepts it). */
+const SOFT = 0.5;
 /** A center label farther than this from its line starts to read as loose. */
 const CENTER_NEAR = 10;
 
@@ -174,11 +181,16 @@ export function labelCost(rect: Rect, obstacles: Obstacles, placed: readonly Rec
     const own = distanceToRect(anchor, rect);
     for (const end of obstacles.ends) if (distance(end, anchor) > 1 && distanceToRect(end, rect) < own - 2) total += 300;
   }
-  if (request.at === 'center' && request.owner !== undefined && obstacles.lines && !request.candidates) {
-    const others = obstacles.lines.filter(l => l.owner !== request.owner).map(l => l.points);
+  if (request.owner !== undefined && obstacles.lines && !request.candidates) {
+    // Every other line at least twice as far as the own line (gate label-proximity);
+    // at an end, lines that end at the same point do not compete.
+    const end = request.at === 'source' ? request.route[0] : request.at === 'target' ? request.route.at(-1) : undefined;
+    const others = obstacles.lines.filter(l => l.owner !== request.owner && !(end && [l.points[0]!, l.points.at(-1)!].some(p => distance(p, end) < 0.5))).map(l => l.points);
     const d = labelLineDistances(rect, request.route, others);
-    if (d.own > CENTER_NEAR) total += (d.own - CENTER_NEAR) * 20;
-    if (d.other < d.own + 4) total += 250;
+    if (request.at === 'center' && d.own > CENTER_NEAR) total += (d.own - CENTER_NEAR) * 20;
+    if (d.other < Math.max(d.own + 4, RIVAL_FACTOR * d.own + 3)) total += 250;
+    // Within reach of the gate's limit once the drawn glyphs are measured: acceptable, but worse than a clear spot.
+    else if (d.other < RIVAL_FACTOR * d.own + RIVAL_MARGIN) total += SOFT;
   }
   const padded = inflate(rect, LABEL_CLEARANCE);
   for (const r of obstacles.rects) total += overlapArea(padded, r) * 10;
@@ -192,7 +204,7 @@ export function labelCost(rect: Rect, obstacles: Obstacles, placed: readonly Rec
 export function labelFits(request: LabelRequest, obstacles: Obstacles): boolean {
   const candidates = request.candidates ?? (request.at === 'center' ? centerCandidates(request) : endCandidates(request));
   const anchor = request.at === 'source' ? request.route[0] : request.at === 'target' ? request.route.at(-1) : undefined;
-  return candidates.some(c => labelCost(c, obstacles, [], anchor, request) === 0);
+  return candidates.some(c => labelCost(c, obstacles, [], anchor, request) < 1);
 }
 
 /** Places labels in order; earlier labels get the better spots. */
@@ -205,7 +217,7 @@ export function placeLabels(requests: readonly LabelRequest[], obstacles: Obstac
       if (bestCost === 0) return;
       const anchor = request.at === 'source' ? request.route[0] : request.at === 'target' ? request.route.at(-1) : undefined;
       const base = labelCost(candidate, obstacles, [...placed.values()], anchor, request);
-      const c = base ? base + index * 0.01 : 0;
+      const c = base ? base + index * 0.001 : 0;
       if (c < bestCost) { best = candidate; bestCost = c; }
     });
     if (best) placed.set(request.id, best);

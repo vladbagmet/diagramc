@@ -67,6 +67,10 @@ export interface LayoutNode {
   /** Free space to keep above and below the node at its right end (self-loops on its corners). */
   reserveAbove?: { width: number; height: number } | undefined;
   reserveBelow?: { width: number; height: number } | undefined;
+  /** The same on the left: free space left of the node, above and below its left end (mirrored self-loops). */
+  reserveLeft?: number;
+  reserveAboveLeft?: { width: number; height: number } | undefined;
+  reserveBelowLeft?: { width: number; height: number } | undefined;
   /**
    * Room to keep free below the node for a caption drawn under it (an actor's
    * name): a centered box of this size directly under the node.
@@ -161,7 +165,10 @@ export async function layout(nodes: readonly LayoutNode[], edges: readonly Layou
     }) } : {}),
     // An invisible outside label reserves room right of the node. Its text must not
     // be empty: ELK ignores empty labels when computing node margins.
-    ...(node.reserveRight || node.reserveTop || node.labelBelow || node.reserveAbove || node.reserveBelow ? { labels: [
+    ...(node.reserveRight || node.reserveTop || node.labelBelow || node.reserveAbove || node.reserveBelow || node.reserveLeft ? { labels: [
+      ...(node.reserveAboveLeft ? [{ id: `${node.id}::reserve-above-left`, text: 'reserved', width: node.reserveAboveLeft.width, height: node.reserveAboveLeft.height, layoutOptions: { 'elk.nodeLabels.placement': '[OUTSIDE, H_LEFT, V_TOP]' } }] : []),
+      ...(node.reserveBelowLeft ? [{ id: `${node.id}::reserve-below-left`, text: 'reserved', width: node.reserveBelowLeft.width, height: node.reserveBelowLeft.height, layoutOptions: { 'elk.nodeLabels.placement': '[OUTSIDE, H_LEFT, V_BOTTOM]' } }] : []),
+      ...(node.reserveLeft ? [{ id: `${node.id}::reserve-left`, text: 'reserved', width: node.reserveLeft, height: Math.max(1, node.height - 2), layoutOptions: { 'elk.nodeLabels.placement': '[OUTSIDE, H_LEFT, V_CENTER]' } }] : []),
       ...(node.reserveAbove ? [{ id: `${node.id}::reserve-above`, text: 'reserved', width: node.reserveAbove.width, height: node.reserveAbove.height, layoutOptions: { 'elk.nodeLabels.placement': '[OUTSIDE, H_RIGHT, V_TOP]' } }] : []),
       ...(node.reserveBelow ? [{ id: `${node.id}::reserve-below`, text: 'reserved', width: node.reserveBelow.width, height: node.reserveBelow.height, layoutOptions: { 'elk.nodeLabels.placement': '[OUTSIDE, H_RIGHT, V_BOTTOM]' } }] : []),
       ...(node.reserveRight ? [{ id: `${node.id}::reserve`, text: 'reserved', width: node.reserveRight, height: Math.max(1, node.height - 2), layoutOptions: { 'elk.nodeLabels.placement': '[OUTSIDE, H_RIGHT, V_CENTER]' } }] : []),

@@ -1,0 +1,32 @@
+{
+  "kind":"package",
+  "title":"Awkward packages",
+  "elements":[
+    {"id":"a","type":"package","name":"com.example.platform.integration.legacy.mainframe.adapters","stereotypes":["deprecated","generated"],"members":["a1","a2"]},
+    {"id":"a1","type":"package","name":"cobol","members":["a11"]},
+    {"id":"a11","type":"package","name":"copybooks","members":["cb"]},
+    {"id":"cb","type":"class","name":"CustomerRecordCopybookParserWithEbcdicSupport"},
+    {"id":"a2","type":"package","name":"mq"},
+    {"id":"b","type":"package","name":"core"},
+    {"id":"c","type":"package","name":"util","members":["c1"]},
+    {"id":"c1","type":"class","name":"Strings"},
+    {"id":"d","type":"package","name":"reporting"},
+    {"id":"e","type":"package","name":"orphan package with a long human readable name that wraps"},
+    {"id":"x","type":"class","name":"Helper"},
+    {"id":"n1","type":"note","text":"Five relationships between core and util on purpose.","attachedTo":["b","c"]},
+    {"id":"n2","type":"note","text":"Deepest.","attachedTo":["cb"]}
+  ],
+  "relationships":[
+    {"type":"import","from":"b","to":"c"},
+    {"type":"access","from":"b","to":"c"},
+    {"type":"merge","from":"b","to":"c"},
+    {"type":"dependency","from":"b","to":"c","keyword":"trace"},
+    {"type":"dependency","from":"c","to":"b","keyword":"use","name":"callback"},
+    {"type":"import","from":"a2","to":"b"},
+    {"type":"import","from":"d","to":"cb"},
+    {"type":"import","from":"d","to":"b"},
+    {"type":"access","from":"a11","to":"c1"},
+    {"type":"containment","from":"d","to":"x"},
+    {"type":"dependency","from":"e","to":"a","keyword":"use"}
+  ]
+}

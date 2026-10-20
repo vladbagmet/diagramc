@@ -230,10 +230,15 @@ function withSwapHints(kind: KindDefinition, document: unknown, diagnostics: Dia
   return diagnostics.map(d => annotateSwap(d, swapped));
 }
 
-function annotateSwap(d: Diagnostic, swapped: ReadonlyMap<string, { from: string; to: string; type?: string }>): Diagnostic {
+function annotateSwap(d: Diagnostic, swapped: ReadonlyMap<string, SwapHint>): Diagnostic {
   const item = swapped.get(itemPath(d.path));
-  return item ? { ...d, message: `${d.message} (from and to look swapped: with "from": "${item.to}" and "to": "${item.from}" this ${item.type ?? 'relationship'} is valid)`, details: { ...(d.details as object | undefined), swap: { from: item.to, to: item.from } } } : d;
+  if (!item) return d;
+  const ends = item.ends ? ', "fromEnd" and "toEnd" exchanged too,' : '';
+  const swap = { from: item.to, to: item.from, ...(item.ends ? Object.fromEntries(Object.entries(item.ends).filter(([, v]) => v !== undefined)) : {}) };
+  return { ...d, message: `${d.message} (from and to look swapped: with "from": "${item.to}" and "to": "${item.from}"${ends} this ${item.type ?? 'relationship'} is valid)`, details: { ...(d.details as object | undefined), swap } };
 }
+
+interface SwapHint { from: string; to: string; type?: string; ends?: { fromEnd: unknown; toEnd: unknown } }
 
 /** The item with this ID in a relationship array of the document. */
 function findRelationship(document: unknown, id: string): { from: string; to: string } | undefined {
@@ -263,8 +268,8 @@ function findByName(document: unknown, name: string): string | undefined {
 const itemPath = (path: string): string => path.match(/^\/[^/]+\/\d+/u)?.[0] ?? '';
 
 /** Items (with `from` and `to`) whose diagnostics all disappear when the two are swapped. */
-function swapHints(kind: KindDefinition, document: unknown, diagnostics: readonly Diagnostic[]): Map<string, { from: string; to: string; type?: string }> {
-  const out = new Map<string, { from: string; to: string; type?: string }>();
+function swapHints(kind: KindDefinition, document: unknown, diagnostics: readonly Diagnostic[]): Map<string, SwapHint> {
+  const out = new Map<string, SwapHint>();
   const items = [...new Set(diagnostics.map(d => itemPath(d.path)).filter(Boolean))].slice(0, 10);
   for (const path of items) {
     const item = valueAt(document, path) as Record<string, unknown> | undefined;
@@ -272,11 +277,18 @@ function swapHints(kind: KindDefinition, document: unknown, diagnostics: readonl
     const copy = structuredClone(document) as Record<string, unknown>;
     const target = valueAt(copy, path) as Record<string, unknown>;
     [target.from, target.to] = [item.to, item.from];
+    // End adornments belong to their element: they swap with it (a composition's whole end).
+    const ends = 'fromEnd' in item || 'toEnd' in item;
+    if (ends) {
+      delete target.fromEnd; delete target.toEnd;
+      if (item.toEnd !== undefined) target.fromEnd = item.toEnd;
+      if (item.fromEnd !== undefined) target.toEnd = item.fromEnd;
+    }
     if (validateSchema(kind.schema, copy).diagnostics.length) continue;
     const after = kind.validate(copy);
     const before = diagnostics.filter(d => itemPath(d.path) === path).length;
     if (before && !after.some(d => itemPath(d.path) === path) && after.length < diagnostics.length) {
-      out.set(path, { from: item.from, to: item.to, ...(typeof item.type === 'string' ? { type: item.type } : {}) });
+      out.set(path, { from: item.from, to: item.to, ...(typeof item.type === 'string' ? { type: item.type } : {}), ...(ends ? { ends: { fromEnd: item.toEnd, toEnd: item.fromEnd } } : {}) });
     }
   }
   return out;

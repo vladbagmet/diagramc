@@ -78,14 +78,19 @@ Tests referenced below: `class` = `test/class.test.mjs`, `engine` =
 - Layout: top-down (superclasses and wholes above) is the convention; left to right
   and ELK graph wrapping are tried too and the most readable result wins
   (`chooseLayout`, src/engine/aspect.ts: close to 4:3 to 16:9, few crossings, short
-  lines; the more of the diagram is generalization, the more top-down is preferred).
+  lines, no detours; the more of the diagram is generalization, the more top-down
+  is preferred). A wrapped layout whose lines would run round the drawing loses
+  against a taller one with direct lines, so ordinary models can come out portrait.
   Routes are then repaired (src/engine/repair.ts). Very large or chain-like models
-  can still end up 3:1 (the 50-class stress example) and wrapped layouts can keep a
-  few long lines between rows.
+  can still end up 3:1 (the 50-class stress example).
 - Four or more associations between the same two classes stack their end labels
   along a side; the labels stay unambiguous (gate `label-proximity`) but are dense.
 - Where many edges converge on one side of a node, end labels move up to the gate's
   48 px limit.
+- v1 documents (`classes`, `attributes` and `methods` as strings) draw each member
+  string exactly as written: no visibility is added and the spacing around `:` is
+  the author's, since v1 has no structured members. Use v2 members (`name`, `type`,
+  `visibility`) for the UML 2.5.1 formatting `- name : Type`.
 - PlantUML fallback: Smetana can put labels on nodes and draw note pointers through
   nodes, so that backend only guarantees the layout-independent gates
   (integration test `FALLBACK_GATES`).
