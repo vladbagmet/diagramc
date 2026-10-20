@@ -12,7 +12,7 @@ import { checkSvg } from '../dist/qa/index.js';
 import { splitFallbackRuns } from '../dist/engine/png.js';
 import { routeOrthogonal } from '../dist/engine/router.js';
 import { repairRoutes } from '../dist/engine/repair.js';
-import { aspectPenalty, chooseLayout, layoutScore } from '../dist/engine/aspect.js';
+import { aspectPenalty, chooseLayout, layoutScore, routesDetour } from '../dist/engine/aspect.js';
 import { placeLabels } from '../dist/engine/labels.js';
 
 const options = { direction: 'DOWN' };
@@ -431,4 +431,58 @@ test('QA gates for the review findings: crowded ends, detours, bent arrowheads, 
   assert.deepEqual(failed(await checkSvg(doc(broken))), ['text-fits']);
   const fine = broken.replace('OrderLineIt', 'OrderLine').replace('>emFactory', '>ItemFactory');
   assert.deepEqual(failed(await checkSvg(doc(fine))), []);
+});
+
+test('QA gates for the final review: shared lines, junctions, border hugging, container headers, wrap-arounds, ambiguous labels', async () => {
+  const a = node('a', 20, 20, 100, 50), b = node('b', 20, 200, 100, 50), c = node('c', 250, 200, 100, 50);
+  const line = (id, points, source = 'b', target = 'a', type = 'dependency', marker = 'open-arrow') => drawEdge({ id, type, source, target, points, style: 'dashed', sourceMarker: 'none', targetMarker: marker });
+  // Two dependencies sharing 50 px of line (F-B-08), and the same lines apart.
+  const e1 = line('e1', [{ x: 50, y: 200 }, { x: 50, y: 150 }, { x: 80, y: 150 }, { x: 80, y: 70 }]);
+  const shared = line('e2', [{ x: 300, y: 200 }, { x: 300, y: 120 }, { x: 80, y: 120 }, { x: 80, y: 70 }], 'c');
+  assert.deepEqual(failed(await checkSvg(doc(a + b + c + e1 + shared))), ['shared-segments']);
+  const apart = line('e2', [{ x: 300, y: 200 }, { x: 300, y: 120 }, { x: 100, y: 120 }, { x: 100, y: 70 }], 'c');
+  assert.deepEqual(failed(await checkSvg(doc(a + b + c + e1 + apart))), []);
+  // A generalization tree shares its trunk on purpose.
+  const gen = (id, points, source) => drawEdge({ id, type: 'generalization', source, target: 'a', points, style: 'solid', sourceMarker: 'none', targetMarker: 'hollow-triangle' });
+  assert.deepEqual(failed(await checkSvg(doc(a + b + c + gen('g1', [{ x: 70, y: 200 }, { x: 70, y: 70 }], 'b') + gen('g2', [{ x: 300, y: 200 }, { x: 300, y: 130 }, { x: 70, y: 130 }, { x: 70, y: 70 }], 'c')))), []);
+  // A bend lying on another line reads as a junction.
+  const straight = line('e1', [{ x: 50, y: 200 }, { x: 50, y: 70 }]);
+  const tee = line('e2', [{ x: 300, y: 200 }, { x: 300, y: 150 }, { x: 50, y: 150 }, { x: 50, y: 110 }, { x: 90, y: 110 }, { x: 90, y: 70 }], 'c');
+  assert.ok(failed(await checkSvg(doc(a + b + c + straight + tee))).includes('shared-segments'));
+  // A line 2 px outside the border of a node it does not connect (F-A-06), and 10 px away.
+  const n = node('n', 150, 100, 80, 60);
+  const hug = y => line('e1', [{ x: 300, y: 200 }, { x: 300, y }, { x: 100, y }, { x: 100, y: 70 }], 'c');
+  assert.deepEqual(failed(await checkSvg(doc(a + c + n + hug(98)))), ['edge-endpoints']);
+  assert.deepEqual(failed(await checkSvg(doc(a + c + n + hug(90)))), []);
+  // A line into a component through the band of its name (F-A-13).
+  const comp = '<g data-uml-role="node" data-uml-id="k" data-uml-type="component" data-uml-bounds="150 20 200 150"><text x="200" y="40" font-size="13" data-uml-role="text">Backend</text></g>';
+  const part = '<g data-uml-role="node" data-uml-id="p" data-uml-type="component" data-uml-parent="k" data-uml-bounds="170 100 80 40"></g>';
+  const into = y => line('t', [{ x: 120, y }, { x: 210, y }, { x: 210, y: 100 }], 'a', 'p');
+  assert.ok(failed(await checkSvg(doc(a + comp + part + into(40)))).includes('edge-endpoints'));
+  assert.deepEqual(failed(await checkSvg(doc(a + comp + part + into(65)))), []);
+  // A line that wraps round its target to enter from the far side (F-A-01).
+  const wrap = line('e1', [{ x: 300, y: 250 }, { x: 300, y: 280 }, { x: 5, y: 280 }, { x: 5, y: 5 }, { x: 70, y: 5 }, { x: 70, y: 20 }], 'c');
+  assert.deepEqual(failed(await checkSvg(doc(a + c + wrap))), ['route-length']);
+  // A label between two lines, nearer its own but not twice as near (F-A-05).
+  const left = line('e1', [{ x: 50, y: 200 }, { x: 50, y: 70 }]), right = line('e2', [{ x: 90, y: 200 }, { x: 90, y: 70 }]);
+  const lbl = x => `<text x="${x}" y="140" font-size="12" data-uml-role="label" data-uml-owner="e1">ab</text>`;
+  assert.deepEqual(failed(await checkSvg(doc(a + b + left + right + lbl(62)))), ['label-proximity']);
+  assert.deepEqual(failed(await checkSvg(doc(a + b + left + right + lbl(30)))), []);
+});
+
+test('layout warnings carry advice for the kind of problem, not one sentence per gate', async () => {
+  const { adviceFor } = await import('../dist/qa/advice.js');
+  assert.match(adviceFor('markers', 'open-arrow at (1, 2) overlaps hollow-triangle at (3, 4)'), /Arrowheads touch/);
+  assert.match(adviceFor('markers', 'edge e: open-arrow at its target end points the wrong way'), /renderer defect/);
+  assert.match(adviceFor('markers', 'edge e: open-arrow at its target end sits on a 1.0px segment (needs 20px straight)'), /renderer defect/);
+  assert.match(adviceFor('label-proximity', 'label "x" of e is 9.0px from f but 6.0px from its own line (another line must be at least 2x as far)'), /between two lines/);
+  assert.match(adviceFor('route-length', 'edge e wraps around: it turns the same way three times'), /long way round/);
+});
+
+test('layout scoring: a candidate whose lines detour around the drawing loses against a direct one', () => {
+  const direct = [[{ x: 0, y: 0 }, { x: 0, y: 200 }]];
+  const around = [[{ x: 0, y: 0 }, { x: 0, y: -40 }, { x: 600, y: -40 }, { x: 600, y: 260 }, { x: 0, y: 260 }, { x: 0, y: 200 }]];
+  assert.equal(routesDetour(direct), 0);
+  assert.ok(routesDetour(around) > 1000);
+  assert.ok(layoutScore({ width: 800, height: 900, detour: routesDetour(around) }) > layoutScore({ width: 600, height: 1400, detour: routesDetour(direct) }));
 });
