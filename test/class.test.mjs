@@ -158,3 +158,21 @@ test('validation hints: a swapped composition names the swap with its ends; refe
     assert.equal(error.diagnostics[0].details?.suggestion, undefined);
   }
 });
+
+test('layout: a subclass sits right under its superclass even when an association points into it (F-A-08)', async () => {
+  const { svg } = await assertGates(await readFile(join(root, 'test/fixtures/regression/class-final-hotel.json'), 'utf8'));
+  const scene = await inspectSvg(svg);
+  const box = id => scene.nodes.find(n => n.id === id).bounds;
+  const person = box('person');
+  for (const sub of ['staff', 'guest']) assert.ok(box(sub).y - (person.y + person.height) < 300, `${sub} is ${box(sub).y - person.y - person.height}px below Person`);
+});
+
+test('layout: an ordinary model gets short, direct lines, not a wrapped layout with lines round the drawing (F-A-01)', async () => {
+  const { svg } = await assertGates(await readFile(join(root, 'test/fixtures/regression/class-library.json'), 'utf8'));
+  const scene = await inspectSvg(svg);
+  for (const e of scene.edges) {
+    const length = e.points.slice(1).reduce((s, q, k) => s + Math.hypot(q.x - e.points[k].x, q.y - e.points[k].y), 0);
+    const a = e.points[0], b = e.points.at(-1);
+    assert.ok(length <= Math.abs(a.x - b.x) + Math.abs(a.y - b.y) + 200, `${e.id} runs ${length.toFixed(0)}px`);
+  }
+});

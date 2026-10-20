@@ -1,0 +1,343 @@
+{
+ "kind": "class",
+ "title": "Hotel reservations",
+ "elements": [
+  {
+   "id": "hotel",
+   "type": "class",
+   "name": "Hotel",
+   "attributes": [
+    {
+     "name": "name",
+     "type": "String"
+    },
+    {
+     "name": "stars",
+     "type": "Integer"
+    }
+   ]
+  },
+  {
+   "id": "room",
+   "type": "class",
+   "name": "Room",
+   "attributes": [
+    {
+     "name": "number",
+     "type": "String"
+    },
+    {
+     "name": "floor",
+     "type": "Integer"
+    }
+   ],
+   "operations": [
+    {
+     "name": "isFree",
+     "parameters": [
+      {
+       "name": "range",
+       "type": "DateRange"
+      }
+     ],
+     "returnType": "Boolean"
+    }
+   ]
+  },
+  {
+   "id": "roomType",
+   "type": "class",
+   "name": "RoomType",
+   "attributes": [
+    {
+     "name": "code",
+     "type": "String"
+    },
+    {
+     "name": "basePrice",
+     "type": "Money"
+    }
+   ]
+  },
+  {
+   "id": "guest",
+   "type": "class",
+   "name": "Guest",
+   "attributes": [
+    {
+     "name": "name",
+     "type": "String"
+    },
+    {
+     "name": "email",
+     "type": "String"
+    }
+   ]
+  },
+  {
+   "id": "person",
+   "type": "class",
+   "name": "Person",
+   "abstract": true,
+   "attributes": [
+    {
+     "name": "id",
+     "type": "UUID",
+     "visibility": "private"
+    }
+   ]
+  },
+  {
+   "id": "staff",
+   "type": "class",
+   "name": "StaffMember",
+   "attributes": [
+    {
+     "name": "role",
+     "type": "StaffRole"
+    }
+   ]
+  },
+  {
+   "id": "reservation",
+   "type": "class",
+   "name": "Reservation",
+   "attributes": [
+    {
+     "name": "checkIn",
+     "type": "Date"
+    },
+    {
+     "name": "checkOut",
+     "type": "Date"
+    },
+    {
+     "name": "status",
+     "type": "ReservationStatus"
+    }
+   ],
+   "operations": [
+    {
+     "name": "confirm"
+    },
+    {
+     "name": "cancel",
+     "parameters": [
+      {
+       "name": "reason",
+       "type": "String"
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "status",
+   "type": "enumeration",
+   "name": "ReservationStatus",
+   "literals": [
+    "PENDING",
+    "CONFIRMED",
+    "CHECKED_IN",
+    "CANCELLED"
+   ]
+  },
+  {
+   "id": "invoice",
+   "type": "class",
+   "name": "Invoice",
+   "attributes": [
+    {
+     "name": "total",
+     "type": "Money"
+    }
+   ]
+  },
+  {
+   "id": "line",
+   "type": "class",
+   "name": "InvoiceLine",
+   "attributes": [
+    {
+     "name": "description",
+     "type": "String"
+    },
+    {
+     "name": "amount",
+     "type": "Money"
+    }
+   ]
+  },
+  {
+   "id": "payment",
+   "type": "interface",
+   "name": "PaymentProvider",
+   "operations": [
+    {
+     "name": "charge",
+     "parameters": [
+      {
+       "name": "amount",
+       "type": "Money"
+      }
+     ],
+     "returnType": "Receipt"
+    }
+   ]
+  },
+  {
+   "id": "stripe",
+   "type": "class",
+   "name": "StripeAdapter"
+  },
+  {
+   "id": "pricing",
+   "type": "class",
+   "name": "PricingService",
+   "operations": [
+    {
+     "name": "quote",
+     "parameters": [
+      {
+       "name": "type",
+       "type": "RoomType"
+      },
+      {
+       "name": "range",
+       "type": "DateRange"
+      }
+     ],
+     "returnType": "Money"
+    }
+   ]
+  },
+  {
+   "id": "n1",
+   "type": "note",
+   "text": "A room can only have one active reservation per night.",
+   "attachedTo": [
+    "reservation"
+   ]
+  }
+ ],
+ "relationships": [
+  {
+   "type": "composition",
+   "from": "hotel",
+   "to": "room",
+   "fromEnd": {
+    "multiplicity": "1"
+   },
+   "toEnd": {
+    "multiplicity": "*",
+    "role": "rooms"
+   }
+  },
+  {
+   "type": "association",
+   "from": "room",
+   "to": "roomType",
+   "toEnd": {
+    "multiplicity": "1"
+   },
+   "fromEnd": {
+    "multiplicity": "*"
+   }
+  },
+  {
+   "type": "generalization",
+   "from": "guest",
+   "to": "person"
+  },
+  {
+   "type": "generalization",
+   "from": "staff",
+   "to": "person"
+  },
+  {
+   "type": "association",
+   "name": "books",
+   "from": "guest",
+   "to": "reservation",
+   "fromEnd": {
+    "multiplicity": "1",
+    "role": "guest"
+   },
+   "toEnd": {
+    "multiplicity": "*",
+    "role": "reservations"
+   }
+  },
+  {
+   "type": "association",
+   "from": "reservation",
+   "to": "room",
+   "fromEnd": {
+    "multiplicity": "*"
+   },
+   "toEnd": {
+    "multiplicity": "1..*",
+    "role": "rooms"
+   }
+  },
+  {
+   "type": "association",
+   "from": "reservation",
+   "to": "status",
+   "toEnd": {
+    "navigable": true,
+    "multiplicity": "1"
+   }
+  },
+  {
+   "type": "association",
+   "from": "invoice",
+   "to": "reservation",
+   "fromEnd": {
+    "multiplicity": "0..1"
+   },
+   "toEnd": {
+    "multiplicity": "1"
+   }
+  },
+  {
+   "type": "composition",
+   "from": "invoice",
+   "to": "line",
+   "fromEnd": {
+    "multiplicity": "1"
+   },
+   "toEnd": {
+    "multiplicity": "1..*",
+    "role": "lines"
+   }
+  },
+  {
+   "type": "realization",
+   "from": "stripe",
+   "to": "payment"
+  },
+  {
+   "type": "dependency",
+   "from": "invoice",
+   "to": "payment",
+   "keyword": "use"
+  },
+  {
+   "type": "dependency",
+   "from": "reservation",
+   "to": "pricing",
+   "name": "use"
+  },
+  {
+   "type": "association",
+   "name": "handled by",
+   "from": "reservation",
+   "to": "staff",
+   "toEnd": {
+    "multiplicity": "0..1",
+    "role": "agent"
+   }
+  }
+ ]
+}

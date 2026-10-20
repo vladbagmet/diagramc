@@ -130,6 +130,8 @@ function markerRect(tip: Point, from: Point, marker: Marker): Rect | undefined {
 }
 
 const JOG = 12;
+/** A subclass farther than this below its superclass (along the layout direction) is pulled up (see withFlips). */
+const FAR_SUBCLASS = 300;
 
 /**
  * Removes a short jog next to the start of an orthogonal route (ELK sometimes
@@ -449,8 +451,23 @@ export async function layoutDiagram(spec: DiagramSpec, metrics: FontMetrics): Pr
       const against = e.reversed ? along(s)[1] <= along(t)[0] : along(t)[1] <= along(s)[0];
       if (against) flips.add(e.id);
     }
-    // Only worth another layout run when some line detours.
-    if (!flips.size || !measureAttempt(first).detour) return first;
+    // A subclass pushed far below its superclass by a relationship into it (F-A-08):
+    // that relationship is laid out from the subclass instead, so the subclass can
+    // sit right under its parent.
+    let hierarchy = false;
+    for (const t of plans) {
+      if (!t.spec.tree) continue;
+      const sub = first.result.nodes.get(t.spec.source), sup = first.result.nodes.get(t.spec.target);
+      if (!sub || !sup || along(sub)[0] - along(sup)[1] <= FAR_SUBCLASS) continue;
+      for (const p of plans) {
+        const e = p.spec;
+        if (e.target !== t.spec.source || e.source === e.target || e.tree || e.reversed || bundleOf.has(e.id) || e.type === 'note-anchor') continue;
+        const s = first.result.nodes.get(e.source);
+        if (s && along(s)[0] > along(sup)[1]) { flips.add(e.id); hierarchy = true; }
+      }
+    }
+    // Only worth another layout run when some line detours or a subclass sits far from its parent.
+    if (!flips.size || (!measureAttempt(first).detour && !hierarchy)) return first;
     try {
       const second = await run(dir, first.variant, flips);
       return layoutScore(measureAttempt(second)) < layoutScore(measureAttempt(first)) ? second : first;
