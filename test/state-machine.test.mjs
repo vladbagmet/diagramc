@@ -146,3 +146,62 @@ test('state machine layout: a simple cycle of states has straight lines, no jogs
     assert.equal(e.points.length, 2, `${e.id}: ${JSON.stringify(e.points)}`);
   }
 });
+
+const center = r => ({ x: r.x + r.width / 2, y: r.y + r.height / 2 });
+const crosses = (a, b) => {
+  const cross = (o, p, q) => (p.x - o.x) * (q.y - o.y) - (p.y - o.y) * (q.x - o.x);
+  for (let i = 1; i < a.length; i++) for (let j = 1; j < b.length; j++) {
+    const [p, q, r, s] = [a[i - 1], a[i], b[j - 1], b[j]];
+    const d1 = cross(r, s, p), d2 = cross(r, s, q), d3 = cross(p, q, r), d4 = cross(p, q, s);
+    if (((d1 > 0 && d2 < 0) || (d1 < 0 && d2 > 0)) && ((d3 > 0 && d4 < 0) || (d3 < 0 && d4 > 0))) return true;
+  }
+  return false;
+};
+
+test('state machine layout: fork branches enter the regions of a composite straight from above, in region order', async () => {
+  for (const [model, fork, order] of [
+    [await readFile(join(root, 'examples/state-machine/notation.json'), 'utf8'), 'split', ['charging', 'packing']],
+    [await regression('state-machine-sm-awk.json'), 'fork1', ['plan', 'locked', 'stream']],
+  ]) {
+    const scene = await inspectSvg(await svgOf(model));
+    const bar = scene.nodes.find(n => n.id === fork).bounds;
+    for (const e of scene.edges.filter(e => e.source === fork)) {
+      // One straight line down from the bar's underside to the top of its state.
+      assert.equal(e.points.length, 2, `${e.id}: ${JSON.stringify(e.points)}`);
+      const [p, q] = e.points, target = scene.nodes.find(n => n.id === e.target).bounds;
+      assert.ok(Math.abs(p.x - q.x) < 0.01 && Math.abs(p.y - (bar.y + bar.height)) < 0.5 && Math.abs(q.y - target.y) < 0.5, `${e.id}: ${JSON.stringify(e.points)}`);
+      for (const other of scene.edges.filter(o => o.type === 'transition' && o !== e)) assert.ok(!crosses(e.points, other.points), `${e.id} crosses ${other.id}`);
+    }
+    // Regions (and so the branches) left to right in model order.
+    const xs = order.map(id => center(scene.nodes.find(n => n.id === id).bounds).x);
+    assert.deepEqual([...xs].sort((a, b) => a - b), xs, `${order} at ${xs}`);
+  }
+});
+
+test('state machine layout: join inputs arrive straight; a line to the far side of side by side regions stays inside', async () => {
+  const scene = await inspectSvg(await svgOf(await regression('state-machine-sm-awk.json')));
+  for (const e of scene.edges.filter(e => e.target === 'join1')) assert.equal(e.points.length, 2, `${e.id}: ${JSON.stringify(e.points)}`);
+  // Driving to the exit point "abort mission" crosses the other regions inside the composite, not below its border.
+  const mission = scene.nodes.find(n => n.id === 'mission').bounds;
+  const lidar = scene.edges.find(e => e.source === 'drive' && e.target === 'xp');
+  for (const p of lidar.points) assert.ok(p.y <= mission.y + mission.height + 0.5, JSON.stringify(lidar.points));
+  // The note's dashed lines stay near it instead of running round the drawing.
+  for (const e of scene.edges.filter(e => e.type === 'note-anchor')) {
+    const a = center(scene.nodes.find(n => n.id === e.source).bounds), b = center(scene.nodes.find(n => n.id === e.target).bounds);
+    const length = e.points.slice(1).reduce((sum, p, k) => sum + Math.abs(p.x - e.points[k].x) + Math.abs(p.y - e.points[k].y), 0);
+    assert.ok(length < Math.abs(a.x - b.x) + Math.abs(a.y - b.y) + 200, `${e.id}: ${JSON.stringify(e.points)}`);
+  }
+});
+
+test('state machine layout: lines of a choice meet it on the vertices facing their other ends', async () => {
+  const scene = await inspectSvg(await svgOf(await readFile(join(root, 'examples/state-machine/stress.json'), 'utf8')));
+  const c = center(scene.nodes.find(n => n.id === 'fault').bounds);
+  const lines = scene.edges.filter(e => e.type === 'transition' && (e.source === 'fault' || e.target === 'fault'));
+  for (const e of lines) {
+    // No line from above turns round to the bottom vertex.
+    const end = e.target === 'fault' ? e.points.at(-1) : e.points[0];
+    const other = center(scene.nodes.find(n => n.id === (e.target === 'fault' ? e.source : e.target)).bounds);
+    if (other.y < c.y - 40) assert.ok(end.y < c.y + 1, `${e.id} ends at ${JSON.stringify(end)} below ${JSON.stringify(c)}`);
+  }
+  for (let i = 0; i < lines.length; i++) for (let j = i + 1; j < lines.length; j++) assert.ok(!crosses(lines[i].points, lines[j].points), `${lines[i].id} crosses ${lines[j].id}`);
+});

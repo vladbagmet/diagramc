@@ -108,7 +108,7 @@ Copy the structure of `src/kinds/class/layout.ts` and `draw.ts`.
 | Ports, interfaces, nesting, 3D nodes, ellipses | `src/kinds/structure/` (a kind-neutral graph of nested nodes, ports, lollipops, sockets and assemblies, laid out left to right, used by component, deployment and composite structure) and its symbols in `src/engine/symbols.ts`. Fixed port positions: `LayoutPort.position`; a compound node wider than its children: `minimumSize` |
 | Self-loops | never give them to ELK: `planSelfLoops()` before layout (node `reserveRight`, `reserveAbove`, `reserveBelow`, min height), `selfLoopRoute()` after. Loops sit on the top-right corner, then the bottom-right corner, then nest on the right side; their end labels go inside the loop (`onlySide` -1 source, 1 target) |
 | Layout direction and aspect | `chooseLayout(directions, run, measure, { penalty, wrap })` from `src/engine/aspect.ts`: runs the plain layered layout per direction (conventional one first), adds `narrow` layering when it is wider than 16:9 across the direction and (opt-in) ELK `wrap` when it runs too long, and keeps the best `layoutScore` (size, distance from the 4:3..16:9 band, crossings, line length, a penalty for unconventional directions). Pass `LAYOUT_VARIANTS[variant]` as `elk` options to `layout()`. `renderDiagram` (`DiagramSpec.directions`, `wrap`) and the structure layout (`StructGraph.directions`) already use it |
-| Route repair | after layout, `repairRoutes(nodes, edges, options)` from `src/engine/repair.ts` checks each route against the gates' rules and reroutes the ones that cross nodes or container texts (give containers' names and tabs as `texts`), detour (target above source), crowd another end on the same side, or bend under a marker, then shortens needless loops. Ends on ports, symbols, ellipses or shared arrowheads stay put (`fixedSource`/`fixedTarget`, `group`). Optional `labelFits`/`labelSpacing` spread bundled lines whose center label has no clean spot; `force` routes edges ELK could not lay out; `junctions` (opt-in) reroutes a line that crosses another within 30 px of either end, where the crossing reads as a junction (the router itself charges extra for such crossings). Give stems and connectors that should stay straight a `LayoutEdge.straightness` priority. The router itself is `routeOrthogonal()` in `src/engine/router.ts` |
+| Route repair | after layout, `repairRoutes(nodes, edges, options)` from `src/engine/repair.ts` checks each route against the gates' rules and reroutes the ones that cross nodes or container texts (give containers' names and tabs as `texts`), detour (target above source), crowd another end on the same side, or bend under a marker, then shortens needless loops. Ends on ports, symbols, ellipses or shared arrowheads stay put (`fixedSource`/`fixedTarget`, `group`). Optional `labelFits`/`labelSpacing` spread bundled lines whose center label has no clean spot; `force` routes edges ELK could not lay out; `junctions` (opt-in) reroutes a line that crosses another within 30 px of either end, where the crossing reads as a junction (the router itself charges extra for such crossings); `lines` adds lines to keep clear of and cross rather than follow, like container borders (region separators). Give stems and connectors that should stay straight a `LayoutEdge.straightness` priority. The router itself is `routeOrthogonal()` in `src/engine/router.ts` |
 | Circles, ellipses, diamonds | `clipRoute()` from `src/engine/clip.ts` moves route ends onto the outline; declare `shape: 'ellipse' | 'diamond'` in the node data so the edge-endpoints gate checks the outline. Small symbols with ports: `fixedSize` keeps their size |
 | Nested states, entry/exit points | compound nodes with `minimumSize` (vertical layouts are handled), nodes on a border with `parent` = the owner (and `borderOf`), lines kept off container texts (`src/kinds/state-machine/layout.ts`) |
 | Captions, slanted lines | `labelBelow` reserves room under a node (actor names); `routing: 'polyline'` gives slanted segments, whose labels `placeLabels()` pushes off the line; `straightenJogs()` removes small jogs from orthogonal routes |
@@ -190,7 +190,9 @@ their line and clearly nearer to it than to any other line), `edge-endpoints` (o
 borders, on the tab or body of a package, on the ellipse for
 `data-uml-shape="ellipse"` nodes, no edge through other nodes, no line over the
 texts of any container: tabs, component and node names, composite headers),
-`end-spacing` (ends on one side of a node at least the line spacing apart, more
+`use-case-lines` (use case diagrams: no two lines within 2 px of each other for more
+than 40 px, except within 60 px of a point they share or along a shared
+generalization trunk), `end-spacing` (ends on one side of a node at least the line spacing apart, more
 with arrowheads; one shared point is allowed), `route-length` (no route longer than
 3x the gap between its nodes plus 200 px), `markers` (present, at the end, pointing
 inward, not touching other markers, on a straight end segment as long as the marker
@@ -202,7 +204,7 @@ of punctuation alone), `ports`
 (ports centered on their owner's border with their names next to them; lollipops and
 sockets outside their owner, facing outward; ball-and-socket joints concentric with
 the requiring line at the socket's back and the providing line through its opening,
-on one axis; interface names next to their symbol). `end-spacing` and `route-length`
+on one axis; interface names next to their symbol). `use-case-lines`, `end-spacing` and `route-length`
 judge layout choices only the own engine makes (`ENGINE_ONLY_GATES`); PlantUML output
 reports them as skipped.
 

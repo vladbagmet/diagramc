@@ -85,10 +85,23 @@ the edge-endpoints gate reads `data-uml-shape`), pseudostates keep their size
   the corners, the name compartment and region names, and beside the region their
   inner lines lead to.
 - Pseudostates with several incoming lines are laid out twice: the second run gives
-  each line the free side facing its source, so arrowheads never share a tip.
-- Orthogonal regions keep their cells: a line from one region to the outside does
-  not cut through a sibling region. Their order on the page follows the layout, not
-  the document (UML gives regions no order).
+  each line the free side facing its source, so arrowheads never share a tip. A
+  choice or junction where a line would otherwise turn round to a vertex facing away
+  from its source shares all four vertices among all its lines (and a note's dashed
+  line) by how far each would turn.
+- Orthogonal regions side by side stand in document order (ELK orders them by its
+  crossing minimisation; they are moved into order after layout). Regions keep their
+  cells: a line from one region to the outside does not cut through a sibling
+  region. Lines that cannot avoid a sibling region (from one region to another, or
+  to an exit point on the far side) cross it inside the composite, keeping clear of
+  the dashed separators instead of following them.
+- Fork and join bars: each branch is one straight line from the bar to the facing
+  side of its vertex (into the regions of a composite from above, in region order),
+  and the bar spans its branches. When something beside the bar is in the way, the
+  bar moves next to the composite of its vertices; lines the bar or the branches
+  would cross are rerouted, and the change is dropped if it adds a crossing.
+- A note on several vertices is laid out after the first of them along the flow, so
+  its dashed lines stay short.
 - Transitions from outside into a nested vertex enter the composite through its top;
   when the composite's name fills the header they detour around its side.
 - Routes go through the shared repair pass (src/engine/repair.ts): lines over a

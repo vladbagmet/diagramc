@@ -1,0 +1,37 @@
+{
+  "kind": "use-case",
+  "title": "Food delivery platform",
+  "elements": [
+    {"id": "cust", "type": "actor", "name": "Customer"},
+    {"id": "courier", "type": "actor", "name": "Courier"},
+    {"id": "rest", "type": "actor", "name": "Restaurant"},
+    {"id": "psp", "type": "actor", "name": "Payment provider", "stereotypes": ["system"]},
+    {"id": "app", "type": "subject", "name": "Delivery app"},
+    {"id": "browse", "type": "useCase", "name": "Browse restaurants", "subject": "app"},
+    {"id": "order", "type": "useCase", "name": "Place order", "subject": "app", "extensionPoints": ["promo code", "scheduled delivery"]},
+    {"id": "pay", "type": "useCase", "name": "Pay online", "subject": "app"},
+    {"id": "promo", "type": "useCase", "name": "Apply promo code", "subject": "app"},
+    {"id": "track", "type": "useCase", "name": "Track delivery", "subject": "app"},
+    {"id": "login", "type": "useCase", "name": "Sign in", "subject": "app"},
+    {"id": "accept", "type": "useCase", "name": "Accept order", "subject": "app"},
+    {"id": "pick", "type": "useCase", "name": "Pick up order", "subject": "app"},
+    {"id": "deliver", "type": "useCase", "name": "Deliver order", "subject": "app"},
+    {"id": "refund", "type": "useCase", "name": "Request refund", "subject": "app"},
+    {"id": "n1", "type": "note", "text": "Couriers are paid per delivery.", "attachedTo": ["courier"]}
+  ],
+  "relationships": [
+    {"type": "association", "from": "cust", "to": "browse"},
+    {"type": "association", "from": "cust", "to": "order"},
+    {"type": "association", "from": "cust", "to": "track"},
+    {"type": "association", "from": "cust", "to": "refund"},
+    {"type": "association", "from": "rest", "to": "accept"},
+    {"type": "association", "from": "courier", "to": "pick"},
+    {"type": "association", "from": "courier", "to": "deliver"},
+    {"type": "association", "from": "psp", "to": "pay"},
+    {"type": "association", "from": "psp", "to": "refund"},
+    {"type": "include", "from": "order", "to": "pay"},
+    {"type": "include", "from": "order", "to": "login"},
+    {"type": "include", "from": "refund", "to": "login"},
+    {"type": "extend", "from": "promo", "to": "order", "extensionPoint": "promo code", "condition": "customer entered a code"}
+  ]
+}
