@@ -57,7 +57,9 @@ every problem with a corrected value where one is clear (see [Errors](#errors)).
 
 Run it with `npm exec --offline -- uml ...` or `./dist/cli.js ...`. The output
 format follows the `-o` extension unless `--format svg|png` is given. Output is
-replaced atomically, only after a successful render; its parent must exist.
+replaced atomically, only after a successful render; its parent must exist. An
+existing device or pipe (`-o /dev/null --format svg`, `-o /dev/stdout`) is
+written directly.
 Successful runs print nothing on stdout (except `validate`, `example`, `kinds`,
 `schema`).
 

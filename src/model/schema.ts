@@ -61,10 +61,19 @@ export function validateSchema(schema: JsonSchema, value: unknown): SchemaResult
   try { ok = validate(value) as boolean; }
   finally { collected = undefined; }
   if (ok) return { diagnostics: [], texts: dedupe(texts) };
-  const errors = validate.errors ?? [];
+  // One problem per string: an empty string only as too short; a string that breaks its
+  // pattern and the display text rules as one diagnostic that gives the text rule's reason.
+  const all = validate.errors ?? [];
+  const shortAt = new Set(all.filter(e => e.keyword === 'minLength').map(e => e.instancePath));
+  const errors = all.filter(e => !(shortAt.has(e.instancePath) && (e.keyword === TEXT_KEYWORD || e.keyword === 'pattern')));
+  const textReason = new Map(errors.filter(e => e.keyword === TEXT_KEYWORD).map(e => [e.instancePath, e.message ?? 'Invalid display text']));
+  const patternAt = new Set(errors.filter(e => e.keyword === 'pattern').map(e => e.instancePath));
   const diagnostics = [
-    ...describeErrors(errors.filter(e => e.keyword !== TEXT_KEYWORD), schema, value),
-    ...errors.filter(e => e.keyword === TEXT_KEYWORD).map(e => ({
+    ...describeErrors(errors.filter(e => e.keyword !== TEXT_KEYWORD), schema, value).map(d => {
+      const reason = (d.details as { rule?: string } | undefined)?.rule === 'pattern' ? textReason.get(d.path ?? '') : undefined;
+      return reason ? { ...d, message: `${d.message} (${reason})` } : d;
+    }),
+    ...errors.filter(e => e.keyword === TEXT_KEYWORD && !patternAt.has(e.instancePath)).map(e => ({
       code: 'INVALID_TEXT', path: e.instancePath,
       message: `${e.instancePath || '(document root)'}: ${e.message ?? 'Invalid display text'}; display text must be nonblank, well-formed Unicode without bidi controls`,
     })),
@@ -256,8 +265,12 @@ function describeErrors(errors: ErrorObject[], root: Schema, document: unknown):
         const tagPath = pointer(path, tag);
         const tagValue = p.tagValue;
         if (p.error === 'mapping') {
-          const nearest = typeof tagValue === 'string' ? suggest(tagValue, allowed.map(String), 'value') : undefined;
-          const other = nearest ? undefined : valueOfAnotherProperty(root, schema, tag, tagValue);
+          // A value that is exactly a value of another property ("type": "alt" is the operator of a
+          // fragment) names that property, before any similar-looking allowed value.
+          const exact = valueOfAnotherProperty(root, schema, tag, tagValue);
+          const fuzzy = typeof tagValue === 'string' ? suggest(tagValue, allowed.map(String), 'value') : undefined;
+          const nearest = exact && exact.value === tagValue ? undefined : fuzzy;
+          const other = nearest ? undefined : exact;
           const hint = other ? `; ${other.text}` : nearest ? `; did you mean "${nearest}"` : '';
           const abstract = typeof tagValue === 'string' && /abstract/iu.test(tagValue) && nearest ? ` (set "abstract": true for an abstract ${nearest})` : '';
           issues.push({ path: tagPath, keyword: 'discriminator',

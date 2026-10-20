@@ -9,7 +9,7 @@ import { displayText } from '../dist/plantuml/encode.js';
 import { classToPlantUml } from '../dist/kinds/class/to-plantuml.js';
 import { renderSvg, rendererOptions } from '../dist/plantuml/runner.js';
 import { writeOutput } from '../dist/core/io.js';
-import { cli, workspace, fakeJava, minimal, minimalV2, fakeSvg } from './helpers.mjs';
+import { cli, root, workspace, fakeJava, minimal, minimalV2, fakeSvg } from './helpers.mjs';
 
 const parse = model => parseDocument(JSON.stringify(model));
 const fails = (model, code, path) => assert.throws(() => parse(model), error => {
@@ -287,6 +287,13 @@ test('CLI runtime failures preserve output, success supports stdin and atomic re
   await assert.rejects(writeOutput(directoryOutput, Buffer.from(fakeSvg)), { code: 'OUTPUT_WRITE_FAILED' });
   assert.equal(await readFile(join(directoryOutput, 'keep'), 'utf8'), 'original directory');
   assert.ok(!(await readdir(dir)).some(name => name.endsWith('.tmp')));
+  // Existing targets that are not regular files are written directly (no rename over a device).
+  await writeOutput('/dev/null', Buffer.from(fakeSvg));
+  result = cli(['render', join(root, 'examples/class/ordering.json'), '-o', '/dev/null', '--format', 'svg']);
+  assert.equal(result.status, 0, result.stderr);
+  result = cli(['render', join(root, 'examples/class/ordering.json'), '-o', '/dev/stdout', '--format', 'svg']);
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stdout, /^<svg /u);
 });
 
 test('missing or malformed manifests and partial overrides report RENDERER_MISSING', async t => {
