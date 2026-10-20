@@ -1,0 +1,34 @@
+{
+  "kind":"composite-structure",
+  "title":"EV charging station",
+  "elements":[
+    {"id":"station","type":"class","name":"ChargingStation",
+     "ports":[{"id":"grid","name":"grid","type":"ACSupply"},{"id":"ocpp","name":"ocpp","type":"OcppLink"},{"id":"plug","name":"plug","type":"CCS2","multiplicity":"2"}],
+     "parts":[
+       {"id":"ctrl","name":"controller","type":"StationController","ports":[{"id":"cbus","name":"bus","type":"CanBus"}]},
+       {"id":"meter","name":"meter","type":"EnergyMeter"},
+       {"id":"rect","name":"rectifier","type":"PowerModule","multiplicity":"1..4"},
+       {"id":"cable","name":"cable","type":"Cable","multiplicity":"2"},
+       {"id":"hmi","name":"display","type":"TouchScreen"},
+       {"id":"rfid","name":"reader","type":"RfidReader","multiplicity":"0..1"},
+       {"id":"modem","name":"modem","type":"LteModem","aggregation":"shared"}
+     ],
+     "collaborationUses":[{"id":"auth","name":"auth","collaboration":"authCollab","bindings":[{"role":"rReader","part":"rfid"},{"role":"rDecider","part":"ctrl"}]}]
+    },
+    {"id":"authCollab","type":"collaboration","name":"Authorisation","roles":[{"id":"rReader","name":"reader","type":"IdSource"},{"id":"rDecider","name":"decider","type":"Authoriser"}]},
+    {"id":"n","type":"note","text":"Power modules are hot-swappable.","attachedTo":["rect"]}
+  ],
+  "relationships":[
+    {"type":"connector","from":"grid","to":"meter"},
+    {"type":"connector","from":"meter","to":"rect","name":"ac"},
+    {"type":"connector","from":"rect","to":"cable","name":"dc","fromEnd":{"multiplicity":"1..4"},"toEnd":{"multiplicity":"2"}},
+    {"type":"connector","from":"cable","to":"plug"},
+    {"type":"connector","from":"cbus","to":"rect","name":"setpoints"},
+    {"type":"connector","from":"cbus","to":"meter","name":"readings"},
+    {"type":"connector","from":"ctrl","to":"hmi"},
+    {"type":"connector","from":"ctrl","to":"rfid"},
+    {"type":"connector","from":"ctrl","to":"modem"},
+    {"type":"connector","from":"modem","to":"ocpp"},
+    {"type":"connector","from":"rReader","to":"rDecider","name":"credential"}
+  ]
+}

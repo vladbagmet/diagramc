@@ -64,13 +64,24 @@ gates, including the `ports` gate.
 
 ## Known limitations
 
+- No two lines run on top of each other: lines that ELK lets share a trunk at a
+  port leave it from separate faces (outer face, then the side faces outside the
+  owner) and are routed apart. A port takes three such lines; more lines at one
+  port (seven assemblies into one provider port in the reviewers' awkward model)
+  still share a trunk there.
+
 - Layout: left to right or top to bottom, whichever is more readable
-  (`StructGraph.directions`, `chooseLayout`); top to bottom, ports with lines into
-  the owner sit on its top border and are moved beside the centered name.
+  (`StructGraph.directions`, `chooseLayout`), within 2.5:1 when a layout achieves
+  it; top to bottom, ports on a part's top border move onto its side border below
+  the name compartment, so no line crosses it.
 - A collaboration's ellipse is sized to circumscribe its roles' layout, so wide
   role layouts give flat, wide ellipses and tall ones (top to bottom) tall ellipses.
-- All role bindings of one collaboration use leave from the middle of one side of
-  its ellipse and fan out from there. Role names on bindings are italic and muted,
-  so they do not read as connector end labels.
+- Each role binding leaves its collaboration use from its own point on the
+  ellipse, facing its part, and is routed around other nodes and whole name
+  compartments; bindings never share a segment. When no clean route exists (a
+  crowded drawing), a binding may start with a short hook. Role names on bindings
+  are italic and muted, so they do not read as connector end labels. In drawings
+  with more than 24 nodes the bindings are routed only in the chosen layout
+  (render time), so they do not take part in choosing it.
 - When ELK cannot lay out a role binding or note anchor into a nested part, the
   layout runs without it and the router draws it; such lines can be long.

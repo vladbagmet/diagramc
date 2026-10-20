@@ -1,0 +1,242 @@
+{
+ "kind": "communication",
+ "title": "Checkout across microservices",
+ "lifelines": [
+  {
+   "id": "gw",
+   "name": "gateway",
+   "type": "KubernetesIngressGatewayController"
+  },
+  {
+   "id": "auth",
+   "name": "auth",
+   "type": "OAuthTokenIntrospectionService"
+  },
+  {
+   "id": "cart",
+   "name": "cart",
+   "type": "ShoppingCartAggregateRoot"
+  },
+  {
+   "id": "inv",
+   "name": "inv",
+   "type": "InventoryReservationService"
+  },
+  {
+   "id": "price",
+   "name": "price",
+   "type": "DynamicPricingEngineWithPromotions"
+  },
+  {
+   "id": "pay",
+   "name": "pay",
+   "type": "PaymentOrchestrator"
+  },
+  {
+   "id": "fraud",
+   "name": "fraud",
+   "type": "FraudScoringModel"
+  },
+  {
+   "id": "bus",
+   "name": "bus",
+   "type": "EventBus"
+  },
+  {
+   "id": "audit",
+   "type": "AuditTrail"
+  }
+ ],
+ "links": [
+  {
+   "from": "gw",
+   "to": "auth"
+  },
+  {
+   "from": "gw",
+   "to": "cart"
+  },
+  {
+   "from": "cart",
+   "to": "inv"
+  },
+  {
+   "from": "cart",
+   "to": "price"
+  },
+  {
+   "from": "cart",
+   "to": "pay"
+  },
+  {
+   "from": "pay",
+   "to": "fraud"
+  },
+  {
+   "from": "pay",
+   "to": "bus"
+  },
+  {
+   "from": "inv",
+   "to": "bus"
+  },
+  {
+   "from": "bus",
+   "to": "audit"
+  },
+  {
+   "from": "price",
+   "to": "inv"
+  },
+  {
+   "from": "auth",
+   "to": "audit"
+  },
+  {
+   "from": "cart",
+   "to": "cart"
+  }
+ ],
+ "messages": [
+  {
+   "sequence": "1",
+   "from": "gw",
+   "to": "auth",
+   "name": "introspect",
+   "arguments": [
+    "bearerToken"
+   ],
+   "assignTo": "principal"
+  },
+  {
+   "sequence": "1.1",
+   "from": "auth",
+   "to": "audit",
+   "name": "recordAccess",
+   "arguments": [
+    "principal",
+    "requestFingerprint"
+   ],
+   "sort": "asynchronous"
+  },
+  {
+   "sequence": "2",
+   "from": "gw",
+   "to": "cart",
+   "name": "checkout",
+   "arguments": [
+    "cartId",
+    "principal",
+    "idempotencyKey"
+   ],
+   "assignTo": "receipt"
+  },
+  {
+   "sequence": "2.1",
+   "from": "cart",
+   "to": "cart",
+   "name": "validateLineItemsAgainstCatalogSnapshot",
+   "arguments": []
+  },
+  {
+   "sequence": "2.2",
+   "from": "cart",
+   "to": "price",
+   "name": "quote",
+   "arguments": [
+    "lines",
+    "promotionCodes",
+    "customerSegment"
+   ],
+   "assignTo": "quote"
+  },
+  {
+   "sequence": "2.2.1",
+   "from": "price",
+   "to": "inv",
+   "name": "availability",
+   "arguments": [
+    "skus"
+   ],
+   "assignTo": "stock"
+  },
+  {
+   "sequence": "2.3",
+   "from": "cart",
+   "to": "inv",
+   "name": "reserve",
+   "arguments": [
+    "lines",
+    "ttlSeconds"
+   ],
+   "assignTo": "reservation"
+  },
+  {
+   "sequence": "2.3.1",
+   "from": "inv",
+   "to": "bus",
+   "name": "publish",
+   "arguments": [
+    "StockReserved"
+   ],
+   "sort": "asynchronous"
+  },
+  {
+   "sequence": "2.4",
+   "from": "cart",
+   "to": "pay",
+   "name": "authorize",
+   "arguments": [
+    "quote.total",
+    "paymentMethodToken"
+   ],
+   "assignTo": "auth"
+  },
+  {
+   "sequence": "2.4.1",
+   "from": "pay",
+   "to": "fraud",
+   "name": "score",
+   "arguments": [
+    "transactionContextWithDeviceFingerprint"
+   ],
+   "assignTo": "risk"
+  },
+  {
+   "sequence": "2.4.2",
+   "from": "pay",
+   "to": "bus",
+   "name": "publish",
+   "arguments": [
+    "PaymentAuthorized"
+   ],
+   "sort": "asynchronous"
+  },
+  {
+   "sequence": "2.4.3",
+   "from": "pay",
+   "to": "cart",
+   "name": "authorize",
+   "sort": "reply",
+   "returnValue": "ok"
+  },
+  {
+   "sequence": "2.4.2.1",
+   "from": "bus",
+   "to": "audit",
+   "name": "append",
+   "arguments": [
+    "events"
+   ],
+   "sort": "asynchronous"
+  },
+  {
+   "sequence": "2.5",
+   "from": "cart",
+   "to": "gw",
+   "name": "checkout",
+   "sort": "reply",
+   "returnValue": "ok"
+  }
+ ]
+}

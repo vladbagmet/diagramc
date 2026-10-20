@@ -20,9 +20,10 @@ export function validateDeploymentDiagram(model: DeploymentDiagram): Diagnostic[
     if (isNodeType(element.type) && 'elements' in element) {
       (element.elements ?? []).forEach((child, k) => {
         const at = pointer(path, 'elements', k);
-        // An execution environment hosts software, not hardware.
-        if (element.type === 'executionEnvironment' && (child.type === 'node' || child.type === 'device')) {
-          diagnostics.push({ code: 'INVALID_NESTING', path: pointer(at, 'type'), message: `An execution environment cannot contain a ${child.type}; nest execution environments in nodes or devices instead` });
+        // An execution environment may host nodes (a hypervisor running virtual
+        // machines) but not physical devices.
+        if (element.type === 'executionEnvironment' && child.type === 'device') {
+          diagnostics.push({ code: 'INVALID_NESTING', path: pointer(at, 'type'), message: 'An execution environment cannot contain a device (hardware); use a node for a virtual machine, or nest the execution environment in the device instead' });
         }
         visit(child, at, element.id);
       });

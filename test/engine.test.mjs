@@ -410,6 +410,29 @@ test('layout chooser: scores prefer a readable page and the conventional directi
   assert.deepEqual(kept, { width: 1000, height: 800 }, 'the convention wins when the alternative is not clearly better');
 });
 
+test('chooseLayout: with maxAspect a layout within the limit wins over a smaller panorama; wrapping only when needed', async () => {
+  const runs = [];
+  const pick = await chooseLayout(['RIGHT', 'DOWN'], async (dir, variant) => {
+    runs.push(`${dir}:${variant}`);
+    if (dir === 'RIGHT') return variant === 'wrap' ? { width: 2600, height: 900 } : { width: 4400, height: 1000 };
+    return { width: 1400, height: 2600 };
+  }, r => r, { wrap: true, maxAspect: 2.5 });
+  assert.deepEqual(pick, { width: 1400, height: 2600 }, 'the 1:1.9 layout, not the 4.4:1 one');
+  assert.ok(!runs.includes('DOWN:wrap'), 'a plain layout within the limit is not wrapped');
+  const without = await chooseLayout(['RIGHT', 'DOWN'], async dir => dir === 'RIGHT' ? { width: 3000, height: 700 } : { width: 1400, height: 2600 }, r => r);
+  assert.deepEqual(without, { width: 3000, height: 700 }, 'without maxAspect the score alone decides');
+});
+
+test('elkjs: a top to bottom compound node with wide ports on its top border is not made as tall as they are wide', async () => {
+  const result = await layout([
+    { id: 'box', width: 120, height: 60, minimumSize: true, padding: { top: 40, left: 20, bottom: 20, right: 20 }, ports: [{ id: 'p', side: 'NORTH', width: 600 }], children: [{ id: 'kid', width: 50, height: 20 }] },
+    { id: 'up', width: 40, height: 20 },
+  ], [{ id: 'e', source: 'up', target: 'p' }], { direction: 'DOWN' });
+  const box = result.nodes.get('box');
+  assert.ok(box.width >= 600, `wide enough for its port (${box.width})`);
+  assert.ok(box.height < 200, `not as tall as the port is wide (${box.height})`);
+});
+
 test('QA gates for the review findings: crowded ends, detours, bent arrowheads, container texts, broken words', async () => {
   const a = node('a', 20, 20, 100, 50), b = node('b', 20, 200, 100, 50);
   const dep = (id, points) => drawEdge({ id, type: 'dependency', source: 'b', target: 'a', points, style: 'dashed', sourceMarker: 'none', targetMarker: 'open-arrow' });

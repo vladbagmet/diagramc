@@ -16,12 +16,21 @@ fixture and example also passes all QA gates, including the `ports` gate.
   ball-and-socket joint, to the providing element on the right.
 - A drawing larger than 1000 x 1000 px is also laid out top to bottom (provided
   interfaces up, required down) and the more readable result wins
-  (`chooseLayout`, src/engine/aspect.ts). Ports on a container's top border
-  slide beside its name, with their lollipops and sockets.
+  (`chooseLayout`, src/engine/aspect.ts); a layout within 2.5:1 wins over any
+  wider or taller one unless it is much worse, and a wrapped layout is tried
+  only when no plain one comes close to square.
+- Lines never cross a container's name compartment: a port on its top border, or
+  level with the compartment, moves onto the side border below it, with room
+  kept outside for its name (ports with their own lollipops or sockets keep
+  their place beside the name).
 - Joints line up with their ports (ELK straightness priority on stems and
   assembly halves); zig-zags and small jogs between neighbours are straightened.
-- An interface with its own box and a «use» or realization line from an element
-  gets no second, unconnected socket or lollipop on that element.
+- An interface is drawn once. With its own box (a relationship or note touches
+  it, nothing provides or requires it, or it would otherwise appear as several
+  unconnected lollipops and sockets), every element or port providing it is
+  joined to the box by a realization line and every one requiring it by a «use»
+  line; none gets a second, unconnected symbol. An element whose own port
+  provides or requires the interface shows it at the port only.
 - A port's side follows its connections: outward connectors leave from the side
   facing their partner; delegations into the owner come from the opposite side.
 - Nested elements are laid out inside their component's body, below the name
@@ -88,6 +97,12 @@ fixture and example also passes all QA gates, including the `ports` gate.
   attachment point that its connectors share.
 
 ## Known limitations
+
+- No two lines run on top of each other: lines that ELK lets share a trunk at a
+  port leave it from separate faces (outer face, then the side faces outside the
+  owner) and are routed apart. A port takes three such lines; more lines at one
+  port (seven assemblies into one provider port in the reviewers' awkward model)
+  still share a trunk there.
 
 - Long chains of large containers grow horizontally (the stress example is about
   4700 x 1100 px, top to bottom would be about 1600 x 2900); ELK's graph wrapping
