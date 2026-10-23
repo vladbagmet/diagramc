@@ -100,7 +100,33 @@ const closedRegions = m => {
  * order of transitions (written per region) and of attached notes (written
  * beside their vertex, with fresh IDs).
  */
+/**
+ * An activity graph without its IDs, which PlantUML does not carry: each node
+ * is named by what it is (type, name, swimlane name, note, state) refined three
+ * times by the labels of its neighbours (Weisfeiler-Lehman), and the graph is
+ * the sorted lists of node and flow labels. Equal results mean the same nodes,
+ * names and flows, connected the same way.
+ */
+function activityGraph(m) {
+  const lanes = new Map((m.partitions ?? []).map(p => [p.id, p.name]));
+  let label = new Map(m.nodes.map(n => [n.id, JSON.stringify([n.type, n.name, lanes.get(n.partition), n.note, n.state])]));
+  for (let round = 0; round < 3; round++) {
+    label = new Map(m.nodes.map(n => [n.id, JSON.stringify([
+      label.get(n.id),
+      m.edges.filter(e => e.from === n.id).map(e => [e.guard, label.get(e.to)]).sort(),
+      m.edges.filter(e => e.to === n.id).map(e => [e.guard, label.get(e.from)]).sort(),
+    ])]));
+  }
+  return {
+    title: m.title,
+    partitions: (m.partitions ?? []).map(p => p.name),
+    nodes: m.nodes.map(n => label.get(n.id)).sort(),
+    edges: m.edges.map(e => JSON.stringify([label.get(e.from), label.get(e.to), e.guard, e.type])).sort(),
+  };
+}
+
 export const CANONICAL = {
+  activity: activityGraph,
   'state-machine': m => {
     if (m.transitions) m.transitions = [...m.transitions].sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b)));
     const attached = m.elements.filter(e => e.type === 'note' && e.attachedTo?.length).map(({ id, ...rest }) => rest);
@@ -121,6 +147,15 @@ export const LOSSES = {
       return m;
     },
     'state-machine': m => closedRegions(attachedNotes(stateCommon(m))),
+    activity: m => {
+      // Flows have no IDs, and their type is inferred (object flow when an end is an object node).
+      const objects = new Set(m.nodes.filter(n => n.type === 'object').map(n => n.id));
+      for (const e of m.edges) {
+        delete e.id;
+        if (e.type === (objects.has(e.from) || objects.has(e.to) ? 'object' : 'control')) delete e.type;
+      }
+      return m;
+    },
     'use-case': m => {
       drop(m.relationships, 'id');
       dropEmpty(m, ['stereotypes', 'extensionPoints', 'attachedTo', 'relationships']);

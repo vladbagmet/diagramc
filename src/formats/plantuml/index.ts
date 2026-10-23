@@ -10,6 +10,7 @@ import { plantumlDeployment } from './deployment.js';
 import { plantumlCompositeStructure } from './composite-structure.js';
 import { plantumlSequence } from './sequence.js';
 import { plantumlTiming } from './timing.js';
+import { plantumlActivity } from './activity.js';
 import { plantumlStateMachine } from './state-machine.js';
 import { plantumlUseCase } from './use-case.js';
 
@@ -26,6 +27,7 @@ export const plantumlFormats: readonly KindFormat[] = [
   plantumlCompositeStructure,
   plantumlSequence,
   plantumlTiming,
+  plantumlActivity,
   plantumlStateMachine,
   plantumlUseCase,
 ];
