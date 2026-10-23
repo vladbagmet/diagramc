@@ -2,6 +2,22 @@
 
 ## Unreleased
 
+- New command `uml export <model.json|-> --to plantuml|mermaid [-o file]`:
+  writes a model as readable PlantUML (all 14 kinds) or Mermaid (class,
+  sequence, state machine, and activity and use case as flowcharts). Model IDs
+  become the aliases; constructs a format cannot express are reported as
+  `EXPORT_LOSSY` warnings with their JSON path. Kinds Mermaid cannot draw fail
+  with `UNSUPPORTED_EXPORT`.
+- New command `uml import <file.puml|file.mmd|-> [--from plantuml|mermaid]
+  [--kind <kind>] [-o model.json]`: reads PlantUML (class, sequence, state
+  machine, use case, activity) or Mermaid (class, sequence, state machine)
+  into a validated model. The format follows the file extension and the kind
+  the content; every line that cannot be read is reported at once with its
+  line number (`UNSUPPORTED_SYNTAX`, `MALFORMED_LINE`), and a model that reads
+  but breaks a rule fails with `IMPORT_INVALID`.
+- `uml kinds` lists, per kind, the formats it `exports` to and `imports` from.
+- Mapping tables, lossy cases and import rules: `docs/formats.md`; why
+  PlantUML and Mermaid and not XMI: `docs/decisions/0004-exchange-formats.md`.
 - Deployment, component and composite structure layouts no longer let a line
   between elements of two top-level containers decide their order: the
   containers can sit side by side. The deployment stress example now passes
