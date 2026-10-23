@@ -18,6 +18,7 @@ import { CANONICAL, LOSSES } from './format-losses.mjs';
  */
 const LIMITS = {
   'plantuml state-machine/notation.json': { path: '/transitions/7', code: 'FORK_DEGREE', why: 'a fork into the second orthogonal region of a composite state' },
+  'mermaid state-machine/notation.json': { path: '/transitions/6', code: 'FORK_DEGREE', why: 'transitions across the border of a composite state' },
 };
 
 for (const [format, kinds] of Object.entries(ROUND_TRIP)) {

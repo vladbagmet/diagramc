@@ -9,7 +9,7 @@ import { root } from './helpers.mjs';
 /** Kinds each format imports, so their examples must survive a round trip. */
 export const ROUND_TRIP = {
   plantuml: ['class', 'sequence', 'state-machine', 'use-case', 'activity'],
-  mermaid: ['class'],
+  mermaid: ['class', 'sequence', 'state-machine'],
 };
 
 /** Every example model of a kind: [{ name, text }]. */

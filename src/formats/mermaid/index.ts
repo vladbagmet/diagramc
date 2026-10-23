@@ -1,6 +1,8 @@
 import type { KindFormat } from '../types.js';
 import { mermaidActivity } from './activity.js';
 import { mermaidClass } from './class.js';
+import { mermaidSequence } from './sequence.js';
+import { mermaidStateMachine } from './state-machine.js';
 import { mermaidUseCase } from './use-case.js';
 
 /**
@@ -12,6 +14,8 @@ import { mermaidUseCase } from './use-case.js';
  */
 export const mermaidFormats: readonly KindFormat[] = [
   mermaidClass,
+  mermaidSequence,
   mermaidActivity,
+  mermaidStateMachine,
   mermaidUseCase,
 ];

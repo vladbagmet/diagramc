@@ -80,21 +80,24 @@ export function checkMermaid(text) {
     return [`not a classDiagram statement: ${JSON.stringify(t)}`];
   }
 
+  // Entity codes (#59;, #quot;) end in ";" but do not split a statement.
+  function rawSemicolon(s) { return s.replace(/#(?:\d{1,7}|[A-Za-z]+);/gu, '').includes(';'); }
+
   function sequenceLine(t, state) {
     const known = id => state.declared.has(id) ? [] : [`participant "${id}" is used before it is declared`];
     let m = new RegExp(`^(?:create\\s+)?(?:participant|actor)\\s+(${ID})(?:\\s+as\\s+(.+))?$`, 'u').exec(t);
     if (m) {
       state.declared.add(m[1]);
-      return m[2] !== undefined && m[2].includes(';') ? ['raw ";" in a participant label'] : [];
+      return m[2] !== undefined && rawSemicolon(m[2]) ? ['raw ";" in a participant label'] : [];
     }
     m = new RegExp(`^(?:destroy|activate|deactivate)\\s+(${ID})$`, 'u').exec(t);
     if (m) return known(m[1]);
     m = new RegExp(`^(${ID})\\s*(<<-->>|<<->>|-->>|->>|-->|->|--x|-x|--\\)|-\\))\\s*[+-]?(${ID})\\s*:(.*)$`, 'u').exec(t);
-    if (m) return [...known(m[1]), ...known(m[3]), ...(m[4].includes(';') ? ['raw ";" in message text'] : [])];
+    if (m) return [...known(m[1]), ...known(m[3]), ...(rawSemicolon(m[4]) ? ['raw ";" in message text'] : [])];
     m = new RegExp(`^Note\\s+(?:left of|right of|over)\\s+(${ID})(?:\\s*,\\s*(${ID}))?\\s*:(.*)$`, 'u').exec(t);
-    if (m) return [...known(m[1]), ...(m[2] ? known(m[2]) : []), ...(m[3].includes(';') ? ['raw ";" in note text'] : [])];
+    if (m) return [...known(m[1]), ...(m[2] ? known(m[2]) : []), ...(rawSemicolon(m[3]) ? ['raw ";" in note text'] : [])];
     m = /^(loop|alt|opt|par|critical|break|rect|box)\b(.*)$/u.exec(t);
-    if (m) { open(state, m[1]); return m[2].includes(';') ? ['raw ";" in a block label'] : []; }
+    if (m) { open(state, m[1]); return rawSemicolon(m[2]) ? ['raw ";" in a block label'] : []; }
     m = /^(else|and|option)\b(.*)$/u.exec(t);
     if (m) {
       const owner = { else: 'alt', and: 'par', option: 'critical' }[m[1]];
