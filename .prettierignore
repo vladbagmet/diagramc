@@ -1,0 +1,6 @@
+dist/
+coverage/
+.tools/
+artifacts/
+node_modules/
+package-lock.json

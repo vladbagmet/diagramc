@@ -24,6 +24,8 @@
     "build": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\" && tsc && node scripts/finish-build.mjs",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
+    "format": "prettier --write \"**/*.{ts,mjs,js}\"",
+    "format:check": "prettier --check \"**/*.{ts,mjs,js}\"",
     "prepack": "npm run build",
     "setup:renderer": "node scripts/setup-renderer.mjs",
     "test": "npm run build && node --test \"test/*.test.mjs\"",
