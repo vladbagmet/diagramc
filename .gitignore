@@ -5,3 +5,6 @@ dist/
 .DS_Store
 artifacts/gallery/
 .claude/
+coverage/
+.nyc_output/
+*.lcov
