@@ -125,7 +125,11 @@ function activityGraph(m) {
   };
 }
 
+/** Note IDs are not kept: compare notes without them. */
+const withoutNoteIds = m => ({ ...m, elements: m.elements.map(e => (e.type === 'note' ? (({ id, ...rest }) => rest)(e) : e)) });
+
 export const CANONICAL = {
+  'mermaid class': withoutNoteIds,
   activity: activityGraph,
   'state-machine': m => {
     if (m.transitions) m.transitions = [...m.transitions].sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b)));
@@ -170,5 +174,18 @@ export const LOSSES = {
       return m;
     },
   },
-  mermaid: {},
+  mermaid: {
+    class: m => {
+      classCommon(m);
+      for (const r of m.relationships ?? []) {
+        // No containment line and no cross for a non-navigable end.
+        if (r.type === 'containment') r.type = 'association';
+        for (const end of [r.fromEnd, r.toEnd]) if (end?.navigable === false) delete end.navigable;
+        if (r.fromEnd && !Object.keys(r.fromEnd).length) delete r.fromEnd;
+        if (r.toEnd && !Object.keys(r.toEnd).length) delete r.toEnd;
+      }
+      // Notes are written after the classifiers, once per target, with new IDs.
+      return attachedNotes({ ...m, elements: [...m.elements.filter(e => e.type !== 'note'), ...m.elements.filter(e => e.type === 'note').map(({ id, ...rest }) => rest)] });
+    },
+  },
 };

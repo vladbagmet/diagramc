@@ -1,7 +1,7 @@
-import { commonDefinitions } from '../../core/text.js';
-import type { Attribute, ClassDiagram, ClassifierType, End, Operation, Parameter, Relationship, Visibility } from '../../kinds/class/model.js';
+import type { Attribute, ClassDiagram, ClassifierType, End, Operation, Relationship } from '../../kinds/class/model.js';
 import { isLegacy, isNote } from '../../kinds/class/model.js';
-import { IdMaker, compact, splitTopLevel } from '../common.js';
+import { attributeText, endText, literalText, operationText, parseAttribute, parseEnd, parseOperation, type Codec } from '../class-members.js';
+import { IdMaker, compact } from '../common.js';
 import type { KindFormat, Losses, Problems, SourceLine } from '../types.js';
 import { STEREOTYPE, decode, document, encode, nameAndAlias, plantumlAliases, quoted, stereotypeText, stereotypes, titleOf, token } from './text.js';
 
@@ -12,49 +12,14 @@ import { STEREOTYPE, decode, document, encode, nameAndAlias, plantumlAliases, qu
  * name, type or default, so every member reads back exactly.
  */
 
-const VIS: Record<Visibility, string> = { public: '+', private: '-', protected: '#', package: '~' };
-const VIS_BACK: Record<string, Visibility> = { '+': 'public', '-': 'private', '#': 'protected', '~': 'package' };
-const MULTIPLICITY = new RegExp(commonDefinitions.multiplicity.pattern, 'u');
 /** Keyword stereotypes that stand for a classifier type PlantUML has no declaration for. */
 const TYPE_STEREOTYPE: Partial<Record<ClassifierType, string>> = { datatype: 'dataType', primitive: 'primitive' };
+const codec: Codec = { encode, token, decode };
 
-/** A member's leading character encoded when it would read as a visibility or derived mark. */
-const lead = (text: string, chars: string): string => text && chars.includes(text[0]!) ? token(text[0]!) + text.slice(1) : text;
-
-function attributeText(a: Attribute): string {
-  let text = `${a.static ? '{static} ' : ''}${a.visibility ? VIS[a.visibility] : ''}${a.derived ? '/' : ''}`;
-  text += a.visibility || a.derived ? encode(a.name, ':[]={}(),') : lead(encode(a.name, ':[]={}(),'), '+-#~/{');
-  if (a.type !== undefined) text += ` : ${encode(a.type, '[]={}()')}`;
-  if (a.multiplicity !== undefined) text += ` [${a.multiplicity}]`;
-  if (a.default !== undefined) text += ` = ${encode(a.default, '{}()')}`;
-  if (a.readOnly) text += ' {readOnly}';
-  return text;
-}
-
-function operationText(o: Operation): string {
-  const parameters = (o.parameters ?? []).map(p => {
-    let text = p.direction ? `${p.direction} ` : '';
-    // A name that starts like a direction keyword has its first character encoded.
-    text += /^(?:in|out|inout)\s/u.test(p.name) ? token(p.name[0]!) + encode(p.name.slice(1), ':,()[]={}') : encode(p.name, ':,()[]={}');
-    if (p.type !== undefined) text += ` : ${encode(p.type, ',()[]={}')}`;
-    if (p.multiplicity !== undefined) text += ` [${p.multiplicity}]`;
-    if (p.default !== undefined) text += ` = ${encode(p.default, ',(){}')}`;
-    return text;
-  });
-  let text = `${o.static ? '{static} ' : ''}${o.abstract ? '{abstract} ' : ''}${o.visibility ? VIS[o.visibility] : ''}`;
-  text += o.visibility ? encode(o.name, ':(){}[]=') : lead(encode(o.name, ':(){}[]='), '+-#~/{');
-  text += `(${parameters.join(', ')})`;
-  if (o.returnType !== undefined) text += ` : ${encode(o.returnType, '{}()[]=')}`;
-  if (o.query) text += ' {query}';
-  return text;
-}
-
-/** End label `"role multiplicity"`; a role that would read as ending in a multiplicity has its last character encoded. */
+/** End label ` "role multiplicity"`, or "" without one. */
 function endLabel(end: End | undefined): string {
-  if (end?.role === undefined && end?.multiplicity === undefined) return '';
-  let role = end.role === undefined ? undefined : encode(end.role, '"');
-  if (role !== undefined && end.multiplicity === undefined && MULTIPLICITY.test(role.split(' ').at(-1)!)) role = role.slice(0, -1) + token(role.at(-1)!);
-  return ` "${[role, end.multiplicity].filter(t => t !== undefined).join(' ')}"`;
+  const text = endText(end, codec);
+  return text === undefined ? '' : ` "${text}"`;
 }
 
 export function exportClass(model: ClassDiagram, losses: Losses): string {
@@ -68,10 +33,10 @@ export function exportClass(model: ClassDiagram, losses: Losses): string {
     const head = `${keyword} ${e.name === alias ? alias : `${quoted(e.name)} as ${alias}`}${stereotypeText([...(typeStereotype ? [typeStereotype] : []), ...(e.stereotypes ?? [])])}`;
     if (e.type === 'interface' && e.abstract) losses.add(`/elements/${i}/abstract`, 'An interface marked abstract is exported as a plain interface');
     const body: string[] = [];
-    for (const literal of e.literals ?? []) body.push(lead(encode(literal, '(){}[]:'), '+-#~/{'));
+    for (const literal of e.literals ?? []) body.push(literalText(literal, codec));
     // In an enumeration, a bare attribute would read back as a literal: {field} marks it.
-    (e.attributes ?? []).forEach(a => body.push(isLegacy(a) ? `{field} ${encode(a.text, '{}')}` : `${e.type === 'enumeration' ? '{field} ' : ''}${attributeText(a)}`));
-    (e.operations ?? []).forEach(o => body.push(isLegacy(o) ? `{method} ${encode(o.text, '{}')}` : operationText(o)));
+    (e.attributes ?? []).forEach(a => body.push(isLegacy(a) ? `{field} ${encode(a.text, '{}')}` : `${e.type === 'enumeration' ? '{field} ' : ''}${a.static ? '{static} ' : ''}${attributeText(a, codec)}`));
+    (e.operations ?? []).forEach(o => body.push(isLegacy(o) ? `{method} ${encode(o.text, '{}')}` : `${o.static ? '{static} ' : ''}${o.abstract ? '{abstract} ' : ''}${operationText(o, codec)}`));
     if (!body.length) { lines.push(head); return; }
     lines.push(`${head} {`, ...body.map(b => `  ${b}`), '}');
   });
@@ -233,7 +198,7 @@ export function importClass(lines: readonly SourceLine[], problems: Problems): R
     if (!parts) { problems.malformed(line, `unrecognised arrow ${JSON.stringify(m[3])}`); return; }
     const [, left = '', style, right = ''] = parts;
     const dashed = style!.startsWith('.');
-    const ea = parseEnd(m[2]), eb = parseEnd(m[4]);
+    const ea = parseEnd(m[2], codec), eb = parseEnd(m[4], codec);
     const left2 = resolve(a), right2 = resolve(b);
     if (left2.type === 'note' || right2.type === 'note') {
       if (dashed && !left && !right) {
@@ -287,17 +252,6 @@ export function importClass(lines: readonly SourceLine[], problems: Problems): R
   return model;
 }
 
-/** `"role 1..*"` -> { role, multiplicity }. */
-function parseEnd(text: string | undefined): End | undefined {
-  if (text === undefined) return undefined;
-  const t = text.trim();
-  if (!t) return undefined;
-  if (MULTIPLICITY.test(t)) return { multiplicity: t };
-  const space = t.lastIndexOf(' ');
-  if (space > 0 && MULTIPLICITY.test(t.slice(space + 1))) return { role: decode(t.slice(0, space).trim()), multiplicity: t.slice(space + 1) };
-  return { role: decode(t) };
-}
-
 /** `<<use>> name >` -> keyword and name; a trailing reading direction mark is dropped. */
 function parseLabel(text: string | undefined): { keyword?: string; name?: string } {
   if (text === undefined) return {};
@@ -325,42 +279,18 @@ function member(element: Classifier, text: string, line: SourceLine, problems: P
     (element.literals ??= []).push(decode(t));
     return;
   }
-  const isOperation = modifiers.has('method') || (!modifiers.has('field') && t.includes('('));
-  const vis = /^[-+#~]/u.test(t) ? VIS_BACK[t[0]!] : undefined;
-  if (vis) t = t.slice(1).trim();
-  if (isOperation) {
-    const m = /^([^():{}[\]=]+)\(([^()]*)\)\s*(?::\s*([^{}]+?))?\s*(\{query\})?$/u.exec(t);
-    if (!m) { problems.malformed(line, `expected an operation "name(parameters) : ReturnType", got ${JSON.stringify(text)}`); return; }
-    const operation: Operation = { name: decode(m[1]!.trim()) };
-    const parameters: Parameter[] = [];
-    if (m[2]!.trim()) {
-      for (const p of splitTopLevel(m[2]!)) {
-        const pm = /^(?:(in|out|inout)\s+)?([^:[\]=]+?)\s*(?::\s*([^[\]=]+?))?\s*(?:\[([^\]]*)\])?\s*(?:=\s*(.+))?$/u.exec(p);
-        if (!pm) { problems.malformed(line, `expected a parameter "[in|out|inout] name : Type [multiplicity] = default", got ${JSON.stringify(p)}`); return; }
-        if (pm[4] !== undefined && !MULTIPLICITY.test(pm[4])) { problems.malformed(line, `invalid multiplicity [${pm[4]}]`); return; }
-        parameters.push(compact({ name: decode(pm[2]!), type: pm[3] === undefined ? undefined : decode(pm[3]), direction: pm[1] as Parameter['direction'], multiplicity: pm[4], default: pm[5] === undefined ? undefined : decode(pm[5].trim()) }));
-      }
-    }
-    if (m[2]!.trim() || parameters.length) operation.parameters = parameters;
-    if (m[3] !== undefined) operation.returnType = decode(m[3].trim());
-    if (vis) operation.visibility = vis;
+  if (modifiers.has('method') || (!modifiers.has('field') && t.includes('('))) {
+    const operation = parseOperation(t, codec);
+    if (typeof operation === 'string') { problems.malformed(line, operation); return; }
     if (modifiers.has('static')) operation.static = true;
     if (modifiers.has('abstract')) operation.abstract = true;
-    if (m[4]) operation.query = true;
     (element.operations ??= []).push(operation);
     return;
   }
-  const derived = t.startsWith('/');
-  if (derived) t = t.slice(1);
-  const m = /^([^:[\]={}]+?)\s*(?::\s*([^[\]={}]+?))?\s*(?:\[([^\]]*)\])?\s*(?:=\s*([^{}]+?))?\s*(\{readOnly\})?$/u.exec(t);
-  if (!m) { problems.malformed(line, `expected an attribute "name : Type [multiplicity] = default {readOnly}", got ${JSON.stringify(text)}`); return; }
-  if (m[3] !== undefined && !MULTIPLICITY.test(m[3])) { problems.malformed(line, `invalid multiplicity [${m[3]}]`); return; }
   if (modifiers.has('abstract')) { problems.unsupported(line, 'abstract attributes are not part of the class model'); return; }
-  const attribute: Attribute = compact({
-    name: decode(m[1]!), type: m[2] === undefined ? undefined : decode(m[2]), visibility: vis, multiplicity: m[3],
-    default: m[4] === undefined ? undefined : decode(m[4]), static: modifiers.has('static') || undefined, derived: derived || undefined, readOnly: m[5] ? true : undefined,
-  });
-  // Attribute order in the model: visibility, name, type, ... keys are compared as sets.
+  const attribute = parseAttribute(t, codec);
+  if (typeof attribute === 'string') { problems.malformed(line, attribute); return; }
+  if (modifiers.has('static')) attribute.static = true;
   (element.attributes ??= []).push(attribute);
 }
 

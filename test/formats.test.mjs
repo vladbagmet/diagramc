@@ -35,7 +35,7 @@ for (const [format, kinds] of Object.entries(ROUND_TRIP)) {
       test(`${format} round trip keeps every element, relationship and name: ${name}`, () => {
         const { original, exported, imported } = roundTrip(text, format);
         const expected = LOSSES[format][kind](aliasIds(structuredClone(original), format));
-        const canonical = CANONICAL[kind] ?? (m => m);
+        const canonical = CANONICAL[`${format} ${kind}`] ?? CANONICAL[kind] ?? (m => m);
         assert.deepEqual(sorted(canonical(structuredClone(imported))), sorted(canonical(expected)));
         const again = exportDocument(parseDocument(JSON.stringify(imported)), format);
         assert.equal(again.text, exported.text, 'exporting the imported model gives the same text');
