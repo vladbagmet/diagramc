@@ -14,7 +14,8 @@ import { PRESENTATION, decode, document, encode, entity, mermaidAliases, titleOf
  * Mermaid closes a class body at a brace.
  */
 
-const codec: Codec = { encode, token: entity, decode };
+/** `~` is Mermaid's generic delimiter in class diagrams: model text never contains a raw one. */
+const codec: Codec = { encode: (text, special = '') => encode(text, `${special}~`), token: entity, decode };
 const TYPE_ANNOTATION: Partial<Record<ClassifierType, string>> = { interface: 'interface', enumeration: 'enumeration', datatype: 'dataType', primitive: 'primitive' };
 const BY_ANNOTATION = new Map<string, ClassifierType>([['interface', 'interface'], ['enumeration', 'enumeration'], ['enum', 'enumeration'], ['dataType', 'datatype'], ['datatype', 'datatype'], ['primitive', 'primitive']]);
 
@@ -46,12 +47,14 @@ export function exportClass(model: ClassDiagram, losses: Losses): string {
     if (e.abstract && e.type !== 'class') losses.add(`/elements/${i}/abstract`, `An abstract ${e.type} is written without the abstract mark`);
     for (const s of e.stereotypes ?? []) body.push(`<<${encode(s)}>>`);
     if ((e.stereotypes ?? []).some(s => BY_ANNOTATION.has(s) || s === 'abstract')) losses.add(`/elements/${i}/stereotypes`, 'A stereotype named like a classifier type or "abstract" reads back as that type');
-    for (const literal of e.literals ?? []) body.push(memberLine(literalText(literal, codec), ''));
+    for (const literal of e.literals ?? []) body.push(memberLine(literalText(literal, codec).replace(/^([^\s:()[\]={}]+)\s(?=[^\s:()[\]={}]+$)/u, `$1${entity(' ')}`), ''));
     (e.attributes ?? []).forEach((a, j) => {
       if (isLegacy(a)) { losses.add(`/elements/${i}/attributes/${j}`, 'A v1 member text is written as it is'); body.push(memberLine(encode(a.text), '')); return; }
       // In an enumeration, a bare attribute would read back as a literal: a visibility-less one gets ": " typing or is reported.
       if (e.type === 'enumeration' && a.visibility === undefined && a.type === undefined) losses.add(`/elements/${i}/attributes/${j}`, 'An enumeration attribute without visibility or type reads back as a literal');
-      body.push(memberLine(attributeText(a, codec), a.static ? '$' : ''));
+      // `+two words` would read as Mermaid's type-first `+Type name`: the space is encoded.
+      const text = attributeText(a, codec).replace(/^([-+#~]?\/?[^\s:()[\]={}]+)\s(?=[^\s:()[\]={}]+$)/u, `$1${entity(' ')}`);
+      body.push(memberLine(text, a.static ? '$' : ''));
     });
     (e.operations ?? []).forEach((o, j) => {
       if (isLegacy(o)) { losses.add(`/elements/${i}/operations/${j}`, 'A v1 member text is written as it is'); body.push(memberLine(encode(o.text), '')); return; }
@@ -159,8 +162,16 @@ export function importClass(lines: readonly SourceLine[], problems: Problems): R
 
   function member(element: Classifier, text: string, line: SourceLine): void {
     let t = text.trim().replaceAll(`${entity('{')}readOnly${entity('}')}`, '{readOnly}').replaceAll(`${entity('{')}query${entity('}')}`, '{query}');
-    const suffix = /[$*]$/u.exec(t)?.[0];
+    // Mermaid's own conventions: `$`/`*` right after the parentheses, `~T~` generics,
+    // a return type after a space (`+speak() String`), type-first attributes (`+String name`).
+    let suffix = /[$*]$/u.exec(t)?.[0];
     if (suffix) t = t.slice(0, -1).trimEnd();
+    const after = /\)([$*])/u.exec(t);
+    if (after && !suffix) { suffix = after[1]; t = t.replace(/\)[$*]/u, ')'); }
+    t = t.replace(/~([^~]*)~/gu, '<$1>');
+    t = t.replace(/\)\s+([^\s:{][^{]*?)\s*$/u, ') : $1');
+    const typeFirst = /^([-+#~]?)([^\s:()[\]={}]+)\s+([^\s:()[\]={}]+)$/u.exec(t);
+    if (typeFirst && !(element.type === 'enumeration' && !typeFirst[1])) t = `${typeFirst[1]}${typeFirst[3]} : ${typeFirst[2]}`;
     if (element.type === 'enumeration' && !suffix && !t.includes('(') && !visibilityOf(t) && !t.includes(':')) {
       (element.literals ??= []).push(decode(t));
       return;

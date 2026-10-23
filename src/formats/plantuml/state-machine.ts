@@ -134,6 +134,16 @@ export function importStateMachine(lines: readonly SourceLine[], problems: Probl
   const elementsHere = (): Element[] => stack.at(-1)?.regions.at(-1)?.elements ?? top;
 
   const add = (v: Vertex, key: string): void => { elementsHere().push(v); byKey.set(key, v); };
+  /** States PlantUML created where a transition first named them; a later declaration places and defines them. */
+  const implicit = new Map<string, Element[]>();
+  /** Removes an implicitly created state so its declaration can take its place; false when the key is declared. */
+  const redeclare = (key: string): boolean => {
+    const list = implicit.get(key);
+    if (!list) return !byKey.has(key);
+    list.splice(list.indexOf(byKey.get(key) as Element), 1);
+    implicit.delete(key);
+    return true;
+  };
   const resolve = (written: string, line: SourceLine): string | undefined => {
     if (written === '[*]') return undefined;
     const key = written.startsWith('"') ? decode(written.slice(1, -1)) : written;
@@ -143,6 +153,7 @@ export function importStateMachine(lines: readonly SourceLine[], problems: Probl
     if (!/^[\p{L}\p{N}_.]+$/u.test(key) && !written.startsWith('"')) { problems.malformed(line, `invalid state name ${JSON.stringify(written)}`); return undefined; }
     const state: State = { id: ids.claim(key) ?? ids.fresh(key), type: 'state', name: key };
     add(state, key);
+    implicit.set(key, elementsHere());
     return state.id;
   };
   /** The initial or final pseudostate `[*]` stands for in the current region. */
@@ -183,8 +194,9 @@ export function importStateMachine(lines: readonly SourceLine[], problems: Probl
       const key = m[2] ?? m[3] ?? m[5] ?? decode(m[6]!);
       const stereotype = m[7]?.trim();
       const opens = m[8] === '{';
-      if (byKey.has(key)) { problems.malformed(line, `"${key}" is declared twice`); continue; }
-      const id = ids.claim(key) ?? ids.fresh(key);
+      const earlier = implicit.has(key) ? byKey.get(key)!.id : undefined;
+      if (!redeclare(key)) { problems.malformed(line, `"${key}" is declared twice`); continue; }
+      const id = earlier ?? ids.claim(key) ?? ids.fresh(key);
       if (stereotype === 'entryPoint' || stereotype === 'exitPoint') {
         const owner = stack.at(-1)?.state;
         if (!owner || opens) { problems.malformed(line, `an ${stereotype} is declared directly inside its composite state`); continue; }
@@ -211,6 +223,12 @@ export function importStateMachine(lines: readonly SourceLine[], problems: Probl
       }
       continue;
     }
+    m = /^state\s+([\p{L}\p{N}_.]+)\s*:\s*(.*)$/u.exec(t);
+    if (m) {
+      if (!byKey.has(m[1]!)) resolve(m[1]!, line);
+      describe(m[1]!, m[2]!, line);
+      continue;
+    }
     if (/^state\b/u.test(t)) { problems.unsupported(line, 'expected "state Name", "state \\"Display\\" as alias" with an optional pseudostate stereotype and "{"; colors and other options are not imported'); continue; }
     m = /^(\[\*\]|\[H\*?\]|"[^"]*"|[\p{L}\p{N}_.]+)\s*-+(?:(?:up|down|left|right|u|d|l|r)-+)?>\s*(\[\*\]|\[H\*?\]|"[^"]*"|[\p{L}\p{N}_.]+)\s*(?::\s*(.*))?$/u.exec(t);
     if (m) {
@@ -235,26 +253,29 @@ export function importStateMachine(lines: readonly SourceLine[], problems: Probl
     if (/^note\b/u.test(t)) { problems.unsupported(line, 'only one-line notes are read: "note right of State : text" or "note \\"text\\" as N"'); continue; }
     m = /^("[^"]*"|[\p{L}\p{N}_.]+)\s*:\s*(.*)$/u.exec(t);
     if (m) {
-      const key = m[1]!.startsWith('"') ? decode(m[1]!.slice(1, -1)) : m[1]!;
-      const target = byKey.get(key);
-      if (!target || !isState(target as Element)) { problems.malformed(line, `"${key}" is not a declared state`); continue; }
-      const state = target as State;
-      const text = m[2]!.trim();
-      const special = /^(entry|do|exit)\s*\/\s*(.*)$/u.exec(text);
-      if (special) {
-        const key2 = special[1] === 'do' ? 'doActivity' : special[1] as 'entry' | 'exit';
-        if (state[key2] !== undefined) { problems.malformed(line, `"${key}" already has a ${special[1]} behavior`); continue; }
-        state[key2] = decode(special[2]!.trim());
-        continue;
-      }
-      const b = parseBehavior(text);
-      if (!b || b.trigger === undefined) { problems.unsupported(line, 'a state description must be "entry / x", "do / x", "exit / x" or an internal transition "trigger [guard] / effect"; free text is not part of the model'); continue; }
-      (state.internal ??= []).push(b as Behavior);
+      describe(m[1]!.startsWith('"') ? decode(m[1]!.slice(1, -1)) : m[1]!, m[2]!, line);
       continue;
     }
     problems.unsupported(line, 'not a state diagram statement this importer understands (states, pseudostates, transitions, behaviors, notes)');
   }
   for (const scope of stack) problems.malformed(scope.line!, 'the composite state is not closed with "}"');
+
+  /** A state description line: entry, do or exit behavior, or an internal transition. */
+  function describe(key: string, text: string, line: SourceLine): void {
+    const target = byKey.get(key);
+    if (!target || !isState(target as Element)) { problems.malformed(line, `"${key}" is not a declared state`); return; }
+    const state = target as State;
+    const special = /^(entry|do|exit)\s*\/\s*(.*)$/u.exec(text.trim());
+    if (special) {
+      const slot = special[1] === 'do' ? 'doActivity' : special[1] as 'entry' | 'exit';
+      if (state[slot] !== undefined) { problems.malformed(line, `"${key}" already has a ${special[1]} behavior`); return; }
+      state[slot] = decode(special[2]!.trim());
+      return;
+    }
+    const b = parseBehavior(text);
+    if (!b || b.trigger === undefined) { problems.unsupported(line, 'a state description must be "entry / x", "do / x", "exit / x" or an internal transition "trigger [guard] / effect"; free text is not part of the model'); return; }
+    (state.internal ??= []).push(b as Behavior);
+  }
 
   const model: Record<string, unknown> = { kind: 'state-machine' };
   if (title !== undefined) model.title = title;

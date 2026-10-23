@@ -294,3 +294,14 @@ export const LOSSES = {
     },
   },
 };
+
+/**
+ * Examples whose round trip cannot give a valid model because the format has no
+ * way to write one of their relationships (docs/formats.md, "Lossy cases"): the
+ * export must warn about it at `path`, and the import must then fail validation
+ * with `code` rather than produce a different, wrong model.
+ */
+export const LIMITS = {
+  'plantuml state-machine/notation.json': { path: '/transitions/7', code: 'FORK_DEGREE', why: 'a fork into the second orthogonal region of a composite state' },
+  'mermaid state-machine/notation.json': { path: '/transitions/6', code: 'FORK_DEGREE', why: 'transitions across the border of a composite state' },
+};
