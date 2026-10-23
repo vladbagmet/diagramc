@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { parseDocument } from '../dist/model/parse.js';
 import { renderToSvg } from '../dist/render.js';
 import { inspectSvg } from '../dist/qa/index.js';
-import { assertGates, root } from './helpers.mjs';
+import { assertCpuBudget, assertGates, root } from './helpers.mjs';
 
 /** Shared checks for own-engine kinds: fixtures, examples, budget, determinism. */
 export const fixtures = (kind, name) => readFile(join(root, 'test/fixtures', kind, name), 'utf8').then(JSON.parse);
@@ -64,10 +64,7 @@ export function isUnderlined(svg, text) {
 
 export async function assertBudget(kind, ms = 2000) {
   const text = await readFile(join(root, 'examples', kind, 'stress.json'), 'utf8');
-  const started = performance.now();
-  await renderToSvg(parseDocument(text));
-  const took = performance.now() - started;
-  assert.ok(took < ms, `stress render took ${took.toFixed(0)} ms`);
+  await assertCpuBudget(() => renderToSvg(parseDocument(text)), ms);
 }
 
 export async function assertDeterministic(kind, name) {

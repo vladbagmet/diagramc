@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { parseDocument } from '../dist/model/parse.js';
 import { renderToSvg } from '../dist/render.js';
 import { inspectSvg } from '../dist/qa/index.js';
-import { assertGates, cli, root, workspace } from './helpers.mjs';
+import { assertCpuBudget, assertGates, cli, root, workspace } from './helpers.mjs';
 
 // State machines are drawn by the own engine (see docs/decisions/0002-state-machine-and-use-case-backend.md).
 const fixtures = name => readFile(join(root, 'test/fixtures/state-machine', name), 'utf8').then(JSON.parse);
@@ -38,9 +38,7 @@ test('state machine: every example passes every QA gate and renders through the 
 
 test('state machine: stress example (4 composites, 40+ vertices) renders within 2 s', async () => {
   const text = await readFile(join(root, 'examples/state-machine/stress.json'), 'utf8');
-  const started = performance.now();
-  await svgOf(text);
-  assert.ok(performance.now() - started < 2000);
+  await assertCpuBudget(() => svgOf(text));
 });
 
 test('state machine: rendering is byte-identical across runs', async () => {

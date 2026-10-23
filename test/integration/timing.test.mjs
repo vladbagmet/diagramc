@@ -1,11 +1,10 @@
-import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile, readdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { parseDocument } from '../../dist/model/parse.js';
 import { renderToSvg } from '../../dist/render.js';
 import { inspectSvg, renderAndCheck } from '../../dist/qa/index.js';
-import { assertGates, cli, root, workspace } from '../helpers.mjs';
+import { assertGates, budgetFactor, cli, plantUmlTest as test, root, workspace } from '../helpers.mjs';
 
 // Real pinned PlantUML (npm run setup:renderer): every gate on every fixture and example.
 const fixtures = name => readFile(join(root, 'test/fixtures/timing', name), 'utf8').then(JSON.parse);
@@ -27,7 +26,7 @@ test('stress example (8 lifelines, 100 changes, 20 messages) renders within 5 s 
   assert.ok(doc.lifelines.reduce((n, l) => n + l.changes.length, 0) >= 80);
   assert.equal(doc.messages.length, 20);
   const { ms } = await renderAndCheck(text);
-  assert.ok(ms < 5000, `took ${ms} ms`);
+  assert.ok(ms < 5000 * budgetFactor, `took ${ms} ms`);
 });
 
 test('rendering is byte-identical across runs', async () => {

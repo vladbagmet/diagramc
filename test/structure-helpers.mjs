@@ -6,7 +6,7 @@ import { parseDocument } from '../dist/model/parse.js';
 import { renderToSvg } from '../dist/render.js';
 import { inspectSvg } from '../dist/qa/index.js';
 import { contains } from '../dist/engine/geometry.js';
-import { assertGates, root } from './helpers.mjs';
+import { assertCpuBudget, assertGates, root } from './helpers.mjs';
 
 export const fixtures = (kind, name) => readFile(join(root, 'test/fixtures', kind, name), 'utf8').then(JSON.parse);
 export const examples = async kind => (await readdir(join(root, 'examples', kind))).filter(f => f.endsWith('.json')).sort().map(f => join(root, 'examples', kind, f));
@@ -43,14 +43,11 @@ export async function assertExamples(kind, minimum = 3) {
   }
 }
 
-/** The stress example renders within the own-engine budget (2 s). */
+/** The stress example renders within the own-engine budget (2 s of CPU time). */
 export async function assertBudget(kind) {
   const text = await readFile(join(root, 'examples', kind, 'stress.json'), 'utf8');
   const parsed = parseDocument(text);
-  const started = performance.now();
-  await renderToSvg(parsed);
-  const ms = performance.now() - started;
-  assert.ok(ms < 2000, `stress render took ${ms.toFixed(0)} ms`);
+  const { ms } = await assertCpuBudget(() => renderToSvg(parsed));
   return { doc: JSON.parse(text), ms };
 }
 

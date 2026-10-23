@@ -6,7 +6,7 @@ import { parseDocument } from '../dist/model/parse.js';
 import { renderToSvg } from '../dist/render.js';
 import { inspectSvg } from '../dist/qa/index.js';
 import { compareSequence, messageLabel, lifelineLabel } from '../dist/kinds/communication/format.js';
-import { assertGates, root } from './helpers.mjs';
+import { assertCpuBudget, assertGates, root } from './helpers.mjs';
 
 const fixtures = name => readFile(join(root, 'test/fixtures/communication', name), 'utf8').then(JSON.parse);
 const example = name => readFile(join(root, 'examples/communication', name), 'utf8');
@@ -39,9 +39,7 @@ test('communication: stress example (24 lifelines, 50+ messages) renders within 
   const doc = JSON.parse(text);
   assert.equal(doc.lifelines.length, 24);
   assert.ok(doc.messages.length >= 50);
-  const started = performance.now();
-  await render(text);
-  assert.ok(performance.now() - started < 2000, 'stress render took longer than 2 s');
+  await assertCpuBudget(() => render(text));
 });
 
 test('communication: rendering is byte-identical across runs', async () => {

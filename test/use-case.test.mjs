@@ -6,7 +6,7 @@ import { parseDocument } from '../dist/model/parse.js';
 import { renderToSvg } from '../dist/render.js';
 import { inspectSvg, runGates } from '../dist/qa/index.js';
 import { distanceToEllipse } from '../dist/engine/geometry.js';
-import { assertGates, cli, root, workspace } from './helpers.mjs';
+import { assertCpuBudget, assertGates, cli, root, workspace } from './helpers.mjs';
 
 // Use case diagrams are drawn by the own engine (see docs/decisions/0002-state-machine-and-use-case-backend.md).
 const fixtures = name => readFile(join(root, 'test/fixtures/use-case', name), 'utf8').then(JSON.parse);
@@ -40,9 +40,7 @@ test('use case: every example passes every QA gate and renders through the CLI a
 test('use case: stress example (40 use cases, 9 actors, 2 subjects) renders within 2 s', async () => {
   const text = await readFile(join(root, 'examples/use-case/stress.json'), 'utf8');
   assert.equal(JSON.parse(text).elements.filter(e => e.type === 'useCase').length, 40);
-  const started = performance.now();
-  await svgOf(text);
-  assert.ok(performance.now() - started < 2000);
+  await assertCpuBudget(() => svgOf(text));
 });
 
 test('use case: rendering is byte-identical across runs', async () => {

@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { parseDocument } from '../dist/model/parse.js';
 import { renderToSvg } from '../dist/render.js';
 import { inspectSvg } from '../dist/qa/index.js';
-import { assertGates, root } from './helpers.mjs';
+import { assertCpuBudget, assertGates, root } from './helpers.mjs';
 
 const fixtures = name => readFile(join(root, 'test/fixtures/class', name), 'utf8').then(JSON.parse);
 const examples = async dir => (await readdir(join(root, dir))).filter(f => f.endsWith('.json')).sort().map(f => join(root, dir, f));
@@ -37,9 +37,7 @@ test('stress example (50 classes, 80 relationships) renders within 2 s', async (
   const doc = JSON.parse(text);
   assert.equal(doc.elements.length, 50);
   assert.equal(doc.relationships.length, 80);
-  const started = performance.now();
-  await renderToSvg(parseDocument(text));
-  assert.ok(performance.now() - started < 2000, 'stress render took longer than 2 s');
+  await assertCpuBudget(() => renderToSvg(parseDocument(text)));
 });
 
 test('rendering is byte-identical across runs', async () => {

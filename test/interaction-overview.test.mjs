@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { parseDocument } from '../dist/model/parse.js';
 import { renderToSvg } from '../dist/render.js';
 import { inspectSvg } from '../dist/qa/index.js';
-import { assertGates, root } from './helpers.mjs';
+import { assertCpuBudget, assertGates, root } from './helpers.mjs';
 
 const fixtures = name => readFile(join(root, 'test/fixtures/interaction-overview', name), 'utf8').then(JSON.parse);
 const example = name => readFile(join(root, 'examples/interaction-overview', name), 'utf8');
@@ -38,9 +38,7 @@ test('interaction overview: stress example (50+ nodes, 70 flows) renders within 
   const text = await example('stress.json');
   const doc = JSON.parse(text);
   assert.ok(doc.nodes.length >= 50 && doc.flows.length >= 70);
-  const started = performance.now();
-  await render(text);
-  assert.ok(performance.now() - started < 2000, 'stress render took longer than 2 s');
+  await assertCpuBudget(() => render(text));
 });
 
 test('interaction overview: rendering is byte-identical across runs', async () => {

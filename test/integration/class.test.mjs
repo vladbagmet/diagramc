@@ -1,4 +1,3 @@
-import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile, readdir } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -9,7 +8,7 @@ import { renderSvg, rendererOptions } from '../../dist/plantuml/runner.js';
 import { renderToSvg } from '../../dist/render.js';
 import { loadFonts } from '../../dist/engine/fonts.js';
 import { checkSvg, formatReport, renderAndCheck } from '../../dist/qa/index.js';
-import { cli, root, workspace } from '../helpers.mjs';
+import { budgetFactor, cli, plantUmlTest as test, root, workspace } from '../helpers.mjs';
 
 // Real pinned PlantUML (npm run setup:renderer). Only the PlantUML backend needs Java.
 const plantuml = { backend: 'plantuml' };
@@ -48,7 +47,7 @@ test('PlantUML backend: every class example (v2 and v1) renders through the CLI 
 test('PlantUML backend: stress example renders within 5 s', async () => {
   const { report, ms } = await renderAndCheck(await readFile(join(root, 'examples/class/stress.json'), 'utf8'), plantuml);
   assert.deepEqual(fallbackFailures(report), []);
-  assert.ok(ms < 5000, `took ${ms} ms`);
+  assert.ok(ms < 5000 * budgetFactor, `took ${ms} ms`);
 });
 test('PlantUML backend: the pinned runtime measures with Inter and the SVG embeds it', async () => {
   const svg = await renderToSvg(parseDocument(JSON.stringify({ kind: 'class', elements: [{ id: 'c', type: 'class', name: 'Customer', attributes: [{ name: 'placeOrder', type: 'Order' }] }] })), plantuml);

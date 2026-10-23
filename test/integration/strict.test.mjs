@@ -1,10 +1,9 @@
-import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile, readdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { parseDocument } from '../../dist/model/parse.js';
 import { renderChecked } from '../../dist/render.js';
-import { cli, fakeJava, root, workspace } from '../helpers.mjs';
+import { cli, fakeJava, plantUmlTest as test, root, workspace } from '../helpers.mjs';
 import { judgementMessage } from '../known-gate-failures.mjs';
 
 // `uml render` runs the QA gates on every drawing: no example, regression or

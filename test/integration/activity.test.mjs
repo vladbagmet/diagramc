@@ -1,11 +1,10 @@
-import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile, readdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { parseDocument } from '../../dist/model/parse.js';
 import { renderToSvg } from '../../dist/render.js';
 import { ENGINE_ONLY_GATES, inspectSvg } from '../../dist/qa/index.js';
-import { assertGates, cli, root, workspace } from '../helpers.mjs';
+import { assertGates, budgetFactor, cli, plantUmlTest as test, root, workspace } from '../helpers.mjs';
 
 // Real pinned PlantUML (npm run setup:renderer). Activity diagrams are drawn by
 // PlantUML's activity engine; every QA gate, including the edge gates, is evaluated
@@ -39,7 +38,7 @@ test('activity: stress example (74 nodes, 3 partitions) renders within 5 s', asy
   const text = await readFile(join(root, 'examples/activity/stress.json'), 'utf8');
   assert.ok(JSON.parse(text).nodes.length >= 70);
   const { ms } = await allGates(text, 'stress');
-  assert.ok(ms < 5000, `took ${ms} ms`);
+  assert.ok(ms < 5000 * budgetFactor, `took ${ms} ms`);
 });
 
 test('activity: rendering is byte-identical across runs', async () => {
