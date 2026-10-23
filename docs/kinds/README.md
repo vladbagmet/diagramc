@@ -1,6 +1,6 @@
 # Adding a diagram kind: the recipe
 
-This is the exact procedure for a kind chunk (object, package, sequence, ...). The
+This is the procedure for adding a diagram kind (object, package, sequence, ...). The
 class kind (`src/kinds/class/`, `docs/kinds/class.md`) is the worked example of an
 own-engine kind and also contains a complete PlantUML backend
 (`to-plantuml.ts`), so read it alongside this page.
@@ -37,7 +37,7 @@ Test files are picked up by the globs in `package.json` (`test/*.test.mjs`,
 `test/integration/*.test.mjs`) and examples by `npm run gallery`; do not edit
 those scripts. If you need a change in `src/engine`, `src/qa`, `src/plantuml` or
 `src/core`, keep it small and generic, add a test for it in
-`test/engine.test.mjs`, and list it in your report.
+`test/engine.test.mjs`, and mention it in the pull request description.
 
 ## 2. Model and schema conventions
 

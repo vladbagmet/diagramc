@@ -1,6 +1,6 @@
 # 0001: One pinned font, measured with HarfBuzz, embedded as a subset
 
-Status: accepted (chunk 0). Date: 2026-10-19.
+Status: accepted. Date: 2026-10-19.
 
 ## Problem
 
