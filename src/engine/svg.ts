@@ -51,7 +51,8 @@ export function el(tag: string, attrs: Attributes = {}, children: readonly strin
 }
 
 export interface TextOptions extends TextStyle {
-  fill?: string;
+  /** Text color; the theme's text color when absent or undefined. */
+  fill?: string | undefined;
   /** QA role, e.g. "text" (inside a node), "label" (edge label), "frame-label". */
   role: string;
   /** ID of the element or relationship this text belongs to. */

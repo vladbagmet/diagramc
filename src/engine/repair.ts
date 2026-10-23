@@ -251,6 +251,7 @@ export function repairRoutes(nodes: readonly RepairNode[], edges: readonly Repai
     const occupied = (node: string) => ends.filter(o => o.node === node && !(e.group !== undefined && o.edge.group === e.group)).map(o => o.p);
     const lines = [...edges.filter(o => o.id !== e.id && !(e.group !== undefined && o.group === e.group)).map(o => routes.get(o.id)!), ...borders];
     const fixed = (end: Point, next: Point) => ({ fixed: { point: end, out: { x: Math.sign(Math.round(next.x - end.x)), y: Math.sign(Math.round(next.y - end.y)) } } });
+    const labelSpacing = forLabel ? options.labelSpacing?.(e.id) : undefined;
     const request = {
       source: {
         rect: s.rect, stub: markerLength(e.sourceMarker) + theme.spacing.bendRadius + 6, occupied: occupied(e.source), spacing: Math.max(minSpacing(e.sourceMarker, 'open-arrow'), ownLabelRoom(e.id, 'source')),
@@ -260,7 +261,7 @@ export function repairRoutes(nodes: readonly RepairNode[], edges: readonly Repai
         rect: t.rect, stub: markerLength(e.targetMarker) + theme.spacing.bendRadius + 6, occupied: occupied(e.target), spacing: Math.max(minSpacing(e.targetMarker, 'open-arrow'), ownLabelRoom(e.id, 'target')),
         ...(e.group !== undefined || e.fixedTarget ? fixed(route.at(-1)!, route.at(-2)!) : {}),
       },
-      obstacles: [...obstaclesFor(e), ...labelRoom(e.id)], lines, ...(forLabel && options.labelSpacing?.(e.id) ? { spacing: options.labelSpacing(e.id) } : {}),
+      obstacles: [...obstaclesFor(e), ...labelRoom(e.id)], lines, ...(labelSpacing ? { spacing: labelSpacing } : {}),
     };
     let next = routeOrthogonal({ ...request, area: inflate(union([s.rect, t.rect]), 160) });
     if (!next || problem(e, next) === 'crosses') next = routeOrthogonal({ ...request, area: inflate(all, 40) });
