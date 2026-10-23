@@ -71,12 +71,18 @@ export interface SelfLoopPlan {
 export function planSelfLoops(loops: readonly SelfLoopSpec[], options: { leftCorners?: boolean } = {}): SelfLoopPlan {
   const rows = (l: SelfLoopSpec) => Math.max(1, l.endLabelRows) * (l.labelHeight + 2);
   const planned: PlannedLoop[] = [];
-  let right = 0, above: SelfLoopPlan['reserveAbove'], below: SelfLoopPlan['reserveBelow'];
-  let left = 0, aboveLeft: SelfLoopPlan['reserveAbove'], belowLeft: SelfLoopPlan['reserveBelow'];
-  let cornerDepth = 0, leftDepth = 0;
+  let right = 0,
+    above: SelfLoopPlan['reserveAbove'],
+    below: SelfLoopPlan['reserveBelow'];
+  let left = 0,
+    aboveLeft: SelfLoopPlan['reserveAbove'],
+    belowLeft: SelfLoopPlan['reserveBelow'];
+  let cornerDepth = 0,
+    leftDepth = 0;
   const corners = options.leftCorners ? 4 : 2;
   for (const [i, loop] of loops.slice(0, corners).entries()) {
-    const source = loop.sourceLabelWidth ?? loop.endLabelWidth, target = loop.targetLabelWidth ?? loop.endLabelWidth;
+    const source = loop.sourceLabelWidth ?? loop.endLabelWidth,
+      target = loop.targetLabelWidth ?? loop.endLabelWidth;
     // The leg on the right border sits below the target labels' band; the far leg
     // leaves room for the target labels and the loop's top for the source labels.
     const depth = (loop.endLabelRows ? rows(loop) : 0) + 10;
@@ -87,26 +93,31 @@ export function planSelfLoops(loops: readonly SelfLoopSpec[], options: { leftCor
     planned.push({ slot, extent, halfSpan: depth, inset, rise });
     const center = loop.centerLabel ? loop.centerLabel.width + 12 : 0;
     const reserve = { width: inset + extent + center + 10, height: rise + 8 };
-    if (i < 2) right = Math.max(right, extent + center + 10); else left = Math.max(left, extent + center + 10);
+    if (i < 2) right = Math.max(right, extent + center + 10);
+    else left = Math.max(left, extent + center + 10);
     switch (slot) {
-    case 'top': {
-    above = reserve;
-    break;
+      case 'top': {
+        above = reserve;
+        break;
+      }
+      case 'bottom': {
+        below = reserve;
+        break;
+      }
+      case 'top-left': {
+        aboveLeft = reserve;
+        break;
+      }
+      default:
+        belowLeft = reserve;
     }
-    case 'bottom': {
-    below = reserve;
-    break;
-    }
-    case 'top-left': {
-    aboveLeft = reserve;
-    break;
-    }
-    default: belowLeft = reserve;
-    }
-    if (i < 2) cornerDepth += depth; else leftDepth += depth;
+    if (i < 2) cornerDepth += depth;
+    else leftDepth += depth;
   }
   // Further loops nest on the right side, between the corner loops' legs.
-  let extent = 0, halfSpan = 4, previousCenter = 0;
+  let extent = 0,
+    halfSpan = 4,
+    previousCenter = 0;
   for (const [i, loop] of loops.slice(corners).entries()) {
     // Legs of nested loops keep two arrowheads apart (the end-spacing gate).
     const band = Math.max(loop.endLabelRows ? loop.endLabelRows * (loop.labelHeight + 2) + 6 : 0, MIN_BAND);
@@ -122,7 +133,8 @@ export function planSelfLoops(loops: readonly SelfLoopSpec[], options: { leftCor
   const leftHeight = leftDepth + (loops.length >= 4 ? MIN_BAND : 4);
   return {
     reserveRight: loops.length > 0 ? right : 0,
-    reserveAbove: above, reserveBelow: below,
+    reserveAbove: above,
+    reserveBelow: below,
     ...(left ? { reserveLeft: left, reserveAboveLeft: aboveLeft, reserveBelowLeft: belowLeft } : {}),
     minHeight: loops.length > 0 ? Math.max(rightHeight, left ? leftHeight : 0) : 0,
     loops: planned,
@@ -132,31 +144,72 @@ export function planSelfLoops(loops: readonly SelfLoopSpec[], options: { leftCor
 /** Route of loop `index` around node `rect`, from its source end back to its target end. */
 export function selfLoopRoute(rect: Rect, plan: SelfLoopPlan, index: number): Point[] {
   const loop = plan.loops[index]!;
-  const x = rect.x + rect.width, top = rect.y, bottom = rect.y + rect.height;
+  const x = rect.x + rect.width,
+    top = rect.y,
+    bottom = rect.y + rect.height;
   const out = x + loop.extent;
   if (loop.slot === 'top') {
-    const x0 = x - Math.min(loop.inset!, rect.width / 3), y = top + loop.halfSpan, up = top - loop.rise!;
-    return [{ x: x0, y: top }, { x: x0, y: up }, { x: out, y: up }, { x: out, y }, { x, y }];
+    const x0 = x - Math.min(loop.inset!, rect.width / 3),
+      y = top + loop.halfSpan,
+      up = top - loop.rise!;
+    return [
+      { x: x0, y: top },
+      { x: x0, y: up },
+      { x: out, y: up },
+      { x: out, y },
+      { x, y },
+    ];
   }
   if (loop.slot === 'bottom') {
-    const x0 = x - Math.min(loop.inset!, rect.width / 3), y = bottom - loop.halfSpan, down = bottom + loop.rise!;
-    return [{ x, y }, { x: out, y }, { x: out, y: down }, { x: x0, y: down }, { x: x0, y: bottom }];
+    const x0 = x - Math.min(loop.inset!, rect.width / 3),
+      y = bottom - loop.halfSpan,
+      down = bottom + loop.rise!;
+    return [
+      { x, y },
+      { x: out, y },
+      { x: out, y: down },
+      { x: x0, y: down },
+      { x: x0, y: bottom },
+    ];
   }
   // Left corners mirror the right ones.
-  const xl = rect.x, outLeft = xl - loop.extent;
+  const xl = rect.x,
+    outLeft = xl - loop.extent;
   if (loop.slot === 'top-left') {
-    const x0 = xl + Math.min(loop.inset!, rect.width / 3), y = top + loop.halfSpan, up = top - loop.rise!;
-    return [{ x: x0, y: top }, { x: x0, y: up }, { x: outLeft, y: up }, { x: outLeft, y }, { x: xl, y }];
+    const x0 = xl + Math.min(loop.inset!, rect.width / 3),
+      y = top + loop.halfSpan,
+      up = top - loop.rise!;
+    return [
+      { x: x0, y: top },
+      { x: x0, y: up },
+      { x: outLeft, y: up },
+      { x: outLeft, y },
+      { x: xl, y },
+    ];
   }
   if (loop.slot === 'bottom-left') {
-    const x0 = xl + Math.min(loop.inset!, rect.width / 3), y = bottom - loop.halfSpan, down = bottom + loop.rise!;
-    return [{ x: xl, y }, { x: outLeft, y }, { x: outLeft, y: down }, { x: x0, y: down }, { x: x0, y: bottom }];
+    const x0 = xl + Math.min(loop.inset!, rect.width / 3),
+      y = bottom - loop.halfSpan,
+      down = bottom + loop.rise!;
+    return [
+      { x: xl, y },
+      { x: outLeft, y },
+      { x: outLeft, y: down },
+      { x: x0, y: down },
+      { x: x0, y: bottom },
+    ];
   }
   // Side loops are centered between the corner loops' legs.
   const corners = plan.loops.filter(l => l.slot === 'top' || l.slot === 'bottom');
-  const lo = top + (corners[0]?.halfSpan ?? 0) + GROUP_GAP, hi = bottom - (corners[1]?.halfSpan ?? 0) - GROUP_GAP;
+  const lo = top + (corners[0]?.halfSpan ?? 0) + GROUP_GAP,
+    hi = bottom - (corners[1]?.halfSpan ?? 0) - GROUP_GAP;
   const cy = (lo + hi) / 2;
-  return [{ x, y: cy - loop.halfSpan }, { x: out, y: cy - loop.halfSpan }, { x: out, y: cy + loop.halfSpan }, { x, y: cy + loop.halfSpan }];
+  return [
+    { x, y: cy - loop.halfSpan },
+    { x: out, y: cy - loop.halfSpan },
+    { x: out, y: cy + loop.halfSpan },
+    { x, y: cy + loop.halfSpan },
+  ];
 }
 
 /** Side of an end label inside loop `index` (the `onlySide` of src/engine/labels.ts): left-corner loops are mirrored. */

@@ -17,21 +17,26 @@ const body = { size: theme.font.size.body };
 function node(e: Element): Omit<DiagramNodeSpec, 'children'> {
   const box = (compartments: Compartment[]): Omit<DiagramNodeSpec, 'children'> => ({ id: e.id, type: e.type, shape: { kind: 'box', compartments } });
   switch (e.type) {
-    case 'note': return { id: e.id, type: 'note', shape: { kind: 'note', text: e.text } };
-    case 'profile': return { id: e.id, type: 'profile', shape: { kind: 'package', header: { name: e.name, keywords: ['profile'] } } };
-    case 'package': return { id: e.id, type: 'package', shape: { kind: 'package', header: { name: e.name } } };
+    case 'note':
+      return { id: e.id, type: 'note', shape: { kind: 'note', text: e.text } };
+    case 'profile':
+      return { id: e.id, type: 'profile', shape: { kind: 'package', header: { name: e.name, keywords: ['profile'] } } };
+    case 'package':
+      return { id: e.id, type: 'package', shape: { kind: 'package', header: { name: e.name } } };
     case 'stereotype': {
       const compartments = [nameCompartment(['stereotype'], undefined, e.name, { italic: !!e.abstract })];
       if (e.attributes?.length) compartments.push({ lines: e.attributes.map(a => ({ text: formatTaggedValue(a), style: body, align: 'left' as const })) });
       return box(compartments);
     }
-    case 'metaclass': return box([nameCompartment(['metaclass'], undefined, e.name)]);
+    case 'metaclass':
+      return box([nameCompartment(['metaclass'], undefined, e.name)]);
     case 'enumeration': {
       const compartments = [nameCompartment(['enumeration'], undefined, e.name)];
       if (e.literals?.length) compartments.push({ lines: e.literals.map(text => ({ text, style: body, align: 'left' as const })) });
       return box(compartments);
     }
-    case 'class': return box([nameCompartment([], e.stereotypes, e.name)]);
+    case 'class':
+      return box([nameCompartment([], e.stereotypes, e.name)]);
   }
 }
 
@@ -41,7 +46,14 @@ export function profileDiagramSpec(model: ProfileDiagram): DiagramSpec {
     const base = { id: r.id ?? `relationships/${i}`, type: r.type, source: r.from, target: r.to };
     switch (r.type) {
       case 'extension':
-        return { ...base, style: 'solid', sourceMarker: 'none', targetMarker: 'filled-triangle', reversed: true, ends: r.required ? [{ end: 'source', text: '{required}', kind: 'role' }] : [] };
+        return {
+          ...base,
+          style: 'solid',
+          sourceMarker: 'none',
+          targetMarker: 'filled-triangle',
+          reversed: true,
+          ends: r.required ? [{ end: 'source', text: '{required}', kind: 'role' }] : [],
+        };
       case 'generalization':
         return { ...base, style: 'solid', sourceMarker: 'none', targetMarker: 'hollow-triangle', tree: true };
       default:
@@ -50,13 +62,17 @@ export function profileDiagramSpec(model: ProfileDiagram): DiagramSpec {
   });
   for (const e of model.elements) {
     if (!isNote(e)) continue;
-    for (const target of e.attachedTo ?? []) edges.push({ id: `${e.id}->${target}`, type: 'note-anchor', source: e.id, target, style: 'dashed', sourceMarker: 'none', targetMarker: 'none' });
+    for (const target of e.attachedTo ?? [])
+      edges.push({ id: `${e.id}->${target}`, type: 'note-anchor', source: e.id, target, style: 'dashed', sourceMarker: 'none', targetMarker: 'none' });
   }
   return {
-    kind: 'profile', frameKeyword: 'profile', title: model.title,
-    nodes: nestElements(model.elements, e => isContainer(e) ? e.members : undefined, node),
+    kind: 'profile',
+    frameKeyword: 'profile',
+    title: model.title,
+    nodes: nestElements(model.elements, e => (isContainer(e) ? e.members : undefined), node),
     edges,
     // Metaclasses and general stereotypes above, as in UML 2.5.1 figures.
-    directions: ['DOWN'], wrap: true,
+    directions: ['DOWN'],
+    wrap: true,
   };
 }

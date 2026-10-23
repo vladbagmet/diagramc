@@ -34,7 +34,9 @@ export function readPlantUmlActivity(root: XmlElement, scene: Scene): void {
   const { color } = theme;
 
   const nodes: InspectedNode[] = [];
-  const add = (type: string, bounds: Rect): void => { nodes.push({ id: `${type}#${nodes.length}`, type, bounds }); };
+  const add = (type: string, bounds: Rect): void => {
+    nodes.push({ id: `${type}#${nodes.length}`, type, bounds });
+  };
   const segments: [Point, Point][] = [];
   let frame: Rect | undefined;
   const elements = [...walk(root)].map(w => w.element);
@@ -43,7 +45,10 @@ export function readPlantUmlActivity(root: XmlElement, scene: Scene): void {
     const a = e.attrs;
     if (e.tag === 'rect') {
       const r = { x: num(a.x), y: num(a.y), width: num(a.width), height: num(a.height) };
-      if (!frame && same(a.fill, color.background) && r.width > 0) { frame = r; continue; }
+      if (!frame && same(a.fill, color.background) && r.width > 0) {
+        frame = r;
+        continue;
+      }
       if (same(a.fill, color.nodeFill)) add(num(a.rx) > 0 ? 'action' : 'object', r);
       else if (same(a.fill, color.edge) && r.height <= 10) add('bar', r);
     } else if (e.tag === 'polygon' && same(a.fill, color.nodeFill)) {
@@ -57,7 +62,8 @@ export function readPlantUmlActivity(root: XmlElement, scene: Scene): void {
       const r = boundsOfPoints(pathPts(a.d));
       if (!nodes.some(n => n.type === 'note' && contains(n.bounds, r, 0.5))) add('note', r);
     } else if (e.tag === 'line' && same(strokeOf(e), color.edge) && !e.attrs.style?.includes('stroke-dasharray')) {
-      const p = { x: num(a.x1), y: num(a.y1) }, q = { x: num(a.x2), y: num(a.y2) };
+      const p = { x: num(a.x1), y: num(a.y1) },
+        q = { x: num(a.x2), y: num(a.y2) };
       if (distance(p, q) > 0.01) segments.push([p, q]);
     } else if (e.tag === 'polyline' && same(strokeOf(e), color.edge) && a.fill === 'none') {
       const [l, tip, r] = pts(a.points);
@@ -70,7 +76,9 @@ export function readPlantUmlActivity(root: XmlElement, scene: Scene): void {
   }
   // Frame heading: the bent line closing the pentagon at the frame's top left.
   if (frame) {
-    const heading = elements.find(e => e.tag === 'path' && e.attrs.fill === 'none' && pathPts(e.attrs.d).length === 4 && Math.abs(pathPts(e.attrs.d)[0]!.y - frame.y) < 0.5);
+    const heading = elements.find(
+      e => e.tag === 'path' && e.attrs.fill === 'none' && pathPts(e.attrs.d).length === 4 && Math.abs(pathPts(e.attrs.d)[0]!.y - frame.y) < 0.5,
+    );
     if (heading) {
       const p = pathPts(heading.attrs.d);
       scene.frameHeading = { x: frame.x, y: frame.y, width: Math.max(...p.map(q => q.x)) - frame.x, height: Math.max(...p.map(q => q.y)) - frame.y };
@@ -93,10 +101,14 @@ export function readPlantUmlActivity(root: XmlElement, scene: Scene): void {
   }
   const used = new Set<number>();
   const onNode = (p: Point): InspectedNode | undefined => {
-    let best: InspectedNode | undefined, bestDistance = 1.5;
+    let best: InspectedNode | undefined,
+      bestDistance = 1.5;
     for (const n of nodes) {
       const d = distanceToBorder(p, n.bounds);
-      if (d <= bestDistance) { best = n; bestDistance = d; }
+      if (d <= bestDistance) {
+        best = n;
+        bestDistance = d;
+      }
     }
     return best;
   };
@@ -104,7 +116,8 @@ export function readPlantUmlActivity(root: XmlElement, scene: Scene): void {
   const chains: Point[][] = [];
   const follow = (start: Point, first: number): Point[] => {
     const chain = [start];
-    let at = start, index = first;
+    let at = start,
+      index = first;
     for (;;) {
       used.add(index);
       const [p, q] = segments[index]!;
@@ -113,23 +126,30 @@ export function readPlantUmlActivity(root: XmlElement, scene: Scene): void {
       if (isEnd(next)) return chain;
       const further = adjacency.get(key(next))!.segments.find(j => !used.has(j));
       if (further === undefined) return chain;
-      at = next; index = further;
+      at = next;
+      index = further;
     }
   };
   for (const { point, segments: list } of adjacency.values()) {
     if (!isEnd(point)) continue;
     for (const i of list) if (!used.has(i)) chains.push(follow(point, i));
   }
-  for (const [i, _] of segments.entries()) { if (!used.has(i)) chains.push(follow(segments[i]![0], i)); }
+  for (const [i, _] of segments.entries()) {
+    if (!used.has(i)) chains.push(follow(segments[i]![0], i));
+  }
 
   const edges: InspectedEdge[] = chains.map((chain, i) => {
     const tipAt = (p: Point) => scene.markers.some(m => distance(m.tip, p) <= 0.6);
     const points = tipAt(chain[0]!) && !tipAt(chain.at(-1)!) ? [...chain].reverse() : chain;
     const head = tipAt(points.at(-1)!);
     return {
-      id: `flow#${i}`, type: 'flow',
-      source: onNode(points[0]!)?.id ?? '', target: onNode(points.at(-1)!)?.id ?? '',
-      points: simplifyChain(points), sourceMarker: 'none', targetMarker: head ? 'open-arrow' : 'none',
+      id: `flow#${i}`,
+      type: 'flow',
+      source: onNode(points[0]!)?.id ?? '',
+      target: onNode(points.at(-1)!)?.id ?? '',
+      points: simplifyChain(points),
+      sourceMarker: 'none',
+      targetMarker: head ? 'open-arrow' : 'none',
     };
   });
   scene.edges.push(...edges);
@@ -141,7 +161,10 @@ export function readPlantUmlActivity(root: XmlElement, scene: Scene): void {
   const notes = new Map<string, InspectedText>();
   for (const t of scene.texts) {
     const c = center(t);
-    if (scene.frameHeading && inside(scene.frameHeading, c)) { kept.push({ ...t, role: 'frame-label' }); continue; }
+    if (scene.frameHeading && inside(scene.frameHeading, c)) {
+      kept.push({ ...t, role: 'frame-label' });
+      continue;
+    }
     const owner = nodes.filter(n => inside(n.bounds, c)).sort((m, n) => m.bounds.width * m.bounds.height - n.bounds.width * n.bounds.height)[0];
     // Lines of one node (a wrapped name or note) form one text, in drawing order.
     if (owner) {
@@ -162,9 +185,21 @@ export function readPlantUmlActivity(root: XmlElement, scene: Scene): void {
   scene.texts.splice(0, scene.texts.length, ...kept);
 
   for (const n of nodes) scene.extents.push(n.bounds);
-  for (const [p, q] of segments) scene.extents.push(union([{ ...p, width: 0, height: 0 }, { ...q, width: 0, height: 0 }]));
+  for (const [p, q] of segments)
+    scene.extents.push(
+      union([
+        { ...p, width: 0, height: 0 },
+        { ...q, width: 0, height: 0 },
+      ]),
+    );
   for (const e of elements) {
-    if (e.tag === 'line' && (!same(strokeOf(e), color.edge) || e.attrs.style?.includes('stroke-dasharray'))) scene.extents.push(union([{ x: num(e.attrs.x1), y: num(e.attrs.y1), width: 0, height: 0 }, { x: num(e.attrs.x2), y: num(e.attrs.y2), width: 0, height: 0 }]));
+    if (e.tag === 'line' && (!same(strokeOf(e), color.edge) || e.attrs.style?.includes('stroke-dasharray')))
+      scene.extents.push(
+        union([
+          { x: num(e.attrs.x1), y: num(e.attrs.y1), width: 0, height: 0 },
+          { x: num(e.attrs.x2), y: num(e.attrs.y2), width: 0, height: 0 },
+        ]),
+      );
   }
   scene.exactEdges = true;
 }
@@ -173,7 +208,8 @@ export function readPlantUmlActivity(root: XmlElement, scene: Scene): void {
 function simplifyChain(points: Point[]): Point[] {
   const out: Point[] = [];
   for (const p of points) {
-    const last = out.at(-1), prev = out.at(-2);
+    const last = out.at(-1),
+      prev = out.at(-2);
     if (last && prev && Math.abs((last.x - prev.x) * (p.y - last.y) - (last.y - prev.y) * (p.x - last.x)) < 0.01) out.pop();
     out.push(p);
   }

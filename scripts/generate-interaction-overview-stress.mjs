@@ -19,12 +19,21 @@ for (const [i, stage] of stages.entries()) {
   node(retry, 'merge');
   flow(previous, retry);
   if (i % 3 === 1) {
-    const a = `${id}-a`, b = `${id}-b`;
-    inline(id, stage, [{ id: a, type: 'Client' }, { id: b, type: `${stage}Service` }], [
-      { from: a, to: b, name: 'request', arguments: ['data'] },
-      { from: b, to: b, name: 'validate' },
-      { from: b, to: a, name: 'result', sort: 'reply' },
-    ]);
+    const a = `${id}-a`,
+      b = `${id}-b`;
+    inline(
+      id,
+      stage,
+      [
+        { id: a, type: 'Client' },
+        { id: b, type: `${stage}Service` },
+      ],
+      [
+        { from: a, to: b, name: 'request', arguments: ['data'] },
+        { from: b, to: b, name: 'validate' },
+        { from: b, to: a, name: 'result', sort: 'reply' },
+      ],
+    );
   } else use(id, stage, i % 2 ? ['user'] : undefined);
   flow(retry, id);
   const check = `${id}-ok`;
@@ -43,11 +52,19 @@ for (const [i, stage] of stages.entries()) {
     flow(reject, abandon);
   }
   if (i === 5) {
-    const fork = 'parallel', join = 'parallel-done';
+    const fork = 'parallel',
+      join = 'parallel-done';
     node(fork, 'fork');
     flow(check, fork, 'valid');
-    const branches = [['invoice', 'SendInvoice'], ['crm', 'UpdateCrm'], ['ledger', 'PostToLedger']];
-    for (const [bid, name] of branches) { use(bid, name); flow(fork, bid); }
+    const branches = [
+      ['invoice', 'SendInvoice'],
+      ['crm', 'UpdateCrm'],
+      ['ledger', 'PostToLedger'],
+    ];
+    for (const [bid, name] of branches) {
+      use(bid, name);
+      flow(fork, bid);
+    }
     node(join, 'join');
     for (const [bid] of branches) flow(bid, join);
     previous = join;

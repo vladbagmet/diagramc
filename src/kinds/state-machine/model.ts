@@ -1,9 +1,21 @@
 /** Types of a validated state-machine document (see schema.ts for the contract). */
 
-export interface Behavior { trigger: string; guard?: string; effect?: string }
+export interface Behavior {
+  trigger: string;
+  guard?: string;
+  effect?: string;
+}
 
-export interface Region { id?: string; name?: string; elements: Vertex[] }
-export interface ConnectionPoint { id: string; type: 'entryPoint' | 'exitPoint'; name?: string }
+export interface Region {
+  id?: string;
+  name?: string;
+  elements: Vertex[];
+}
+export interface ConnectionPoint {
+  id: string;
+  type: 'entryPoint' | 'exitPoint';
+  name?: string;
+}
 
 export interface State {
   id: string;
@@ -19,8 +31,16 @@ export interface State {
 }
 
 export type PseudostateType = 'initial' | 'final' | 'choice' | 'junction' | 'fork' | 'join' | 'shallowHistory' | 'deepHistory' | 'terminate';
-export interface Pseudostate { id: string; type: PseudostateType }
-export interface Note { id: string; type: 'note'; text: string; attachedTo?: string[] }
+export interface Pseudostate {
+  id: string;
+  type: PseudostateType;
+}
+export interface Note {
+  id: string;
+  type: 'note';
+  text: string;
+  attachedTo?: string[];
+}
 
 export type Vertex = State | Pseudostate;
 export type Element = Vertex | Note;
@@ -70,7 +90,8 @@ export function placements(model: StateMachineDiagram): Map<string, Placement> {
       if (!out.has(e.id)) out.set(e.id, { vertex: e, path, region, ancestors, regions });
       if (!isState(e)) continue;
       for (const [j, p] of (e.connectionPoints ?? []).entries()) {
-        if (!out.has(p.id)) out.set(p.id, { vertex: p, path: `${path}/connectionPoints/${j}`, region: e.id, ancestors: [...ancestors, e.id], regions, owner: e.id });
+        if (!out.has(p.id))
+          out.set(p.id, { vertex: p, path: `${path}/connectionPoints/${j}`, region: e.id, ancestors: [...ancestors, e.id], regions, owner: e.id });
       }
       for (const [j, r] of (e.regions ?? []).entries()) visit(r.elements, `${path}/regions/${j}/elements`, [...regions, `${e.id}#${j}`], [...ancestors, e.id]);
     }
@@ -82,5 +103,6 @@ export function placements(model: StateMachineDiagram): Map<string, Placement> {
 /** Display form of a transition or internal behavior: `trigger [guard] / effect`. */
 export function behaviorLabel(b: { trigger?: string | undefined; guard?: string | undefined; effect?: string | undefined }): string {
   return [b.trigger, b.guard === undefined ? undefined : `[${b.guard}]`, b.effect === undefined ? undefined : `/ ${b.effect}`]
-    .filter((p): p is string => p !== undefined).join(' ');
+    .filter((p): p is string => p !== undefined)
+    .join(' ');
 }

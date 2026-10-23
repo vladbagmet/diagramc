@@ -31,13 +31,16 @@ async function checksum(path) {
       hash.update(buffer.subarray(0, bytesRead));
     }
     return hash.digest('hex');
-  } catch (error) { if (error.code !== 'ENOENT') throw error; }
-  finally { await file?.close(); }
+  } catch (error) {
+    if (error.code !== 'ENOENT') throw error;
+  } finally {
+    await file?.close();
+  }
 }
 
 export async function downloadVerified(root, url, name, expected, { fetchImpl = fetch, log = console.log } = {}) {
   const path = join(root, name);
-  if (await checksum(path) === expected) return path;
+  if ((await checksum(path)) === expected) return path;
   log(`Downloading ${name}`);
   const response = await fetchImpl(url, { signal: AbortSignal.timeout(180_000) });
   if (!response.ok || !response.body) {
@@ -81,12 +84,14 @@ export async function installFonts(home) {
   for (const name of fontNames) {
     const expected = await checksum(join(fontSource, name));
     if (!expected) throw new Error(`Missing bundled font ${name}`);
-    if (await checksum(join(target, name)) === expected) continue;
+    if ((await checksum(join(target, name))) === expected) continue;
     const temporary = join(target, `.${name}.${randomUUID()}.tmp`);
     try {
       await copyFile(join(fontSource, name), temporary);
       await rename(temporary, join(target, name));
-    } finally { await unlink(temporary).catch(() => {}); }
+    } finally {
+      await unlink(temporary).catch(() => {});
+    }
   }
 }
 
@@ -108,23 +113,41 @@ async function checkRuntime(directory, platform, run) {
   return check.stderr.trim();
 }
 
-export async function setupRenderer({ root = defaultRoot, platform = process.platform, arch = process.arch,
-  download = downloadVerified, run = spawnSync, log = console.log } = {}) {
+export async function setupRenderer({
+  root = defaultRoot,
+  platform = process.platform,
+  arch = process.arch,
+  download = downloadVerified,
+  run = spawnSync,
+  log = console.log,
+} = {}) {
   const runtime = runtimes[`${platform}-${arch}`];
   if (!runtime) throw new Error('Automatic setup supports macOS/Linux on arm64/x64 only. Set UML_JAVA and PLANTUML_JAR manually.');
   await mkdir(root, { recursive: true });
   const jar = 'plantuml-1.2025.10.jar';
-  await download(root, `https://github.com/plantuml/plantuml/releases/download/v1.2025.10/${jar}`, jar,
-    '4a01ea09b317180fb8e7eef712dfdca725409d2ee1919e4b5adfe9d8362b6fe5', { log });
+  await download(
+    root,
+    `https://github.com/plantuml/plantuml/releases/download/v1.2025.10/${jar}`,
+    jar,
+    '4a01ea09b317180fb8e7eef712dfdca725409d2ee1919e4b5adfe9d8362b6fe5',
+    { log },
+  );
   const archiveName = `OpenJDK21U-jre_${runtime[0]}_hotspot_${jreVersion}.tar.gz`;
-  const archive = await download(root, `https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.11%2B10/${archiveName}`,
-    archiveName, runtime[1], { log });
+  const archive = await download(
+    root,
+    `https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.11%2B10/${archiveName}`,
+    archiveName,
+    runtime[1],
+    { log },
+  );
   const unpack = join(root, 'runtime');
   const marker = JSON.stringify({ sha256: runtime[1], platform, arch });
   let version;
   try {
-    if (await readFile(join(unpack, '.complete.json'), 'utf8') === marker) version = await checkRuntime(unpack, platform, run);
-  } catch { /* Recover missing, interrupted or broken installations from the verified archive. */ }
+    if ((await readFile(join(unpack, '.complete.json'), 'utf8')) === marker) version = await checkRuntime(unpack, platform, run);
+  } catch {
+    /* Recover missing, interrupted or broken installations from the verified archive. */
+  }
   if (!version) {
     const stage = await mkdtemp(join(root, '.runtime-stage-'));
     let backup;
@@ -135,11 +158,20 @@ export async function setupRenderer({ root = defaultRoot, platform = process.pla
       version = await checkRuntime(stage, platform, run);
       await writeFile(join(stage, '.complete.json'), marker);
       const previous = join(root, `.runtime-backup-${randomUUID()}`);
-      try { await rename(unpack, previous); backup = previous; }
-      catch (error) { if (error.code !== 'ENOENT') throw error; }
-      try { await rename(stage, unpack); installed = true; }
-      catch (error) {
-        if (backup) { await rename(backup, unpack); backup = undefined; }
+      try {
+        await rename(unpack, previous);
+        backup = previous;
+      } catch (error) {
+        if (error.code !== 'ENOENT') throw error;
+      }
+      try {
+        await rename(stage, unpack);
+        installed = true;
+      } catch (error) {
+        if (backup) {
+          await rename(backup, unpack);
+          backup = undefined;
+        }
         throw error;
       }
     } finally {
@@ -154,7 +186,9 @@ export async function setupRenderer({ root = defaultRoot, platform = process.pla
   try {
     await writeFile(temporary, JSON.stringify({ jar, java, plantuml: '1.2025.10', temurin: '21.0.11+10', fonts: 'Inter 4.1' }, null, 2) + '\n', { flag: 'wx' });
     await rename(temporary, join(root, 'renderer.json'));
-  } finally { await unlink(temporary).catch(() => {}); }
+  } finally {
+    await unlink(temporary).catch(() => {});
+  }
   log(version);
   log(`Renderer ready in ${root}`);
 }

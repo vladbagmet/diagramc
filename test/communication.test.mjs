@@ -16,11 +16,15 @@ test('communication: negative fixtures fail with the exact code and JSON path', 
   const cases = await fixtures('invalid.json');
   assert.ok(cases.length >= 30);
   for (const c of cases) {
-    assert.throws(() => parseDocument(JSON.stringify(c.doc)), error => {
-      assert.equal(error.code, c.expect.code, `${c.name}: ${error.message}`);
-      assert.equal(error.path, c.expect.path, `${c.name}: ${error.message}`);
-      return true;
-    }, c.name);
+    assert.throws(
+      () => parseDocument(JSON.stringify(c.doc)),
+      error => {
+        assert.equal(error.code, c.expect.code, `${c.name}: ${error.message}`);
+        assert.equal(error.path, c.expect.path, `${c.name}: ${error.message}`);
+        return true;
+      },
+      c.name,
+    );
   }
 });
 
@@ -51,7 +55,7 @@ test('communication: label formats follow UML 2.5.1 (lifeline idents, sequence e
   assert.equal(lifelineLabel({ id: 'x', name: 'w', selector: 'k', type: 'Worker' }), 'w[k] : Worker');
   assert.equal(lifelineLabel({ id: 'x', type: 'Cache' }), ': Cache');
   assert.equal(lifelineLabel({ id: 'x', name: 'session' }), 'session');
-  const m = (extra) => messageLabel({ sequence: '1.2', from: 'a', to: 'b', name: 'op', ...extra });
+  const m = extra => messageLabel({ sequence: '1.2', from: 'a', to: 'b', name: 'op', ...extra });
   assert.equal(m({}), '1.2: op');
   assert.equal(m({ arguments: [] }), '1.2: op()');
   assert.equal(m({ arguments: ['a', 'b'], assignTo: 'x' }), '1.2: x = op(a, b)');
@@ -82,10 +86,16 @@ test('communication: UML notation of lifelines, links and message arrows', async
   assert.deepEqual([sync.source, sync.target], ['ui', 'session']);
   // Messages of one group are stacked in sequence order.
   const texts = scene.texts.filter(t => t.group === 'ui-session::forward-synchronous');
-  assert.deepEqual(texts.map(t => t.content), ['1: s = open(user)', '2: refresh()']);
+  assert.deepEqual(
+    texts.map(t => t.content),
+    ['1: s = open(user)', '2: refresh()'],
+  );
   assert.ok(texts[0].bounds.y < texts[1].bounds.y);
   for (const t of ['1.3 *||[i=1..n]: warmUp(n)', '1.4 [not hit]: store(user)', '1.5: open: s', '1.1: checkQuota()', 'w[k] : Worker', ': Cache', 'session']) {
-    assert.ok(scene.texts.some(x => x.content === t), `missing ${t}`);
+    assert.ok(
+      scene.texts.some(x => x.content === t),
+      `missing ${t}`,
+    );
   }
   // Self-link: a loop from and back to the same lifeline, its arrow along the loop.
   const self = scene.edges.find(e => e.id === 'session-self');
@@ -102,7 +112,9 @@ test('communication: UML notation of lifelines, links and message arrows', async
 
 test('communication: horizontal and vertical links dominate the grid layout', async () => {
   const scene = await inspectSvg(await render(await example('place-order.json')));
-  const axis = scene.edges.filter(e => e.points.length === 2 && (Math.abs(e.points[0].x - e.points[1].x) < 0.01 || Math.abs(e.points[0].y - e.points[1].y) < 0.01));
+  const axis = scene.edges.filter(
+    e => e.points.length === 2 && (Math.abs(e.points[0].x - e.points[1].x) < 0.01 || Math.abs(e.points[0].y - e.points[1].y) < 0.01),
+  );
   assert.ok(axis.length >= 5, `${axis.length} of ${scene.edges.length} links are axis-aligned`);
 });
 
@@ -118,9 +130,16 @@ test('communication: a crossing costs more than a slightly larger grid (F-B-21)'
 test('communication: hostile and markup-like text stays literal and cannot create active SVG', async () => {
   const hostile = String.raw`" } <b>bold</b> [[https://evil.invalid]] **x** \n @enduml`;
   const doc = {
-    kind: 'communication', title: '<script>x</script>',
-    lifelines: [{ id: 'a', name: hostile, type: '<svg onload="alert(1)">' }, { id: 'b', name: '  spaced  ', type: '&amp;' }],
-    links: [{ from: 'a', to: 'b' }, { from: 'b', to: 'b' }],
+    kind: 'communication',
+    title: '<script>x</script>',
+    lifelines: [
+      { id: 'a', name: hostile, type: '<svg onload="alert(1)">' },
+      { id: 'b', name: '  spaced  ', type: '&amp;' },
+    ],
+    links: [
+      { from: 'a', to: 'b' },
+      { from: 'b', to: 'b' },
+    ],
     messages: [
       { sequence: '1', from: 'a', to: 'b', name: '<a href="x">', arguments: ['url(https://evil.invalid)'], guard: '<foreignObject>' },
       { sequence: '1.1', from: 'b', to: 'b', name: '🚀 𠀀', sort: 'asynchronous' },
@@ -132,7 +151,10 @@ test('communication: hostile and markup-like text stays literal and cannot creat
   assert.doesNotMatch(svg.replaceAll(/"[^"]*"/g, '""'), /<[^>]*\s(?:[\w:]*href|on\w+)\s*=/);
   const scene = await inspectSvg(svg);
   assert.ok(scene.texts.some(t => t.content === `${hostile} : <svg onload="alert(1)">`));
-  assert.ok(scene.texts.some(t => t.content === '  spaced   : &amp;'), 'boundary spaces preserved');
+  assert.ok(
+    scene.texts.some(t => t.content === '  spaced   : &amp;'),
+    'boundary spaces preserved',
+  );
   assert.ok(scene.texts.some(t => t.content === '1 [<foreignObject>]: <a href="x">(url(https://evil.invalid))'));
 });
 

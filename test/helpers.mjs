@@ -22,7 +22,10 @@ export async function fakeJava(dir, code, name = 'java') {
 }
 export function cli(args, options = {}) {
   return spawnSync(process.execPath, [join(root, 'dist/cli.js'), ...args], {
-    cwd: root, encoding: 'utf8', timeout: 60_000, ...options,
+    cwd: root,
+    encoding: 'utf8',
+    timeout: 60_000,
+    ...options,
   });
 }
 /** Smallest valid v1 document (MVP format). */
@@ -69,7 +72,10 @@ export async function assertCpuBudget(work, ms = 2000, label = 'stress render') 
 }
 
 /** Whether the PlantUML runtime (npm run setup:renderer, or UML_JAVA and PLANTUML_JAR) is available. */
-export const hasPlantUml = await rendererOptions().then(() => true, () => false);
+export const hasPlantUml = await rendererOptions().then(
+  () => true,
+  () => false,
+);
 
 /**
  * `test` for files that need the real PlantUML runtime. Without it every test

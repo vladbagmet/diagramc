@@ -1,5 +1,13 @@
-export interface Point { x: number; y: number }
-export interface Rect { x: number; y: number; width: number; height: number }
+export interface Point {
+  x: number;
+  y: number;
+}
+export interface Rect {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
 
 export const right = (r: Rect): number => r.x + r.width;
 export const bottom = (r: Rect): number => r.y + r.height;
@@ -22,13 +30,15 @@ export function overlapArea(a: Rect, b: Rect): number {
 
 /** True when `inner` lies within `outer`, allowing `tolerance` px. */
 export function contains(outer: Rect, inner: Rect, tolerance = 0): boolean {
-  return inner.x >= outer.x - tolerance && inner.y >= outer.y - tolerance &&
-    right(inner) <= right(outer) + tolerance && bottom(inner) <= bottom(outer) + tolerance;
+  return (
+    inner.x >= outer.x - tolerance && inner.y >= outer.y - tolerance && right(inner) <= right(outer) + tolerance && bottom(inner) <= bottom(outer) + tolerance
+  );
 }
 
 export function union(rects: readonly Rect[]): Rect {
   if (rects.length === 0) return { x: 0, y: 0, width: 0, height: 0 };
-  const x = Math.min(...rects.map(r => r.x)), y = Math.min(...rects.map(r => r.y));
+  const x = Math.min(...rects.map(r => r.x)),
+    y = Math.min(...rects.map(r => r.y));
   return { x, y, width: Math.max(...rects.map(right)) - x, height: Math.max(...rects.map(bottom)) - y };
 }
 
@@ -38,21 +48,38 @@ export function boundsOfPoints(points: readonly Point[]): Rect {
 
 /** True when the segment a-b passes through the interior of `r` (Liang-Barsky clipping). */
 export function segmentIntersectsRect(a: Point, b: Point, r: Rect): boolean {
-  let t0 = 0, t1 = 1;
-  const dx = b.x - a.x, dy = b.y - a.y;
-  const checks: [number, number][] = [[-dx, a.x - r.x], [dx, right(r) - a.x], [-dy, a.y - r.y], [dy, bottom(r) - a.y]];
+  let t0 = 0,
+    t1 = 1;
+  const dx = b.x - a.x,
+    dy = b.y - a.y;
+  const checks: [number, number][] = [
+    [-dx, a.x - r.x],
+    [dx, right(r) - a.x],
+    [-dy, a.y - r.y],
+    [dy, bottom(r) - a.y],
+  ];
   for (const [p, q] of checks) {
-    if (p === 0) { if (q <= 0) return false; continue; }
+    if (p === 0) {
+      if (q <= 0) return false;
+      continue;
+    }
     const t = q / p;
-    if (p < 0) { if (t > t1) return false; if (t > t0) t0 = t; }
-    else { if (t < t0) return false; if (t < t1) t1 = t; }
+    if (p < 0) {
+      if (t > t1) return false;
+      if (t > t0) t0 = t;
+    } else {
+      if (t < t0) return false;
+      if (t < t1) t1 = t;
+    }
   }
   return t1 - t0 > 1e-9;
 }
 
 /** Distance from point p to the segment a-b. */
 export function distanceToSegment(p: Point, a: Point, b: Point): number {
-  const dx = b.x - a.x, dy = b.y - a.y, length2 = dx * dx + dy * dy;
+  const dx = b.x - a.x,
+    dy = b.y - a.y,
+    length2 = dx * dx + dy * dy;
   const t = length2 ? Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / length2)) : 0;
   return Math.hypot(p.x - (a.x + t * dx), p.y - (a.y + t * dy));
 }
@@ -60,12 +87,17 @@ export function distanceToSegment(p: Point, a: Point, b: Point): number {
 /** Distance between segments a-b and c-d (0 when they intersect or touch). */
 export function segmentDistance(a: Point, b: Point, c: Point, d: Point): number {
   const cross = (o: Point, p: Point, q: Point) => (p.x - o.x) * (q.y - o.y) - (p.y - o.y) * (q.x - o.x);
-  const d1 = cross(c, d, a), d2 = cross(c, d, b), d3 = cross(a, b, c), d4 = cross(a, b, d);
+  const d1 = cross(c, d, a),
+    d2 = cross(c, d, b),
+    d3 = cross(a, b, c),
+    d4 = cross(a, b, d);
   if (((d1 > 0 && d2 < 0) || (d1 < 0 && d2 > 0)) && ((d3 > 0 && d4 < 0) || (d3 < 0 && d4 > 0))) return 0;
   return Math.min(distanceToSegment(a, c, d), distanceToSegment(b, c, d), distanceToSegment(c, a, b), distanceToSegment(d, a, b));
 }
 
-export function distance(a: Point, b: Point): number { return Math.hypot(a.x - b.x, a.y - b.y); }
+export function distance(a: Point, b: Point): number {
+  return Math.hypot(a.x - b.x, a.y - b.y);
+}
 
 /** Unit vector from a to b (zero vector when a equals b). */
 export function direction(a: Point, b: Point): Point {
@@ -89,8 +121,11 @@ export function distanceToBorder(p: Point, r: Rect): number {
 
 /** Distance from point p to the ellipse inscribed in rectangle r (radial approximation, exact on the axes). */
 export function distanceToEllipse(p: Point, r: Rect): number {
-  const a = r.width / 2, b = r.height / 2, c = center(r);
-  const dx = p.x - c.x, dy = p.y - c.y;
+  const a = r.width / 2,
+    b = r.height / 2,
+    c = center(r);
+  const dx = p.x - c.x,
+    dy = p.y - c.y;
   const t = Math.hypot(dx / a, dy / b);
   if (t === 0) return Math.min(a, b);
   return Math.hypot(dx - dx / t, dy - dy / t);
@@ -122,19 +157,25 @@ export function round2(n: number): number {
  */
 export function straightenJogs(route: readonly Point[], ends: { source: Rect; target: Rect }, min = 8, inset = 10): Point[] {
   let pts = route.map(p => ({ ...p }));
-  const within = (r: Rect, p: Point, horizontalJog: boolean): boolean => horizontalJog
-    ? p.x >= r.x + inset && p.x <= r.x + r.width - inset
-    : p.y >= r.y + inset && p.y <= r.y + r.height - inset;
+  const within = (r: Rect, p: Point, horizontalJog: boolean): boolean =>
+    horizontalJog ? p.x >= r.x + inset && p.x <= r.x + r.width - inset : p.y >= r.y + inset && p.y <= r.y + r.height - inset;
   for (let i = 1; i + 2 < pts.length; i++) {
-    const a = pts[i]!, b = pts[i + 1]!;
+    const a = pts[i]!,
+      b = pts[i + 1]!;
     if (distance(a, b) >= min) continue;
     const horizontal = Math.abs(a.y - b.y) < 0.01;
     const key = horizontal ? 'x' : 'y';
-    const next = pts[i + 2]!, prev = pts[i - 1]!;
-    const movedNext = { ...next, [key]: a[key] }, movedPrev = { ...prev, [key]: b[key] };
-    if (i + 2 < pts.length - 1 || within(ends.target, movedNext, horizontal)) { pts[i + 2] = movedNext; pts[i + 1] = { ...a }; }
-    else if (i - 1 > 0 || within(ends.source, movedPrev, horizontal)) { pts[i - 1] = movedPrev; pts[i] = { ...b }; }
-    else continue;
+    const next = pts[i + 2]!,
+      prev = pts[i - 1]!;
+    const movedNext = { ...next, [key]: a[key] },
+      movedPrev = { ...prev, [key]: b[key] };
+    if (i + 2 < pts.length - 1 || within(ends.target, movedNext, horizontal)) {
+      pts[i + 2] = movedNext;
+      pts[i + 1] = { ...a };
+    } else if (i - 1 > 0 || within(ends.source, movedPrev, horizontal)) {
+      pts[i - 1] = movedPrev;
+      pts[i] = { ...b };
+    } else continue;
     pts = simplify(pts);
     i = 0;
   }

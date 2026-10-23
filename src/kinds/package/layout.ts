@@ -7,7 +7,11 @@ function node(e: Element): Omit<DiagramNodeSpec, 'children'> {
   if (isNote(e)) return { id: e.id, type: 'note', shape: { kind: 'note', text: e.text } };
   if (isPackage(e)) return { id: e.id, type: 'package', shape: { kind: 'package', header: { name: e.name, keywords: e.stereotypes } } };
   const keyword = KEYWORD[e.type];
-  return { id: e.id, type: e.type, shape: { kind: 'box', compartments: [nameCompartment(keyword ? [keyword] : [], e.stereotypes, e.name, { italic: e.type === 'class' && !!e.abstract })] } };
+  return {
+    id: e.id,
+    type: e.type,
+    shape: { kind: 'box', compartments: [nameCompartment(keyword ? [keyword] : [], e.stereotypes, e.name, { italic: e.type === 'class' && !!e.abstract })] },
+  };
 }
 
 /** Maps a validated package diagram to the generic diagram pipeline. */
@@ -27,12 +31,16 @@ export function packageDiagramSpec(model: PackageDiagram): DiagramSpec {
   });
   for (const e of model.elements) {
     if (!isNote(e)) continue;
-    for (const target of e.attachedTo ?? []) edges.push({ id: `${e.id}->${target}`, type: 'note-anchor', source: e.id, target, style: 'dashed', sourceMarker: 'none', targetMarker: 'none' });
+    for (const target of e.attachedTo ?? [])
+      edges.push({ id: `${e.id}->${target}`, type: 'note-anchor', source: e.id, target, style: 'dashed', sourceMarker: 'none', targetMarker: 'none' });
   }
   return {
-    kind: 'package', frameKeyword: 'package', title: model.title,
-    nodes: nestElements(model.elements, e => isPackage(e) ? e.members : undefined, node),
+    kind: 'package',
+    frameKeyword: 'package',
+    title: model.title,
+    nodes: nestElements(model.elements, e => (isPackage(e) ? e.members : undefined), node),
     edges,
-    directions: ['DOWN', 'RIGHT'], wrap: true,
+    directions: ['DOWN', 'RIGHT'],
+    wrap: true,
   };
 }

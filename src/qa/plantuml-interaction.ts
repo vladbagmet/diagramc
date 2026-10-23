@@ -14,8 +14,18 @@ import { walk, type XmlElement } from './xml.js';
  */
 
 /** `order`: position in drawing order; a shape hides only what was drawn before it. */
-export interface InteractionLifeline { id: string; x: number; top: number; bottom: number; order?: number }
-export interface InteractionArrowhead { style: 'filled' | 'open'; tip: Point; direction: Point }
+export interface InteractionLifeline {
+  id: string;
+  x: number;
+  top: number;
+  bottom: number;
+  order?: number;
+}
+export interface InteractionArrowhead {
+  style: 'filled' | 'open';
+  tip: Point;
+  direction: Point;
+}
 export interface InteractionMessage {
   id: string;
   /** Lifeline alias at the sending end; undefined for a found message. */
@@ -57,23 +67,40 @@ export interface Interaction {
 const num = (s: string | undefined): number => Number(s ?? 0);
 const styleOf = (e: XmlElement): { stroke?: string; width?: number; dashed: boolean } => {
   const style = e.attrs.style ?? '';
-  const stroke = (/stroke:(#[0-9A-Fa-f]{6}|none)/u.exec(style))?.[1];
-  const width = (/stroke-width:([\d.]+)/u.exec(style))?.[1];
+  const stroke = /stroke:(#[0-9A-Fa-f]{6}|none)/u.exec(style)?.[1];
+  const width = /stroke-width:([\d.]+)/u.exec(style)?.[1];
   return { ...(stroke ? { stroke } : {}), ...(width ? { width: Number(width) } : {}), dashed: style.includes('stroke-dasharray') };
 };
 const elements = (e: XmlElement): XmlElement[] => e.children.filter((c): c is XmlElement => typeof c !== 'string');
 const shapeBounds = (e: XmlElement): Rect | undefined => {
   const a = e.attrs;
   switch (e.tag) {
-    case 'rect': return { x: num(a.x), y: num(a.y), width: num(a.width), height: num(a.height) };
-    case 'ellipse': return { x: num(a.cx) - num(a.rx), y: num(a.cy) - num(a.ry), width: 2 * num(a.rx), height: 2 * num(a.ry) };
-    case 'line': return boundsOfPoints([{ x: num(a.x1), y: num(a.y1) }, { x: num(a.x2), y: num(a.y2) }]);
-    case 'polygon': case 'polyline': { const p = pointList(a.points); return p.length > 0 ? boundsOfPoints(p) : undefined; }
-    case 'path': { const p = pathPoints(a.d ?? ''); return p.length > 0 ? boundsOfPoints(p) : undefined; }
-    default: return undefined;
+    case 'rect':
+      return { x: num(a.x), y: num(a.y), width: num(a.width), height: num(a.height) };
+    case 'ellipse':
+      return { x: num(a.cx) - num(a.rx), y: num(a.cy) - num(a.ry), width: 2 * num(a.rx), height: 2 * num(a.ry) };
+    case 'line':
+      return boundsOfPoints([
+        { x: num(a.x1), y: num(a.y1) },
+        { x: num(a.x2), y: num(a.y2) },
+      ]);
+    case 'polygon':
+    case 'polyline': {
+      const p = pointList(a.points);
+      return p.length > 0 ? boundsOfPoints(p) : undefined;
+    }
+    case 'path': {
+      const p = pathPoints(a.d ?? '');
+      return p.length > 0 ? boundsOfPoints(p) : undefined;
+    }
+    default:
+      return undefined;
   }
 };
-const lineEnds = (e: XmlElement): [Point, Point] => [{ x: num(e.attrs.x1), y: num(e.attrs.y1) }, { x: num(e.attrs.x2), y: num(e.attrs.y2) }];
+const lineEnds = (e: XmlElement): [Point, Point] => [
+  { x: num(e.attrs.x1), y: num(e.attrs.y1) },
+  { x: num(e.attrs.x2), y: num(e.attrs.y2) },
+];
 const near = (a: Point, b: Point, tolerance = 0.6): boolean => distance(a, b) <= tolerance;
 
 /** Joins wrapped lines of one input string into a single inspected text. */
@@ -110,7 +137,7 @@ function readMessage(group: XmlElement, id: string): InteractionMessage & { text
   const polygon = parts.find(e => e.tag === 'polygon');
   if (polygon) {
     const p = pointList(polygon.attrs.points);
-    const tipIndex = p.map((v, i) => p.reduce((s, w, j) => s + (i === j ? 0 : distance(v, w)), 0)).reduce((best, s, i, all) => s > all[best]! ? i : best, 0);
+    const tipIndex = p.map((v, i) => p.reduce((s, w, j) => s + (i === j ? 0 : distance(v, w)), 0)).reduce((best, s, i, all) => (s > all[best]! ? i : best), 0);
     const tip = p[tipIndex]!;
     const others = p.filter((_, i) => i !== tipIndex);
     const base = { x: others.reduce((s, v) => s + v.x, 0) / others.length, y: others.reduce((s, v) => s + v.y, 0) / others.length };
@@ -121,17 +148,21 @@ function readMessage(group: XmlElement, id: string): InteractionMessage & { text
   const short = lines.filter(l => distance(l.ends[0], l.ends[1]) <= 16 && !l.style.dashed);
   const used = new Set<XmlElement>();
   if (!head) {
-    for (let i = 0; i < short.length && !head; i++) for (let j = i + 1; j < short.length && !head; j++) {
-      const a = short[i]!, b = short[j]!;
-      for (const ta of a.ends) for (const tb of b.ends) {
-        if (head || !near(ta, tb)) continue;
-        const oa = a.ends.find(p => p !== ta)!, ob = b.ends.find(p => p !== tb)!;
-        const base = { x: (oa.x + ob.x) / 2, y: (oa.y + ob.y) / 2 };
-        const length = distance(ta, base) || 1;
-        head = { style: 'open', tip: ta, direction: { x: (ta.x - base.x) / length, y: (ta.y - base.y) / length } };
-        used.add(a.e).add(b.e);
+    for (let i = 0; i < short.length && !head; i++)
+      for (let j = i + 1; j < short.length && !head; j++) {
+        const a = short[i]!,
+          b = short[j]!;
+        for (const ta of a.ends)
+          for (const tb of b.ends) {
+            if (head || !near(ta, tb)) continue;
+            const oa = a.ends.find(p => p !== ta)!,
+              ob = b.ends.find(p => p !== tb)!;
+            const base = { x: (oa.x + ob.x) / 2, y: (oa.y + ob.y) / 2 };
+            const length = distance(ta, base) || 1;
+            head = { style: 'open', tip: ta, direction: { x: (ta.x - base.x) / length, y: (ta.y - base.y) / length } };
+            used.add(a.e).add(b.e);
+          }
       }
-    }
   }
   // Remaining lines form the message path; chain them end to end.
   const segments = lines.filter(l => !used.has(l.e));
@@ -144,8 +175,10 @@ function readMessage(group: XmlElement, id: string): InteractionMessage & { text
       const k = pool.findIndex(([a, b]) => near(a, points.at(-1)!, 1) || near(b, points.at(-1)!, 1) || near(a, points[0]!, 1) || near(b, points[0]!, 1));
       if (k === -1) break;
       const [a, b] = pool.splice(k, 1)[0]!;
-      if (near(a, points.at(-1)!, 1)) points.push(b); else if (near(b, points.at(-1)!, 1)) points.push(a);
-      else if (near(b, points[0]!, 1)) points.unshift(a); else points.unshift(b);
+      if (near(a, points.at(-1)!, 1)) points.push(b);
+      else if (near(b, points.at(-1)!, 1)) points.push(a);
+      else if (near(b, points[0]!, 1)) points.unshift(a);
+      else points.unshift(b);
     }
     // Orient the path so that it ends at the arrowhead.
     if (head && distance(points[0]!, head.tip) < distance(points.at(-1)!, head.tip)) points.reverse();
@@ -171,7 +204,10 @@ export function readSequence(root: XmlElement, scene: Scene): void {
   if (!main) return;
   const items = elements(main);
   const used = new Set<XmlElement>();
-  const take = (e: XmlElement): InspectedText => { used.add(e); return textOf.get(e)!; };
+  const take = (e: XmlElement): InspectedText => {
+    used.add(e);
+    return textOf.get(e)!;
+  };
   const fill = (e: XmlElement): string => e.attrs.fill ?? '';
   let lastTarget: string | undefined;
   let nodeCount = 0;
@@ -182,7 +218,10 @@ export function readSequence(root: XmlElement, scene: Scene): void {
     const cls = e.attrs.class ?? '';
     if (e.tag === 'g' && cls.includes('participant-head')) {
       const id = e.attrs['data-participant'] ?? '';
-      const shapes = kids.filter(k => k.tag !== 'text').map(shapeBounds).filter((b): b is Rect => !!b);
+      const shapes = kids
+        .filter(k => k.tag !== 'text')
+        .map(shapeBounds)
+        .filter((b): b is Rect => !!b);
       const texts = kids.filter(k => k.tag === 'text').map(take);
       const box = kids.find(k => k.tag === 'rect');
       const bounds = box ? shapeBounds(box)! : union([...shapes, ...texts.map(t => t.bounds)]);
@@ -194,8 +233,10 @@ export function readSequence(root: XmlElement, scene: Scene): void {
     if (e.tag === 'g' && cls.includes('message')) {
       const id = `message${interaction.messages.length}`;
       const message = readMessage(e, id);
-      for (const halo of kids.filter(k => k.tag === 'rect' && fill(k) === color.labelHalo)) interaction.occluders.push({ ...shapeBounds(halo)!, order: i, text: true });
-      const source = e.attrs['data-participant-1'], target = e.attrs['data-participant-2'];
+      for (const halo of kids.filter(k => k.tag === 'rect' && fill(k) === color.labelHalo))
+        interaction.occluders.push({ ...shapeBounds(halo)!, order: i, text: true });
+      const source = e.attrs['data-participant-1'],
+        target = e.attrs['data-participant-2'];
       const texts = message.texts.map(take);
       const numbers = texts.filter(t => t.bold && /^\d+$/u.test(t.content));
       const label = texts.filter(t => !numbers.includes(t));
@@ -203,7 +244,10 @@ export function readSequence(root: XmlElement, scene: Scene): void {
       if (label.length > 0) out.push(merge(label, { role: 'label', owner: id }));
       const { texts: _texts, ...rest } = message;
       // PlantUML gives found and lost messages the known lifeline at both ends.
-      const found = message.circle !== undefined && message.points.length > 0 && distance(message.circle, message.points[0]!) <= distance(message.circle, message.points.at(-1)!);
+      const found =
+        message.circle !== undefined &&
+        message.points.length > 0 &&
+        distance(message.circle, message.points[0]!) <= distance(message.circle, message.points.at(-1)!);
       const lost = message.circle !== undefined && !found;
       interaction.messages.push({ ...rest, ...(found ? {} : { source }), ...(lost ? {} : { target }) });
       scene.edges.push({ id, type: 'message', source: source ?? '', target: target ?? '', points: message.points, sourceMarker: 'none', targetMarker: 'none' });
@@ -234,10 +278,11 @@ export function readSequence(root: XmlElement, scene: Scene): void {
       if (texts.length > 0) out.push(merge(texts, { role: 'text', node: lastTarget }));
       continue;
     }
-    if (lastTarget && (e.tag === 'text' && num(e.attrs['font-size']) === font.size.name || isHeadIcon(e)) && !scene.nodes.some(n => n.id === lastTarget)) {
+    if (lastTarget && ((e.tag === 'text' && num(e.attrs['font-size']) === font.size.name) || isHeadIcon(e)) && !scene.nodes.some(n => n.id === lastTarget)) {
       // A created lifeline drawn as an icon: its text and icon shapes follow the create message.
       const group: XmlElement[] = [e];
-      while (items[i + 1] && (items[i + 1]!.tag === 'text' && num(items[i + 1]!.attrs['font-size']) === font.size.name || isHeadIcon(items[i + 1]!))) group.push(items[++i]!);
+      while (items[i + 1] && ((items[i + 1]!.tag === 'text' && num(items[i + 1]!.attrs['font-size']) === font.size.name) || isHeadIcon(items[i + 1]!)))
+        group.push(items[++i]!);
       const texts = group.filter(g => g.tag === 'text').map(take);
       const bounds = union([...group.filter(g => g.tag !== 'text').map(g => shapeBounds(g)!), ...texts.map(t => t.bounds)]);
       scene.nodes.push({ id: lastTarget, type: 'lifeline-head', bounds });
@@ -267,7 +312,13 @@ export function readSequence(root: XmlElement, scene: Scene): void {
       if (texts.length > 0) out.push(merge(texts, { role: 'text', node: id }));
       continue;
     }
-    if (e.tag === 'rect' && (fill(e) === 'none' || fill(e) === color.background) && i > 1 && items[i + 1]?.tag === 'path' && fill(items[i + 1]!) === color.frameHeadingFill) {
+    if (
+      e.tag === 'rect' &&
+      (fill(e) === 'none' || fill(e) === color.background) &&
+      i > 1 &&
+      items[i + 1]?.tag === 'path' &&
+      fill(items[i + 1]!) === color.frameHeadingFill
+    ) {
       // Interaction use: frame (opaque), "ref" tab, then the referenced name inside.
       const bounds = shapeBounds(e)!;
       const id = `ref${nodeCount++}`;
@@ -314,13 +365,17 @@ export function readSequence(root: XmlElement, scene: Scene): void {
   const heads = scene.nodes.filter(n => n.type === 'lifeline-head');
   const centre = (n: InspectedNode): number => n.bounds.x + n.bounds.width / 2;
   for (const l of interaction.lifelines) {
-    const head = heads.filter(n => l.x >= n.bounds.x && l.x <= n.bounds.x + n.bounds.width)
-      .reduce<InspectedNode | undefined>((best, n) => !best || Math.abs(centre(n) - l.x) < Math.abs(centre(best) - l.x) ? n : best, undefined);
+    const head = heads
+      .filter(n => l.x >= n.bounds.x && l.x <= n.bounds.x + n.bounds.width)
+      .reduce<InspectedNode | undefined>((best, n) => (!best || Math.abs(centre(n) - l.x) < Math.abs(centre(best) - l.x) ? n : best), undefined);
     if (head) l.id = head.id;
   }
   for (const b of interaction.bars) {
     const mid = b.x + b.width / 2;
-    const l = interaction.lifelines.reduce<InteractionLifeline | undefined>((best, c) => !best || Math.abs(c.x - mid) < Math.abs(best.x - mid) ? c : best, undefined);
+    const l = interaction.lifelines.reduce<InteractionLifeline | undefined>(
+      (best, c) => (!best || Math.abs(c.x - mid) < Math.abs(best.x - mid) ? c : best),
+      undefined,
+    );
     if (l) b.lifeline = l.id;
   }
   scene.texts = out;
@@ -328,14 +383,21 @@ export function readSequence(root: XmlElement, scene: Scene): void {
 }
 
 function isCross(a: XmlElement, b: XmlElement): boolean {
-  const [p, q] = lineEnds(a), [r, t] = lineEnds(b);
-  const w = Math.abs(q.x - p.x), h = Math.abs(q.y - p.y);
+  const [p, q] = lineEnds(a),
+    [r, t] = lineEnds(b);
+  const w = Math.abs(q.x - p.x),
+    h = Math.abs(q.y - p.y);
   return w > 10 && Math.abs(w - h) < 0.01 && p.x === r.x && q.x === t.x && p.y === t.y && q.y === r.y;
 }
 
 function isHeadIcon(e: XmlElement): boolean {
   const s = styleOf(e);
-  return (e.tag === 'ellipse' || e.tag === 'path' || e.tag === 'line' || e.tag === 'polygon') && s.width === theme.stroke.node && !s.dashed && (e.attrs.fill === theme.color.nodeFill || e.attrs.fill === 'none' || e.tag === 'line' || e.tag === 'polygon');
+  return (
+    (e.tag === 'ellipse' || e.tag === 'path' || e.tag === 'line' || e.tag === 'polygon') &&
+    s.width === theme.stroke.node &&
+    !s.dashed &&
+    (e.attrs.fill === theme.color.nodeFill || e.attrs.fill === 'none' || e.tag === 'line' || e.tag === 'polygon')
+  );
 }
 
 /**
@@ -353,22 +415,37 @@ export function interactionGates(scene: Scene): GateResult[] {
   if (interaction.diagram === 'sequence') {
     const onLifeline = (id: string, p: Point): boolean => {
       const head = interaction.createdHeads.get(id);
-      if (head && p.y >= head.y - tolerance && p.y <= head.y + head.height + tolerance && (Math.abs(p.x - head.x) <= tolerance || Math.abs(p.x - head.x - head.width) <= tolerance)) return true;
+      if (
+        head &&
+        p.y >= head.y - tolerance &&
+        p.y <= head.y + head.height + tolerance &&
+        (Math.abs(p.x - head.x) <= tolerance || Math.abs(p.x - head.x - head.width) <= tolerance)
+      )
+        return true;
       const line = interaction.lifelines.find(l => l.id === id);
       if (!line) return false;
       if (p.y < line.top - tolerance || p.y > line.bottom + tolerance) return false;
       if (Math.abs(p.x - line.x) <= tolerance) return true;
-      return interaction.bars.some(b => b.lifeline === id && p.y >= b.y - tolerance && p.y <= b.y + b.height + tolerance
-        && (Math.abs(p.x - b.x) <= tolerance || Math.abs(p.x - b.x - b.width) <= tolerance));
+      return interaction.bars.some(
+        b =>
+          b.lifeline === id &&
+          p.y >= b.y - tolerance &&
+          p.y <= b.y + b.height + tolerance &&
+          (Math.abs(p.x - b.x) <= tolerance || Math.abs(p.x - b.x - b.width) <= tolerance),
+      );
     };
     for (const m of interaction.messages) {
-      if (m.points.length < 2) { failures.push(`${m.id} has no line`); continue; }
+      if (m.points.length < 2) {
+        failures.push(`${m.id} has no line`);
+        continue;
+      }
       // The receiving end is the arrowhead's tip (PlantUML stops the line inside a filled head).
-      const start = m.points[0]!, end = m.head && m.target !== undefined ? m.head.tip : m.points.at(-1)!;
+      const start = m.points[0]!,
+        end = m.head && m.target !== undefined ? m.head.tip : m.points.at(-1)!;
       if (m.source !== undefined && !onLifeline(m.source, start)) failures.push(`${m.id} starts at ${at(start)}, not on lifeline ${m.source}`);
       if (m.target !== undefined && !onLifeline(m.target, end)) failures.push(`${m.id} ends at ${at(end)}, not on lifeline ${m.target}`);
       if (m.source === undefined || m.target === undefined) {
-        const free = m.source === undefined ? start : m.head?.tip ?? m.points.at(-1)!;
+        const free = m.source === undefined ? start : (m.head?.tip ?? m.points.at(-1)!);
         if (!m.circle || distance(m.circle, free) > 9) failures.push(`${m.id}: found/lost message without a circle at its open end ${at(free)}`);
       }
       checkHead(m, failures, at);
@@ -376,7 +453,10 @@ export function interactionGates(scene: Scene): GateResult[] {
   } else {
     const onWave = (p: Point): boolean => interaction.waveforms.some(({ a, b }) => distanceToSegment(p, a, b) <= tolerance);
     for (const m of interaction.messages) {
-      if (m.points.length < 2) { failures.push(`${m.id} has no line`); continue; }
+      if (m.points.length < 2) {
+        failures.push(`${m.id} has no line`);
+        continue;
+      }
       if (!onWave(m.points[0]!)) failures.push(`${m.id} starts at ${at(m.points[0]!)}, not on a lifeline's state line`);
       const end = m.head?.tip ?? m.points.at(-1)!;
       if (!onWave(end)) failures.push(`${m.id} ends at ${at(end)}, not on a lifeline's state line`);
@@ -421,9 +501,13 @@ export function timingLines(scene: Scene, interaction: Interaction): GateResult 
   const rowOf = (p: Point): number => rows.findIndex(r => p.y >= r.top - 0.5 && p.y <= r.bottom + 0.5);
   for (const m of interaction.messages) {
     for (let k = 1; k < m.points.length; k++) {
-      const a = m.points[k - 1]!, b = m.points[k]!;
+      const a = m.points[k - 1]!,
+        b = m.points[k]!;
       const hit = lines.find(l => (l as { owner?: string }).owner !== m.id && sharedLength(a, b, l.a, l.b) > 2);
-      if (hit) { failures.push(`${m.id} runs along ${hit.what} at x=${a.x.toFixed(1)}`); break; }
+      if (hit) {
+        failures.push(`${m.id} runs along ${hit.what} at x=${a.x.toFixed(1)}`);
+        break;
+      }
     }
     if (m.points.length < 2 || rows.length === 0) continue;
     const ends = new Set([rowOf(m.points[0]!), rowOf(m.head?.tip ?? m.points.at(-1)!)]);
@@ -436,7 +520,10 @@ export function timingLines(scene: Scene, interaction: Interaction): GateResult 
     if (t.role === 'frame-label') continue;
     for (const box of t.lines) {
       const inner = { x: box.x + 0.5, y: box.y + 1, width: box.width - 1, height: box.height - 2 };
-      if (guides.some(g => segmentIntersectsRect(g.a, g.b, inner))) { failures.push(`text ${JSON.stringify(t.content)} is crossed by a highlight or constraint line`); break; }
+      if (guides.some(g => segmentIntersectsRect(g.a, g.b, inner))) {
+        failures.push(`text ${JSON.stringify(t.content)} is crossed by a highlight or constraint line`);
+        break;
+      }
     }
   }
   return { gate: 'timing-lines', ok: failures.length === 0, failures };
@@ -454,23 +541,34 @@ export function timingLines(scene: Scene, interaction: Interaction): GateResult 
 export function lifelineCrossing(scene: Scene, interaction: Interaction): GateResult {
   const failures: string[] = [];
   // An opaque shape hides what was drawn before it (unknown order: anything).
-  const hidden = (r: Rect, order = -Infinity, bar = false): boolean => interaction.occluders.some(o => (o.order ?? Infinity) > order && !(bar && o.text) && contains(o, r, 0.5));
+  const hidden = (r: Rect, order = -Infinity, bar = false): boolean =>
+    interaction.occluders.some(o => (o.order ?? Infinity) > order && !(bar && o.text) && contains(o, r, 0.5));
   const name = (t: InspectedText): string => JSON.stringify(t.content.length > 40 ? `${t.content.slice(0, 40)}…` : t.content);
   for (const t of scene.texts) {
     if (t.role === 'frame-label') continue;
     for (const box of t.lines) {
-      const top = box.y + 1, bottom = box.y + box.height - 1;
+      const top = box.y + 1,
+        bottom = box.y + box.height - 1;
       for (const l of interaction.lifelines) {
         if (l.x <= box.x + 0.5 || l.x >= box.x + box.width - 0.5) continue;
-        const y0 = Math.max(top, l.top), y1 = Math.min(bottom, l.bottom);
+        const y0 = Math.max(top, l.top),
+          y1 = Math.min(bottom, l.bottom);
         if (y1 <= y0) continue;
-        if (!hidden({ x: l.x - 0.5, y: y0, width: 1, height: y1 - y0 }, l.order)) { failures.push(`text ${name(t)} is crossed by lifeline ${l.id || '?'} at x=${l.x.toFixed(1)}`); break; }
+        if (!hidden({ x: l.x - 0.5, y: y0, width: 1, height: y1 - y0 }, l.order)) {
+          failures.push(`text ${name(t)} is crossed by lifeline ${l.id || '?'} at x=${l.x.toFixed(1)}`);
+          break;
+        }
       }
       for (const b of interaction.bars) {
-        const x0 = Math.max(box.x + 0.5, b.x), x1 = Math.min(box.x + box.width - 0.5, b.x + b.width);
-        const y0 = Math.max(top, b.y), y1 = Math.min(bottom, b.y + b.height);
+        const x0 = Math.max(box.x + 0.5, b.x),
+          x1 = Math.min(box.x + box.width - 0.5, b.x + b.width);
+        const y0 = Math.max(top, b.y),
+          y1 = Math.min(bottom, b.y + b.height);
         if (x1 <= x0 || y1 <= y0) continue;
-        if (!hidden({ x: x0, y: y0, width: x1 - x0, height: y1 - y0 }, b.order, true)) { failures.push(`text ${name(t)} overlaps the activation bar of ${b.lifeline || '?'}`); break; }
+        if (!hidden({ x: x0, y: y0, width: x1 - x0, height: y1 - y0 }, b.order, true)) {
+          failures.push(`text ${name(t)} overlaps the activation bar of ${b.lifeline || '?'}`);
+          break;
+        }
       }
     }
   }
@@ -478,8 +576,12 @@ export function lifelineCrossing(scene: Scene, interaction: Interaction): GateRe
 }
 
 function checkHead(m: InteractionMessage, failures: string[], at: (p: Point) => string): void {
-  const end = m.points.at(-1)!, before = m.points.at(-2)!;
-  if (!m.head) { failures.push(`${m.id} has no arrowhead`); return; }
+  const end = m.points.at(-1)!,
+    before = m.points.at(-2)!;
+  if (!m.head) {
+    failures.push(`${m.id} has no arrowhead`);
+    return;
+  }
   if (distance(m.head.tip, end) > 6) failures.push(`${m.id}: arrowhead at ${at(m.head.tip)} is not at the receiving end ${at(end)}`);
   const length = distance(before, end) || 1;
   const dir = { x: (end.x - before.x) / length, y: (end.y - before.y) / length };
@@ -487,7 +589,8 @@ function checkHead(m: InteractionMessage, failures: string[], at: (p: Point) => 
 }
 
 export function distanceToSegment(p: Point, a: Point, b: Point): number {
-  const dx = b.x - a.x, dy = b.y - a.y;
+  const dx = b.x - a.x,
+    dy = b.y - a.y;
   const l2 = dx * dx + dy * dy;
   const t = l2 === 0 ? 0 : Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / l2));
   return Math.hypot(p.x - (a.x + t * dx), p.y - (a.y + t * dy));
@@ -535,7 +638,8 @@ export function readTiming(root: XmlElement, scene: Scene): void {
       const bounds = boundsOfPoints(points);
       scene.nodes.push({ id, type: 'concise-value', bounds });
       containers.push({ id, bounds });
-      for (let k = 0; k + 1 < points.length + (e.tag === 'polygon' ? 1 : 0); k++) interaction.waveforms.push({ a: points[k]!, b: points[(k + 1) % points.length]! });
+      for (let k = 0; k + 1 < points.length + (e.tag === 'polygon' ? 1 : 0); k++)
+        interaction.waveforms.push({ a: points[k]!, b: points[(k + 1) % points.length]! });
       continue;
     }
     if (e.tag === 'path' && e.attrs.fill === color.noteFill) {
@@ -569,7 +673,15 @@ export function readTiming(root: XmlElement, scene: Scene): void {
       i += heads.length;
       while (items[i + 1]?.tag === 'text') owned.set(items[++i]!, { role: 'label', owner: id });
       if (kind === 'message') interaction.messages.push({ id, points: message.points, dashed: false, ...(message.head ? { head: message.head } : {}) });
-      scene.edges.push({ id, type: kind === 'message' ? 'message' : 'duration-constraint', source: '', target: '', points: message.points.length > 0 ? message.points : lineEnds(e), sourceMarker: 'none', targetMarker: 'none' });
+      scene.edges.push({
+        id,
+        type: kind === 'message' ? 'message' : 'duration-constraint',
+        source: '',
+        target: '',
+        points: message.points.length > 0 ? message.points : lineEnds(e),
+        sourceMarker: 'none',
+        targetMarker: 'none',
+      });
     }
   }
 
@@ -577,11 +689,22 @@ export function readTiming(root: XmlElement, scene: Scene): void {
   const pending: { container: string; parts: InspectedText[] }[] = [];
   for (const [element, text] of textOf) {
     const known = owned.get(element);
-    if (known) { out.push({ ...text, ...known }); continue; }
-    if (frame && contains(frame, text.bounds, 2)) { out.push({ ...text, role: 'frame-label' }); continue; }
+    if (known) {
+      out.push({ ...text, ...known });
+      continue;
+    }
+    if (frame && contains(frame, text.bounds, 2)) {
+      out.push({ ...text, role: 'frame-label' });
+      continue;
+    }
     // Texts that start inside a note or a concise value belong to it (text-fits checks they also end inside).
-    const container = containers.find(c => text.bounds.x >= c.bounds.x && text.bounds.x < c.bounds.x + c.bounds.width
-      && text.bounds.y + text.bounds.height / 2 >= c.bounds.y && text.bounds.y + text.bounds.height / 2 <= c.bounds.y + c.bounds.height);
+    const container = containers.find(
+      c =>
+        text.bounds.x >= c.bounds.x &&
+        text.bounds.x < c.bounds.x + c.bounds.width &&
+        text.bounds.y + text.bounds.height / 2 >= c.bounds.y &&
+        text.bounds.y + text.bounds.height / 2 <= c.bounds.y + c.bounds.height,
+    );
     if (container) {
       const last = pending.at(-1);
       if (last?.container === container.id) last.parts.push(text);

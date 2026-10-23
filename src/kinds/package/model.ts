@@ -1,9 +1,26 @@
 /** Types of a validated package-diagram document (see schema.ts for the contract). */
 
-export interface Package { id: string; type: 'package'; name: string; stereotypes?: string[]; members?: string[] }
+export interface Package {
+  id: string;
+  type: 'package';
+  name: string;
+  stereotypes?: string[];
+  members?: string[];
+}
 export type ClassifierType = 'class' | 'interface' | 'enumeration' | 'datatype';
-export interface Classifier { id: string; type: ClassifierType; name: string; abstract?: boolean; stereotypes?: string[] }
-export interface Note { id: string; type: 'note'; text: string; attachedTo?: string[] }
+export interface Classifier {
+  id: string;
+  type: ClassifierType;
+  name: string;
+  abstract?: boolean;
+  stereotypes?: string[];
+}
+export interface Note {
+  id: string;
+  type: 'note';
+  text: string;
+  attachedTo?: string[];
+}
 export type Element = Package | Classifier | Note;
 
 export type RelationshipType = 'import' | 'access' | 'merge' | 'dependency' | 'containment';

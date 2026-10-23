@@ -5,24 +5,75 @@
 import { writeFile } from 'node:fs/promises';
 
 const names = [
-  ['api', 'ApiGateway'], ['auth', 'AuthService'], ['orders', 'OrderService'], ['catalog', 'CatalogService'],
-  ['tokens', 'TokenStore'], ['users', 'UserRepository'], ['carts', 'CartService'], ['pricing', 'PricingEngine'],
-  ['stock', 'Inventory'], ['search', 'SearchIndex'], ['media', 'MediaStore'], ['audit', 'AuditLog'],
-  ['payments', 'PaymentService'], ['fraud', 'FraudCheck'], ['ledger', 'Ledger'], ['shipping', 'ShippingService'],
-  ['carriers', 'CarrierAdapter'], ['notify', 'Notifier'], ['mail', 'MailQueue'], ['sms', 'SmsGateway'],
-  ['tax', 'TaxCalculator'], ['promo', 'PromotionRules'], ['wh', 'Warehouse'], ['metrics', 'Metrics'],
+  ['api', 'ApiGateway'],
+  ['auth', 'AuthService'],
+  ['orders', 'OrderService'],
+  ['catalog', 'CatalogService'],
+  ['tokens', 'TokenStore'],
+  ['users', 'UserRepository'],
+  ['carts', 'CartService'],
+  ['pricing', 'PricingEngine'],
+  ['stock', 'Inventory'],
+  ['search', 'SearchIndex'],
+  ['media', 'MediaStore'],
+  ['audit', 'AuditLog'],
+  ['payments', 'PaymentService'],
+  ['fraud', 'FraudCheck'],
+  ['ledger', 'Ledger'],
+  ['shipping', 'ShippingService'],
+  ['carriers', 'CarrierAdapter'],
+  ['notify', 'Notifier'],
+  ['mail', 'MailQueue'],
+  ['sms', 'SmsGateway'],
+  ['tax', 'TaxCalculator'],
+  ['promo', 'PromotionRules'],
+  ['wh', 'Warehouse'],
+  ['metrics', 'Metrics'],
 ];
 const tree = {
-  api: ['auth', 'orders', 'catalog'], auth: ['tokens', 'users'], orders: ['carts', 'payments', 'shipping', 'notify'],
-  catalog: ['search', 'media'], carts: ['pricing', 'stock'], pricing: ['tax', 'promo'], stock: ['wh'],
-  payments: ['fraud', 'ledger'], shipping: ['carriers'], notify: ['mail', 'sms'],
+  api: ['auth', 'orders', 'catalog'],
+  auth: ['tokens', 'users'],
+  orders: ['carts', 'payments', 'shipping', 'notify'],
+  catalog: ['search', 'media'],
+  carts: ['pricing', 'stock'],
+  pricing: ['tax', 'promo'],
+  stock: ['wh'],
+  payments: ['fraud', 'ledger'],
+  shipping: ['carriers'],
+  notify: ['mail', 'sms'],
 };
-const cross = [['orders', 'audit'], ['payments', 'audit'], ['auth', 'audit'], ['stock', 'metrics'], ['api', 'metrics'], ['shipping', 'wh']];
+const cross = [
+  ['orders', 'audit'],
+  ['payments', 'audit'],
+  ['auth', 'audit'],
+  ['stock', 'metrics'],
+  ['api', 'metrics'],
+  ['shipping', 'wh'],
+];
 const operations = {
-  auth: 'authenticate', tokens: 'issue', users: 'find', orders: 'submit', carts: 'checkout', pricing: 'quote', tax: 'compute',
-  promo: 'apply', stock: 'reserve', wh: 'pick', payments: 'charge', fraud: 'score', ledger: 'post', shipping: 'book',
-  carriers: 'label', notify: 'orderPlaced', mail: 'enqueue', sms: 'send', catalog: 'browse', search: 'query', media: 'thumbnails',
-  audit: 'record', metrics: 'count',
+  auth: 'authenticate',
+  tokens: 'issue',
+  users: 'find',
+  orders: 'submit',
+  carts: 'checkout',
+  pricing: 'quote',
+  tax: 'compute',
+  promo: 'apply',
+  stock: 'reserve',
+  wh: 'pick',
+  payments: 'charge',
+  fraud: 'score',
+  ledger: 'post',
+  shipping: 'book',
+  carriers: 'label',
+  notify: 'orderPlaced',
+  mail: 'enqueue',
+  sms: 'send',
+  catalog: 'browse',
+  search: 'query',
+  media: 'thumbnails',
+  audit: 'record',
+  metrics: 'count',
 };
 const asynchronous = new Set(['notify', 'mail', 'sms', 'audit', 'metrics']);
 const lifelines = names.map(([id, type]) => ({ id, name: id, type }));
@@ -43,7 +94,6 @@ function handle(node, prefix) {
     messages.push(message);
     const nested = tree[to] ? handle(to, seq) : 0;
     if (sort === 'synchronous') {
-
       messages.push({ sequence: `${seq}.${nested + 1}`, from: to, to: node, name: operations[to], returnValue: 'result', sort: 'reply' });
     }
   }

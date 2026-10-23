@@ -12,7 +12,11 @@ const sha = bytes => createHash('sha256').update(bytes).digest('hex');
 const quiet = () => {};
 function stubSetup(root, platform = 'darwin', arch = 'arm64') {
   const state = { extractions: 0, downloads: [], mode: 'ok' };
-  const options = { root, platform, arch, log: quiet,
+  const options = {
+    root,
+    platform,
+    arch,
+    log: quiet,
     download: async (directory, url, name, expected) => {
       assert.match(expected, /^[a-f0-9]{64}$/);
       state.downloads.push({ url, name, expected });
@@ -27,8 +31,10 @@ function stubSetup(root, platform = 'darwin', arch = 'arm64') {
         if (state.mode === 'partial') return { status: 0, stderr: '' };
         const home = join(args.at(-1), 'jdk-21.0.11+10-jre', ...(platform === 'darwin' ? ['Contents', 'Home'] : []));
         for (const [name, content] of Object.entries({
-          'bin/java': 'valid', release: `IMPLEMENTOR_VERSION="Temurin-21.0.11+10"\nJAVA_VERSION="${state.mode === 'wrong' ? '17' : '21.0.11'}"\n`,
-          NOTICE: 'notice', 'legal/java.base/LICENSE': 'license',
+          'bin/java': 'valid',
+          release: `IMPLEMENTOR_VERSION="Temurin-21.0.11+10"\nJAVA_VERSION="${state.mode === 'wrong' ? '17' : '21.0.11'}"\n`,
+          NOTICE: 'notice',
+          'legal/java.base/LICENSE': 'license',
         })) {
           const path = join(home, name);
           mkdirSync(dirname(path), { recursive: true });
@@ -48,7 +54,8 @@ function stubSetup(root, platform = 'darwin', arch = 'arm64') {
 }
 
 test('setup repairs interrupted extraction, is idempotent and recovers a broken runtime', async t => {
-  const root = await workspace(t), { options, state } = stubSetup(root);
+  const root = await workspace(t),
+    { options, state } = stubSetup(root);
   await mkdir(join(root, 'runtime', 'jdk-21.0.11+10-jre'), { recursive: true });
   await mkdir(join(root, '.runtime-stage-interrupted'));
   await writeFile(join(root, '.runtime-stage-interrupted', 'keep'), 'old interrupted stage');
@@ -73,7 +80,8 @@ test('setup repairs interrupted extraction, is idempotent and recovers a broken 
 });
 
 test('failed, partial and wrong-version extractions do not replace the existing installation or manifest', async t => {
-  const root = await workspace(t), { options, state } = stubSetup(root);
+  const root = await workspace(t),
+    { options, state } = stubSetup(root);
   await setupRenderer(options);
   const manifest = await readFile(join(root, 'renderer.json'), 'utf8');
   await writeFile(join(root, 'runtime', '.complete.json'), 'incomplete');
@@ -89,59 +97,93 @@ test('failed, partial and wrong-version extractions do not replace the existing 
 
 test('setup selects all four official platform archives and rejects unsupported platforms', async t => {
   const root = await workspace(t);
-  for (const platform of ['darwin', 'linux']) for (const arch of ['arm64', 'x64']) {
-    const { options, state } = stubSetup(join(root, `${platform}-${arch}`), platform, arch);
-    await setupRenderer(options);
-    const runtime = state.downloads[1];
-    assert.match(runtime.url, /^https:\/\/github\.com\/adoptium\/temurin21-binaries\/releases\/download\/jdk-21\.0\.11%2B10\//);
-    assert.ok(runtime.name.includes(`${arch === 'arm64' ? 'aarch64' : 'x64'}_${platform === 'darwin' ? 'mac' : 'linux'}`));
-    const manifest = JSON.parse(await readFile(join(options.root, 'renderer.json'), 'utf8'));
-    await access(join(options.root, manifest.java));
-  }
+  for (const platform of ['darwin', 'linux'])
+    for (const arch of ['arm64', 'x64']) {
+      const { options, state } = stubSetup(join(root, `${platform}-${arch}`), platform, arch);
+      await setupRenderer(options);
+      const runtime = state.downloads[1];
+      assert.match(runtime.url, /^https:\/\/github\.com\/adoptium\/temurin21-binaries\/releases\/download\/jdk-21\.0\.11%2B10\//);
+      assert.ok(runtime.name.includes(`${arch === 'arm64' ? 'aarch64' : 'x64'}_${platform === 'darwin' ? 'mac' : 'linux'}`));
+      const manifest = JSON.parse(await readFile(join(options.root, 'renderer.json'), 'utf8'));
+      await access(join(options.root, manifest.java));
+    }
   await assert.rejects(setupRenderer({ root: join(root, 'unsupported'), platform: 'win32', arch: 'x64' }), /macOS\/Linux/);
   await assert.rejects(access(join(root, 'unsupported')));
 });
 
 test('downloads verify cached bytes, replace corrupt caches and preserve files on bad hashes or HTTP errors', async t => {
-  const root = await workspace(t), good = Buffer.from('verified content'), expected = sha(good);
+  const root = await workspace(t),
+    good = Buffer.from('verified content'),
+    expected = sha(good);
   const path = join(root, 'artifact');
   const get = fetchImpl => downloadVerified(root, 'https://example.invalid/artifact', 'artifact', expected, { fetchImpl, log: quiet });
   await writeFile(path, good);
-  await get(() => { throw new Error('must stay offline'); });
+  await get(() => {
+    throw new Error('must stay offline');
+  });
   await writeFile(path, 'corrupt cache');
-  await assert.rejects(get(async () => new Response('bad bytes')), /SHA-256 mismatch/);
+  await assert.rejects(
+    get(async () => new Response('bad bytes')),
+    /SHA-256 mismatch/,
+  );
   assert.equal(await readFile(path, 'utf8'), 'corrupt cache');
   let cancelled = false;
-  const errorBody = new ReadableStream({ cancel() { cancelled = true; } });
-  await assert.rejects(get(async () => new Response(errorBody, { status: 503 })), /HTTP 503/);
+  const errorBody = new ReadableStream({
+    cancel() {
+      cancelled = true;
+    },
+  });
+  await assert.rejects(
+    get(async () => new Response(errorBody, { status: 503 })),
+    /HTTP 503/,
+  );
   assert.equal(cancelled, true);
-  await get(async (_, options) => { assert.ok(options.signal); return new Response(good); });
+  await get(async (_, options) => {
+    assert.ok(options.signal);
+    return new Response(good);
+  });
   assert.deepEqual(await readFile(path), good);
   assert.deepEqual(await readdir(root), ['artifact']);
 });
 
 test('interrupted and over-limit downloads clean up staging files without clobbering the cache', async t => {
-  const root = await workspace(t), path = join(root, 'artifact');
+  const root = await workspace(t),
+    path = join(root, 'artifact');
   await writeFile(path, 'original');
   let chunks = 0;
-  const interrupted = new ReadableStream({ pull(controller) {
-    if (chunks++) controller.error(new Error('connection interrupted'));
-    else controller.enqueue(new Uint8Array([1, 2, 3]));
-  } });
-  await assert.rejects(downloadVerified(root, 'https://example.invalid', 'artifact', sha('valid'), {
-    fetchImpl: async () => new Response(interrupted), log: quiet,
-  }), /connection interrupted/);
+  const interrupted = new ReadableStream({
+    pull(controller) {
+      if (chunks++) controller.error(new Error('connection interrupted'));
+      else controller.enqueue(new Uint8Array([1, 2, 3]));
+    },
+  });
+  await assert.rejects(
+    downloadVerified(root, 'https://example.invalid', 'artifact', sha('valid'), {
+      fetchImpl: async () => new Response(interrupted),
+      log: quiet,
+    }),
+    /connection interrupted/,
+  );
   const megabyte = new Uint8Array(1024 * 1024);
-  const oversized = new ReadableStream({ pull(controller) { controller.enqueue(megabyte); } });
-  await assert.rejects(downloadVerified(root, 'https://example.invalid', 'artifact', sha('valid'), {
-    fetchImpl: async () => new Response(oversized), log: quiet,
-  }), /exceeds 128 MiB/);
+  const oversized = new ReadableStream({
+    pull(controller) {
+      controller.enqueue(megabyte);
+    },
+  });
+  await assert.rejects(
+    downloadVerified(root, 'https://example.invalid', 'artifact', sha('valid'), {
+      fetchImpl: async () => new Response(oversized),
+      log: quiet,
+    }),
+    /exceeds 128 MiB/,
+  );
   assert.equal(await readFile(path, 'utf8'), 'original');
   assert.deepEqual(await readdir(root), ['artifact']);
 });
 
 test('cached checksum readers close before tool checks and allow the setup process to exit', async t => {
-  const root = await workspace(t), bytes = Buffer.alloc(4 * 1024 * 1024, 42);
+  const root = await workspace(t),
+    bytes = Buffer.alloc(4 * 1024 * 1024, 42);
   await writeFile(join(root, 'cached'), bytes);
   const code = `
     import { spawnSync } from 'node:child_process';

@@ -10,18 +10,26 @@ import { assertCpuBudget, assertGates, cli, root, workspace } from './helpers.mj
 
 // Use case diagrams are drawn by the own engine (see docs/decisions/0002-state-machine-and-use-case-backend.md).
 const fixtures = name => readFile(join(root, 'test/fixtures/use-case', name), 'utf8').then(JSON.parse);
-const examples = async () => (await readdir(join(root, 'examples/use-case'))).filter(f => f.endsWith('.json')).sort().map(f => join(root, 'examples/use-case', f));
+const examples = async () =>
+  (await readdir(join(root, 'examples/use-case')))
+    .filter(f => f.endsWith('.json'))
+    .sort()
+    .map(f => join(root, 'examples/use-case', f));
 const svgOf = async doc => renderToSvg(parseDocument(typeof doc === 'string' ? doc : JSON.stringify(doc)));
 
 test('use case: negative fixtures fail with the exact code and JSON path', async () => {
   const cases = await fixtures('invalid.json');
   assert.ok(cases.length >= 30);
   for (const c of cases) {
-    assert.throws(() => parseDocument(JSON.stringify(c.doc)), error => {
-      assert.equal(error.code, c.expect.code, `${c.name}: ${error.message}`);
-      assert.equal(error.path, c.expect.path, `${c.name}: ${error.message}`);
-      return true;
-    }, c.name);
+    assert.throws(
+      () => parseDocument(JSON.stringify(c.doc)),
+      error => {
+        assert.equal(error.code, c.expect.code, `${c.name}: ${error.message}`);
+        assert.equal(error.path, c.expect.path, `${c.name}: ${error.message}`);
+        return true;
+      },
+      c.name,
+    );
   }
 });
 
@@ -62,7 +70,8 @@ test('use case: UML 2.5.1 notation of actors, use cases, subjects and relationsh
   assert.equal(node('borrow').shape, 'ellipse');
   for (const id of ['borrow', 'borrowBook', 'reserve', 'identify']) assert.equal(node(id).parent, 'lib');
   assert.equal(node('search').parent, undefined, 'use case outside the subject');
-  const subject = node('lib').bounds, title = scene.texts.find(t => t.content === 'Lending desk');
+  const subject = node('lib').bounds,
+    title = scene.texts.find(t => t.content === 'Lending desk');
   assert.ok(title.bold && title.bounds.y < subject.y + 40, 'subject name at the top');
   assert.ok(scene.texts.some(t => t.content === '«subsystem»'));
   assert.ok(scene.texts.some(t => t.content === '«system»'));
@@ -71,7 +80,8 @@ test('use case: UML 2.5.1 notation of actors, use cases, subjects and relationsh
   assert.ok(scene.texts.some(t => t.content === 'extension points' && t.node === 'borrow'));
   assert.ok(scene.texts.some(t => t.content === 'no copy available' && t.node === 'borrow'));
   // «include»: base to included; «extend»: extension to base; dashed, open arrowheads at the target.
-  const include = edge('include', 'borrow', 'identify'), extend = edge('extend', 'reserve', 'borrow');
+  const include = edge('include', 'borrow', 'identify'),
+    extend = edge('extend', 'reserve', 'borrow');
   for (const e of [include, extend]) {
     assert.equal(e.targetMarker, 'open-arrow');
     assert.equal(e.sourceMarker, 'none');
@@ -85,13 +95,23 @@ test('use case: UML 2.5.1 notation of actors, use cases, subjects and relationsh
   const anchor = scene.edges.find(e => e.type === 'note-anchor' && e.target === extend.id);
   assert.ok(anchor, 'condition note anchored to the extend relationship');
   // Generalization: solid line, hollow triangle at the general element.
-  for (const [from, to] of [['student', 'user'], ['borrowBook', 'borrow']]) assert.equal(edge('generalization', from, to).targetMarker, 'hollow-triangle');
+  for (const [from, to] of [
+    ['student', 'user'],
+    ['borrowBook', 'borrow'],
+  ])
+    assert.equal(edge('generalization', from, to).targetMarker, 'hollow-triangle');
   // Association: solid, no arrowheads, multiplicities at the ends.
   const association = edge('association', 'user', 'borrow');
   assert.deepEqual([association.sourceMarker, association.targetMarker], ['none', 'none']);
   assert.equal(scene.texts.find(t => t.content === '0..*').end, 'target');
   assert.equal(scene.texts.find(t => t.content === '1' && t.role === 'label').end, 'source');
-  assert.deepEqual(scene.texts.filter(t => t.role === 'frame-label').map(t => [t.content, t.bold]), [['uc ', true], ['Library', false]]);
+  assert.deepEqual(
+    scene.texts.filter(t => t.role === 'frame-label').map(t => [t.content, t.bold]),
+    [
+      ['uc ', true],
+      ['Library', false],
+    ],
+  );
 });
 
 test('use case: actors stand in the outer columns, lines are straight unless something is in the way', async () => {
@@ -107,8 +127,9 @@ test('use case: actors stand in the outer columns, lines are straight unless som
   const association = scene.edges.find(e => e.type === 'association' && e.source === 'user');
   assert.equal(association.points.length, 2);
   // Ends with multiplicities meet the ellipse near its left or right vertex, so the label sits next to them.
-  const end = association.points.at(-1), b = node(association.target);
-  assert.ok(Math.abs(end.y - (b.y + b.height / 2)) <= 0.3 * b.height / 2 + 0.5);
+  const end = association.points.at(-1),
+    b = node(association.target);
+  assert.ok(Math.abs(end.y - (b.y + b.height / 2)) <= (0.3 * b.height) / 2 + 0.5);
 });
 
 test('use case: notes and lines never cross notes, captions or other elements; arrowheads at a hub keep apart', async () => {
@@ -118,7 +139,9 @@ test('use case: notes and lines never cross notes, captions or other elements; a
     const { svg } = await assertGates(await readFile(join(root, 'test/fixtures/regression', name), 'utf8'));
     const scene = await inspectSvg(svg);
     const hub = name.includes('u1') ? 'auth' : 'hub';
-    const tips = scene.markers.filter(m => scene.edges.some(e => e.target === hub && Math.hypot(e.points.at(-1).x - m.tip.x, e.points.at(-1).y - m.tip.y) < 0.5)).map(m => m.tip);
+    const tips = scene.markers
+      .filter(m => scene.edges.some(e => e.target === hub && Math.hypot(e.points.at(-1).x - m.tip.x, e.points.at(-1).y - m.tip.y) < 0.5))
+      .map(m => m.tip);
     assert.ok(tips.length >= 4, `${name}: arrowheads at the hub`);
     for (const [i, a] of tips.entries()) for (const c of tips.slice(i + 1)) assert.ok(Math.hypot(a.x - c.x, a.y - c.y) >= 14, `${name}: arrowheads apart`);
   }
@@ -127,7 +150,8 @@ test('use case: notes and lines never cross notes, captions or other elements; a
 test('use case: hostile text stays literal in every slot and creates no active SVG', async () => {
   for (const text of ['<script>alert(1)</script>', '" onload="x', '  spaced  ', '&amp; ]]> <![CDATA[', 'Unicode: 🚀 注文']) {
     const doc = {
-      kind: 'use-case', title: text,
+      kind: 'use-case',
+      title: text,
       elements: [
         { id: 'a', type: 'actor', name: text, stereotypes: [text] },
         { id: 's', type: 'subject', name: text, stereotypes: [text] },
@@ -154,18 +178,64 @@ test('shared-segments gate on use case drawings: lines running on top of each ot
   const node = (id, type, x, y, w, h, parent) => ({ id, type, bounds: { x, y, width: w, height: h }, ...(parent ? { parent } : {}) });
   const edge = (id, target, points) => ({ id, type: 'association', source: 'a', target, points, sourceMarker: 'none', targetMarker: 'none' });
   const scene = edges => ({
-    renderer: 'engine', kind: 'use-case', viewBox: { x: 0, y: 0, width: 1000, height: 600 }, markers: [], arrows: [], texts: [], extents: [], unsafe: [],
-    nodes: [node('a', 'actor', 10, 100, 30, 60), node('u1', 'useCase', 800, 50, 120, 40), node('u2', 'useCase', 800, 300, 120, 40)], edges,
+    renderer: 'engine',
+    kind: 'use-case',
+    viewBox: { x: 0, y: 0, width: 1000, height: 600 },
+    markers: [],
+    arrows: [],
+    texts: [],
+    extents: [],
+    unsafe: [],
+    nodes: [node('a', 'actor', 10, 100, 30, 60), node('u1', 'useCase', 800, 50, 120, 40), node('u2', 'useCase', 800, 300, 120, 40)],
+    edges,
   });
   const verdict = edges => runGates(scene(edges)).gates.find(g => g.gate === 'shared-segments');
   // Two lines sharing a trunk to a bend at (600, 130), then fanning out (the old hospital stress drawing).
-  const trunk = verdict([edge('e1', 'u1', [{ x: 40, y: 130 }, { x: 600, y: 131 }, { x: 800, y: 70 }]), edge('e2', 'u2', [{ x: 40, y: 130 }, { x: 600, y: 132 }, { x: 800, y: 320 }])]);
+  const trunk = verdict([
+    edge('e1', 'u1', [
+      { x: 40, y: 130 },
+      { x: 600, y: 131 },
+      { x: 800, y: 70 },
+    ]),
+    edge('e2', 'u2', [
+      { x: 40, y: 130 },
+      { x: 600, y: 132 },
+      { x: 800, y: 320 },
+    ]),
+  ]);
   assert.equal(trunk.ok, false);
   assert.match(trunk.failures[0], /e1 and e2 share \d+px of line/);
   // Straight lines from one point to the two use cases.
-  assert.equal(verdict([edge('e1', 'u1', [{ x: 40, y: 130 }, { x: 800, y: 70 }]), edge('e2', 'u2', [{ x: 40, y: 130 }, { x: 800, y: 320 }])]).ok, true);
+  assert.equal(
+    verdict([
+      edge('e1', 'u1', [
+        { x: 40, y: 130 },
+        { x: 800, y: 70 },
+      ]),
+      edge('e2', 'u2', [
+        { x: 40, y: 130 },
+        { x: 800, y: 320 },
+      ]),
+    ]).ok,
+    true,
+  );
   // The gate is generic: the same trunk fails in any kind of drawing.
-  assert.equal(runGates({ ...scene([edge('e1', 'u1', [{ x: 40, y: 130 }, { x: 600, y: 131 }]), edge('e2', 'u2', [{ x: 40, y: 130 }, { x: 600, y: 132 }])]), kind: 'class' }).gates.find(g => g.gate === 'shared-segments').ok, false);
+  assert.equal(
+    runGates({
+      ...scene([
+        edge('e1', 'u1', [
+          { x: 40, y: 130 },
+          { x: 600, y: 131 },
+        ]),
+        edge('e2', 'u2', [
+          { x: 40, y: 130 },
+          { x: 600, y: 132 },
+        ]),
+      ]),
+      kind: 'class',
+    }).gates.find(g => g.gate === 'shared-segments').ok,
+    false,
+  );
 });
 
 test('use case layout: actors stand beside the subject they mostly use; no line runs along an unrelated subject', async () => {
@@ -175,11 +245,15 @@ test('use case layout: actors stand beside the subject they mostly use; no line 
   let past = 0;
   for (const e of scene.edges.filter(e => e.type === 'association')) {
     const own = new Set([byId.get(e.source)?.parent, byId.get(e.target)?.parent]);
-    const zones = subjects.filter(s => !own.has(s.id)).map(s => ({ x: s.bounds.x - 24, y: s.bounds.y - 24, width: s.bounds.width + 48, height: s.bounds.height + 48 }));
+    const zones = subjects
+      .filter(s => !own.has(s.id))
+      .map(s => ({ x: s.bounds.x - 24, y: s.bounds.y - 24, width: s.bounds.width + 48, height: s.bounds.height + 48 }));
     for (let k = 1; k < e.points.length; k++) {
-      const a = e.points[k - 1], b = e.points[k], n = Math.ceil(Math.hypot(b.x - a.x, b.y - a.y) / 4);
+      const a = e.points[k - 1],
+        b = e.points[k],
+        n = Math.ceil(Math.hypot(b.x - a.x, b.y - a.y) / 4);
       for (let i = 0; i < n; i++) {
-        const p = { x: a.x + (b.x - a.x) * (i + 0.5) / n, y: a.y + (b.y - a.y) * (i + 0.5) / n };
+        const p = { x: a.x + ((b.x - a.x) * (i + 0.5)) / n, y: a.y + ((b.y - a.y) * (i + 0.5)) / n };
         if (zones.some(z => p.x > z.x && p.x < z.x + z.width && p.y > z.y && p.y < z.y + z.height)) past += Math.hypot(b.x - a.x, b.y - a.y) / n;
       }
     }
@@ -187,7 +261,8 @@ test('use case layout: actors stand beside the subject they mostly use; no line 
   // The row layout ran the clerk's and the patient's lines along the clinical system for about 1800 px.
   assert.ok(past < 300, `${past.toFixed(0)} px of lines past unrelated subjects`);
   // The front desk clerk, mostly at billing, stands level with the billing system.
-  const clerk = byId.get('clerk').bounds, billing = byId.get('billing').bounds;
+  const clerk = byId.get('clerk').bounds,
+    billing = byId.get('billing').bounds;
   assert.ok(clerk.y > billing.y && clerk.y < billing.y + billing.height, `${JSON.stringify(clerk)} beside ${JSON.stringify(billing)}`);
 });
 
@@ -197,7 +272,9 @@ test('use case layout: generalizations to one actor share one arrowhead; externa
   assert.equal(tips.length, 2);
   assert.ok(Math.hypot(tips[0].x - tips[1].x, tips[0].y - tips[1].y) < 0.5, JSON.stringify(tips));
   const lib = await inspectSvg(await svgOf(await regression('use-case-uc-lib.json')));
-  const app = lib.nodes.find(n => n.id === 'app').bounds, psp = lib.nodes.find(n => n.id === 'psp').bounds, cust = lib.nodes.find(n => n.id === 'cust').bounds;
+  const app = lib.nodes.find(n => n.id === 'app').bounds,
+    psp = lib.nodes.find(n => n.id === 'psp').bounds,
+    cust = lib.nodes.find(n => n.id === 'cust').bounds;
   assert.ok(psp.x > app.x + app.width && cust.x + cust.width < app.x, 'the «system» actor stands right of the subject, the customer left');
 });
 
@@ -206,6 +283,9 @@ test('use case layout: a repeated association between one actor and one use case
   const both = scene.edges.filter(e => e.source === 'nurse' && e.target === 'vitals');
   assert.equal(both.length, 2);
   const mid = e => e.points[Math.floor(e.points.length / 2)];
-  assert.ok(both.some(e => e.points.length > 2), 'one of them bends beside the other');
+  assert.ok(
+    both.some(e => e.points.length > 2),
+    'one of them bends beside the other',
+  );
   assert.ok(Math.hypot(mid(both[0]).x - mid(both[1]).x, mid(both[0]).y - mid(both[1]).y) > 10);
 });

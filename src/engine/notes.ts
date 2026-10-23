@@ -44,13 +44,20 @@ function nearest(r: Rect, p: Point): Point {
   return { x: Math.min(Math.max(p.x, r.x), r.x + r.width), y: Math.min(Math.max(p.y, r.y), r.y + r.height) };
 }
 
-export function placeNotes(notes: readonly NoteToPlace[], nodes: readonly PlacementNode[], lines: readonly { source: string; target: string; points: readonly Point[] }[], ancestors: (id: string) => ReadonlySet<string>, bounds: Rect): Map<string, Rect> {
+export function placeNotes(
+  notes: readonly NoteToPlace[],
+  nodes: readonly PlacementNode[],
+  lines: readonly { source: string; target: string; points: readonly Point[] }[],
+  ancestors: (id: string) => ReadonlySet<string>,
+  bounds: Rect,
+): Map<string, Rect> {
   const moved = new Map<string, Rect>();
   for (const note of notes) {
     if (note.targets.length === 0) continue;
     // Lines other than the note's own anchors (those are routed again when it moves).
     const segments: [Point, Point][] = [];
-    for (const line of lines) if (line.source !== note.id && line.target !== note.id) for (const [k, q] of line.points.slice(1).entries()) segments.push([line.points[k]!, q]);
+    for (const line of lines)
+      if (line.source !== note.id && line.target !== note.id) for (const [k, q] of line.points.slice(1).entries()) segments.push([line.points[k]!, q]);
     const own = new Set([note.id, ...ancestors(note.id)]);
     const placedRects = [...moved.entries()].filter(([id]) => id !== note.id).map(([, r]) => r);
     const others = nodes.filter(n => !own.has(n.id));
@@ -58,9 +65,12 @@ export function placeNotes(notes: readonly NoteToPlace[], nodes: readonly Placem
       const c = center(r);
       let cost = 0;
       for (const t of note.targets) {
-        const p = nearest(t, c), q = nearest(r, p);
+        const p = nearest(t, c),
+          q = nearest(r, p);
         cost += Math.abs(p.x - q.x) + Math.abs(p.y - q.y);
-        for (const [a, b] of segments) if (segmentIntersectsRect(a, b, { x: Math.min(p.x, q.x), y: Math.min(p.y, q.y), width: Math.abs(p.x - q.x), height: Math.abs(p.y - q.y) })) cost += CROSS_LINE;
+        for (const [a, b] of segments)
+          if (segmentIntersectsRect(a, b, { x: Math.min(p.x, q.x), y: Math.min(p.y, q.y), width: Math.abs(p.x - q.x), height: Math.abs(p.y - q.y) }))
+            cost += CROSS_LINE;
         for (const n of others) {
           if (n.container || note.targets.includes(n.rect)) continue;
           const box = inflate(n.rect, -1);
@@ -97,11 +107,15 @@ export function placeNotes(notes: readonly NoteToPlace[], nodes: readonly Placem
     for (const t of note.targets) around(t);
     if (note.targets.length > 1) around(union(note.targets));
     const current = anchorsCost(note.rect);
-    let best: Rect | undefined, bestCost = current * BETTER;
+    let best: Rect | undefined,
+      bestCost = current * BETTER;
     for (const c of candidates) {
       if (!free(c)) continue;
       const cost = anchorsCost(c);
-      if (cost < bestCost - 1e-6) { best = c; bestCost = cost; }
+      if (cost < bestCost - 1e-6) {
+        best = c;
+        bestCost = cost;
+      }
     }
     if (best) moved.set(note.id, best);
   }

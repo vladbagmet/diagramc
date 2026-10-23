@@ -29,13 +29,18 @@ export class Tree {
 
   /** DUPLICATE_ID across everything added, plus relationship IDs. */
   checkIds(relationships: readonly { id?: string }[], diagnostics: Diagnostic[], relationshipsKey = 'relationships'): void {
-    uniqueIds([
-      ...this.all.map(i => ({ id: i.id, path: i.path })),
-      ...relationships.flatMap((r, i) => r.id === undefined ? [] : [{ id: r.id, path: pointer('', relationshipsKey, i) }]),
-    ], diagnostics);
+    uniqueIds(
+      [
+        ...this.all.map(i => ({ id: i.id, path: i.path })),
+        ...relationships.flatMap((r, i) => (r.id === undefined ? [] : [{ id: r.id, path: pointer('', relationshipsKey, i) }])),
+      ],
+      diagnostics,
+    );
   }
 
-  get(id: string): TreeItem | undefined { return this.items.get(id); }
+  get(id: string): TreeItem | undefined {
+    return this.items.get(id);
+  }
 
   /** The element an endpoint belongs to: a port's owner, or the element itself. */
   owner(id: string, featureTypes: readonly string[] = ['port']): string {
@@ -51,9 +56,13 @@ export class Tree {
   }
 
   /** True when `id` is strictly inside `container` (at any depth). */
-  inside(id: string, container: string): boolean { return this.ancestors(id).includes(container); }
+  inside(id: string, container: string): boolean {
+    return this.ancestors(id).includes(container);
+  }
 
-  depth(id: string): number { return this.ancestors(id).length; }
+  depth(id: string): number {
+    return this.ancestors(id).length;
+  }
 
   /** MISSING_REFERENCE unless `id` exists; returns the item. */
   ref(id: string, path: string, diagnostics: Diagnostic[], what = 'element'): TreeItem | undefined {
@@ -67,9 +76,15 @@ export function checkNotes(notes: readonly { note: { id: string; attachedTo?: st
     for (const [j, id] of (note.attachedTo ?? []).entries()) {
       const at = pointer(path, 'attachedTo', j);
       const target = tree.ref(id, at, diagnostics);
-      if (target?.type === 'note') diagnostics.push({ code: 'INVALID_ATTACHMENT', path: at, message: `Note "${note.id}" cannot be attached to another note ("${id}")` });
+      if (target?.type === 'note')
+        diagnostics.push({ code: 'INVALID_ATTACHMENT', path: at, message: `Note "${note.id}" cannot be attached to another note ("${id}")` });
       // A port has one attachment point, shared by its connectors; annotate its owner instead.
-      if (target?.type === 'port') diagnostics.push({ code: 'INVALID_ATTACHMENT', path: at, message: `Note "${note.id}" cannot be attached to the port "${id}"; attach it to the port's owner "${target.parent}"` });
+      if (target?.type === 'port')
+        diagnostics.push({
+          code: 'INVALID_ATTACHMENT',
+          path: at,
+          message: `Note "${note.id}" cannot be attached to the port "${id}"; attach it to the port's owner "${target.parent}"`,
+        });
     }
   }
 }
@@ -78,6 +93,11 @@ export function checkNotes(notes: readonly { note: { id: string; attachedTo?: st
 export function checkDepth(tree: Tree, max: number, diagnostics: Diagnostic[], featureTypes: readonly string[] = ['port']): void {
   for (const item of tree.items.values()) {
     if (featureTypes.includes(item.type)) continue;
-    if (tree.depth(item.id) > max) diagnostics.push({ code: 'NESTING_TOO_DEEP', path: item.path, message: `"${item.id}" is nested ${tree.depth(item.id)} levels deep; at most ${max} levels are supported` });
+    if (tree.depth(item.id) > max)
+      diagnostics.push({
+        code: 'NESTING_TOO_DEEP',
+        path: item.path,
+        message: `"${item.id}" is nested ${tree.depth(item.id)} levels deep; at most ${max} levels are supported`,
+      });
   }
 }

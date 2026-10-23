@@ -32,7 +32,7 @@ export async function readInput(path: string): Promise<string> {
   let size = 0;
   try {
     for await (const chunk of stream) {
-      const bytes: Buffer = Buffer.isBuffer(chunk) ? (chunk) : Buffer.from(chunk as string);
+      const bytes: Buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk as string);
       size += bytes.length;
       if (size > MAX_INPUT_BYTES) throw new UmlError('INPUT_TOO_LARGE', `Input exceeds ${MAX_INPUT_BYTES} bytes`);
       chunks.push(bytes);
@@ -42,8 +42,11 @@ export async function readInput(path: string): Promise<string> {
     const details = ioDetails(path === '-' ? '(stdin)' : path, error);
     throw new UmlError('INPUT_READ_FAILED', `Could not read input ${JSON.stringify(details.path)}: ${details.reason}`, 4, details);
   }
-  try { return new TextDecoder('utf-8', { fatal: true }).decode(Buffer.concat(chunks)); }
-  catch { throw new UmlError('INVALID_ENCODING', 'Input must be valid UTF-8'); }
+  try {
+    return new TextDecoder('utf-8', { fatal: true }).decode(Buffer.concat(chunks));
+  } catch {
+    throw new UmlError('INVALID_ENCODING', 'Input must be valid UTF-8');
+  }
 }
 
 /**
@@ -57,8 +60,11 @@ export async function writeOutput(path: string, data: Buffer): Promise<void> {
   if (existing && !existing.isFile() && !existing.isDirectory()) {
     try {
       const target = await open(path, 'w');
-      try { await target.writeFile(data); }
-      finally { await target.close(); }
+      try {
+        await target.writeFile(data);
+      } finally {
+        await target.close();
+      }
       return;
     } catch (error) {
       const details = ioDetails(path, error);
@@ -70,13 +76,22 @@ export async function writeOutput(path: string, data: Buffer): Promise<void> {
   try {
     const file = await open(temporary, 'wx', 0o644);
     created = true;
-    try { await file.writeFile(data); await file.sync(); }
-    finally { await file.close(); }
+    try {
+      await file.writeFile(data);
+      await file.sync();
+    } finally {
+      await file.close();
+    }
     await rename(temporary, path);
   } catch (error) {
     // A missing temporary file means the directory itself is the problem.
     const details = ioDetails(created ? path : dirname(path), error);
-    throw new UmlError('OUTPUT_WRITE_FAILED', `Could not write output ${JSON.stringify(path)}: ${details.reason}${created ? '' : ` (directory ${JSON.stringify(dirname(path))})`}; the parent directory must exist and be writable`, 4, { ...details, output: path });
+    throw new UmlError(
+      'OUTPUT_WRITE_FAILED',
+      `Could not write output ${JSON.stringify(path)}: ${details.reason}${created ? '' : ` (directory ${JSON.stringify(dirname(path))})`}; the parent directory must exist and be writable`,
+      4,
+      { ...details, output: path },
+    );
   } finally {
     if (created) await unlink(temporary).catch(() => {});
   }

@@ -14,5 +14,12 @@ export async function renderAndCheck(document: unknown, options: RenderOptions =
   const started = performance.now();
   const svg = await renderToSvg(parsed, options);
   const ms = performance.now() - started;
-  return { svg, ms, report: await checkSvg(svg, parsed.texts.map(t => t.text)) };
+  return {
+    svg,
+    ms,
+    report: await checkSvg(
+      svg,
+      parsed.texts.map(t => t.text),
+    ),
+  };
 }

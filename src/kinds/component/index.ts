@@ -10,7 +10,8 @@ import { validateComponentDiagram } from './validate.js';
 export const componentKind: KindDefinition<ComponentDiagram> = {
   kind: 'component',
   title: 'Component diagram',
-  summary: 'Components with ports, provided and required interfaces (lollipops and sockets), assembly and delegation connectors, nested parts, interfaces, artifacts and manifestations.',
+  summary:
+    'Components with ports, provided and required interfaces (lollipops and sockets), assembly and delegation connectors, nested parts, interfaces, artifacts and manifestations.',
   frameKeyword: 'cmp',
   schema: componentSchema,
   validate: validateComponentDiagram,

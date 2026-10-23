@@ -90,7 +90,12 @@ export interface LayoutNode {
   /** Extra ELK layout options of this node (e.g. a layer constraint). */
   elk?: Record<string, string>;
 }
-export interface LayoutLabel { id: string; width: number; height: number; placement: 'center' | 'head' | 'tail' }
+export interface LayoutLabel {
+  id: string;
+  width: number;
+  height: number;
+  placement: 'center' | 'head' | 'tail';
+}
 export interface LayoutEdge {
   id: string;
   /** Node or port ID. ELK direction: the source tends to be placed before the target. */
@@ -127,7 +132,7 @@ export async function layout(nodes: readonly LayoutNode[], edges: readonly Layou
   // elkjs 0.11.1 applies a compound node's minimum size with width and height
   // swapped when the layout direction is vertical (INCLUDE_CHILDREN); compensate.
   const vertical = options.direction === 'DOWN' || options.direction === 'UP';
-  const minimum = (node: LayoutNode): string => node.children?.length && vertical ? `(${node.height}, ${node.width})` : `(${node.width}, ${node.height})`;
+  const minimum = (node: LayoutNode): string => (node.children?.length && vertical ? `(${node.height}, ${node.width})` : `(${node.width}, ${node.height})`);
   /** Minimum size of a vertical compound node with ports: wide and tall enough for the ports on each side (swapped, see above). */
   const portMinimum = (node: LayoutNode): string => {
     const spacing = node.portSpacing ?? 6;
@@ -136,7 +141,8 @@ export async function layout(nodes: readonly LayoutNode[], edges: readonly Layou
       const per = (side: Side) => ports.filter(p => p.side === side);
       return Math.max(0, ...sides.map(side => per(side).reduce((sum, p) => sum + (p.width ?? 0), 0) + (per(side).length + 1) * spacing));
     };
-    const width = Math.max(node.width, along(['NORTH', 'SOUTH'])), height = Math.max(node.height, along(['WEST', 'EAST']));
+    const width = Math.max(node.width, along(['NORTH', 'SOUTH'])),
+      height = Math.max(node.height, along(['WEST', 'EAST']));
     return `(${height}, ${width})`;
   };
   // Spacing applies per graph level: compound nodes (packages) need it too, or
@@ -155,51 +161,153 @@ export async function layout(nodes: readonly LayoutNode[], edges: readonly Layou
     id: node.id,
     ...(node.children?.length ? {} : { width: node.width, height: node.height }),
     ...(node.children?.length ? { children: node.children.map(c => toElk(c, true)) } : {}),
-    ...(node.ports?.length ? { ports: node.ports.map(p => {
-      const horizontal = p.side === 'NORTH' || p.side === 'SOUTH';
-      const width = horizontal ? p.width ?? 0 : 0, height = horizontal ? 0 : p.width ?? 0;
-      return {
-        id: p.id, width, height, layoutOptions: { 'elk.port.side': p.side, ...(p.index === undefined ? {} : { 'elk.port.index': String(p.index) }) },
-        ...(p.position ? { x: p.position.x - width / 2, y: p.position.y - height / 2 } : {}),
-      };
-    }) } : {}),
+    ...(node.ports?.length
+      ? {
+          ports: node.ports.map(p => {
+            const horizontal = p.side === 'NORTH' || p.side === 'SOUTH';
+            const width = horizontal ? (p.width ?? 0) : 0,
+              height = horizontal ? 0 : (p.width ?? 0);
+            return {
+              id: p.id,
+              width,
+              height,
+              layoutOptions: { 'elk.port.side': p.side, ...(p.index === undefined ? {} : { 'elk.port.index': String(p.index) }) },
+              ...(p.position ? { x: p.position.x - width / 2, y: p.position.y - height / 2 } : {}),
+            };
+          }),
+        }
+      : {}),
     // An invisible outside label reserves room right of the node. Its text must not
     // be empty: ELK ignores empty labels when computing node margins.
-    ...(node.reserveRight || node.reserveTop || node.labelBelow || node.reserveAbove || node.reserveBelow || node.reserveLeft ? { labels: [
-      ...(node.reserveAboveLeft ? [{ id: `${node.id}::reserve-above-left`, text: 'reserved', width: node.reserveAboveLeft.width, height: node.reserveAboveLeft.height, layoutOptions: { 'elk.nodeLabels.placement': '[OUTSIDE, H_LEFT, V_TOP]' } }] : []),
-      ...(node.reserveBelowLeft ? [{ id: `${node.id}::reserve-below-left`, text: 'reserved', width: node.reserveBelowLeft.width, height: node.reserveBelowLeft.height, layoutOptions: { 'elk.nodeLabels.placement': '[OUTSIDE, H_LEFT, V_BOTTOM]' } }] : []),
-      ...(node.reserveLeft ? [{ id: `${node.id}::reserve-left`, text: 'reserved', width: node.reserveLeft, height: Math.max(1, node.height - 2), layoutOptions: { 'elk.nodeLabels.placement': '[OUTSIDE, H_LEFT, V_CENTER]' } }] : []),
-      ...(node.reserveAbove ? [{ id: `${node.id}::reserve-above`, text: 'reserved', width: node.reserveAbove.width, height: node.reserveAbove.height, layoutOptions: { 'elk.nodeLabels.placement': '[OUTSIDE, H_RIGHT, V_TOP]' } }] : []),
-      ...(node.reserveBelow ? [{ id: `${node.id}::reserve-below`, text: 'reserved', width: node.reserveBelow.width, height: node.reserveBelow.height, layoutOptions: { 'elk.nodeLabels.placement': '[OUTSIDE, H_RIGHT, V_BOTTOM]' } }] : []),
-      ...(node.reserveRight ? [{ id: `${node.id}::reserve`, text: 'reserved', width: node.reserveRight, height: Math.max(1, node.height - 2), layoutOptions: { 'elk.nodeLabels.placement': '[OUTSIDE, H_RIGHT, V_CENTER]' } }] : []),
-      ...(node.reserveTop ? [{ id: `${node.id}::reserve-top`, text: 'reserved', width: node.reserveTop.width, height: node.reserveTop.height, layoutOptions: { 'elk.nodeLabels.placement': '[OUTSIDE, H_LEFT, V_TOP]' } }] : []),
-      ...(node.labelBelow ? [{ id: `${node.id}::below`, text: 'caption', width: node.labelBelow.width, height: node.labelBelow.height, layoutOptions: { 'elk.nodeLabels.placement': '[OUTSIDE, H_CENTER, V_BOTTOM]' } }] : []),
-    ] } : {}),
+    ...(node.reserveRight || node.reserveTop || node.labelBelow || node.reserveAbove || node.reserveBelow || node.reserveLeft
+      ? {
+          labels: [
+            ...(node.reserveAboveLeft
+              ? [
+                  {
+                    id: `${node.id}::reserve-above-left`,
+                    text: 'reserved',
+                    width: node.reserveAboveLeft.width,
+                    height: node.reserveAboveLeft.height,
+                    layoutOptions: { 'elk.nodeLabels.placement': '[OUTSIDE, H_LEFT, V_TOP]' },
+                  },
+                ]
+              : []),
+            ...(node.reserveBelowLeft
+              ? [
+                  {
+                    id: `${node.id}::reserve-below-left`,
+                    text: 'reserved',
+                    width: node.reserveBelowLeft.width,
+                    height: node.reserveBelowLeft.height,
+                    layoutOptions: { 'elk.nodeLabels.placement': '[OUTSIDE, H_LEFT, V_BOTTOM]' },
+                  },
+                ]
+              : []),
+            ...(node.reserveLeft
+              ? [
+                  {
+                    id: `${node.id}::reserve-left`,
+                    text: 'reserved',
+                    width: node.reserveLeft,
+                    height: Math.max(1, node.height - 2),
+                    layoutOptions: { 'elk.nodeLabels.placement': '[OUTSIDE, H_LEFT, V_CENTER]' },
+                  },
+                ]
+              : []),
+            ...(node.reserveAbove
+              ? [
+                  {
+                    id: `${node.id}::reserve-above`,
+                    text: 'reserved',
+                    width: node.reserveAbove.width,
+                    height: node.reserveAbove.height,
+                    layoutOptions: { 'elk.nodeLabels.placement': '[OUTSIDE, H_RIGHT, V_TOP]' },
+                  },
+                ]
+              : []),
+            ...(node.reserveBelow
+              ? [
+                  {
+                    id: `${node.id}::reserve-below`,
+                    text: 'reserved',
+                    width: node.reserveBelow.width,
+                    height: node.reserveBelow.height,
+                    layoutOptions: { 'elk.nodeLabels.placement': '[OUTSIDE, H_RIGHT, V_BOTTOM]' },
+                  },
+                ]
+              : []),
+            ...(node.reserveRight
+              ? [
+                  {
+                    id: `${node.id}::reserve`,
+                    text: 'reserved',
+                    width: node.reserveRight,
+                    height: Math.max(1, node.height - 2),
+                    layoutOptions: { 'elk.nodeLabels.placement': '[OUTSIDE, H_RIGHT, V_CENTER]' },
+                  },
+                ]
+              : []),
+            ...(node.reserveTop
+              ? [
+                  {
+                    id: `${node.id}::reserve-top`,
+                    text: 'reserved',
+                    width: node.reserveTop.width,
+                    height: node.reserveTop.height,
+                    layoutOptions: { 'elk.nodeLabels.placement': '[OUTSIDE, H_LEFT, V_TOP]' },
+                  },
+                ]
+              : []),
+            ...(node.labelBelow
+              ? [
+                  {
+                    id: `${node.id}::below`,
+                    text: 'caption',
+                    width: node.labelBelow.width,
+                    height: node.labelBelow.height,
+                    layoutOptions: { 'elk.nodeLabels.placement': '[OUTSIDE, H_CENTER, V_BOTTOM]' },
+                  },
+                ]
+              : []),
+          ],
+        }
+      : {}),
     layoutOptions: {
       ...(node.children?.length ? spacing : {}),
-      ...(node.children?.length && node.minimumSize ? {
-        'elk.nodeSize.constraints': '[MINIMUM_SIZE]',
-        'elk.nodeSize.minimum': minimum(node),
-      } : {}),
-      ...(node.ports?.length ? {
-        'elk.portConstraints': node.ports.some(p => p.position) ? 'FIXED_POS' : node.ports.some(p => p.index !== undefined) ? 'FIXED_ORDER' : 'FIXED_SIDE',
-        // Grow the node if its ports need more room than its content.
-        ...(node.fixedSize ? { 'elk.nodeSize.constraints': '[]' } : node.children?.length && vertical ? {
-          // elkjs 0.11.1 also swaps the room ports need on a vertical compound node
-          // (ports along the top border make it that tall): size it from its ports here.
-          'elk.nodeSize.constraints': '[MINIMUM_SIZE]',
-          'elk.nodeSize.minimum': portMinimum(node),
-        } : {
-          'elk.nodeSize.constraints': '[PORTS, MINIMUM_SIZE]',
-          'elk.nodeSize.minimum': minimum(node),
-        }),
-        'elk.spacing.portPort': '6',
-        // Inside a compound node, an individual override: otherwise the parent's
-        // port spacing would also size this node's sides (see LayoutNode.portSpacing).
-        ...(nested ? { 'elk.spacing.individual': 'org.eclipse.elk.spacing.portPort:6' } : {}),
-      } : {}),
+      ...(node.children?.length && node.minimumSize
+        ? {
+            'elk.nodeSize.constraints': '[MINIMUM_SIZE]',
+            'elk.nodeSize.minimum': minimum(node),
+          }
+        : {}),
+      ...(node.ports?.length
+        ? {
+            'elk.portConstraints': node.ports.some(p => p.position) ? 'FIXED_POS' : node.ports.some(p => p.index !== undefined) ? 'FIXED_ORDER' : 'FIXED_SIDE',
+            // Grow the node if its ports need more room than its content.
+            ...(node.fixedSize
+              ? { 'elk.nodeSize.constraints': '[]' }
+              : node.children?.length && vertical
+                ? {
+                    // elkjs 0.11.1 also swaps the room ports need on a vertical compound node
+                    // (ports along the top border make it that tall): size it from its ports here.
+                    'elk.nodeSize.constraints': '[MINIMUM_SIZE]',
+                    'elk.nodeSize.minimum': portMinimum(node),
+                  }
+                : {
+                    'elk.nodeSize.constraints': '[PORTS, MINIMUM_SIZE]',
+                    'elk.nodeSize.minimum': minimum(node),
+                  }),
+            'elk.spacing.portPort': '6',
+            // Inside a compound node, an individual override: otherwise the parent's
+            // port spacing would also size this node's sides (see LayoutNode.portSpacing).
+            ...(nested ? { 'elk.spacing.individual': 'org.eclipse.elk.spacing.portPort:6' } : {}),
+          }
+        : {}),
       ...(node.portSpacing ? { 'elk.spacing.portPort': String(node.portSpacing) } : {}),
-      ...(node.padding ? { 'elk.padding': `[top=${node.padding.top},left=${node.padding.left},bottom=${node.padding.bottom},right=${node.padding.right}]` } : {}),
+      ...(node.padding
+        ? { 'elk.padding': `[top=${node.padding.top},left=${node.padding.left},bottom=${node.padding.bottom},right=${node.padding.right}]` }
+        : {}),
       'elk.spacing.labelNode': '0',
       ...node.elk,
     },
@@ -227,27 +335,38 @@ export async function layout(nodes: readonly LayoutNode[], edges: readonly Layou
     },
     children: nodes.map(n => toElk(n)),
     edges: edges.map((e): ElkExtendedEdge => ({
-      id: e.id, sources: [e.source], targets: [e.target],
+      id: e.id,
+      sources: [e.source],
+      targets: [e.target],
       labels: (e.labels ?? []).map((l): ElkLabel => ({
-        id: l.id, text: l.id, width: l.width, height: l.height,
+        id: l.id,
+        text: l.id,
+        width: l.width,
+        height: l.height,
         layoutOptions: { 'elk.edgeLabels.placement': l.placement.toUpperCase() },
       })),
-      ...(e.directionPriority || e.straightness ? { layoutOptions: {
-        ...(e.directionPriority ? { 'elk.layered.priority.direction': String(e.directionPriority) } : {}),
-        ...(e.straightness ? { 'elk.layered.priority.straightness': String(e.straightness) } : {}),
-      } } : {}),
+      ...(e.directionPriority || e.straightness
+        ? {
+            layoutOptions: {
+              ...(e.directionPriority ? { 'elk.layered.priority.direction': String(e.directionPriority) } : {}),
+              ...(e.straightness ? { 'elk.layered.priority.straightness': String(e.straightness) } : {}),
+            },
+          }
+        : {}),
     })),
   };
   const result = await elk.layout(graph);
 
-  const nodeRects = new Map<string, Rect>(), ports = new Map<string, Point>();
+  const nodeRects = new Map<string, Rect>(),
+    ports = new Map<string, Point>();
   const offsets = new Map<string, Point>([['::root', { x: 0, y: 0 }]]);
   const visit = (node: ElkNode, origin: Point): void => {
     for (const child of node.children ?? []) {
       const at = { x: origin.x + (child.x ?? 0), y: origin.y + (child.y ?? 0) };
       offsets.set(child.id, at);
       nodeRects.set(child.id, { x: at.x, y: at.y, width: child.width ?? 0, height: child.height ?? 0 });
-      for (const port of child.ports ?? []) ports.set(port.id, { x: at.x + (port.x ?? 0) + (port.width ?? 0) / 2, y: at.y + (port.y ?? 0) + (port.height ?? 0) / 2 });
+      for (const port of child.ports ?? [])
+        ports.set(port.id, { x: at.x + (port.x ?? 0) + (port.width ?? 0) / 2, y: at.y + (port.y ?? 0) + (port.height ?? 0) / 2 });
       visit(child, at);
     }
   };

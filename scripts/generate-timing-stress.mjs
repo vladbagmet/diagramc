@@ -22,14 +22,18 @@ const next = () => (seed = (seed * 1_103_515_245 + 12_345) % 2_147_483_648) / 2_
 // 20 messages, each from one lifeline to the next one down, in its own time slot.
 const messages = [];
 for (let k = 0; k < 20; k++) {
-  const from = specs[k % 7][0], to = specs[k % 7 + 1][0];
+  const from = specs[k % 7][0],
+    to = specs[(k % 7) + 1][0];
   const fromTime = 12 + k * 19;
   messages.push({ from, fromTime, to, toTime: fromTime + 6, name: `m${k + 1}`, ...(k % 3 === 0 ? { arguments: [`b${k}`] } : {}) });
 }
 // Every message is sent and received at a state change; more changes fill the gaps.
 const lifelines = specs.map(([id, name, classifier, notation, states]) => {
   const times = new Set([0]);
-  for (const m of messages) { if (m.from === id) times.add(m.fromTime); if (m.to === id) times.add(m.toTime); }
+  for (const m of messages) {
+    if (m.from === id) times.add(m.fromTime);
+    if (m.to === id) times.add(m.toTime);
+  }
   const step = notation === 'robust' ? 30 : 45;
   for (let t = 20 + Math.floor(next() * step); t < END; t += step + Math.floor(next() * step)) {
     if (![...times].some(u => Math.abs(u - t) < 10)) times.add(t);
@@ -43,10 +47,19 @@ const lifelines = specs.map(([id, name, classifier, notation, states]) => {
 });
 
 const timesOf = id => lifelines.find(l => l.id === id).changes.map(c => c.at);
-const durationConstraints = [['cpu', 1, 3, '20', '90'], ['dma', 2, 4, '10', '60'], ['irq', 5, 7, 'd', '3*d']].map(([lifeline, a, b, min, max]) => ({ lifeline, from: timesOf(lifeline)[a], to: timesOf(lifeline)[b], min, max }));
+const durationConstraints = [
+  ['cpu', 1, 3, '20', '90'],
+  ['dma', 2, 4, '10', '60'],
+  ['irq', 5, 7, 'd', '3*d'],
+].map(([lifeline, a, b, min, max]) => ({ lifeline, from: timesOf(lifeline)[a], to: timesOf(lifeline)[b], min, max }));
 const irqChange = timesOf('irq')[3];
 const doc = {
-  kind: 'timing', title: 'UART receive path', timeUnit: 'µs', lifelines, messages, durationConstraints,
+  kind: 'timing',
+  title: 'UART receive path',
+  timeUnit: 'µs',
+  lifelines,
+  messages,
+  durationConstraints,
   timeConstraints: [{ lifeline: 'irq', at: irqChange, from: irqChange - 8, to: irqChange + 8 }],
   highlights: [{ from: 300, to: 340, label: 'low-power window' }],
   notes: [

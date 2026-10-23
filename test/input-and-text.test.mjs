@@ -10,7 +10,11 @@ import { minimalV2 } from './helpers.mjs';
 
 /** The INVALID_JSON error of `text`, or a failure when it parses. */
 function jsonError(text) {
-  try { parseJson(text); } catch (error) { return error; }
+  try {
+    parseJson(text);
+  } catch (error) {
+    return error;
+  }
   assert.fail(`${JSON.stringify(text)} parsed`);
 }
 
@@ -57,18 +61,30 @@ test('INVALID_JSON quotes only the part of a long line around the error', () => 
 test('parseDocument rejects empty input and non-object documents with a clear message', () => {
   assert.throws(() => parseDocument('  \n'), { code: 'INVALID_JSON', message: /Input is empty/ });
   for (const text of ['[]', 'null', '"class"', '3']) {
-    assert.throws(() => parseDocument(text), error => error.code === 'SCHEMA_INVALID' && error.message.includes('JSON object'), text);
+    assert.throws(
+      () => parseDocument(text),
+      error => error.code === 'SCHEMA_INVALID' && error.message.includes('JSON object'),
+      text,
+    );
   }
 });
 
 test('the QA XML reader handles comments, CDATA, processing instructions and entities', () => {
-  const doc = parseXml('<?xml version="1.0"?><!DOCTYPE svg><!-- c --><svg a=\'1 &amp; 2\'><g id="x"><text>&lt;b&gt; &#65;&#x42;</text><![CDATA[<raw>]]></g><rect/></svg>');
+  const doc = parseXml(
+    '<?xml version="1.0"?><!DOCTYPE svg><!-- c --><svg a=\'1 &amp; 2\'><g id="x"><text>&lt;b&gt; &#65;&#x42;</text><![CDATA[<raw>]]></g><rect/></svg>',
+  );
   const svg = doc.children.find(c => typeof c !== 'string');
   assert.equal(svg.tag, 'svg');
   assert.equal(svg.attrs.a, '1 & 2');
   assert.equal(textContent(svg), '<b> AB<raw>');
-  assert.deepEqual([...walk(doc)].map(({ element }) => element.tag), ['#document', 'svg', 'g', 'text', 'rect']);
-  assert.deepEqual([...walk(doc)].at(-1).ancestors.map(a => a.tag), ['#document', 'svg']);
+  assert.deepEqual(
+    [...walk(doc)].map(({ element }) => element.tag),
+    ['#document', 'svg', 'g', 'text', 'rect'],
+  );
+  assert.deepEqual(
+    [...walk(doc)].at(-1).ancestors.map(a => a.tag),
+    ['#document', 'svg'],
+  );
   assert.equal(decodeXml('&quot;&apos;&gt;&unknown;'), '"\'>&unknown;');
 });
 
@@ -79,60 +95,102 @@ test('the QA XML reader rejects malformed input instead of guessing', () => {
     ['<svg><![CDATA[x</svg>', /Unterminated CDATA/],
     ['<svg><!-- x</svg>', /Unterminated -->/],
     ['<svg>< g/></svg>', /Malformed tag/],
-  ]) assert.throws(() => parseXml(source), { message }, source);
+  ])
+    assert.throws(() => parseXml(source), { message }, source);
 });
 
 /** PlantUML source with the <U+XXXX> display tokens decoded, for reading. */
 const readable = source => source.replaceAll('\u200B', '').replaceAll(/<U\+([0-9A-F]{4})>/g, (_, hex) => String.fromCodePoint(Number.parseInt(hex, 16)));
 
 test('class PlantUML source: every keyword, end, arrow and note maps to PlantUML syntax', () => {
-  const { model } = parseDocument(JSON.stringify({
-    kind: 'class',
-    title: 'T',
-    elements: [
-      { id: 'secretId', type: 'class', name: 'A', abstract: true, stereotypes: ['entity'],
-        attributes: [{ name: 'n', type: 'Integer', static: true }],
-        operations: [{ name: 'run', abstract: true }, { name: 'make', static: true }] },
-      { id: 'b', type: 'interface', name: 'B' },
-      { id: 'e', type: 'enumeration', name: 'E', literals: ['ON', 'OFF'] },
-      { id: 'n', type: 'note', text: 'remember', attachedTo: ['secretId', 'b'] },
-    ],
-    relationships: [
-      { type: 'aggregation', from: 'secretId', to: 'b', toEnd: { navigable: true } },
-      { type: 'aggregation', from: 'secretId', to: 'b', toEnd: { navigable: false } },
-      { type: 'composition', from: 'secretId', to: 'e', toEnd: { navigable: false } },
-      { type: 'composition', from: 'b', to: 'e' },
-      { type: 'association', from: 'secretId', to: 'b', fromEnd: { navigable: true, role: 'r' }, toEnd: { navigable: false, multiplicity: '*' } },
-      { type: 'dependency', from: 'b', to: 'e', keyword: 'use', name: 'link' },
-      { type: 'realization', from: 'secretId', to: 'b' },
-      { type: 'generalization', from: 'e', to: 'secretId' },
-      { type: 'dependency', from: 'e', to: 'b' },
-      { type: 'containment', from: 'b', to: 'e' },
-    ],
-  }));
+  const { model } = parseDocument(
+    JSON.stringify({
+      kind: 'class',
+      title: 'T',
+      elements: [
+        {
+          id: 'secretId',
+          type: 'class',
+          name: 'A',
+          abstract: true,
+          stereotypes: ['entity'],
+          attributes: [{ name: 'n', type: 'Integer', static: true }],
+          operations: [
+            { name: 'run', abstract: true },
+            { name: 'make', static: true },
+          ],
+        },
+        { id: 'b', type: 'interface', name: 'B' },
+        { id: 'e', type: 'enumeration', name: 'E', literals: ['ON', 'OFF'] },
+        { id: 'n', type: 'note', text: 'remember', attachedTo: ['secretId', 'b'] },
+      ],
+      relationships: [
+        { type: 'aggregation', from: 'secretId', to: 'b', toEnd: { navigable: true } },
+        { type: 'aggregation', from: 'secretId', to: 'b', toEnd: { navigable: false } },
+        { type: 'composition', from: 'secretId', to: 'e', toEnd: { navigable: false } },
+        { type: 'composition', from: 'b', to: 'e' },
+        { type: 'association', from: 'secretId', to: 'b', fromEnd: { navigable: true, role: 'r' }, toEnd: { navigable: false, multiplicity: '*' } },
+        { type: 'dependency', from: 'b', to: 'e', keyword: 'use', name: 'link' },
+        { type: 'realization', from: 'secretId', to: 'b' },
+        { type: 'generalization', from: 'e', to: 'secretId' },
+        { type: 'dependency', from: 'e', to: 'b' },
+        { type: 'containment', from: 'b', to: 'e' },
+      ],
+    }),
+  );
   const source = classToPlantUml(model);
   assert.doesNotMatch(source, /secretId/, 'user IDs never reach the source');
   const text = readable(source);
   assert.match(text, /mainframe class T/);
-  assert.match(text, /abstract class "A" as uml_e0 <<entity>> \{\n {2}\{static\} \{field\} \+? ?n : Integer\n {2}\{abstract\} \{method\} [^\n]*run\(\)\n {2}\{static\} \{method\} [^\n]*make\(\)\n\}/);
+  assert.match(
+    text,
+    /abstract class "A" as uml_e0 <<entity>> \{\n {2}\{static\} \{field\} \+? ?n : Integer\n {2}\{abstract\} \{method\} [^\n]*run\(\)\n {2}\{static\} \{method\} [^\n]*make\(\)\n\}/,
+  );
   assert.match(text, /class "B" as uml_e1 <<interface>> \{/);
   assert.match(text, /class "E" as uml_e2 <<enumeration>> \{\n {2}ON\n {2}OFF\n\}/);
   assert.match(text, /note "remember" as uml_e3/);
   for (const line of [
-    'uml_e0 o--> uml_e1', 'uml_e0 o--x uml_e1', 'uml_e0 *--x uml_e2', 'uml_e1 *-- uml_e2',
-    'uml_e0 "r" <--x "*" uml_e1', 'uml_e1 ..> uml_e2 : «use» link', 'uml_e0 ..|> uml_e1',
-    'uml_e2 --|> uml_e0', 'uml_e2 ..> uml_e1', 'uml_e1 +-- uml_e2', 'uml_e3 .. uml_e0', 'uml_e3 .. uml_e1',
-  ]) assert.ok(text.split('\n').includes(line), `missing: ${line}`);
+    'uml_e0 o--> uml_e1',
+    'uml_e0 o--x uml_e1',
+    'uml_e0 *--x uml_e2',
+    'uml_e1 *-- uml_e2',
+    'uml_e0 "r" <--x "*" uml_e1',
+    'uml_e1 ..> uml_e2 : «use» link',
+    'uml_e0 ..|> uml_e1',
+    'uml_e2 --|> uml_e0',
+    'uml_e2 ..> uml_e1',
+    'uml_e1 +-- uml_e2',
+    'uml_e3 .. uml_e0',
+    'uml_e3 .. uml_e1',
+  ])
+    assert.ok(text.split('\n').includes(line), `missing: ${line}`);
 });
 
 test('stress placement honours a per-edge length and is deterministic', async () => {
   const nodes = ['a', 'b', 'c'].map(id => ({ id, width: 40, height: 20 }));
   const distance = (m, p, q) => Math.hypot(m.get(p).x - m.get(q).x, m.get(p).y - m.get(q).y);
-  const even = await stressCenters(nodes, [{ source: 'a', target: 'b' }, { source: 'b', target: 'c' }], { edgeLength: 100 });
-  const long = await stressCenters(nodes, [{ source: 'a', target: 'b', length: 300 }, { source: 'b', target: 'c' }], { edgeLength: 100, iterations: 50 });
+  const even = await stressCenters(
+    nodes,
+    [
+      { source: 'a', target: 'b' },
+      { source: 'b', target: 'c' },
+    ],
+    { edgeLength: 100 },
+  );
+  const long = await stressCenters(
+    nodes,
+    [
+      { source: 'a', target: 'b', length: 300 },
+      { source: 'b', target: 'c' },
+    ],
+    { edgeLength: 100, iterations: 50 },
+  );
   assert.equal(even.size, 3);
   assert.ok(distance(long, 'a', 'b') > distance(even, 'a', 'b') * 1.5, 'the longer desired length spreads that pair');
-  assert.deepEqual(await stressCenters(nodes, [{ source: 'a', target: 'b' }], { edgeLength: 100 }), await stressCenters(nodes, [{ source: 'a', target: 'b' }], { edgeLength: 100 }));
+  assert.deepEqual(
+    await stressCenters(nodes, [{ source: 'a', target: 'b' }], { edgeLength: 100 }),
+    await stressCenters(nodes, [{ source: 'a', target: 'b' }], { edgeLength: 100 }),
+  );
 });
 
 test('renderDocument returns SVG text or PNG bytes', async () => {

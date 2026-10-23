@@ -20,7 +20,11 @@ export const AFTER_FRAGMENT_SPACE = 12;
 
 /** PlantUML arrows per message sort (with `skinparam style strictuml`). */
 export const ARROW = {
-  synchronous: '->', asynchronous: '->>', reply: '-->>', create: '-->>', delete: '->',
+  synchronous: '->',
+  asynchronous: '->>',
+  reply: '-->>',
+  create: '-->>',
+  delete: '->',
 } as const;
 
 /** Operators PlantUML has a keyword for; every other operator is drawn as a group headed by its name. */
@@ -33,7 +37,10 @@ const NATIVE = new Set(['alt', 'opt', 'loop', 'par', 'break', 'critical']);
  * their column) and re-announced with `create` just before their create message.
  */
 export function sequenceToPlantUml(model: SequenceDiagram): string {
-  const ids = aliases(model.lifelines.map(l => l.id), 'l');
+  const ids = aliases(
+    model.lifelines.map(l => l.id),
+    'l',
+  );
   const order = new Map(model.lifelines.map((l, i) => [l.id, i]));
 
   const lines: string[] = [...sequenceSkin()];
@@ -74,7 +81,9 @@ export function sequenceToPlantUml(model: SequenceDiagram): string {
         continue;
       }
       switch (item.type) {
-        case 'activate': case 'deactivate': case 'destroy':
+        case 'activate':
+        case 'deactivate':
+        case 'destroy':
           // An activation ending right after a fragment would end a few px below its
           // border, which reads as a glitch: let it visibly continue first.
           if (item.type === 'deactivate' && items[index - 1]?.type === 'fragment') lines.push(`${pad}||${AFTER_FRAGMENT_SPACE}||`);
@@ -82,12 +91,17 @@ export function sequenceToPlantUml(model: SequenceDiagram): string {
           break;
         case 'stateInvariant':
           // Constraint notation (17.2.4): the text in braces on the lifeline, no box.
-          lines.push(`${pad}rnote over ${alias(item.lifeline)} ${theme.color.background};line:${theme.color.background.slice(1)} : ${wrappedDisplayText(`{${item.constraint}}`, WRAP.note)}`);
+          lines.push(
+            `${pad}rnote over ${alias(item.lifeline)} ${theme.color.background};line:${theme.color.background.slice(1)} : ${wrappedDisplayText(`{${item.constraint}}`, WRAP.note)}`,
+          );
           break;
         case 'note':
           // Block form: one source line per wrapped line keeps long notes under PlantUML's line limit.
-          lines.push(`${pad}note ${item.position === 'over' ? `over ${span(item.lifelines)}` : `${item.position} of ${alias(item.lifelines[0]!)}`}`,
-            ...wrapLines(item.text, WRAP.note).map(line => `${pad}${displayText(line)}`), `${pad}end note`);
+          lines.push(
+            `${pad}note ${item.position === 'over' ? `over ${span(item.lifelines)}` : `${item.position} of ${alias(item.lifelines[0]!)}`}`,
+            ...wrapLines(item.text, WRAP.note).map(line => `${pad}${displayText(line)}`),
+            `${pad}end note`,
+          );
           break;
         case 'ref':
           lines.push(`${pad}ref over ${span(item.covered)} : ${wrappedDisplayText(refLabel(item.name, item.arguments), WRAP.ref)}`);
@@ -104,7 +118,7 @@ export function sequenceToPlantUml(model: SequenceDiagram): string {
 
   const emitFragment = (f: Fragment, depth: number): void => {
     const pad = '  '.repeat(depth);
-    const guard = (g: string | undefined): string => g === undefined ? '' : displayText(g);
+    const guard = (g: string | undefined): string => (g === undefined ? '' : displayText(g));
     for (const [i, operand] of f.operands.entries()) {
       if (i > 0) {
         lines.push(`${pad}else${operand.guard === undefined ? '' : ` ${guard(operand.guard)}`}`);
@@ -153,7 +167,10 @@ export function noteSpacers(model: SequenceDiagram): Map<number, number> {
     const i = index.get(item.lifelines[0]!)!;
     if (item.position === 'right') want(i, width);
     else if (item.position === 'left') want(i - 1, width);
-    else { want(i - 1, width / 2 + NOTE_EXTRA / 2); want(i, width / 2 + NOTE_EXTRA / 2); }
+    else {
+      want(i - 1, width / 2 + NOTE_EXTRA / 2);
+      want(i, width / 2 + NOTE_EXTRA / 2);
+    }
   });
   return need;
 }

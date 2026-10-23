@@ -64,7 +64,12 @@ test('layout: no line runs through a container name compartment, ports sit below
 });
 
 test('layout: role bindings each leave their collaboration use from their own point and never share a segment (F-A-04)', async () => {
-  for (const doc of [await regression('composite-structure-cs-awk.json'), await regression('cs-awkward.json'), await example('composite-structure', 'stress.json'), await example('composite-structure', 'thermostat.json')]) {
+  for (const doc of [
+    await regression('composite-structure-cs-awk.json'),
+    await regression('cs-awkward.json'),
+    await example('composite-structure', 'stress.json'),
+    await example('composite-structure', 'thermostat.json'),
+  ]) {
     const { scene: s } = await scene(doc);
     const bindings = s.edges.filter(e => e.type === 'role-binding');
     assert.ok(bindings.length >= 2);
@@ -73,13 +78,14 @@ test('layout: role bindings each leave their collaboration use from their own po
         if (a.source !== b.source) continue;
         const d = Math.hypot(a.points[0].x - b.points[0].x, a.points[0].y - b.points[0].y);
         assert.ok(d >= 14, `${a.id} and ${b.id} start ${d.toFixed(1)}px apart`);
-        for (const [p, q] of segments(a.points)) for (const [r, t] of segments(b.points)) {
-          const horizontal = Math.abs(p.y - q.y) < 0.5 && Math.abs(r.y - t.y) < 0.5 && Math.abs(p.y - r.y) < 0.5;
-          const vertical = Math.abs(p.x - q.x) < 0.5 && Math.abs(r.x - t.x) < 0.5 && Math.abs(p.x - r.x) < 0.5;
-          const k = horizontal ? 'x' : 'y';
-          const overlap = Math.min(Math.max(p[k], q[k]), Math.max(r[k], t[k])) - Math.max(Math.min(p[k], q[k]), Math.min(r[k], t[k]));
-          assert.ok(!((horizontal || vertical) && overlap > 1), `${a.id} and ${b.id} share a segment`);
-        }
+        for (const [p, q] of segments(a.points))
+          for (const [r, t] of segments(b.points)) {
+            const horizontal = Math.abs(p.y - q.y) < 0.5 && Math.abs(r.y - t.y) < 0.5 && Math.abs(p.y - r.y) < 0.5;
+            const vertical = Math.abs(p.x - q.x) < 0.5 && Math.abs(r.x - t.x) < 0.5 && Math.abs(p.x - r.x) < 0.5;
+            const k = horizontal ? 'x' : 'y';
+            const overlap = Math.min(Math.max(p[k], q[k]), Math.max(r[k], t[k])) - Math.max(Math.min(p[k], q[k]), Math.min(r[k], t[k]));
+            assert.ok(!((horizontal || vertical) && overlap > 1), `${a.id} and ${b.id} share a segment`);
+          }
       }
     }
   }
@@ -88,30 +94,43 @@ test('layout: role bindings each leave their collaboration use from their own po
 /** Proper crossing point of two segments, or undefined. */
 function crossing([a, b], [c, d]) {
   const cross = (o, p, q) => (p.x - o.x) * (q.y - o.y) - (p.y - o.y) * (q.x - o.x);
-  const d1 = cross(c, d, a), d2 = cross(c, d, b), d3 = cross(a, b, c), d4 = cross(a, b, d);
+  const d1 = cross(c, d, a),
+    d2 = cross(c, d, b),
+    d3 = cross(a, b, c),
+    d4 = cross(a, b, d);
   if (!(((d1 > 0 && d2 < 0) || (d1 < 0 && d2 > 0)) && ((d3 > 0 && d4 < 0) || (d3 < 0 && d4 > 0)))) return;
   const k = d1 / (d1 - d2);
   return { x: a.x + (b.x - a.x) * k, y: a.y + (b.y - a.y) * k };
 }
 
 test('layout: no line crosses another next to a port, and none runs along a box it does not touch (F-A-06)', async () => {
-  const docs = [await regression('component-cmp-awk.json'), await regression('component-cmp-food.json'), await example('component', 'webshop.json'), await example('component', 'notation.json')];
+  const docs = [
+    await regression('component-cmp-awk.json'),
+    await regression('component-cmp-food.json'),
+    await example('component', 'webshop.json'),
+    await example('component', 'notation.json'),
+  ];
   for (const doc of docs) {
     const { scene: s } = await scene(doc);
     const ports = s.nodes.filter(n => n.type === 'port');
     for (const [i, e] of s.edges.entries()) {
       for (const f of s.edges.slice(i + 1)) {
-        for (const p of segments(e.points)) for (const q of segments(f.points)) {
-          const x = crossing(p, q);
-          if (!x) continue;
-          for (const port of ports) {
-            const c = { x: port.bounds.x + port.bounds.width / 2, y: port.bounds.y + port.bounds.height / 2 };
-            assert.ok(Math.hypot(x.x - c.x, x.y - c.y) > 30, `${e.id} crosses ${f.id} next to port ${port.id}`);
+        for (const p of segments(e.points))
+          for (const q of segments(f.points)) {
+            const x = crossing(p, q);
+            if (!x) continue;
+            for (const port of ports) {
+              const c = { x: port.bounds.x + port.bounds.width / 2, y: port.bounds.y + port.bounds.height / 2 };
+              assert.ok(Math.hypot(x.x - c.x, x.y - c.y) > 30, `${e.id} crosses ${f.id} next to port ${port.id}`);
+            }
           }
-        }
       }
     }
-    const ancestors = id => { const out = new Set(); for (let n = s.nodes.find(m => m.id === id); n?.parent; n = s.nodes.find(m => m.id === n.parent)) out.add(n.parent); return out; };
+    const ancestors = id => {
+      const out = new Set();
+      for (let n = s.nodes.find(m => m.id === id); n?.parent; n = s.nodes.find(m => m.id === n.parent)) out.add(n.parent);
+      return out;
+    };
     for (const e of s.edges) {
       const related = new Set([e.source, e.target, ...ancestors(e.source), ...ancestors(e.target)]);
       for (const n of s.nodes) {
@@ -126,35 +145,50 @@ test('layout: no line crosses another next to a port, and none runs along a box 
 /** Longest collinear run two routes share (within 1.5 px), and whether a bend of one lies on the other. */
 function sharing(a, b) {
   let run = 0;
-  for (const [p, q] of segments(a)) for (const [r, t] of segments(b)) {
-    if (Math.abs(p.x - q.x) < 0.5 && Math.abs(r.x - t.x) < 0.5 && Math.abs(p.x - r.x) <= 1.5) run = Math.max(run, Math.min(Math.max(p.y, q.y), Math.max(r.y, t.y)) - Math.max(Math.min(p.y, q.y), Math.min(r.y, t.y)));
-    if (Math.abs(p.y - q.y) < 0.5 && Math.abs(r.y - t.y) < 0.5 && Math.abs(p.y - r.y) <= 1.5) run = Math.max(run, Math.min(Math.max(p.x, q.x), Math.max(r.x, t.x)) - Math.max(Math.min(p.x, q.x), Math.min(r.x, t.x)));
-  }
-  const near = (p, line) => segments(line).some(([c, d]) => {
-    const l2 = (d.x - c.x) ** 2 + (d.y - c.y) ** 2, k = l2 ? Math.max(0, Math.min(1, ((p.x - c.x) * (d.x - c.x) + (p.y - c.y) * (d.y - c.y)) / l2)) : 0;
-    return Math.hypot(p.x - c.x - k * (d.x - c.x), p.y - c.y - k * (d.y - c.y)) < 1;
-  });
+  for (const [p, q] of segments(a))
+    for (const [r, t] of segments(b)) {
+      if (Math.abs(p.x - q.x) < 0.5 && Math.abs(r.x - t.x) < 0.5 && Math.abs(p.x - r.x) <= 1.5)
+        run = Math.max(run, Math.min(Math.max(p.y, q.y), Math.max(r.y, t.y)) - Math.max(Math.min(p.y, q.y), Math.min(r.y, t.y)));
+      if (Math.abs(p.y - q.y) < 0.5 && Math.abs(r.y - t.y) < 0.5 && Math.abs(p.y - r.y) <= 1.5)
+        run = Math.max(run, Math.min(Math.max(p.x, q.x), Math.max(r.x, t.x)) - Math.max(Math.min(p.x, q.x), Math.min(r.x, t.x)));
+    }
+  const near = (p, line) =>
+    segments(line).some(([c, d]) => {
+      const l2 = (d.x - c.x) ** 2 + (d.y - c.y) ** 2,
+        k = l2 ? Math.max(0, Math.min(1, ((p.x - c.x) * (d.x - c.x) + (p.y - c.y) * (d.y - c.y)) / l2)) : 0;
+      return Math.hypot(p.x - c.x - k * (d.x - c.x), p.y - c.y - k * (d.y - c.y)) < 1;
+    });
   return { run, junction: a.slice(1, -1).some(p => near(p, b)) || b.slice(1, -1).some(p => near(p, a)) };
 }
 
 test('layout: no two lines run on top of each other or meet at a bend, also at a port with several lines', async () => {
-  const docs = [['component notation', await example('component', 'notation.json')], ['composite stress', await example('composite-structure', 'stress.json')],
-    ['cs-awk', await regression('composite-structure-cs-awk.json')], ['cmp-awk', await regression('component-cmp-awk.json')], ['cs-ev', await regression('composite-structure-cs-ev.json')],
-    ['component stress', await example('component', 'stress.json')], ['c1', await regression('component-c1-ridesharing.json')]];
+  const docs = [
+    ['component notation', await example('component', 'notation.json')],
+    ['composite stress', await example('composite-structure', 'stress.json')],
+    ['cs-awk', await regression('composite-structure-cs-awk.json')],
+    ['cmp-awk', await regression('component-cmp-awk.json')],
+    ['cs-ev', await regression('composite-structure-cs-ev.json')],
+    ['component stress', await example('component', 'stress.json')],
+    ['c1', await regression('component-c1-ridesharing.json')],
+  ];
   for (const [name, doc] of docs) {
     const { scene: s } = await scene(doc);
-    for (const [i, e] of s.edges.entries()) for (const f of s.edges.slice(i + 1)) {
-      const { run, junction } = sharing(e.points, f.points);
-      assert.ok(run <= 10, `${name}: ${e.id} and ${f.id} share ${run.toFixed(0)} px`);
-      assert.ok(!junction, `${name}: ${e.id} and ${f.id} meet where one bends`);
-    }
+    for (const [i, e] of s.edges.entries())
+      for (const f of s.edges.slice(i + 1)) {
+        const { run, junction } = sharing(e.points, f.points);
+        assert.ok(run <= 10, `${name}: ${e.id} and ${f.id} share ${run.toFixed(0)} px`);
+        assert.ok(!junction, `${name}: ${e.id} and ${f.id} meet where one bends`);
+      }
   }
 });
 
 test('notation: an interface appears once, as a box joined by lines or as one symbol, never as a second unjoined symbol (F-A-12)', async () => {
   const docs = [
-    await regression('component-cmp-awk.json'), await regression('component-cmp-food.json'),
-    await example('component', 'stress.json'), await example('component', 'webshop.json'), await example('component', 'notation.json'),
+    await regression('component-cmp-awk.json'),
+    await regression('component-cmp-food.json'),
+    await example('component', 'stress.json'),
+    await example('component', 'webshop.json'),
+    await example('component', 'notation.json'),
   ];
   for (const doc of docs) {
     const { scene: s } = await scene(doc);
@@ -166,7 +200,16 @@ test('notation: an interface appears once, as a box joined by lines or as one sy
     }
   }
   const { scene: stress } = await scene(await example('component', 'stress.json'));
-  assert.ok(stress.nodes.some(n => n.id === 'iCharge'), 'ICharge, provided and required without an assembly, is a box');
-  assert.ok(stress.edges.some(e => e.source === 'payments' && e.target === 'iCharge' && e.targetMarker === 'hollow-triangle'), 'realized by Payment Provider');
-  assert.ok(stress.edges.some(e => e.source === 'billing2' && e.target === 'iCharge' && e.targetMarker === 'open-arrow'), 'used by Tax Engine');
+  assert.ok(
+    stress.nodes.some(n => n.id === 'iCharge'),
+    'ICharge, provided and required without an assembly, is a box',
+  );
+  assert.ok(
+    stress.edges.some(e => e.source === 'payments' && e.target === 'iCharge' && e.targetMarker === 'hollow-triangle'),
+    'realized by Payment Provider',
+  );
+  assert.ok(
+    stress.edges.some(e => e.source === 'billing2' && e.target === 'iCharge' && e.targetMarker === 'open-arrow'),
+    'used by Tax Engine',
+  );
 });

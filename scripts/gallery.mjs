@@ -16,15 +16,22 @@ const only = process.argv.slice(2);
 const escape = s => String(s).replaceAll(/[&<>"']/g, c => `&#${c.codePointAt(0)};`);
 
 async function jsonFiles(dir) {
-  try { return (await readdir(dir)).filter(f => f.endsWith('.json')).sort().map(f => join(dir, f)); }
-  catch (error) { if (error.code === 'ENOENT') return []; throw error; }
+  try {
+    return (await readdir(dir))
+      .filter(f => f.endsWith('.json'))
+      .sort()
+      .map(f => join(dir, f));
+  } catch (error) {
+    if (error.code === 'ENOENT') return [];
+    throw error;
+  }
 }
 
 const sections = [];
 let failures = 0;
 for (const kind of kinds) {
   if (only.length > 0 && !only.includes(kind.kind)) continue;
-  const files = [...await jsonFiles(join(root, 'examples', kind.kind))];
+  const files = [...(await jsonFiles(join(root, 'examples', kind.kind)))];
   // Legacy documents (the MVP's v1 format) are class diagrams; show them with the class kind.
   if (kind.legacy) files.push(...(await jsonFiles(join(root, 'examples', 'v1'))));
   const dir = join(out, kind.kind);
@@ -39,9 +46,14 @@ for (const kind of kinds) {
     await writeFile(join(dir, `${name}.png`), await rasterize(svg, 2));
     const failed = report.gates.filter(g => !g.ok);
     // Known failures (test/known-gate-failures.mjs) are shown on the card but do not fail the run.
-    const message = judgementMessage(text, failed.map(g => ({ gate: g.gate, problems: g.failures })));
-    if (message) { failures++; console.error(`FAIL ${kind.kind}/${name}\n${message}`); }
-    else if (failed.length > 0) console.log(`known ${kind.kind}/${name}\n${formatReport(report)}`);
+    const message = judgementMessage(
+      text,
+      failed.map(g => ({ gate: g.gate, problems: g.failures })),
+    );
+    if (message) {
+      failures++;
+      console.error(`FAIL ${kind.kind}/${name}\n${message}`);
+    } else if (failed.length > 0) console.log(`known ${kind.kind}/${name}\n${formatReport(report)}`);
     else console.log(`ok   ${kind.kind}/${name} (${ms.toFixed(0)} ms)`);
     cards.push({ name, ms, failed, skipped: report.gates.filter(g => g.skipped).map(g => g.gate) });
   }
@@ -62,14 +74,27 @@ figcaption{margin-top:8px;font-size:13px;display:flex;justify-content:space-betw
 </style></head><body>
 <h1>UML gallery</h1>
 <p>Every example of every kind, rendered with its default backend. Click an image for the SVG. Gates: all hard QA gates of src/qa.</p>
-${sections.map(({ kind, cards }) => `<h2>${escape(kind.title)} <small>(${escape(kind.kind)}, ${escape(kind.backends[0].name)})</small></h2>
-<div class="grid">${cards.map(c => `<figure><a href="${escape(kind.kind)}/${escape(c.name)}.svg"><img src="${escape(kind.kind)}/${escape(c.name)}.png" alt="${escape(c.name)}"></a>
-<figcaption><strong>${escape(c.name)}</strong><span>${c.ms.toFixed(0)} ms</span>${c.failed.length > 0
-    ? `<span class="fail">FAIL: ${escape(c.failed.map(g => g.gate).join(', '))}</span>`
-    : `<span class="ok">all gates pass${c.skipped.length > 0 ? ` (skipped: ${escape(c.skipped.join(', '))})` : ''}</span>`}</figcaption></figure>`).join('\n')}</div>`).join('\n')}
+${sections
+  .map(
+    ({ kind, cards }) => `<h2>${escape(kind.title)} <small>(${escape(kind.kind)}, ${escape(kind.backends[0].name)})</small></h2>
+<div class="grid">${cards
+      .map(
+        c => `<figure><a href="${escape(kind.kind)}/${escape(c.name)}.svg"><img src="${escape(kind.kind)}/${escape(c.name)}.png" alt="${escape(c.name)}"></a>
+<figcaption><strong>${escape(c.name)}</strong><span>${c.ms.toFixed(0)} ms</span>${
+          c.failed.length > 0
+            ? `<span class="fail">FAIL: ${escape(c.failed.map(g => g.gate).join(', '))}</span>`
+            : `<span class="ok">all gates pass${c.skipped.length > 0 ? ` (skipped: ${escape(c.skipped.join(', '))})` : ''}</span>`
+        }</figcaption></figure>`,
+      )
+      .join('\n')}</div>`,
+  )
+  .join('\n')}
 </body></html>
 `;
 await mkdir(out, { recursive: true });
 await writeFile(join(out, 'index.html'), html);
 console.log(`Gallery: ${join(out, 'index.html')}`);
-if (failures) { console.error(`${failures} example(s) failed QA gates`); process.exitCode = 1; }
+if (failures) {
+  console.error(`${failures} example(s) failed QA gates`);
+  process.exitCode = 1;
+}

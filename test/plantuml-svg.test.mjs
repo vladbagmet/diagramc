@@ -42,7 +42,9 @@ test('canvas helpers read and set the size, and padCanvas gives a drawing an eve
   const resized = setCanvas(svg(''), 120.2, 90);
   assert.match(resized, / width="121px" height="90px" style="width:121px;height:90px;" viewBox="0 0 121 90"/);
 
-  const drawing = svg('<rect x="30" y="40" width="10" height="10"/><text x="35" y="60" font-size="10" textLength="20">t</text><path d="M30,40 A5,5 0 0 1 45,70"/><polygon points="31,41 33,43"/><ellipse cx="50" cy="45" rx="2" ry="2"/>');
+  const drawing = svg(
+    '<rect x="30" y="40" width="10" height="10"/><text x="35" y="60" font-size="10" textLength="20">t</text><path d="M30,40 A5,5 0 0 1 45,70"/><polygon points="31,41 33,43"/><ellipse cx="50" cy="45" rx="2" ry="2"/>',
+  );
   assert.deepEqual(drawingBounds(drawing), { minX: 30, minY: 40, maxX: 55, maxY: 70 });
   const padded = padCanvas(drawing, 8);
   assert.deepEqual(drawingBounds(padded), { minX: 8, minY: 8, maxX: 33, maxY: 38 });
@@ -79,6 +81,9 @@ test('PlantUML text wrapping keeps every character and encodes each line separat
   const lines = wrapLines(text, 12);
   assert.ok(lines.length > 2);
   assert.equal(lines.join(''), text);
-  assert.ok(lines.every(l => [...l].length <= 12), lines.join('|'));
+  assert.ok(
+    lines.every(l => [...l].length <= 12),
+    lines.join('|'),
+  );
   assert.equal(wrappedDisplayText(text, 12).split(String.raw`\n`).length, lines.length);
 });

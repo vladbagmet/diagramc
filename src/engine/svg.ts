@@ -11,9 +11,39 @@ import { round2, type Point } from './geometry.js';
 
 const TAGS = new Set(['svg', 'g', 'rect', 'path', 'line', 'polyline', 'polygon', 'circle', 'ellipse', 'text', 'tspan', 'title', 'style']);
 const ATTRIBUTES = new Set([
-  'xmlns', 'xml:space', 'viewBox', 'width', 'height', 'x', 'y', 'x1', 'y1', 'x2', 'y2', 'cx', 'cy', 'r', 'rx', 'ry',
-  'd', 'points', 'fill', 'stroke', 'stroke-width', 'stroke-dasharray', 'stroke-linejoin', 'stroke-linecap', 'fill-rule',
-  'font-family', 'font-size', 'font-weight', 'font-style', 'paint-order', 'role', 'aria-label', 'opacity',
+  'xmlns',
+  'xml:space',
+  'viewBox',
+  'width',
+  'height',
+  'x',
+  'y',
+  'x1',
+  'y1',
+  'x2',
+  'y2',
+  'cx',
+  'cy',
+  'r',
+  'rx',
+  'ry',
+  'd',
+  'points',
+  'fill',
+  'stroke',
+  'stroke-width',
+  'stroke-dasharray',
+  'stroke-linejoin',
+  'stroke-linecap',
+  'fill-rule',
+  'font-family',
+  'font-size',
+  'font-weight',
+  'font-style',
+  'paint-order',
+  'role',
+  'aria-label',
+  'opacity',
 ]);
 
 export type Attributes = Record<string, string | number | undefined>;
@@ -81,7 +111,9 @@ export class Canvas {
     const key = styleKey(options);
     this.usage.set(key, (this.usage.get(key) ?? '') + content);
     return `<text${attributes({
-      x, y, 'font-size': options.size,
+      x,
+      y,
+      'font-size': options.size,
       'font-weight': options.bold ? theme.font.weight.bold : undefined,
       'font-style': options.italic ? 'italic' : undefined,
       fill: options.fill ?? theme.color.text,
@@ -120,15 +152,29 @@ export class Canvas {
   }
 
   async finish(options: { width: number; height: number; kind: string; title?: string | undefined }): Promise<string> {
-    const width = Math.ceil(options.width), height = Math.ceil(options.height);
+    const width = Math.ceil(options.width),
+      height = Math.ceil(options.height);
     const css = `${await fontFaceCss(this.usage)}text{white-space:pre}`;
     const label = options.title === undefined ? `${options.kind} diagram` : `${options.kind} diagram ${options.title}`;
-    return `<svg${attributes({
-      xmlns: 'http://www.w3.org/2000/svg', width, height, viewBox: `0 0 ${width} ${height}`, 'xml:space': 'preserve',
-      'font-family': theme.font.fallback, role: 'img', 'aria-label': label,
-      'data-uml-kind': options.kind, 'data-uml-renderer': 'engine',
-    })}>${el('title', {}, [escapeText(label)])}<style>${css}</style>` +
+    return (
+      `<svg${attributes({
+        xmlns: 'http://www.w3.org/2000/svg',
+        width,
+        height,
+        viewBox: `0 0 ${width} ${height}`,
+        'xml:space': 'preserve',
+        'font-family': theme.font.fallback,
+        role: 'img',
+        'aria-label': label,
+        'data-uml-kind': options.kind,
+        'data-uml-renderer': 'engine',
+      })}>${el('title', {}, [escapeText(label)])}<style>${css}</style>` +
       el('rect', { width, height, fill: theme.color.background, 'data-uml-role': 'background' }) +
-      this.frame.join('') + this.edges.join('') + this.nodes.join('') + this.labels.join('') + '</svg>\n';
+      this.frame.join('') +
+      this.edges.join('') +
+      this.nodes.join('') +
+      this.labels.join('') +
+      '</svg>\n'
+    );
   }
 }

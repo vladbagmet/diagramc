@@ -18,27 +18,34 @@ import { escapeText, num } from './svg.js';
  */
 const EMOJI = /(?:\p{Emoji_Presentation}|\p{Extended_Pictographic}️)(?:\p{Emoji_Modifier}|️|‍(?:\p{Emoji_Presentation}|\p{Extended_Pictographic}️?))*/gu;
 
-const unescape = (s: string): string => s.replaceAll('&lt;', '<').replaceAll('&gt;', '>').replaceAll('&quot;', '"').replaceAll('&#39;', "'").replaceAll('&amp;', '&');
-const attribute = (attrs: string, name: string): string | undefined => (new RegExp(String.raw`\s${name}="([^"]*)"`, 'u').exec(attrs))?.[1];
+const unescape = (s: string): string =>
+  s.replaceAll('&lt;', '<').replaceAll('&gt;', '>').replaceAll('&quot;', '"').replaceAll('&#39;', "'").replaceAll('&amp;', '&');
+const attribute = (attrs: string, name: string): string | undefined => new RegExp(String.raw`\s${name}="([^"]*)"`, 'u').exec(attrs)?.[1];
 
 /** Splits own-engine text lines that mix glyphs Inter has and lacks into separate text elements. */
 export function splitFallbackRuns(svg: string, metrics: FontMetrics): string {
   return svg.replaceAll(/<text([^>]*)>([\s\S]*?)<\/text>/gu, (whole, attrs: string, content: string) => {
-    const style = { size: Number(attribute(attrs, 'font-size') ?? theme.font.size.body), bold: attribute(attrs, 'font-weight') === String(theme.font.weight.bold), italic: attribute(attrs, 'font-style') === 'italic' };
+    const style = {
+      size: Number(attribute(attrs, 'font-size') ?? theme.font.size.body),
+      bold: attribute(attrs, 'font-weight') === String(theme.font.weight.bold),
+      italic: attribute(attrs, 'font-style') === 'italic',
+    };
     const lines = content.includes('<tspan')
       ? [...content.matchAll(/<tspan x="([^"]*)" y="([^"]*)">([^<]*)<\/tspan>/gu)].map(m => ({ x: Number(m[1]), y: m[2]!, text: unescape(m[3]!) }))
       : [{ x: Number(attribute(attrs, 'x')), y: attribute(attrs, 'y') ?? '0', text: unescape(content) }];
     const runs = lines.map(line => metrics.runs(line.text, style));
     if (runs.every(r => r.length < 2) || lines.some(l => Number.isNaN(l.x))) return whole;
     const base = attrs.replaceAll(/\s(?:x|y)="[^"]*"/gu, '');
-    return lines.map((line, i) => {
-      let x = line.x;
-      return runs[i]!.map(run => {
-        const element = `<text${base} x="${num(x)}" y="${line.y}">${escapeText(run.text)}</text>`;
-        x += metrics.measure(run.text, style);
-        return element;
-      }).join('');
-    }).join('');
+    return lines
+      .map((line, i) => {
+        let x = line.x;
+        return runs[i]!.map(run => {
+          const element = `<text${base} x="${num(x)}" y="${line.y}">${escapeText(run.text)}</text>`;
+          x += metrics.measure(run.text, style);
+          return element;
+        }).join('');
+      })
+      .join('');
   });
 }
 

@@ -5,7 +5,11 @@ export function decodeEntities(text: string): string {
   return text
     .replaceAll(/&#x([0-9a-fA-F]+);/gu, (_, hex: string) => String.fromCodePoint(Number.parseInt(hex, 16)))
     .replaceAll(/&#(\d+);/gu, (_, dec: string) => String.fromCodePoint(Number(dec)))
-    .replaceAll('&lt;', '<').replaceAll('&gt;', '>').replaceAll('&quot;', '"').replaceAll('&apos;', "'").replaceAll('&amp;', '&');
+    .replaceAll('&lt;', '<')
+    .replaceAll('&gt;', '>')
+    .replaceAll('&quot;', '"')
+    .replaceAll('&apos;', "'")
+    .replaceAll('&amp;', '&');
 }
 
 /**
@@ -18,8 +22,8 @@ export async function embedFonts(svg: string): Promise<string> {
   const usage = new Map<FontStyleKey, string>();
   for (const [, attributes, content] of svg.matchAll(/<text\b([^>]*)>([^<]*)<\/text>/gu)) {
     const bold = /font-weight="(?:bold|[6-9]00)"/u.test(attributes!);
-    const italic = (attributes!).includes('font-style="italic"');
-    const key: FontStyleKey = bold ? (italic ? 'bold-italic' : 'bold') : (italic ? 'italic' : 'regular');
+    const italic = attributes!.includes('font-style="italic"');
+    const key: FontStyleKey = bold ? (italic ? 'bold-italic' : 'bold') : italic ? 'italic' : 'regular';
     usage.set(key, (usage.get(key) ?? '') + decodeEntities(content!));
   }
   if (usage.size === 0) return svg;

@@ -1,26 +1,73 @@
 /** Types of a validated activity-diagram document (see schema.ts for the contract). */
 
-export interface Partition { id: string; name: string }
+export interface Partition {
+  id: string;
+  name: string;
+}
 
-interface Base { id: string; partition?: string }
+interface Base {
+  id: string;
+  partition?: string;
+}
 /** Nodes that do work or hold tokens and may carry a note. */
-interface Executable extends Base { name: string; note?: string }
+interface Executable extends Base {
+  name: string;
+  note?: string;
+}
 
-export interface Action extends Executable { type: 'action' }
-export interface CallBehaviorAction extends Executable { type: 'callBehavior' }
-export interface SendSignalAction extends Executable { type: 'sendSignal' }
-export interface AcceptEventAction extends Executable { type: 'acceptEvent' }
-export interface ObjectNode extends Executable { type: 'object'; state?: string }
-export interface InitialNode extends Base { type: 'initial' }
-export interface ActivityFinalNode extends Base { type: 'activityFinal' }
-export interface FlowFinalNode extends Base { type: 'flowFinal' }
-export interface DecisionNode extends Base { type: 'decision' }
-export interface ForkNode extends Base { type: 'fork' }
-export interface MergeNode { id: string; type: 'merge' }
-export interface JoinNode { id: string; type: 'join' }
+export interface Action extends Executable {
+  type: 'action';
+}
+export interface CallBehaviorAction extends Executable {
+  type: 'callBehavior';
+}
+export interface SendSignalAction extends Executable {
+  type: 'sendSignal';
+}
+export interface AcceptEventAction extends Executable {
+  type: 'acceptEvent';
+}
+export interface ObjectNode extends Executable {
+  type: 'object';
+  state?: string;
+}
+export interface InitialNode extends Base {
+  type: 'initial';
+}
+export interface ActivityFinalNode extends Base {
+  type: 'activityFinal';
+}
+export interface FlowFinalNode extends Base {
+  type: 'flowFinal';
+}
+export interface DecisionNode extends Base {
+  type: 'decision';
+}
+export interface ForkNode extends Base {
+  type: 'fork';
+}
+export interface MergeNode {
+  id: string;
+  type: 'merge';
+}
+export interface JoinNode {
+  id: string;
+  type: 'join';
+}
 
-export type ActivityNode = Action | CallBehaviorAction | SendSignalAction | AcceptEventAction | ObjectNode
-  | InitialNode | ActivityFinalNode | FlowFinalNode | DecisionNode | MergeNode | ForkNode | JoinNode;
+export type ActivityNode =
+  | Action
+  | CallBehaviorAction
+  | SendSignalAction
+  | AcceptEventAction
+  | ObjectNode
+  | InitialNode
+  | ActivityFinalNode
+  | FlowFinalNode
+  | DecisionNode
+  | MergeNode
+  | ForkNode
+  | JoinNode;
 export type ExecutableNode = Action | CallBehaviorAction | SendSignalAction | AcceptEventAction | ObjectNode;
 
 export interface ActivityEdge {

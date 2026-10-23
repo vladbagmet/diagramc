@@ -45,7 +45,10 @@ export function unwrappedProblem(text: string, delimiters: string): { message: s
   const t = text.trim();
   if (delimiters === '«»') {
     if (!/[«»]|<<|>>/u.test(text)) return undefined;
-    const parts = text.split(/[«»]|<<|>>/u).map(s => s.replaceAll(/^[\s,]+|[\s,]+$/gu, '')).filter(Boolean);
+    const parts = text
+      .split(/[«»]|<<|>>/u)
+      .map(s => s.replaceAll(/^[\s,]+|[\s,]+$/gu, ''))
+      .filter(Boolean);
     const suggestion = parts[0] ?? '';
     return {
       message: `${JSON.stringify(text)} contains guillemets or << >>; write the name only, the diagram adds the guillemets (${JSON.stringify(suggestion)} is drawn «${suggestion}»)${parts.length > 1 ? `; give several stereotypes as separate list items: ${JSON.stringify(parts)}` : ''}`,
@@ -56,7 +59,10 @@ export function unwrappedProblem(text: string, delimiters: string): { message: s
   if (!(t.startsWith(open) && t.endsWith(close)) || t.length < 2) return undefined;
   const suggestion = t.slice(1, -1).trim();
   const what = open === '[' ? 'a guard' : 'a constraint';
-  return { message: `${JSON.stringify(text)} is ${what} written with its ${open}${close}; write it without them, the diagram adds them (${JSON.stringify(suggestion)} is drawn ${open}${suggestion}${close})`, suggestion };
+  return {
+    message: `${JSON.stringify(text)} is ${what} written with its ${open}${close}; write it without them, the diagram adds them (${JSON.stringify(suggestion)} is drawn ${open}${suggestion}${close})`,
+    suggestion,
+  };
 }
 
 /**
@@ -67,35 +73,68 @@ export function unwrappedProblem(text: string, delimiters: string): { message: s
  */
 export const commonDefinitions = {
   id: {
-    type: 'string', pattern: ID_PATTERN,
-    description: 'Stable identifier: an ASCII letter, then ASCII letters, digits, "_" or "-" (no spaces, dots or other characters), at most 64 characters, for example "order", "order-item" or "OrderItem_2". Unique per document. Never drawn.',
+    type: 'string',
+    pattern: ID_PATTERN,
+    description:
+      'Stable identifier: an ASCII letter, then ASCII letters, digits, "_" or "-" (no spaces, dots or other characters), at most 64 characters, for example "order", "order-item" or "OrderItem_2". Unique per document. Never drawn.',
   },
   name: {
-    type: 'string', minLength: 1, maxLength: 100, pattern: TEXT_PATTERN, [TEXT_KEYWORD]: true,
+    type: 'string',
+    minLength: 1,
+    maxLength: 100,
+    pattern: TEXT_PATTERN,
+    [TEXT_KEYWORD]: true,
     description: 'Display name: 1 to 100 code points, single line, shown literally.',
   },
   text: {
-    type: 'string', minLength: 1, maxLength: 180, pattern: TEXT_PATTERN, [TEXT_KEYWORD]: true,
+    type: 'string',
+    minLength: 1,
+    maxLength: 180,
+    pattern: TEXT_PATTERN,
+    [TEXT_KEYWORD]: true,
     description: 'Display text: 1 to 180 code points, single line, shown literally.',
   },
   longText: {
-    type: 'string', minLength: 1, maxLength: 1000, pattern: TEXT_PATTERN, [TEXT_KEYWORD]: true,
+    type: 'string',
+    minLength: 1,
+    maxLength: 1000,
+    pattern: TEXT_PATTERN,
+    [TEXT_KEYWORD]: true,
     description: 'Paragraph text (notes): 1 to 1000 code points, single line, wrapped automatically, shown literally.',
   },
   keyword: {
-    type: 'string', minLength: 1, maxLength: 100, pattern: TEXT_PATTERN, [TEXT_KEYWORD]: true, [UNWRAPPED_KEYWORD]: '«»',
+    type: 'string',
+    minLength: 1,
+    maxLength: 100,
+    pattern: TEXT_PATTERN,
+    [TEXT_KEYWORD]: true,
+    [UNWRAPPED_KEYWORD]: '«»',
     description: 'Keyword or stereotype name WITHOUT guillemets, e.g. "use" is drawn as «use».',
   },
   guard: {
-    type: 'string', minLength: 1, maxLength: 180, pattern: TEXT_PATTERN, [TEXT_KEYWORD]: true, [UNWRAPPED_KEYWORD]: '[]',
+    type: 'string',
+    minLength: 1,
+    maxLength: 180,
+    pattern: TEXT_PATTERN,
+    [TEXT_KEYWORD]: true,
+    [UNWRAPPED_KEYWORD]: '[]',
     description: 'Guard condition WITHOUT brackets, e.g. "x > 0" is drawn [x > 0].',
   },
   constraint: {
-    type: 'string', minLength: 1, maxLength: 180, pattern: TEXT_PATTERN, [TEXT_KEYWORD]: true, [UNWRAPPED_KEYWORD]: '{}',
+    type: 'string',
+    minLength: 1,
+    maxLength: 180,
+    pattern: TEXT_PATTERN,
+    [TEXT_KEYWORD]: true,
+    [UNWRAPPED_KEYWORD]: '{}',
     description: 'Constraint or condition WITHOUT braces, e.g. "x > 0" is drawn {x > 0}.',
   },
   multiplicity: {
-    type: 'string', maxLength: 40, pattern: String.raw`^(?:\*|[0-9]+)(?:\.\.(?:\*|[0-9]+))?(?![\s\S])`, [TEXT_KEYWORD]: true,
-    description: 'Multiplicity: "*" (many), a number such as "1" or "3", or a range "n..m" where m may be "*", for example "0..1", "1..*", "2..5". Words such as "many" or "0..n" are not allowed.',
+    type: 'string',
+    maxLength: 40,
+    pattern: String.raw`^(?:\*|[0-9]+)(?:\.\.(?:\*|[0-9]+))?(?![\s\S])`,
+    [TEXT_KEYWORD]: true,
+    description:
+      'Multiplicity: "*" (many), a number such as "1" or "3", or a range "n..m" where m may be "*", for example "0..1", "1..*", "2..5". Words such as "many" or "0..n" are not allowed.',
   },
 } as const;

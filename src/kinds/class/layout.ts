@@ -22,10 +22,22 @@ function compartments(c: Classifier): Compartment[] {
   const muted = theme.color.mutedText;
   if (keyword) header.lines.push({ text: guillemets([keyword]), style: LABEL, align: 'center', fill: muted });
   if (c.stereotypes?.length) header.lines.push({ text: guillemets(c.stereotypes), style: LABEL, align: 'center', fill: muted });
-  header.lines.push({ text: c.name, style: { size: theme.font.size.name, bold: true, italic: c.type === 'class' && !!c.abstract }, align: 'center', wrap: theme.size.maxNameWidth });
+  header.lines.push({
+    text: c.name,
+    style: { size: theme.font.size.name, bold: true, italic: c.type === 'class' && !!c.abstract },
+    align: 'center',
+    wrap: theme.size.maxNameWidth,
+  });
   const body: TextStyle = { size: theme.font.size.body };
   const attributes: Compartment = { lines: (c.attributes ?? []).map(a => ({ text: formatAttribute(a), style: body, align: 'left', underline: isStatic(a) })) };
-  const operations: Compartment = { lines: (c.operations ?? []).map(o => ({ text: formatOperation(o), style: { ...body, italic: isAbstractOperation(o) }, align: 'left', underline: isStatic(o) })) };
+  const operations: Compartment = {
+    lines: (c.operations ?? []).map(o => ({
+      text: formatOperation(o),
+      style: { ...body, italic: isAbstractOperation(o) },
+      align: 'left',
+      underline: isStatic(o),
+    })),
+  };
   const result = [header];
   if (c.type === 'enumeration') {
     result.push({ lines: (c.literals ?? []).map(text => ({ text, style: body, align: 'left' })) });
@@ -37,7 +49,7 @@ function compartments(c: Classifier): Compartment[] {
   return result;
 }
 
-const navigability = (navigable: boolean | undefined): Marker => navigable === undefined ? 'none' : navigable ? 'open-arrow' : 'cross';
+const navigability = (navigable: boolean | undefined): Marker => (navigable === undefined ? 'none' : navigable ? 'open-arrow' : 'cross');
 
 function node(e: Element): DiagramNodeSpec {
   if (isNote(e)) return { id: e.id, type: 'note', shape: { kind: 'note', text: e.text } };
@@ -52,13 +64,17 @@ export function classDiagramSpec(model: ClassDiagram): DiagramSpec {
     if (r.keyword !== undefined) center.push({ text: guillemets([r.keyword]) });
     if (r.name !== undefined) center.push({ text: r.name });
     const ends: NonNullable<DiagramEdgeSpec['ends']> = [];
-    for (const [end, data] of [['source', r.fromEnd], ['target', r.toEnd]] as const) {
+    for (const [end, data] of [
+      ['source', r.fromEnd],
+      ['target', r.toEnd],
+    ] as const) {
       if (data?.multiplicity !== undefined) ends.push({ end, text: data.multiplicity, kind: 'multiplicity' });
       if (data?.role !== undefined) ends.push({ end, text: data.role, kind: 'role' });
     }
     const extra = { ...(center.length > 0 ? { center } : {}), ends };
     switch (r.type) {
-      case 'generalization': case 'realization':
+      case 'generalization':
+      case 'realization':
         return { ...base, ...extra, style: r.type === 'realization' ? 'dashed' : 'solid', sourceMarker: 'none', targetMarker: 'hollow-triangle', tree: true };
       case 'dependency':
         return { ...base, ...extra, style: 'dashed', sourceMarker: 'none', targetMarker: 'open-arrow' };
@@ -66,13 +82,21 @@ export function classDiagramSpec(model: ClassDiagram): DiagramSpec {
         return { ...base, ...extra, style: 'solid', sourceMarker: 'circle-plus', targetMarker: 'none', priority: 4 };
       default: {
         const whole: Marker = r.type === 'composition' ? 'filled-diamond' : r.type === 'aggregation' ? 'hollow-diamond' : navigability(r.fromEnd?.navigable);
-        return { ...base, ...extra, style: 'solid', sourceMarker: whole, targetMarker: navigability(r.toEnd?.navigable), ...(r.type === 'association' ? {} : { priority: 4 }) };
+        return {
+          ...base,
+          ...extra,
+          style: 'solid',
+          sourceMarker: whole,
+          targetMarker: navigability(r.toEnd?.navigable),
+          ...(r.type === 'association' ? {} : { priority: 4 }),
+        };
       }
     }
   });
   for (const e of model.elements) {
     if (!isNote(e)) continue;
-    for (const target of e.attachedTo ?? []) edges.push({ id: `${e.id}->${target}`, type: 'note-anchor', source: e.id, target, style: 'dashed', sourceMarker: 'none', targetMarker: 'none' });
+    for (const target of e.attachedTo ?? [])
+      edges.push({ id: `${e.id}->${target}`, type: 'note-anchor', source: e.id, target, style: 'dashed', sourceMarker: 'none', targetMarker: 'none' });
   }
   return { kind: 'class', frameKeyword: 'class', title: model.title, nodes: model.elements.map(node), edges, directions: ['DOWN', 'RIGHT'], wrap: true };
 }

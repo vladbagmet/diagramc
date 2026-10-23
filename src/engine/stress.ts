@@ -13,13 +13,25 @@ import type { Point } from './geometry.js';
  * usually after snapping the centers to a grid).
  */
 
-export interface StressNode { id: string; width: number; height: number }
-export interface StressEdge { source: string; target: string; /** Desired length of this edge (px). */ length?: number }
+export interface StressNode {
+  id: string;
+  width: number;
+  height: number;
+}
+export interface StressEdge {
+  source: string;
+  target: string;
+  /** Desired length of this edge (px). */ length?: number;
+}
 
 const ElkConstructor = ((ElkModule as unknown as { default?: unknown }).default ?? ElkModule) as new () => ElkApi;
 let elk: ElkApi | undefined;
 
-export async function stressCenters(nodes: readonly StressNode[], edges: readonly StressEdge[], options: { edgeLength: number; iterations?: number }): Promise<Map<string, Point>> {
+export async function stressCenters(
+  nodes: readonly StressNode[],
+  edges: readonly StressEdge[],
+  options: { edgeLength: number; iterations?: number },
+): Promise<Map<string, Point>> {
   elk ??= new ElkConstructor();
   const graph: ElkNode = {
     id: '::root',
@@ -32,7 +44,9 @@ export async function stressCenters(nodes: readonly StressNode[], edges: readonl
     },
     children: nodes.map(n => ({ id: n.id, width: n.width, height: n.height })),
     edges: edges.map((e, i) => ({
-      id: `::e${i}`, sources: [e.source], targets: [e.target],
+      id: `::e${i}`,
+      sources: [e.source],
+      targets: [e.target],
       ...(e.length !== undefined && e.length > 0 ? { layoutOptions: { 'elk.stress.desiredEdgeLength': String(e.length) } } : {}),
     })),
   };

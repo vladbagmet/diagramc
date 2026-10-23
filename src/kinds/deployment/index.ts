@@ -10,7 +10,8 @@ import { validateDeploymentDiagram } from './validate.js';
 export const deploymentKind: KindDefinition<DeploymentDiagram> = {
   kind: 'deployment',
   title: 'Deployment diagram',
-  summary: 'Nodes, devices and execution environments with deployed artifacts and deployment specifications, communication paths, «deploy» and «manifest» dependencies.',
+  summary:
+    'Nodes, devices and execution environments with deployed artifacts and deployment specifications, communication paths, «deploy» and «manifest» dependencies.',
   frameKeyword: 'dep',
   schema: deploymentSchema,
   validate: validateDeploymentDiagram,

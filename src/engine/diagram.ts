@@ -10,7 +10,18 @@ import { bundleHub, bundlePitch, type BundleMember } from './bundles.js';
 import { chooseLayout, countCrossings, LAYOUT_VARIANTS, layoutScore, routesDetour, routesLength, type LayoutMeasure, type LayoutVariant } from './aspect.js';
 import { placeNotes } from './notes.js';
 import { planSelfLoops, selfLoopLabelSide, selfLoopRoute, type SelfLoopPlan } from './selfloops.js';
-import { baselineOffset, startsData, drawBox, drawFrame, drawNote, measureBox, measureFrameHeading, measureNote, type Compartment, type MeasuredBox } from './shapes.js';
+import {
+  baselineOffset,
+  startsData,
+  drawBox,
+  drawFrame,
+  drawNote,
+  measureBox,
+  measureFrameHeading,
+  measureNote,
+  type Compartment,
+  type MeasuredBox,
+} from './shapes.js';
 import { Canvas, el, num } from './svg.js';
 import { wrapText } from './text.js';
 
@@ -23,10 +34,7 @@ import { wrapText } from './text.js';
  * its own copy of the same steps.
  */
 
-export type NodeShape =
-  | { kind: 'box'; compartments: Compartment[] }
-  | { kind: 'note'; text: string }
-  | { kind: 'package'; header: PackageHeader };
+export type NodeShape = { kind: 'box'; compartments: Compartment[] } | { kind: 'note'; text: string } | { kind: 'package'; header: PackageHeader };
 
 export interface DiagramNodeSpec {
   id: string;
@@ -37,7 +45,11 @@ export interface DiagramNodeSpec {
   children?: DiagramNodeSpec[];
 }
 
-export interface CenterLine { text: string; underline?: boolean; /** Set on the first row of each logical line after wrapping. */ start?: boolean }
+export interface CenterLine {
+  text: string;
+  underline?: boolean;
+  /** Set on the first row of each logical line after wrapping. */ start?: boolean;
+}
 
 export interface DiagramEdgeSpec {
   id: string;
@@ -86,9 +98,27 @@ export interface DiagramSpec {
   wrap?: boolean;
 }
 
-interface SceneNode { spec: DiagramNodeSpec; parent?: string | undefined; bounds: Rect; box?: MeasuredBox; rows?: string[]; pkg?: MeasuredPackage }
-interface SceneEdge { spec: DiagramEdgeSpec; points: Point[]; drawTargetMarker: boolean }
-interface SceneLabel { owner: string; rect: Rect; lines: CenterLine[]; widths: number[]; end?: 'source' | 'target'; anchor?: Point }
+interface SceneNode {
+  spec: DiagramNodeSpec;
+  parent?: string | undefined;
+  bounds: Rect;
+  box?: MeasuredBox;
+  rows?: string[];
+  pkg?: MeasuredPackage;
+}
+interface SceneEdge {
+  spec: DiagramEdgeSpec;
+  points: Point[];
+  drawTargetMarker: boolean;
+}
+interface SceneLabel {
+  owner: string;
+  rect: Rect;
+  lines: CenterLine[];
+  widths: number[];
+  end?: 'source' | 'target';
+  anchor?: Point;
+}
 
 export interface DiagramScene {
   kind: string;
@@ -112,21 +142,32 @@ const CONTAINER_PORT_SPACING = 2 * theme.size.triangle.halfWidth + 12;
 
 export function markerExtent(marker: Marker): { length: number; half: number } {
   switch (marker) {
-    case 'hollow-triangle': case 'filled-triangle': return { length: theme.size.triangle.length, half: theme.size.triangle.halfWidth };
-    case 'hollow-diamond': case 'filled-diamond': return { length: theme.size.diamond.length, half: theme.size.diamond.halfWidth };
-    case 'open-arrow': return { length: theme.size.arrow.length, half: theme.size.arrow.halfWidth };
-    case 'cross': return { length: theme.size.cross.offset + theme.size.cross.half, half: theme.size.cross.half };
-    case 'circle-plus': return { length: 2 * theme.size.circlePlus.radius, half: theme.size.circlePlus.radius };
-    default: return { length: 0, half: 0 };
+    case 'hollow-triangle':
+    case 'filled-triangle':
+      return { length: theme.size.triangle.length, half: theme.size.triangle.halfWidth };
+    case 'hollow-diamond':
+    case 'filled-diamond':
+      return { length: theme.size.diamond.length, half: theme.size.diamond.halfWidth };
+    case 'open-arrow':
+      return { length: theme.size.arrow.length, half: theme.size.arrow.halfWidth };
+    case 'cross':
+      return { length: theme.size.cross.offset + theme.size.cross.half, half: theme.size.cross.half };
+    case 'circle-plus':
+      return { length: 2 * theme.size.circlePlus.radius, half: theme.size.circlePlus.radius };
+    default:
+      return { length: 0, half: 0 };
   }
 }
 
 function markerRect(tip: Point, from: Point, marker: Marker): Rect | undefined {
   const { length, half } = markerExtent(marker);
   if (!length) return undefined;
-  const u = direction(from, tip), n = { x: -u.y, y: u.x };
+  const u = direction(from, tip),
+    n = { x: -u.y, y: u.x };
   const base = { x: tip.x - u.x * length, y: tip.y - u.y * length };
-  return union([tip, { x: base.x + n.x * half, y: base.y + n.y * half }, { x: base.x - n.x * half, y: base.y - n.y * half }].map(p => ({ ...p, width: 0, height: 0 })));
+  return union(
+    [tip, { x: base.x + n.x * half, y: base.y + n.y * half }, { x: base.x - n.x * half, y: base.y - n.y * half }].map(p => ({ ...p, width: 0, height: 0 })),
+  );
 }
 
 const JOG = 12;
@@ -190,7 +231,12 @@ function fitToTab(route: Point[], tab: Rect | undefined, node: Rect): Point[] {
   return out;
 }
 
-interface Attempt { result: LayoutResult; dir: Direction; variant: LayoutVariant; flipped: ReadonlySet<string> }
+interface Attempt {
+  result: LayoutResult;
+  dir: Direction;
+  variant: LayoutVariant;
+  flipped: ReadonlySet<string>;
+}
 
 interface EdgePlan {
   spec: DiagramEdgeSpec;
@@ -203,10 +249,14 @@ interface EdgePlan {
 /** Side of a node where edges leave (`out`) or arrive (`in`) for a layout direction. */
 function sides(dir: Direction): { out: Side; in: Side } {
   switch (dir) {
-    case 'RIGHT': return { out: 'EAST', in: 'WEST' };
-    case 'LEFT': return { out: 'WEST', in: 'EAST' };
-    case 'UP': return { out: 'NORTH', in: 'SOUTH' };
-    default: return { out: 'SOUTH', in: 'NORTH' };
+    case 'RIGHT':
+      return { out: 'EAST', in: 'WEST' };
+    case 'LEFT':
+      return { out: 'WEST', in: 'EAST' };
+    case 'UP':
+      return { out: 'NORTH', in: 'SOUTH' };
+    default:
+      return { out: 'SOUTH', in: 'NORTH' };
   }
 }
 
@@ -223,7 +273,9 @@ export async function layoutDiagram(spec: DiagramSpec, metrics: FontMetrics): Pr
   for (const n of spec.nodes) visit(n);
 
   // Measure.
-  const boxes = new Map<string, MeasuredBox>(), noteRows = new Map<string, string[]>(), packages = new Map<string, MeasuredPackage>();
+  const boxes = new Map<string, MeasuredBox>(),
+    noteRows = new Map<string, string[]>(),
+    packages = new Map<string, MeasuredPackage>();
   const sizes = new Map<string, { width: number; height: number }>();
   for (const [id, { spec: node }] of all) {
     if (node.shape.kind === 'box') {
@@ -246,7 +298,8 @@ export async function layoutDiagram(spec: DiagramSpec, metrics: FontMetrics): Pr
     const p: EdgePlan = { spec: e, ends: [], elkSource: e.tree ? `${e.target}::tree::${e.type}` : e.source };
     if (e.center?.length) {
       const lines: CenterLine[] = [];
-      for (const line of e.center) for (const [k, row] of wrapText(metrics, line.text, LABEL, CENTER_LABEL_WIDTH).entries()) lines.push({ ...line, text: row, start: k === 0 });
+      for (const line of e.center)
+        for (const [k, row] of wrapText(metrics, line.text, LABEL, CENTER_LABEL_WIDTH).entries()) lines.push({ ...line, text: row, start: k === 0 });
       p.center = { lines, widths: lines.map(l => Math.ceil(metrics.measure(l.text.trimEnd(), LABEL))) };
     }
     for (const end of e.ends ?? []) p.ends.push({ ...end, width: width(end.text) });
@@ -256,15 +309,27 @@ export async function layoutDiagram(spec: DiagramSpec, metrics: FontMetrics): Pr
   // Parallel relationships between one pair of nodes with center labels (no end
   // labels, not tree edges) run as a bundle through an invisible hub node in the
   // innermost container of both ends (src/engine/bundles.ts).
-  const chain = (id: string): string[] => { const out: string[] = []; for (let p = all.get(id)?.parent; p; p = all.get(p)?.parent) out.push(p); return out; };
-  interface Bundle { id: string; source: string; target: string; parent: string | undefined; members: EdgePlan[]; info: BundleMember[] }
+  const chain = (id: string): string[] => {
+    const out: string[] = [];
+    for (let p = all.get(id)?.parent; p; p = all.get(p)?.parent) out.push(p);
+    return out;
+  };
+  interface Bundle {
+    id: string;
+    source: string;
+    target: string;
+    parent: string | undefined;
+    members: EdgePlan[];
+    info: BundleMember[];
+  }
   const bundles: Bundle[] = [];
   const bundleOf = new Map<string, { bundle: Bundle; index: number; forward: boolean }>();
   {
     const groups = new Map<string, EdgePlan[]>();
     for (const p of plans) {
       const e = p.spec;
-      if (e.source === e.target || e.tree || e.reversed || p.ends.length > 0 || chain(e.source).includes(e.target) || chain(e.target).includes(e.source)) continue;
+      if (e.source === e.target || e.tree || e.reversed || p.ends.length > 0 || chain(e.source).includes(e.target) || chain(e.target).includes(e.source))
+        continue;
       const key = [e.source, e.target].sort().join('\u0000');
       groups.set(key, [...(groups.get(key) ?? []), p]);
     }
@@ -273,8 +338,16 @@ export async function layoutDiagram(spec: DiagramSpec, metrics: FontMetrics): Pr
       const { source, target } = members[0]!.spec;
       const targetChain = new Set(chain(target));
       const bundle: Bundle = {
-        id: `${members[0]!.spec.id}::bundle`, source, target, parent: chain(source).find(id => targetChain.has(id)), members,
-        info: members.map(p => ({ id: p.spec.id, markers: [p.spec.sourceMarker, p.spec.targetMarker], label: p.center ? { width: Math.max(...p.center.widths), height: p.center.lines.length * lineHeight } : undefined })),
+        id: `${members[0]!.spec.id}::bundle`,
+        source,
+        target,
+        parent: chain(source).find(id => targetChain.has(id)),
+        members,
+        info: members.map(p => ({
+          id: p.spec.id,
+          markers: [p.spec.sourceMarker, p.spec.targetMarker],
+          label: p.center ? { width: Math.max(...p.center.widths), height: p.center.lines.length * lineHeight } : undefined,
+        })),
       };
       bundles.push(bundle);
       for (const [index, p] of members.entries()) bundleOf.set(p.spec.id, { bundle, index, forward: p.spec.source === source });
@@ -289,14 +362,20 @@ export async function layoutDiagram(spec: DiagramSpec, metrics: FontMetrics): Pr
   const loopOrder = new Map<string, number>();
   for (const loops of loopsByNode.values()) for (const [i, l] of loops.entries()) loopOrder.set(l.spec.id, i);
   for (const [node, loops] of loopsByNode) {
-    loopPlans.set(node, planSelfLoops(loops.map(l => ({
-      endLabelWidth: Math.max(0, ...l.ends.map(e => e.width)),
-      sourceLabelWidth: Math.max(0, ...l.ends.filter(e => e.end === 'source').map(e => e.width)),
-      targetLabelWidth: Math.max(0, ...l.ends.filter(e => e.end === 'target').map(e => e.width)),
-      endLabelRows: Math.max(l.ends.filter(e => e.end === 'source').length, l.ends.filter(e => e.end === 'target').length),
-      labelHeight: lineHeight,
-      centerLabel: l.center ? { width: Math.max(...l.center.widths), height: l.center.lines.length * lineHeight } : undefined,
-    })), { leftCorners: true }));
+    loopPlans.set(
+      node,
+      planSelfLoops(
+        loops.map(l => ({
+          endLabelWidth: Math.max(0, ...l.ends.map(e => e.width)),
+          sourceLabelWidth: Math.max(0, ...l.ends.filter(e => e.end === 'source').map(e => e.width)),
+          targetLabelWidth: Math.max(0, ...l.ends.filter(e => e.end === 'target').map(e => e.width)),
+          endLabelRows: Math.max(l.ends.filter(e => e.end === 'source').length, l.ends.filter(e => e.end === 'target').length),
+          labelHeight: lineHeight,
+          centerLabel: l.center ? { width: Math.max(...l.center.widths), height: l.center.lines.length * lineHeight } : undefined,
+        })),
+        { leftCorners: true },
+      ),
+    );
   }
 
   /**
@@ -315,7 +394,11 @@ export async function layoutDiagram(spec: DiagramSpec, metrics: FontMetrics): Pr
     const addPort = (node: string, port: LayoutPort) => ports.set(node, [...(ports.get(node) ?? []), port]);
     const endPort = new Map<string, string>();
     const treePorts = new Set<string>();
-    const labelledNodes = new Set(plans.filter(p => p.spec.source !== p.spec.target && !p.spec.tree && !bundleOf.has(p.spec.id)).flatMap(p => p.ends.map(l => l.end === 'source' ? p.spec.source : p.spec.target)));
+    const labelledNodes = new Set(
+      plans
+        .filter(p => p.spec.source !== p.spec.target && !p.spec.tree && !bundleOf.has(p.spec.id))
+        .flatMap(p => p.ends.map(l => (l.end === 'source' ? p.spec.source : p.spec.target))),
+    );
     for (const p of plans) {
       const e = p.spec;
       if (e.source === e.target) continue;
@@ -328,7 +411,11 @@ export async function layoutDiagram(spec: DiagramSpec, metrics: FontMetrics): Pr
           const marker = (end === 'source') === member.forward ? e.sourceMarker : e.targetMarker;
           const id = `${e.id}::port-${end}`;
           // Ports one lane pitch apart, as far as the lanes inside the hub, so the lines run straight through it.
-          addPort(node, { id, side: end === 'source' ? side.out : side.in, width: Math.max(2 * markerExtent(marker).half + 2, bundlePitch(member.bundle.info, dir === 'DOWN' || dir === 'UP') - BUNDLE_PORT_GAP) });
+          addPort(node, {
+            id,
+            side: end === 'source' ? side.out : side.in,
+            width: Math.max(2 * markerExtent(marker).half + 2, bundlePitch(member.bundle.info, dir === 'DOWN' || dir === 'UP') - BUNDLE_PORT_GAP),
+          });
           endPort.set(`${e.id}\u0000${end}`, id);
         }
         continue;
@@ -364,13 +451,23 @@ export async function layoutDiagram(spec: DiagramSpec, metrics: FontMetrics): Pr
     const extraRight = new Map<string, number>();
     // Hubs: lines enter on the side facing the bundle's source (top or left; mirrored for UP and LEFT).
     const flip = dir === 'UP' || dir === 'LEFT';
-    const hubs = (parent: string | undefined): LayoutNode[] => bundles.filter(b => b.parent === parent).map(b => {
-      const hub = bundleHub(b.info, dir === 'DOWN' || dir === 'UP');
-      const mirror = (q: Point): Point => flip ? (dir === 'UP' ? { x: q.x, y: hub.height - q.y } : { x: hub.width - q.x, y: q.y }) : q;
-      return { id: b.id, width: hub.width, height: hub.height, fixedSize: true, ports: b.members.flatMap((p, i) => [
-        { id: `${b.id}::in${i}`, side: side.in, position: mirror(hub.enter[i]!) }, { id: `${b.id}::out${i}`, side: side.out, position: mirror(hub.exit[i]!) },
-      ]) };
-    });
+    const hubs = (parent: string | undefined): LayoutNode[] =>
+      bundles
+        .filter(b => b.parent === parent)
+        .map(b => {
+          const hub = bundleHub(b.info, dir === 'DOWN' || dir === 'UP');
+          const mirror = (q: Point): Point => (flip ? (dir === 'UP' ? { x: q.x, y: hub.height - q.y } : { x: hub.width - q.x, y: q.y }) : q);
+          return {
+            id: b.id,
+            width: hub.width,
+            height: hub.height,
+            fixedSize: true,
+            ports: b.members.flatMap((p, i) => [
+              { id: `${b.id}::in${i}`, side: side.in, position: mirror(hub.enter[i]!) },
+              { id: `${b.id}::out${i}`, side: side.out, position: mirror(hub.exit[i]!) },
+            ]),
+          };
+        });
     const toLayout = (id: string): LayoutNode => {
       const { spec: node } = all.get(id)!;
       const size = sizes.get(id)!;
@@ -380,42 +477,82 @@ export async function layoutDiagram(spec: DiagramSpec, metrics: FontMetrics): Pr
       // An empty package is laid out as its body; its tab is reserved above it.
       const leafPackage = pkg && !node.children?.length ? pkg : undefined;
       return {
-        id, width: size.width, height: Math.max(size.height - (leafPackage?.tab.height ?? 0), loops?.minHeight ?? 0),
+        id,
+        width: size.width,
+        height: Math.max(size.height - (leafPackage?.tab.height ?? 0), loops?.minHeight ?? 0),
         ...(leafPackage ? { reserveTop: leafPackage.tab } : {}),
-        ...(node.children?.length ? {
-          children: [...node.children.map(c => toLayout(c.id)), ...hubs(id)],
-          padding: { top: pkg!.tab.height + CONTAINER_PAD, left: CONTAINER_PAD, bottom: CONTAINER_PAD, right: CONTAINER_PAD + (extraRight.get(id) ?? 0) },
-          portSpacing: CONTAINER_PORT_SPACING,
-        } : {}),
+        ...(node.children?.length
+          ? {
+              children: [...node.children.map(c => toLayout(c.id)), ...hubs(id)],
+              padding: { top: pkg!.tab.height + CONTAINER_PAD, left: CONTAINER_PAD, bottom: CONTAINER_PAD, right: CONTAINER_PAD + (extraRight.get(id) ?? 0) },
+              portSpacing: CONTAINER_PORT_SPACING,
+            }
+          : {}),
         ...(nodePorts?.length ? { ports: nodePorts } : {}),
-        ...(loops ? { reserveRight: loops.reserveRight, reserveAbove: loops.reserveAbove, reserveBelow: loops.reserveBelow, reserveLeft: loops.reserveLeft, reserveAboveLeft: loops.reserveAboveLeft, reserveBelowLeft: loops.reserveBelowLeft } : {}),
+        ...(loops
+          ? {
+              reserveRight: loops.reserveRight,
+              reserveAbove: loops.reserveAbove,
+              reserveBelow: loops.reserveBelow,
+              reserveLeft: loops.reserveLeft,
+              reserveAboveLeft: loops.reserveAboveLeft,
+              reserveBelowLeft: loops.reserveBelowLeft,
+            }
+          : {}),
       };
     };
-    const edges: LayoutEdge[] = plans.filter(p => p.spec.source !== p.spec.target).flatMap((p): LayoutEdge[] => {
-      const e = p.spec;
-      const member = bundleOf.get(e.id);
-      if (member) {
-        const { bundle, index } = member;
+    const edges: LayoutEdge[] = plans
+      .filter(p => p.spec.source !== p.spec.target)
+      .flatMap((p): LayoutEdge[] => {
+        const e = p.spec;
+        const member = bundleOf.get(e.id);
+        if (member) {
+          const { bundle, index } = member;
+          return [
+            {
+              id: `${e.id}::in`,
+              source: endPort.get(`${e.id}\u0000source`) ?? bundle.source,
+              target: `${bundle.id}::in${index}`,
+              directionPriority: 1,
+              straightness: 10,
+            },
+            {
+              id: `${e.id}::out`,
+              source: `${bundle.id}::out${index}`,
+              target: endPort.get(`${e.id}\u0000target`) ?? bundle.target,
+              directionPriority: 1,
+              straightness: 10,
+            },
+          ];
+        }
+        const labels: LayoutLabel[] = [];
+        if (p.center)
+          labels.push({ id: `${e.id}::center`, width: Math.max(...p.center.widths) + 4, height: p.center.lines.length * lineHeight, placement: 'center' });
+        for (const [k, l] of p.ends.entries())
+          labels.push({
+            id: `${e.id}::end${k}`,
+            width: l.width + 4,
+            height: lineHeight,
+            placement: (l.end === 'source') === (!!e.tree || backward(e)) ? 'head' : 'tail',
+          });
+        const sourcePort = endPort.get(`${e.id}\u0000source`) ?? e.source,
+          targetPort = endPort.get(`${e.id}\u0000target`) ?? e.target;
         return [
-          { id: `${e.id}::in`, source: endPort.get(`${e.id}\u0000source`) ?? bundle.source, target: `${bundle.id}::in${index}`, directionPriority: 1, straightness: 10 },
-          { id: `${e.id}::out`, source: `${bundle.id}::out${index}`, target: endPort.get(`${e.id}\u0000target`) ?? bundle.target, directionPriority: 1, straightness: 10 },
+          {
+            id: e.id,
+            source: e.tree ? p.elkSource : backward(e) ? targetPort : sourcePort,
+            target: e.tree ? e.source : backward(e) ? sourcePort : targetPort,
+            labels,
+            directionPriority: e.priority ?? (e.tree || e.reversed ? 10 : 1),
+          },
         ];
-      }
-      const labels: LayoutLabel[] = [];
-      if (p.center) labels.push({ id: `${e.id}::center`, width: Math.max(...p.center.widths) + 4, height: p.center.lines.length * lineHeight, placement: 'center' });
-      for (const [k, l] of p.ends.entries()) labels.push({ id: `${e.id}::end${k}`, width: l.width + 4, height: lineHeight, placement: (l.end === 'source') === (!!e.tree || backward(e)) ? 'head' : 'tail' });
-      const sourcePort = endPort.get(`${e.id}\u0000source`) ?? e.source, targetPort = endPort.get(`${e.id}\u0000target`) ?? e.target;
-      return [{
-        id: e.id,
-        source: e.tree ? p.elkSource : backward(e) ? targetPort : sourcePort,
-        target: e.tree ? e.source : backward(e) ? sourcePort : targetPort,
-        labels,
-        directionPriority: e.priority ?? (e.tree || e.reversed ? 10 : 1),
-      }];
-    });
+      });
     const roots = (): LayoutNode[] => [...spec.nodes.map(n => toLayout(n.id)), ...hubs(undefined)];
     // Network simplex node placement keeps the lines into and out of a bundle's hub straight.
-    const options = { direction: dir, elk: { ...LAYOUT_VARIANTS[variant], ...(bundles.length > 0 ? { 'elk.layered.nodePlacement.strategy': 'NETWORK_SIMPLEX' } : {}) } };
+    const options = {
+      direction: dir,
+      elk: { ...LAYOUT_VARIANTS[variant], ...(bundles.length > 0 ? { 'elk.layered.nodePlacement.strategy': 'NETWORK_SIMPLEX' } : {}) },
+    };
     let result = await layout(roots(), edges, options);
     for (let pass = 0; pass < 3; pass++) {
       let changed = false;
@@ -440,12 +577,14 @@ export async function layoutDiagram(spec: DiagramSpec, metrics: FontMetrics): Pr
    */
   const withFlips = async (first: Attempt): Promise<Attempt> => {
     const dir = first.dir;
-    const along = (r: Rect): [number, number] => dir === 'DOWN' ? [r.y, r.y + r.height] : dir === 'UP' ? [-(r.y + r.height), -r.y] : dir === 'RIGHT' ? [r.x, r.x + r.width] : [-(r.x + r.width), -r.x];
+    const along = (r: Rect): [number, number] =>
+      dir === 'DOWN' ? [r.y, r.y + r.height] : dir === 'UP' ? [-(r.y + r.height), -r.y] : dir === 'RIGHT' ? [r.x, r.x + r.width] : [-(r.x + r.width), -r.x];
     const flips = new Set<string>();
     for (const p of plans) {
       const e = p.spec;
       if (e.source === e.target || e.tree || bundleOf.has(e.id) || (p.ends.length === 0 && e.sourceMarker === 'none' && e.targetMarker === 'none')) continue;
-      const s = first.result.nodes.get(e.source), t = first.result.nodes.get(e.target);
+      const s = first.result.nodes.get(e.source),
+        t = first.result.nodes.get(e.target);
       if (!s || !t) continue;
       // The line runs against its layout order: the far end lies entirely before the near one.
       const against = e.reversed ? along(s)[1] <= along(t)[0] : along(t)[1] <= along(s)[0];
@@ -457,13 +596,17 @@ export async function layoutDiagram(spec: DiagramSpec, metrics: FontMetrics): Pr
     let hierarchy = false;
     for (const t of plans) {
       if (!t.spec.tree) continue;
-      const sub = first.result.nodes.get(t.spec.source), sup = first.result.nodes.get(t.spec.target);
+      const sub = first.result.nodes.get(t.spec.source),
+        sup = first.result.nodes.get(t.spec.target);
       if (!sub || !sup || along(sub)[0] - along(sup)[1] <= FAR_SUBCLASS) continue;
       for (const p of plans) {
         const e = p.spec;
         if (e.target !== t.spec.source || e.source === e.target || e.tree || e.reversed || bundleOf.has(e.id) || e.type === 'note-anchor') continue;
         const s = first.result.nodes.get(e.source);
-        if (s && along(s)[0] > along(sup)[1]) { flips.add(e.id); hierarchy = true; }
+        if (s && along(s)[0] > along(sup)[1]) {
+          flips.add(e.id);
+          hierarchy = true;
+        }
       }
     }
     // Only worth another layout run when some line detours or a subclass sits far from its parent.
@@ -471,7 +614,9 @@ export async function layoutDiagram(spec: DiagramSpec, metrics: FontMetrics): Pr
     try {
       const second = await run(dir, first.variant, flips);
       return layoutScore(measureAttempt(second)) < layoutScore(measureAttempt(first)) ? second : first;
-    } catch { return first; }
+    } catch {
+      return first;
+    }
   };
   function measureAttempt({ result: r }: Attempt): LayoutMeasure {
     const lines = [...r.edges.values()].map(e => e.points);
@@ -481,21 +626,29 @@ export async function layoutDiagram(spec: DiagramSpec, metrics: FontMetrics): Pr
   // Try each direction (and variants); keep the most readable result.
   // The kind's first direction is its convention; others must be clearly better,
   // the more so the more of the diagram is a hierarchy (generalizations, extensions).
-  const hierarchy = spec.edges.filter(e => e.tree === true || e.reversed === true).length / Math.max(1, spec.edges.filter(e => e.type !== 'note-anchor').length);
-  const chosen = await chooseLayout(spec.directions ?? ['DOWN'], (dir, variant) => run(dir, variant, new Set()), measureAttempt, { penalty: i => i ? 0.15 + 0.6 * hierarchy : 0, wrap: !!spec.wrap });
+  const hierarchy =
+    spec.edges.filter(e => e.tree === true || e.reversed === true).length / Math.max(1, spec.edges.filter(e => e.type !== 'note-anchor').length);
+  const chosen = await chooseLayout(spec.directions ?? ['DOWN'], (dir, variant) => run(dir, variant, new Set()), measureAttempt, {
+    penalty: i => (i ? 0.15 + 0.6 * hierarchy : 0),
+    wrap: !!spec.wrap,
+  });
   const best = await withFlips(chosen);
   const result = best.result;
-  const rects = new Map<string, Rect>([...all.keys()].map(id => {
-    const r = result.nodes.get(id)!, pkg = packages.get(id);
-    // Leaf packages were laid out as their body: add the tab back on top.
-    return [id, pkg && !all.get(id)!.spec.children?.length ? { x: r.x, y: r.y - pkg.tab.height, width: r.width, height: r.height + pkg.tab.height } : r];
-  }));
+  const rects = new Map<string, Rect>(
+    [...all.keys()].map(id => {
+      const r = result.nodes.get(id)!,
+        pkg = packages.get(id);
+      // Leaf packages were laid out as their body: add the tab back on top.
+      return [id, pkg && !all.get(id)!.spec.children?.length ? { x: r.x, y: r.y - pkg.tab.height, width: r.width, height: r.height + pkg.tab.height } : r];
+    }),
+  );
   const tabs = new Map<string, Rect>([...packages].map(([id, pkg]) => [id, packageTabRect(pkg, rects.get(id)!)]));
 
   // Routes from the semantic source border to the semantic target border.
   const loopIndex = new Map<string, number>();
   const routes = new Map<string, Point[]>();
-  const bundled = new Set<string>(), bundleLabels = new Map<string, Rect>();
+  const bundled = new Set<string>(),
+    bundleLabels = new Map<string, Rect>();
   for (const p of plans) {
     const e = p.spec;
     if (e.source === e.target) {
@@ -516,7 +669,12 @@ export async function layoutDiagram(spec: DiagramSpec, metrics: FontMetrics): Pr
       });
       const label = bundleHub(bundle.info, best.dir === 'DOWN' || best.dir === 'UP').labels[index];
       if (label) {
-        const l = best.dir === 'UP' ? { ...label, y: r.height - label.y - label.height } : best.dir === 'LEFT' ? { ...label, x: r.width - label.x - label.width } : label;
+        const l =
+          best.dir === 'UP'
+            ? { ...label, y: r.height - label.y - label.height }
+            : best.dir === 'LEFT'
+              ? { ...label, x: r.width - label.x - label.width }
+              : label;
         bundleLabels.set(e.id, { ...l, x: r.x + l.x, y: r.y + l.y });
       }
       // The pieces outside the hub lose small jogs at the nodes (all members slide alike: one pitch).
@@ -524,16 +682,27 @@ export async function layoutDiagram(spec: DiagramSpec, metrics: FontMetrics): Pr
       // Ends of other lines on a node, which a sliding member must keep a pitch away from.
       const others = (node: string): Point[] => {
         const r = rects.get(node)!;
-        return [...result.edges].filter(([id]) => !bundle.members.some(m => id.startsWith(`${m.spec.id}::`)))
-          .flatMap(([, x]) => [x.points[0], x.points.at(-1)]).filter((q): q is Point => q !== undefined && Math.min(Math.abs(q.x - r.x), Math.abs(q.x - r.x - r.width), Math.abs(q.y - r.y), Math.abs(q.y - r.y - r.height)) < 1);
+        return [...result.edges]
+          .filter(([id]) => !bundle.members.some(m => id.startsWith(`${m.spec.id}::`)))
+          .flatMap(([, x]) => [x.points[0], x.points.at(-1)])
+          .filter(
+            (q): q is Point =>
+              q !== undefined && Math.min(Math.abs(q.x - r.x), Math.abs(q.x - r.x - r.width), Math.abs(q.y - r.y), Math.abs(q.y - r.y - r.height)) < 1,
+          );
       };
       const enter = straightenJog(result.edges.get(`${e.id}::in`)!.points, rects.get(bundle.source)!, jog, others(bundle.source), jog / 2);
-      const leave = straightenJog([...result.edges.get(`${e.id}::out`)!.points].reverse(), rects.get(bundle.target)!, jog, others(bundle.target), jog / 2).reverse();
+      const leave = straightenJog(
+        [...result.edges.get(`${e.id}::out`)!.points].reverse(),
+        rects.get(bundle.target)!,
+        jog,
+        others(bundle.target),
+        jog / 2,
+      ).reverse();
       points = simplify([...enter.slice(0, -1), ...inside, ...leave.slice(1)]);
       if (!forward) points = points.reverse();
       bundled.add(e.id);
     }
-    let route = e.tree || (!!e.reversed !== best.flipped.has(e.id)) ? [...points].reverse() : [...points];
+    let route = e.tree || !!e.reversed !== best.flipped.has(e.id) ? [...points].reverse() : [...points];
     // Shared tree ports must stay put; other ends may slide to remove small jogs.
     if (!member) {
       route = straightenJog(route, rects.get(e.source)!);
@@ -548,13 +717,18 @@ export async function layoutDiagram(spec: DiagramSpec, metrics: FontMetrics): Pr
   // Notes far from what they annotate move to a free spot near it (src/engine/notes.ts).
   const parentChain = (id: string): Set<string> => new Set(chain(id));
   const movedNotes = placeNotes(
-    [...all].filter(([, n]) => n.spec.shape.kind === 'note').map(([id, n]) => ({
-      id, rect: rects.get(id)!, parent: n.parent,
-      targets: plans.filter(p => p.spec.source === id && p.spec.target !== id && rects.has(p.spec.target)).map(p => rects.get(p.spec.target)!),
-    })),
+    [...all]
+      .filter(([, n]) => n.spec.shape.kind === 'note')
+      .map(([id, n]) => ({
+        id,
+        rect: rects.get(id)!,
+        parent: n.parent,
+        targets: plans.filter(p => p.spec.source === id && p.spec.target !== id && rects.has(p.spec.target)).map(p => rects.get(p.spec.target)!),
+      })),
     [...all].map(([id, n]) => ({ id, rect: rects.get(id)!, container: !!n.spec.children?.length })),
     plans.map(p => ({ source: p.spec.source, target: p.spec.target, points: routes.get(p.spec.id) ?? [] })),
-    parentChain, union([...rects.values()]),
+    parentChain,
+    union([...rects.values()]),
   );
   for (const [id, r] of movedNotes) rects.set(id, r);
   /** Anchors of moved notes: routed from scratch by repairRoutes. */
@@ -562,15 +736,23 @@ export async function layoutDiagram(spec: DiagramSpec, metrics: FontMetrics): Pr
   for (const p of plans) {
     if (!rerouteAnchors.has(p.spec.id)) continue;
     // Provisional straight line between the two outlines; repairRoutes routes it.
-    const a = rects.get(p.spec.source)!, b = rects.get(p.spec.target)!;
-    const ca = { x: a.x + a.width / 2, y: a.y + a.height / 2 }, cb = { x: b.x + b.width / 2, y: b.y + b.height / 2 };
-    routes.set(p.spec.id, [{ x: Math.min(Math.max(cb.x, a.x), a.x + a.width), y: Math.min(Math.max(cb.y, a.y), a.y + a.height) }, { x: Math.min(Math.max(ca.x, b.x), b.x + b.width), y: Math.min(Math.max(ca.y, b.y), b.y + b.height) }]);
+    const a = rects.get(p.spec.source)!,
+      b = rects.get(p.spec.target)!;
+    const ca = { x: a.x + a.width / 2, y: a.y + a.height / 2 },
+      cb = { x: b.x + b.width / 2, y: b.y + b.height / 2 };
+    routes.set(p.spec.id, [
+      { x: Math.min(Math.max(cb.x, a.x), a.x + a.width), y: Math.min(Math.max(cb.y, a.y), a.y + a.height) },
+      { x: Math.min(Math.max(ca.x, b.x), b.x + b.width), y: Math.min(Math.max(ca.y, b.y), b.y + b.height) },
+    ]);
   }
   // Repair routes that cross texts or nodes, detour, crowd other ends or bend under a marker.
   const repairNodes: RepairNode[] = [...all.keys()].map(id => {
-    const r = rects.get(id)!, tab = tabs.get(id);
+    const r = rects.get(id)!,
+      tab = tabs.get(id);
     return {
-      id, parent: all.get(id)!.parent, container: !!all.get(id)!.spec.children?.length,
+      id,
+      parent: all.get(id)!.parent,
+      container: !!all.get(id)!.spec.children?.length,
       rect: tab ? { x: r.x, y: r.y + tab.height, width: r.width, height: r.height - tab.height } : r,
       texts: tab ? [tab] : [],
       ...(tab && !all.get(id)!.spec.children?.length ? { bounds: r } : {}),
@@ -580,14 +762,21 @@ export async function layoutDiagram(spec: DiagramSpec, metrics: FontMetrics): Pr
   for (const [id] of loopPlans) {
     const loops = plans.filter(p => p.spec.source === id && p.spec.target === id).map(p => routes.get(p.spec.id)!);
     // One obstacle per loop: together they would cover the whole node.
-    for (const [k, loop] of loops.entries()) repairNodes.push({ id: `${id}::self-loop-${k}`, rect: union(loop.map(p => ({ ...p, width: 0, height: 0 }))), parent: all.get(id)!.parent });
+    for (const [k, loop] of loops.entries())
+      repairNodes.push({ id: `${id}::self-loop-${k}`, rect: union(loop.map(p => ({ ...p, width: 0, height: 0 }))), parent: all.get(id)!.parent });
   }
-  const labelObstacles = [...all.keys()].flatMap(id => all.get(id)!.spec.children?.length ? [tabs.get(id)!] : [rects.get(id)!]);
+  const labelObstacles = [...all.keys()].flatMap(id => (all.get(id)!.spec.children?.length ? [tabs.get(id)!] : [rects.get(id)!]));
   const containerBorders: [Point, Point][] = [];
   for (const id of all.keys()) {
     if (!all.get(id)!.spec.children?.length) continue;
-    const r = rects.get(id)!, top = r.y + tabs.get(id)!.height;
-    const c = [{ x: r.x, y: top }, { x: r.x + r.width, y: top }, { x: r.x + r.width, y: r.y + r.height }, { x: r.x, y: r.y + r.height }];
+    const r = rects.get(id)!,
+      top = r.y + tabs.get(id)!.height;
+    const c = [
+      { x: r.x, y: top },
+      { x: r.x + r.width, y: top },
+      { x: r.x + r.width, y: r.y + r.height },
+      { x: r.x, y: r.y + r.height },
+    ];
     for (const [k, q] of c.entries()) containerBorders.push([q, c[(k + 1) % 4]!]);
   }
   const baseRoutes = new Map(routes);
@@ -607,33 +796,48 @@ export async function layoutDiagram(spec: DiagramSpec, metrics: FontMetrics): Pr
    */
   const routeAndLabel = (crowded: ReadonlySet<string>, previous?: ReadonlyMap<string, Point[]>) => {
     const unplaced = new Set<string>();
-    const repaired = repairRoutes(repairNodes, plans.map(p => ({
-      id: p.spec.id, source: p.spec.source, target: p.spec.target, route: baseRoutes.get(p.spec.id)!,
-      sourceMarker: p.spec.sourceMarker, targetMarker: p.spec.targetMarker,
-      group: p.spec.tree ? `${p.spec.type}@${p.spec.target}` : undefined,
-    })), {
-      keep: bundled,
-      endLabels,
-      force: rerouteAnchors,
-      tighten: true,
-      // Center labels need a clean spot beside their own line (no crossing, not as
-      // close to another line); bundled lines without one are spread apart.
-      labelFits: (id, route, current) => {
-        const p = plans.find(q => q.spec.id === id)!;
-        if (!p.center || bundled.has(id)) return true;
-        // The original route of a crowded edge has no room (an earlier pass found none); a new route is judged normally.
-        if (crowded.has(id) && [baseRoutes.get(id), previous?.get(id)].some(r => JSON.stringify(route) === JSON.stringify(r))) return false;
-        const others = [...current].filter(([other]) => other !== id);
-        const segments: [Point, Point][] = [...containerBorders];
-        for (const [, r] of others) for (const [k, q] of r.slice(1).entries()) segments.push([r[k]!, q]);
-        const request: LabelRequest = { id: `${id}::center`, owner: id, width: Math.max(...p.center.widths), height: p.center.lines.length * lineHeight, route, at: 'center' };
-        return labelFits(request, { rects: labelObstacles, segments, lines: others.map(([owner, points]) => ({ owner, points })) });
+    const repaired = repairRoutes(
+      repairNodes,
+      plans.map(p => ({
+        id: p.spec.id,
+        source: p.spec.source,
+        target: p.spec.target,
+        route: baseRoutes.get(p.spec.id)!,
+        sourceMarker: p.spec.sourceMarker,
+        targetMarker: p.spec.targetMarker,
+        group: p.spec.tree ? `${p.spec.type}@${p.spec.target}` : undefined,
+      })),
+      {
+        keep: bundled,
+        endLabels,
+        force: rerouteAnchors,
+        tighten: true,
+        // Center labels need a clean spot beside their own line (no crossing, not as
+        // close to another line); bundled lines without one are spread apart.
+        labelFits: (id, route, current) => {
+          const p = plans.find(q => q.spec.id === id)!;
+          if (!p.center || bundled.has(id)) return true;
+          // The original route of a crowded edge has no room (an earlier pass found none); a new route is judged normally.
+          if (crowded.has(id) && [baseRoutes.get(id), previous?.get(id)].some(r => JSON.stringify(route) === JSON.stringify(r))) return false;
+          const others = [...current].filter(([other]) => other !== id);
+          const segments: [Point, Point][] = [...containerBorders];
+          for (const [, r] of others) for (const [k, q] of r.slice(1).entries()) segments.push([r[k]!, q]);
+          const request: LabelRequest = {
+            id: `${id}::center`,
+            owner: id,
+            width: Math.max(...p.center.widths),
+            height: p.center.lines.length * lineHeight,
+            route,
+            at: 'center',
+          };
+          return labelFits(request, { rects: labelObstacles, segments, lines: others.map(([owner, points]) => ({ owner, points })) });
+        },
+        labelSpacing: id => {
+          const p = plans.find(q => q.spec.id === id)!;
+          return p.center ? Math.max(...p.center.widths) + 16 : undefined;
+        },
       },
-      labelSpacing: id => {
-        const p = plans.find(q => q.spec.id === id)!;
-        return p.center ? Math.max(...p.center.widths) + 16 : undefined;
-      },
-    });
+    );
     const routes = new Map(baseRoutes);
     for (const id of repaired.changed) routes.set(id, repaired.routes.get(id)!);
 
@@ -660,53 +864,108 @@ export async function layoutDiagram(spec: DiagramSpec, metrics: FontMetrics): Pr
     const baseRects: Rect[] = [];
     const segments: [Point, Point][] = [];
     for (const [id, r] of rects) {
-      if (!containers.includes(id)) { baseRects.push(r); continue; }
+      if (!containers.includes(id)) {
+        baseRects.push(r);
+        continue;
+      }
       baseRects.push(tabs.get(id)!);
-      const corners = [{ x: r.x, y: r.y + tabs.get(id)!.height }, { x: r.x + r.width, y: r.y + tabs.get(id)!.height }, { x: r.x + r.width, y: r.y + r.height }, { x: r.x, y: r.y + r.height }];
+      const corners = [
+        { x: r.x, y: r.y + tabs.get(id)!.height },
+        { x: r.x + r.width, y: r.y + tabs.get(id)!.height },
+        { x: r.x + r.width, y: r.y + r.height },
+        { x: r.x, y: r.y + r.height },
+      ];
       for (const [k, c] of corners.entries()) segments.push([c, corners[(k + 1) % 4]!]);
     }
     for (const edge of sceneEdges) {
       for (const [k, p] of edge.points.slice(1).entries()) segments.push([edge.points[k]!, p]);
-      for (const r of [markerRect(edge.points[0]!, edge.points[1]!, edge.spec.sourceMarker), markerRect(edge.points.at(-1)!, edge.points.at(-2)!, edge.spec.targetMarker)]) if (r) baseRects.push(r);
+      for (const r of [
+        markerRect(edge.points[0]!, edge.points[1]!, edge.spec.sourceMarker),
+        markerRect(edge.points.at(-1)!, edge.points.at(-2)!, edge.spec.targetMarker),
+      ])
+        if (r) baseRects.push(r);
     }
     const foreign = new Map<string, Rect[]>();
     for (const p of plans) {
       const inside = new Set([...ancestors(p.spec.source), ...ancestors(p.spec.target)]);
-      foreign.set(p.spec.id, containers.filter(c => !inside.has(c)).map(c => rects.get(c)!));
+      foreign.set(
+        p.spec.id,
+        containers.filter(c => !inside.has(c)).map(c => rects.get(c)!),
+      );
     }
     const requests: { owner: string; request: LabelRequest; lines: CenterLine[]; widths: number[]; end?: 'source' | 'target'; anchor?: Point }[] = [];
     for (const p of plans) {
-      const e = p.spec, route = routes.get(e.id)!;
+      const e = p.spec,
+        route = routes.get(e.id)!;
       for (const [k, l] of p.ends.entries()) {
         const id = `${e.id}::end${k}`;
         const marker = l.end === 'source' ? e.sourceMarker : e.targetMarker;
         const suggested = repaired.changed.has(e.id) ? undefined : result.edges.get(e.id)?.labels.get(id);
         const inside = e.source === e.target ? { onlySide: selfLoopLabelSide(loopPlans.get(e.source)!, loopOrder.get(e.id)!, l.end) } : {};
         requests.push({
-          owner: e.id, lines: [{ text: l.text }], widths: [l.width], end: l.end, anchor: l.end === 'source' ? route[0]! : route.at(-1)!,
-          request: { id, owner: e.id, width: l.width, height: lineHeight, route, at: l.end, side: l.kind === 'multiplicity' ? 1 : -1, clearance: markerExtent(marker).half + 3, ...inside, suggestion: suggested && { x: suggested.x + 2, y: suggested.y, width: l.width, height: lineHeight } },
+          owner: e.id,
+          lines: [{ text: l.text }],
+          widths: [l.width],
+          end: l.end,
+          anchor: l.end === 'source' ? route[0]! : route.at(-1)!,
+          request: {
+            id,
+            owner: e.id,
+            width: l.width,
+            height: lineHeight,
+            route,
+            at: l.end,
+            side: l.kind === 'multiplicity' ? 1 : -1,
+            clearance: markerExtent(marker).half + 3,
+            ...inside,
+            suggestion: suggested && { x: suggested.x + 2, y: suggested.y, width: l.width, height: lineHeight },
+          },
         });
       }
     }
     for (const p of plans) {
       if (!p.center) continue;
-      const e = p.spec, id = `${e.id}::center`;
-      const w = Math.max(...p.center.widths), h = p.center.lines.length * lineHeight;
+      const e = p.spec,
+        id = `${e.id}::center`;
+      const w = Math.max(...p.center.widths),
+        h = p.center.lines.length * lineHeight;
       const suggested = repaired.changed.has(e.id) ? undefined : result.edges.get(e.id)?.labels.get(id);
       const suggestion = bundleLabels.get(e.id) ?? (suggested && { x: suggested.x + 2, y: suggested.y, width: w, height: h });
-      requests.push({ owner: e.id, lines: p.center.lines, widths: p.center.widths, request: { id, owner: e.id, width: w, height: h, route: routes.get(e.id)!, at: 'center', suggestion } });
+      requests.push({
+        owner: e.id,
+        lines: p.center.lines,
+        widths: p.center.widths,
+        request: { id, owner: e.id, width: w, height: h, route: routes.get(e.id)!, at: 'center', suggestion },
+      });
     }
-    const labelledEnds = plans.flatMap(p => [...new Set(p.ends.map(l => l.end))].map(end => end === 'source' ? routes.get(p.spec.id)![0]! : routes.get(p.spec.id)!.at(-1)!));
+    const labelledEnds = plans.flatMap(p =>
+      [...new Set(p.ends.map(l => l.end))].map(end => (end === 'source' ? routes.get(p.spec.id)![0]! : routes.get(p.spec.id)!.at(-1)!)),
+    );
     const lineOwners = plans.map(p => ({ owner: p.spec.id, points: routes.get(p.spec.id)! }));
     const placedRects: Rect[] = [];
     const labels: SceneLabel[] = [];
     for (const r of requests) {
-      const placed = placeLabels([r.request], { rects: [...baseRects, ...placedRects, ...foreign.get(r.owner)!], segments, ends: labelledEnds, lines: lineOwners }).get(r.request.id);
+      const placed = placeLabels([r.request], {
+        rects: [...baseRects, ...placedRects, ...foreign.get(r.owner)!],
+        segments,
+        ends: labelledEnds,
+        lines: lineOwners,
+      }).get(r.request.id);
       if (!placed) continue;
       placedRects.push(placed);
       labels.push({ owner: r.owner, rect: placed, lines: r.lines, widths: r.widths, ...(r.end ? { end: r.end, anchor: r.anchor! } : {}) });
       // A center label that found no clean spot: its line gets spread from the others in a second pass.
-      if (!r.end && labelCost(placed, { rects: [...baseRects, ...placedRects.slice(0, -1), ...foreign.get(r.owner)!], segments, lines: lineOwners }, [], undefined, r.request) >= 1) unplaced.add(r.owner);
+      if (
+        !r.end &&
+        labelCost(
+          placed,
+          { rects: [...baseRects, ...placedRects.slice(0, -1), ...foreign.get(r.owner)!], segments, lines: lineOwners },
+          [],
+          undefined,
+          r.request,
+        ) >= 1
+      )
+        unplaced.add(r.owner);
     }
     return { repaired, routes, sceneEdges, baseRects, labels, unplaced };
   };
@@ -716,13 +975,18 @@ export async function layoutDiagram(spec: DiagramSpec, metrics: FontMetrics): Pr
 
   // Translate so the drawing starts at the canvas margin (inside the frame, if any).
   const content = union([
-    ...rects.values(), ...labels.map(l => l.rect), ...baseRects,
+    ...rects.values(),
+    ...labels.map(l => l.rect),
+    ...baseRects,
     ...sceneEdges.flatMap(e => e.points.map(p => ({ ...p, width: 0, height: 0 }))),
   ]);
-  const margin = theme.spacing.canvas, pad = theme.spacing.frame;
+  const margin = theme.spacing.canvas,
+    pad = theme.spacing.frame;
   const heading = spec.title === undefined ? undefined : measureFrameHeading(metrics, spec.frameKeyword, spec.title);
-  const originX = margin + (heading ? pad : 0), originY = margin + (heading ? heading.height + pad : 0);
-  const dx = originX - content.x, dy = originY - content.y;
+  const originX = margin + (heading ? pad : 0),
+    originY = margin + (heading ? heading.height + pad : 0);
+  const dx = originX - content.x,
+    dy = originY - content.y;
   const move = (r: Rect): Rect => ({ x: r.x + dx, y: r.y + dy, width: r.width, height: r.height });
   const movePoint = (p: Point): Point => ({ x: p.x + dx, y: p.y + dy });
   let w = originX + content.width + (heading ? pad : 0);
@@ -734,11 +998,15 @@ export async function layoutDiagram(spec: DiagramSpec, metrics: FontMetrics): Pr
     w = margin + frameWidth;
   }
   return {
-    kind: spec.kind, frameKeyword: spec.frameKeyword,
-    width: w + margin, height: h + margin,
+    kind: spec.kind,
+    frameKeyword: spec.frameKeyword,
+    width: w + margin,
+    height: h + margin,
     ...(frame ? { frame } : {}),
     nodes: [...all].map(([id, { spec: node, parent }]) => ({
-      spec: node, parent, bounds: move(rects.get(id)!),
+      spec: node,
+      parent,
+      bounds: move(rects.get(id)!),
       ...(boxes.has(id) ? { box: boxes.get(id)! } : {}),
       ...(noteRows.has(id) ? { rows: noteRows.get(id)! } : {}),
       ...(packages.has(id) ? { pkg: packages.get(id)! } : {}),
@@ -754,7 +1022,19 @@ export async function drawDiagram(scene: DiagramScene, metrics: FontMetrics): Pr
   if (scene.frame) canvas.frame.push(drawFrame(canvas, scene.frameKeyword, scene.frame.title, scene.frame.bounds));
   for (const edge of scene.edges) {
     const e = edge.spec;
-    canvas.edges.push(drawEdge({ id: e.id, type: e.type, source: e.source, target: e.target, points: edge.points, style: e.style, sourceMarker: e.sourceMarker, targetMarker: e.targetMarker, drawTargetMarker: edge.drawTargetMarker }));
+    canvas.edges.push(
+      drawEdge({
+        id: e.id,
+        type: e.type,
+        source: e.source,
+        target: e.target,
+        points: edge.points,
+        style: e.style,
+        sourceMarker: e.sourceMarker,
+        targetMarker: e.targetMarker,
+        drawTargetMarker: edge.drawTargetMarker,
+      }),
+    );
   }
   for (const node of scene.nodes) {
     const data = { id: node.spec.id, type: node.spec.type, parent: node.parent };
@@ -768,10 +1048,24 @@ export async function drawDiagram(scene: DiagramScene, metrics: FontMetrics): Pr
     const { x, y, width } = label.rect;
     const xs = label.widths.map(w => x + (width - w) / 2);
     const first = y + baselineOffset(metrics, LABEL.size, lh);
-    canvas.labels.push(canvas.lines(label.lines.map(l => l.text), xs, first, lh, {
-      ...LABEL, fill: theme.color.edgeText, role: 'label', owner: label.owner, halo: true,
-      data: label.end ? { 'data-uml-end': label.end, 'data-uml-anchor': `${num(label.anchor!.x)},${num(label.anchor!.y)}` } : startsData(label.lines.flatMap((l, i) => l.start ? [i] : [])),
-    }));
+    canvas.labels.push(
+      canvas.lines(
+        label.lines.map(l => l.text),
+        xs,
+        first,
+        lh,
+        {
+          ...LABEL,
+          fill: theme.color.edgeText,
+          role: 'label',
+          owner: label.owner,
+          halo: true,
+          data: label.end
+            ? { 'data-uml-end': label.end, 'data-uml-anchor': `${num(label.anchor!.x)},${num(label.anchor!.y)}` }
+            : startsData(label.lines.flatMap((l, i) => (l.start ? [i] : []))),
+        },
+      ),
+    );
     for (const [i, line] of label.lines.entries()) {
       if (!line.underline) continue;
       const uy = first + i * lh + Math.max(1.5, LABEL.size * 0.12);
@@ -789,13 +1083,24 @@ export async function renderDiagram(spec: DiagramSpec, metrics: FontMetrics): Pr
 export const guillemets = (names: readonly string[]): string => `«${names.join(', ')}»`;
 
 /** Name compartment of a name-only classifier box (keyword, stereotypes, name). */
-export function nameCompartment(keywords: readonly string[], stereotypes: readonly string[] | undefined, name: string, options: { italic?: boolean; underline?: boolean } = {}): Compartment {
+export function nameCompartment(
+  keywords: readonly string[],
+  stereotypes: readonly string[] | undefined,
+  name: string,
+  options: { italic?: boolean; underline?: boolean } = {},
+): Compartment {
   const label = { size: theme.font.size.label };
   const muted = theme.color.mutedText;
   const lines: Compartment['lines'] = [];
   if (keywords.length > 0) lines.push({ text: guillemets(keywords), style: label, align: 'center', fill: muted });
   if (stereotypes?.length) lines.push({ text: guillemets(stereotypes), style: label, align: 'center', fill: muted });
-  lines.push({ text: name, style: { size: theme.font.size.name, bold: true, italic: !!options.italic }, align: 'center', wrap: theme.size.maxNameWidth, underline: !!options.underline });
+  lines.push({
+    text: name,
+    style: { size: theme.font.size.name, bold: true, italic: !!options.italic },
+    align: 'center',
+    wrap: theme.size.maxNameWidth,
+    underline: !!options.underline,
+  });
   return { header: true, lines };
 }
 
@@ -803,9 +1108,13 @@ export function nameCompartment(keywords: readonly string[], stereotypes: readon
  * Builds the node tree from `members` (validated: one owner, acyclic). Roots
  * keep document order; children keep `members` order.
  */
-export function nestElements<E extends { id: string }>(elements: readonly E[], members: (e: E) => readonly string[] | undefined, toNode: (e: E) => Omit<DiagramNodeSpec, 'children'>): DiagramNodeSpec[] {
+export function nestElements<E extends { id: string }>(
+  elements: readonly E[],
+  members: (e: E) => readonly string[] | undefined,
+  toNode: (e: E) => Omit<DiagramNodeSpec, 'children'>,
+): DiagramNodeSpec[] {
   const byId = new Map(elements.map(e => [e.id, e]));
-  const nested = new Set(elements.flatMap(e => [...members(e) ?? []]));
+  const nested = new Set(elements.flatMap(e => [...(members(e) ?? [])]));
   const build = (e: E): DiagramNodeSpec => {
     const children = (members(e) ?? []).map(id => build(byId.get(id)!));
     return { ...toNode(e), ...(children.length > 0 ? { children } : {}) };

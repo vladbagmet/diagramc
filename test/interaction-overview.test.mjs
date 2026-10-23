@@ -16,11 +16,15 @@ test('interaction overview: negative fixtures fail with the exact code and JSON 
   const cases = await fixtures('invalid.json');
   assert.ok(cases.length >= 25);
   for (const c of cases) {
-    assert.throws(() => parseDocument(JSON.stringify(c.doc)), error => {
-      assert.equal(error.code, c.expect.code, `${c.name}: ${error.message}`);
-      assert.equal(error.path, c.expect.path, `${c.name}: ${error.message}`);
-      return true;
-    }, c.name);
+    assert.throws(
+      () => parseDocument(JSON.stringify(c.doc)),
+      error => {
+        assert.equal(error.code, c.expect.code, `${c.name}: ${error.message}`);
+        assert.equal(error.path, c.expect.path, `${c.name}: ${error.message}`);
+        return true;
+      },
+      c.name,
+    );
   }
 });
 
@@ -47,28 +51,37 @@ test('interaction overview: rendering is byte-identical across runs', async () =
 });
 
 test('interaction overview: branches of a decision part right below it and each guard sits at its own line', async () => {
-  for (const [name, text] of [['stress', await example('stress.json')], ['notation', await example('notation.json')], ['i2-awkward', await readFile(join(root, 'test/fixtures/regression/interaction-overview-i2-awkward.json'), 'utf8')]]) {
+  for (const [name, text] of [
+    ['stress', await example('stress.json')],
+    ['notation', await example('notation.json')],
+    ['i2-awkward', await readFile(join(root, 'test/fixtures/regression/interaction-overview-i2-awkward.json'), 'utf8')],
+  ]) {
     const scene = await inspectSvg(await render(text));
     const decisions = new Set(scene.nodes.filter(n => n.type === 'decision').map(n => n.id));
     const segments = e => e.points.slice(1).map((q, k) => [e.points[k], q]);
     const overlap = ([a, b], [c, d]) => {
-      if (Math.abs(a.x - b.x) < 0.5 && Math.abs(c.x - d.x) < 0.5 && Math.abs(a.x - c.x) < 0.5) return Math.min(Math.max(a.y, b.y), Math.max(c.y, d.y)) - Math.max(Math.min(a.y, b.y), Math.min(c.y, d.y));
-      if (Math.abs(a.y - b.y) < 0.5 && Math.abs(c.y - d.y) < 0.5 && Math.abs(a.y - c.y) < 0.5) return Math.min(Math.max(a.x, b.x), Math.max(c.x, d.x)) - Math.max(Math.min(a.x, b.x), Math.min(c.x, d.x));
+      if (Math.abs(a.x - b.x) < 0.5 && Math.abs(c.x - d.x) < 0.5 && Math.abs(a.x - c.x) < 0.5)
+        return Math.min(Math.max(a.y, b.y), Math.max(c.y, d.y)) - Math.max(Math.min(a.y, b.y), Math.min(c.y, d.y));
+      if (Math.abs(a.y - b.y) < 0.5 && Math.abs(c.y - d.y) < 0.5 && Math.abs(a.y - c.y) < 0.5)
+        return Math.min(Math.max(a.x, b.x), Math.max(c.x, d.x)) - Math.max(Math.min(a.x, b.x), Math.min(c.x, d.x));
       return 0;
     };
     const branches = scene.edges.filter(e => decisions.has(e.source));
     // Branches of one decision share at most the short trunk at its vertex and the
     // line they part along, 14 px off the diamond.
-    const onSplit = ([a, b], r) => (Math.abs(a.y - b.y) < 0.5 && (Math.abs(a.y - r.y - r.height - 14) < 0.5 || Math.abs(r.y - a.y - 14) < 0.5))
-      || (Math.abs(a.x - b.x) < 0.5 && (Math.abs(a.x - r.x - r.width - 14) < 0.5 || Math.abs(r.x - a.x - 14) < 0.5));
-    for (const [i, e] of branches.entries()) for (const f of branches.slice(i + 1)) {
-      if (e.source !== f.source) continue;
-      const r = scene.nodes.find(n => n.id === e.source).bounds;
-      for (const s of segments(e)) for (const t of segments(f)) {
-        if (onSplit(s, r)) continue;
-        assert.ok(overlap(s, t) <= 15, `${name}: ${e.id} and ${f.id} share ${overlap(s, t).toFixed(0)} px`);
+    const onSplit = ([a, b], r) =>
+      (Math.abs(a.y - b.y) < 0.5 && (Math.abs(a.y - r.y - r.height - 14) < 0.5 || Math.abs(r.y - a.y - 14) < 0.5)) ||
+      (Math.abs(a.x - b.x) < 0.5 && (Math.abs(a.x - r.x - r.width - 14) < 0.5 || Math.abs(r.x - a.x - 14) < 0.5));
+    for (const [i, e] of branches.entries())
+      for (const f of branches.slice(i + 1)) {
+        if (e.source !== f.source) continue;
+        const r = scene.nodes.find(n => n.id === e.source).bounds;
+        for (const s of segments(e))
+          for (const t of segments(f)) {
+            if (onSplit(s, r)) continue;
+            assert.ok(overlap(s, t) <= 15, `${name}: ${e.id} and ${f.id} share ${overlap(s, t).toFixed(0)} px`);
+          }
       }
-    }
     for (const label of scene.texts.filter(t => t.role === 'label' && t.content.startsWith('['))) {
       const edge = scene.edges.find(e => e.id === label.owner);
       const [a, b] = edge.points;
@@ -95,20 +108,31 @@ test('interaction overview: a loop-back leaves its interaction from the east sid
 
 test('interaction overview: flows never share a run (also branches of one decision vertex) nor the way into a final node; loops return without crossing (F-B-15, F-B-16)', async () => {
   const segments = e => e.points.slice(1).map((q, k) => [e.points[k], q]);
-  const horizontalOverlap = ([a, b], [c, d]) => Math.abs(a.y - b.y) < 0.5 && Math.abs(c.y - d.y) < 0.5 && Math.abs(a.y - c.y) < 0.5
-    ? Math.min(Math.max(a.x, b.x), Math.max(c.x, d.x)) - Math.max(Math.min(a.x, b.x), Math.min(c.x, d.x)) : 0;
-  const verticalOverlap = ([a, b], [c, d]) => Math.abs(a.x - b.x) < 0.5 && Math.abs(c.x - d.x) < 0.5 && Math.abs(a.x - c.x) < 0.5
-    ? Math.min(Math.max(a.y, b.y), Math.max(c.y, d.y)) - Math.max(Math.min(a.y, b.y), Math.min(c.y, d.y)) : 0;
-  const docs = [['withdraw-cash', await example('withdraw-cash.json')], ['notation', await example('notation.json')], ['stress', await example('stress.json')],
-    ['i2-awkward', await readFile(join(root, 'test/fixtures/regression/interaction-overview-i2-awkward.json'), 'utf8')]];
+  const horizontalOverlap = ([a, b], [c, d]) =>
+    Math.abs(a.y - b.y) < 0.5 && Math.abs(c.y - d.y) < 0.5 && Math.abs(a.y - c.y) < 0.5
+      ? Math.min(Math.max(a.x, b.x), Math.max(c.x, d.x)) - Math.max(Math.min(a.x, b.x), Math.min(c.x, d.x))
+      : 0;
+  const verticalOverlap = ([a, b], [c, d]) =>
+    Math.abs(a.x - b.x) < 0.5 && Math.abs(c.x - d.x) < 0.5 && Math.abs(a.x - c.x) < 0.5
+      ? Math.min(Math.max(a.y, b.y), Math.max(c.y, d.y)) - Math.max(Math.min(a.y, b.y), Math.min(c.y, d.y))
+      : 0;
+  const docs = [
+    ['withdraw-cash', await example('withdraw-cash.json')],
+    ['notation', await example('notation.json')],
+    ['stress', await example('stress.json')],
+    ['i2-awkward', await readFile(join(root, 'test/fixtures/regression/interaction-overview-i2-awkward.json'), 'utf8')],
+  ];
   for (const [name, text] of docs) {
     const scene = await inspectSvg(await render(text));
-    for (const [i, e] of scene.edges.entries()) for (const f of scene.edges.slice(i + 1)) {
-      for (const s of segments(e)) for (const t of segments(f)) {
-        assert.ok(horizontalOverlap(s, t) <= 10 && verticalOverlap(s, t) <= 10, `${name}: ${e.id} and ${f.id} share a run`);
-        if (e.target === f.target && scene.nodes.find(n => n.id === e.target)?.type?.includes('final')) assert.ok(verticalOverlap(s, t) <= 1, `${name}: ${e.id} and ${f.id} share their way into ${e.target}`);
+    for (const [i, e] of scene.edges.entries())
+      for (const f of scene.edges.slice(i + 1)) {
+        for (const s of segments(e))
+          for (const t of segments(f)) {
+            assert.ok(horizontalOverlap(s, t) <= 10 && verticalOverlap(s, t) <= 10, `${name}: ${e.id} and ${f.id} share a run`);
+            if (e.target === f.target && scene.nodes.find(n => n.id === e.target)?.type?.includes('final'))
+              assert.ok(verticalOverlap(s, t) <= 1, `${name}: ${e.id} and ${f.id} share their way into ${e.target}`);
+          }
       }
-    }
   }
   const stress = await inspectSvg(await render(await example('stress.json')));
   const { countCrossings } = await import('../dist/engine/aspect.js');
@@ -123,9 +147,15 @@ test('interaction overview: inline message labels cover the lifelines they cross
   // A filled background box under the label (the lifelines are drawn before it).
   const box = label.lines[0];
   const rects = [...svg.matchAll(/<rect x="([\d.]+)" y="([\d.]+)" width="([\d.]+)" height="([\d.]+)" fill="[^"]+"\/>/g)].map(m => m.slice(1).map(Number));
-  assert.ok(rects.some(([x, y, w, h]) => x <= box.x && x + w >= box.x + box.width && y <= box.y + box.height / 2 && y + h >= box.y + box.height / 2), 'label background');
+  assert.ok(
+    rects.some(([x, y, w, h]) => x <= box.x && x + w >= box.x + box.width && y <= box.y + box.height / 2 && y + h >= box.y + box.height / 2),
+    'label background',
+  );
   const cash = await inspectSvg(await render(await example('withdraw-cash.json')));
-  assert.ok(cash.texts.some(t => t.content === ':Customer' && t.role === 'text'), 'head written :Customer, as in "lifelines :Customer, ..."');
+  assert.ok(
+    cash.texts.some(t => t.content === ':Customer' && t.role === 'text'),
+    'head written :Customer, as in "lifelines :Customer, ..."',
+  );
 });
 
 test('interaction overview: UML notation of control nodes, frames and flows', async () => {
@@ -142,8 +172,14 @@ test('interaction overview: UML notation of control nodes, frames and flows', as
   assert.ok(node('fan').bounds.width > 5 * node('fan').bounds.height);
   assert.match(group('fan'), /<rect [^>]*fill="#334155"/);
   // Interaction use: frame with the ref keyword and the name; inline interaction: sd frame.
-  for (const [id, keyword] of [['fetch', 'ref'], ['poll', 'sd ']]) {
-    assert.ok(scene.texts.some(t => t.node === id && t.content === keyword && t.bold), `${id} has ${keyword}`);
+  for (const [id, keyword] of [
+    ['fetch', 'ref'],
+    ['poll', 'sd '],
+  ]) {
+    assert.ok(
+      scene.texts.some(t => t.node === id && t.content === keyword && t.bold),
+      `${id} has ${keyword}`,
+    );
   }
   assert.ok(scene.texts.some(t => t.node === 'wait' && t.content === 'Wait(5 s)'));
   // Control flows: solid lines, open arrowhead at the target.
@@ -157,12 +193,19 @@ test('interaction overview: UML notation of control nodes, frames and flows', as
   }
   // Flows meet diamonds at their vertices and circles at their top/bottom.
   for (const e of flows) {
-    for (const [id, p] of [[e.source, e.points[0]], [e.target, e.points.at(-1)]]) {
+    for (const [id, p] of [
+      [e.source, e.points[0]],
+      [e.target, e.points.at(-1)],
+    ]) {
       const n = node(id);
       if (!['decision', 'merge', 'initial', 'final', 'flow-final'].includes(n.type)) continue;
       const c = center(n.bounds);
-      const vertex = [[c.x, n.bounds.y], [c.x, n.bounds.y + n.bounds.height], [n.bounds.x, c.y], [n.bounds.x + n.bounds.width, c.y]]
-        .some(([x, y]) => Math.abs(p.x - x) < 0.5 && Math.abs(p.y - y) < 0.5);
+      const vertex = [
+        [c.x, n.bounds.y],
+        [c.x, n.bounds.y + n.bounds.height],
+        [n.bounds.x, c.y],
+        [n.bounds.x + n.bounds.width, c.y],
+      ].some(([x, y]) => Math.abs(p.x - x) < 0.5 && Math.abs(p.y - y) < 0.5);
       assert.ok(vertex, `${e.id} meets ${id} at a vertex`);
     }
   }
@@ -182,11 +225,16 @@ test('interaction overview: inline sd fragments draw lifelines and messages in o
   assert.equal(heads.length, 3);
   assert.equal(lines.length, 3);
   for (const n of [...heads, ...lines]) assert.ok(n.bounds.x >= select.bounds.x && n.bounds.x + n.bounds.width <= select.bounds.x + select.bounds.width);
-  const messages = scene.edges.filter(e => e.type === 'message' && e.source.endsWith('::line') && ['customer1', 'atm1', 'bank1'].some(id => e.source.startsWith(id)));
+  const messages = scene.edges.filter(
+    e => e.type === 'message' && e.source.endsWith('::line') && ['customer1', 'atm1', 'bank1'].some(id => e.source.startsWith(id)),
+  );
   assert.equal(messages.length, 4);
   // In list order, top to bottom, horizontal, from sender to receiver line.
   const ys = messages.map(e => e.points[0].y);
-  assert.deepEqual([...ys].sort((a, b) => a - b), ys);
+  assert.deepEqual(
+    [...ys].sort((a, b) => a - b),
+    ys,
+  );
   for (const e of messages) assert.equal(e.points[0].y, e.points.at(-1).y);
   const sorts = messages.map(e => e.targetMarker);
   assert.deepEqual(sorts, ['open-arrow', 'open-arrow', 'filled-triangle', 'open-arrow']);
@@ -201,15 +249,29 @@ test('interaction overview: inline sd fragments draw lifelines and messages in o
 test('interaction overview: hostile and markup-like text stays literal and cannot create active SVG', async () => {
   const hostile = String.raw`" } <b>bold</b> [[https://evil.invalid]] **x** \n @enduml`;
   const doc = {
-    kind: 'interaction-overview', title: '<script>x</script>', lifelines: ['<svg onload="alert(1)">'],
+    kind: 'interaction-overview',
+    title: '<script>x</script>',
+    lifelines: ['<svg onload="alert(1)">'],
     nodes: [
       { id: 's', type: 'initial' },
       { id: 'd', type: 'decision' },
       { id: 'r', type: 'interaction-use', name: hostile, arguments: ['<a href="x">'] },
-      { id: 'i', type: 'interaction', name: '<foreignObject>', lifelines: [{ id: 'l', name: '  spaced  ', type: '&amp;' }], messages: [{ from: 'l', to: 'l', name: 'url(https://evil.invalid)' }] },
+      {
+        id: 'i',
+        type: 'interaction',
+        name: '<foreignObject>',
+        lifelines: [{ id: 'l', name: '  spaced  ', type: '&amp;' }],
+        messages: [{ from: 'l', to: 'l', name: 'url(https://evil.invalid)' }],
+      },
       { id: 'e', type: 'final' },
     ],
-    flows: [{ from: 's', to: 'd' }, { from: 'd', to: 'r', guard: '<image href="x"/>' }, { from: 'd', to: 'i', guard: '🚀 𠀀' }, { from: 'r', to: 'e' }, { from: 'i', to: 'e' }],
+    flows: [
+      { from: 's', to: 'd' },
+      { from: 'd', to: 'r', guard: '<image href="x"/>' },
+      { from: 'd', to: 'i', guard: '🚀 𠀀' },
+      { from: 'r', to: 'e' },
+      { from: 'i', to: 'e' },
+    ],
   };
   const { svg } = await assertGates(doc);
   assert.doesNotMatch(svg, /<(?:a|image|script|foreignObject|use)\b/);
@@ -217,7 +279,10 @@ test('interaction overview: hostile and markup-like text stays literal and canno
   assert.doesNotMatch(svg.replaceAll(/"[^"]*"/g, '""'), /<[^>]*\s(?:[\w:]*href|on\w+)\s*=/);
   const scene = await inspectSvg(svg);
   assert.ok(scene.texts.some(t => t.content === `${hostile}(<a href="x">)`));
-  assert.ok(scene.texts.some(t => t.content === '  spaced   : &amp;'), 'boundary spaces preserved');
+  assert.ok(
+    scene.texts.some(t => t.content === '  spaced   : &amp;'),
+    'boundary spaces preserved',
+  );
   assert.ok(scene.texts.some(t => t.content === '[<image href="x"/>]'));
 });
 
@@ -225,6 +290,8 @@ test('interaction overview: the published schema describes the contract', async 
   const { interactionOverviewKind } = await import('../dist/kinds/interaction-overview/index.js');
   const schema = interactionOverviewKind.schema;
   assert.equal(schema.properties.kind.const, 'interaction-overview');
-  assert.deepEqual(schema.definitions.node.oneOf.map(b => b.properties.type.const),
-    ['initial', 'final', 'flow-final', 'decision', 'merge', 'fork', 'join', 'interaction-use', 'interaction']);
+  assert.deepEqual(
+    schema.definitions.node.oneOf.map(b => b.properties.type.const),
+    ['initial', 'final', 'flow-final', 'decision', 'merge', 'fork', 'join', 'interaction-use', 'interaction'],
+  );
 });

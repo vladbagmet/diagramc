@@ -23,9 +23,15 @@ export function parseXml(source: string): XmlElement {
   while (i < source.length) {
     const lt = source.indexOf('<', i);
     const top = stack.at(-1)!;
-    if (lt === -1) { pushText(top, source.slice(i)); break; }
+    if (lt === -1) {
+      pushText(top, source.slice(i));
+      break;
+    }
     if (lt > i) pushText(top, source.slice(i, lt));
-    if (source.startsWith('<!--', lt)) { i = end(source, '-->', lt) ; continue; }
+    if (source.startsWith('<!--', lt)) {
+      i = end(source, '-->', lt);
+      continue;
+    }
     if (source.startsWith('<![CDATA[', lt)) {
       const close = source.indexOf(']]>', lt);
       if (close === -1) throw new Error('Unterminated CDATA');
@@ -33,8 +39,14 @@ export function parseXml(source: string): XmlElement {
       i = close + 3;
       continue;
     }
-    if (source.startsWith('<?', lt)) { i = end(source, '?>', lt); continue; }
-    if (source.startsWith('<!', lt)) { i = end(source, '>', lt); continue; }
+    if (source.startsWith('<?', lt)) {
+      i = end(source, '?>', lt);
+      continue;
+    }
+    if (source.startsWith('<!', lt)) {
+      i = end(source, '>', lt);
+      continue;
+    }
     if (source.startsWith('</', lt)) {
       const close = source.indexOf('>', lt);
       const tag = source.slice(lt + 2, close).trim();
@@ -73,5 +85,5 @@ export function* walk(element: XmlElement, ancestors: XmlElement[] = []): Genera
 }
 
 export function textContent(element: XmlElement): string {
-  return element.children.map(c => typeof c === 'string' ? c : textContent(c)).join('');
+  return element.children.map(c => (typeof c === 'string' ? c : textContent(c))).join('');
 }

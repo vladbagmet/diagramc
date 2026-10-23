@@ -23,22 +23,28 @@ export function activityToPlantUml(model: ActivityDiagram, metrics?: FontMetrics
   let current: string | undefined = model.partitions?.at(-1)?.id;
   const enter = (node: ActivityNode, indent: string): void => {
     const id = 'partition' in node ? node.partition : undefined;
-    if (id !== undefined && id !== current) { lines.push(`${indent}${lane(id)}`); current = id; }
+    if (id !== undefined && id !== current) {
+      lines.push(`${indent}${lane(id)}`);
+      current = id;
+    }
   };
   const guard = (text: string): string => `(${displayText(`[${text}]`)})`;
   // With swimlanes, branches are ordered by the lanes they occupy (validate.ts
   // rejects branches whose lanes interleave), so each branch keeps its own run of
   // lanes and no flow runs through another branch.
   const index = new Map((model.partitions ?? []).map((p, i) => [p.id, i]));
-  const order = <T>(branches: T[], body: (b: T) => Block): T[] => index.size > 0 ? orderBySpan(branches, body, index) : branches;
+  const order = <T>(branches: T[], body: (b: T) => Block): T[] => (index.size > 0 ? orderBySpan(branches, body, index) : branches);
 
   const executable = (node: ExecutableNode, indent: string, keyword = ''): void => {
     // Long names wrap at natural break points; each line is encoded separately.
-    const rows = (t: string): string => nameRows(t, metrics).map(displayText).join(String.raw`\n`);
-    const text = node.type === 'object' && node.state !== undefined
-      ? String.raw`${rows(node.name)}\n${rows(`[${node.state}]`)}`
-      : rows(node.name);
-    const stereotype = { action: '', callBehavior: ' <<callBehavior>>', sendSignal: ' <<output>>', acceptEvent: ' <<input>>', object: ' <<object>>' }[node.type];
+    const rows = (t: string): string =>
+      nameRows(t, metrics)
+        .map(displayText)
+        .join(String.raw`\n`);
+    const text = node.type === 'object' && node.state !== undefined ? String.raw`${rows(node.name)}\n${rows(`[${node.state}]`)}` : rows(node.name);
+    const stereotype = { action: '', callBehavior: ' <<callBehavior>>', sendSignal: ' <<output>>', acceptEvent: ' <<input>>', object: ' <<object>>' }[
+      node.type
+    ];
     lines.push(`${indent}${keyword}:${text};${stereotype}`);
     if (node.note !== undefined) {
       lines.push(`${indent}note right`);
@@ -54,19 +60,20 @@ export function activityToPlantUml(model: ActivityDiagram, metrics?: FontMetrics
           const n = step.node;
           enter(n, indent);
           switch (n.type) {
-          case 'initial': {
-          lines.push(`${indent}start`);
-          break;
-          }
-          case 'activityFinal': {
-          lines.push(`${indent}stop`);
-          break;
-          }
-          case 'flowFinal': {
-          lines.push(`${indent}end`);
-          break;
-          }
-          default: executable(n as ExecutableNode, indent);
+            case 'initial': {
+              lines.push(`${indent}start`);
+              break;
+            }
+            case 'activityFinal': {
+              lines.push(`${indent}stop`);
+              break;
+            }
+            case 'flowFinal': {
+              lines.push(`${indent}end`);
+              break;
+            }
+            default:
+              executable(n as ExecutableNode, indent);
           }
           break;
         }
