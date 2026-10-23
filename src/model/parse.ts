@@ -170,13 +170,13 @@ function applyFixes(document: unknown, diagnostics: readonly Diagnostic[], fille
     if (!parent || typeof parent !== 'object') continue;
     const object = parent as Record<string, unknown>;
     if (drop) {
-      if (key in object) { delete object[key]; changed = true; }
+      if (key in object) { Reflect.deleteProperty(object, key); changed = true; }
     } else if (fill) {
       if (!(key in object)) { object[key] = '?'; filled.add(d.path); changed = true; }
     } else if (details.rule === 'additionalProperties' && typeof details.suggestion === 'string') {
       if (details.suggestion in object) continue;
       object[details.suggestion] = object[key];
-      delete object[key];
+      Reflect.deleteProperty(object, key);
       renames.set(pointer(segments.length > 0 ? `/${segments.map(s => s.replaceAll('~', '~0').replaceAll('/', '~1')).join('/')}` : '', details.suggestion), d.path);
       changed = true;
     } else if (details.rule !== 'additionalProperties' && key in object) {
@@ -202,7 +202,7 @@ function withHints(kind: KindDefinition, document: unknown, diagnostics: Diagnos
       const object = valueAt(document, d.path.slice(0, d.path.lastIndexOf('/')));
       const type = object && typeof object === 'object' ? (object as Record<string, unknown>).type : undefined;
       const elsewhere = typeof type === 'string' ? kindsWithProperty(type, details.property).filter(k => k !== kind.kind) : [];
-      if (elsewhere.length > 0) {
+      if (typeof type === 'string' && elsewhere.length > 0) {
         return { ...d, message: `${d.message}. "${details.property}" on a ${type} belongs to ${elsewhere.map(k => `${k} diagrams`).join(' and ')}; this ${kind.kind} diagram does not draw it, so remove it (or draw it in a ${elsewhere[0]} diagram)` };
       }
     }
@@ -210,7 +210,7 @@ function withHints(kind: KindDefinition, document: unknown, diagnostics: Diagnos
       // A note attached to a relationship (UML allows it; this kind draws note anchors to elements only).
       const wrong = valueAt(document, d.path);
       const relationship = typeof wrong === 'string' ? findRelationship(document, wrong) : undefined;
-      if (relationship) {
+      if (typeof wrong === 'string' && relationship) {
         return { ...d, message: `"${wrong}" is a relationship; notes in ${kind.kind} diagrams attach to elements, so attach this note to one of its ends ("${relationship.from}" or "${relationship.to}")`, details: { ...(d.details as object | undefined), relationship: wrong, ends: [relationship.from, relationship.to] } };
       }
     }
@@ -218,7 +218,7 @@ function withHints(kind: KindDefinition, document: unknown, diagnostics: Diagnos
       // A reference by name: point at the ID of the element with that name.
       const wrong = (d.details as { id?: unknown } | undefined)?.id ?? valueAt(document, d.path);
       const owner = typeof wrong === 'string' ? findByName(document, wrong) : undefined;
-      if (owner) return { ...d, message: `${d.message.replace(/; did you mean "[^"]*"\? References use IDs, not names|; known [^;]*$/u, '')}; "${wrong}" is the name of the element with ID "${owner}": references use IDs, so write "${owner}"`, details: { ...(d.details as object | undefined), suggestion: owner } };
+      if (typeof wrong === 'string' && owner) return { ...d, message: `${d.message.replace(/; did you mean "[^"]*"\? References use IDs, not names|; known [^;]*$/u, '')}; "${wrong}" is the name of the element with ID "${owner}": references use IDs, so write "${owner}"`, details: { ...(d.details as object | undefined), suggestion: owner } };
     }
     return annotateSwap(d, swapped);
   });
@@ -254,11 +254,11 @@ function findRelationship(document: unknown, id: string): { from: string; to: st
 function findByName(document: unknown, name: string): string | undefined {
   const hits: string[] = [];
   const visit = (node: unknown): void => {
-    if (Array.isArray(node)) { node.forEach(visit); return; }
+    if (Array.isArray(node)) { for (const item of node) visit(item); return; }
     if (!node || typeof node !== 'object') return;
     const o = node as Record<string, unknown>;
     if (typeof o.id === 'string' && typeof o.name === 'string' && squash(o.name) === squash(name)) hits.push(o.id);
-    Object.values(o).forEach(visit);
+    for (const value of Object.values(o)) visit(value);
   };
   visit(document);
   return hits.length === 1 ? hits[0] : undefined;
@@ -320,7 +320,7 @@ function parseLegacy(kind: KindDefinition, document: unknown): ParsedDocument {
   const legacy = kind.legacy!;
   const { diagnostics, texts } = validateSchema(legacy.schema, document);
   if (diagnostics.length > 0) failValidation(diagnostics);
-  const model = legacy.upgrade(document);
+  const model: unknown = legacy.upgrade(document);
   const semantic = kind.validate(model);
   if (semantic.length > 0) failValidation(semantic.map((d): Diagnostic => ({ ...d, path: legacy.mapPath(d.path) })));
   return { kind, model, texts, version: 1 };

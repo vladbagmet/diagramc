@@ -479,7 +479,7 @@ async function layoutIn(graph: StructGraph, metrics: FontMetrics, dir: 'RIGHT' |
     // Endpoints inside an isolated sub-layout are drawn there; from outside they attach to its ellipse.
     const lift = (endpoint: string): string => {
       if (memberOf(endpoint) === rootContainer) return endpoint;
-      return [...ancestors(ownerNode(endpoint))].reverse().find(id => isolated(info.get(id)!.node)) ?? endpoint;
+      return [...ancestors(ownerNode(endpoint))].findLast(id => isolated(info.get(id)!.node)) ?? endpoint;
     };
     const levelPlans = plans.filter(p => {
       if (p.symbol !== undefined) return symbolIds.has(p.symbol);
@@ -621,7 +621,7 @@ async function layoutIn(graph: StructGraph, metrics: FontMetrics, dir: 'RIGHT' |
       };
       for (const n of allNodes(nodes)) {
         const ports = n.ports ?? [];
-        if (ports.length < 2 || ports.some(p => p.position || !laid.ports.has(p.id))) continue;
+        if (ports.length < 2 || ports.some(p => p.position !== undefined || !laid.ports.has(p.id))) continue;
         const along = (side: Side) => side === 'NORTH' || side === 'SOUTH' ? 'x' as const : 'y' as const;
         const key = new Map<string, number>(), current = new Map<string, number>();
         for (const p of ports) {
@@ -778,7 +778,7 @@ async function layoutIn(graph: StructGraph, metrics: FontMetrics, dir: 'RIGHT' |
         else v = s.center[main] + (p.id.endsWith('::required') ? -1 : 1) * theme.size.socket;
         const w = s.center[cross];
         const prev = pts.at(-2)!;
-        const out = [...pts.slice(0, -1)];
+        const out = pts.slice(0, -1);
         if (Math.abs(prev[cross] - w) > 0.01 && Math.abs(prev[main] - last[main]) < 0.01) out[out.length - 1] = at(prev[main], w);
         out.push(at(v, w));
         return out;
@@ -872,10 +872,12 @@ async function layoutIn(graph: StructGraph, metrics: FontMetrics, dir: 'RIGHT' |
       // The header text (keywords, name), centered at the top; lines may pass beside it.
       const width = Math.max(0, ...header.lines.flatMap(l => l.widths));
       const top = r.y + (node.shape === 'node3d' ? depth : 0);
-      texts.push({ x: r.x + (r.width - (node.shape === 'node3d' ? depth : 0) - width) / 2 - 4, y: top, width: width + 8, height: header.height });
-      // The whole header band (gate edge-endpoints): no line runs through it, beside the name either.
+      // The name, and the whole header band (gate edge-endpoints): no line runs through it, beside the name either.
       // Inset at the sides by less than the router's margin: lines may still pass just outside the border.
-      texts.push({ x: r.x + 8, y: r.y, width: Math.max(1, r.width - 16), height: top - r.y + header.height });
+      texts.push(
+        { x: r.x + (r.width - (node.shape === 'node3d' ? depth : 0) - width) / 2 - 4, y: top, width: width + 8, height: header.height },
+        { x: r.x + 8, y: r.y, width: Math.max(1, r.width - 16), height: top - r.y + header.height },
+      );
     }
     repairNodes.push({ id, rect: r, parent, container, texts });
   }
@@ -1299,7 +1301,6 @@ async function layoutIn(graph: StructGraph, metrics: FontMetrics, dir: 'RIGHT' |
     const conflict = (r: readonly Point[], o: readonly Point[]): boolean => run(r, o) > MAX_SHARED || r.slice(1, -1).some(p => onLine(p, o)) || o.slice(1, -1).some(p => onLine(p, r));
     const live = plans.filter(p => routes.has(p.id));
     const rectOf = (id: string): Rect | undefined => rects.get(id) ?? symbols.find(s => s.id === id)?.bounds;
-    const texts = repairNodes.flatMap(n => n.texts ?? []);
     /** Start or end of a line routed afresh: fixed on a symbol or ellipse, on its own slot of a port, free on a plain node. */
     /** Faces chosen for the lines of crowded ports (see below), by line and port. */
     const forced = new Map<string, { point: Point; out: Point }>();

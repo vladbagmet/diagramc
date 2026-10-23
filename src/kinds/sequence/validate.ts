@@ -18,7 +18,7 @@ export function validateSequenceDiagram(model: SequenceDiagram): Diagnostic[] {
     diagnostics.push({ code, path, message, ...(details === undefined ? {} : { details }) });
   };
   const identified: { id: string; path: string }[] = model.lifelines.map((l, i) => ({ id: l.id, path: pointer('', 'lifelines', i) }));
-  forEachItem(model.items, '/items', (item, path) => { if ('id' in item && item.id !== undefined) identified.push({ id: item.id, path }); });
+  forEachItem(model.items, '/items', (item, path) => { if ('id' in item) identified.push({ id: item.id, path }); });
   uniqueIds(identified, diagnostics);
 
   const lifelines = new Map<string, Lifeline>(model.lifelines.map(l => [l.id, l]));

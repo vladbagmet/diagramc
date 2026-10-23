@@ -222,11 +222,11 @@ function readText(element: XmlElement, ancestors: XmlElement[], metrics: FontMet
   const lines = spans.length > 0
     ? spans.map(s => box(Number(s.attrs.x), Number(s.attrs.y), textContent(s), undefined, element.attrs['text-anchor']))
     : [box(Number(element.attrs.x), Number(element.attrs.y), content, renderer === 'plantuml' ? element.attrs.textLength : undefined, element.attrs['text-anchor'])];
-  const owner = [...ancestors].reverse().find(a => a.attrs['data-uml-role'] === 'node' || a.attrs.class === 'entity');
+  const owner = ancestors.findLast(a => a.attrs['data-uml-role'] === 'node' || a.attrs.class === 'entity');
   // PlantUML: texts inside an entity belong to it, texts inside a link are labels.
   const plantRole = renderer === 'plantuml' ? (owner ? 'text' : ancestors.some(a => a.attrs.class === 'link') ? 'label' : undefined) : undefined;
   return {
-    content: renderer === 'plantuml' ? content.replaceAll(/^​|​$/gu, '') : content,
+    content: renderer === 'plantuml' ? content.replaceAll(/^\u200B|\u200B$/gu, '') : content,
     size, bold, italic, lines, rows, badBreaks: badBreaks(rows, style, metrics, new Set((element.attrs['data-uml-starts'] ?? '0').split(' ').map(Number))), bounds: union(lines),
     ...(element.attrs['data-uml-role'] ? { role: element.attrs['data-uml-role'] } : plantRole ? { role: plantRole } : {}),
     ...(element.attrs['data-uml-owner'] ? { owner: element.attrs['data-uml-owner'] } : {}),

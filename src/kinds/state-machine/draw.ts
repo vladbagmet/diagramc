@@ -18,9 +18,11 @@ export async function drawStateMachine(scene: StateScene, metrics: FontMetrics):
   // Composite states are drawn below the edges, so transitions inside them stay visible.
   for (const c of scene.composites) {
     const { bounds, header } = c;
-    const parts = [el('rect', { x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height, rx: r, ry: r, fill: theme.color.nodeFill, ...stroke })];
-    parts.push(...compartments(canvas, header, bounds, c.state.id, true));
-    parts.push(el('line', { x1: bounds.x, y1: bounds.y + header.height, x2: bounds.x + bounds.width, y2: bounds.y + header.height, stroke: theme.color.nodeStroke, 'stroke-width': theme.stroke.compartment }));
+    const parts = [
+      el('rect', { x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height, rx: r, ry: r, fill: theme.color.nodeFill, ...stroke }),
+      ...compartments(canvas, header, bounds, c.state.id, true),
+      el('line', { x1: bounds.x, y1: bounds.y + header.height, x2: bounds.x + bounds.width, y2: bounds.y + header.height, stroke: theme.color.nodeStroke, 'stroke-width': theme.stroke.compartment }),
+    ];
     for (const s of c.separators) {
       parts.push(el('line', { x1: s.x1, y1: s.y1, x2: s.x2, y2: s.y2, stroke: theme.color.nodeStroke, 'stroke-width': theme.stroke.compartment, 'stroke-dasharray': theme.stroke.dash }));
     }

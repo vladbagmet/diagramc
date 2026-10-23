@@ -181,7 +181,7 @@ export function routeOrthogonal(request: RouteRequest): Point[] | undefined {
   const index = (values: readonly number[], v: number): number | undefined => {
     let lo = 0, hi = values.length - 1;
     const r = Math.round(v * 2) / 2;
-    while (lo <= hi) { const m = (lo + hi) >> 1; if (values[m]! === r) return m; if (values[m]! < r) lo = m + 1; else hi = m - 1; }
+    while (lo <= hi) { const m = (lo + hi) >> 1; const v = values[m]!; if (v === r) return m; if (v < r) lo = m + 1; else hi = m - 1; }
     return undefined;
   };
 

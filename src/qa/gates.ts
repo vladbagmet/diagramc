@@ -377,8 +377,8 @@ export function runGates(scene: Scene, expectedTexts: readonly string[] = []): Q
   gate('markers', fail => {
     for (const e of scene.edges) {
       for (const [end, marker, tip, from] of [
-        ['source', e.sourceMarker, e.points[0]!, e.points[1]!],
-        ['target', e.targetMarker, e.points.at(-1)!, e.points.at(-2)!],
+        ['source', e.sourceMarker, e.points[0]!, e.points[1]],
+        ['target', e.targetMarker, e.points.at(-1)!, e.points.at(-2)],
       ] as const) {
         if (marker === 'none' || !from) continue;
         const into = direction(from, tip);

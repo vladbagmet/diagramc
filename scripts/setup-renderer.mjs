@@ -160,8 +160,10 @@ export async function setupRenderer({ root = defaultRoot, platform = process.pla
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  setupRenderer().catch(error => {
+  try {
+    await setupRenderer();
+  } catch (error) {
     console.error(`Renderer setup failed: ${error.message}`);
     process.exitCode = 1;
-  });
+  }
 }

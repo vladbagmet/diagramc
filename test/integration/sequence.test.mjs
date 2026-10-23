@@ -84,7 +84,7 @@ test('UML notation: fragments, guards, interaction use and state invariant text'
   const { scene } = await render(JSON.parse(await readFile(join(root, 'examples/sequence/notation.json'), 'utf8')));
   const texts = scene.texts.map(t => t.content);
   for (const t of ['alt', 'opt', 'loop(1,3)', 'break', 'par', 'critical', 'neg', 'ref', 'FindUser(name)', '{open}']) assert.ok(texts.includes(t), `missing ${t}`);
-  for (const g of ['user found', 'else', 'remember me', 'attempts < 3', 'locked']) assert.ok(texts.some(t => t === `[​${g}​]` || t === `[${g}]`), `missing guard [${g}]`);
+  for (const g of ['user found', 'else', 'remember me', 'attempts < 3', 'locked']) assert.ok(texts.some(t => t === `[\u200B${g}\u200B]` || t === `[${g}]`), `missing guard [${g}]`);
   assert.ok(scene.texts.find(t => t.content === 'alt').bold, 'operator in bold');
 });
 
@@ -101,7 +101,7 @@ test('review fixes: notes clear of other lifelines, found/lost inside fragments,
   assert.ok(new Set(heads.filter(y => y < 200).map(y => y.toFixed(1))).size === 1, `top heads on one baseline: ${heads}`);
   const notation = await render(await readFile(join(root, 'examples/sequence/notation.json'), 'utf8'));
   // C-41: guards are regular, operators bold.
-  for (const t of notation.scene.texts.filter(t => /^\[.*\]$/.test(t.content.replaceAll('​', '')))) assert.equal(t.bold, false, t.content);
+  for (const t of notation.scene.texts.filter(t => /^\[.*\]$/.test(t.content.replaceAll('\u200B', '')))) assert.equal(t.bold, false, t.content);
   assert.ok(notation.scene.texts.find(t => t.content === 'break').bold);
   // C-10: the lost message in the break fragment ends inside it.
   const frames = [...notation.svg.matchAll(/<rect fill="none" height="([\d.]+)" style="stroke:#475569;[^"]*" width="([\d.]+)" x="([\d.]+)" y="([\d.]+)"/g)].map(m => ({ h: Number(m[1]), w: Number(m[2]), x: Number(m[3]), y: Number(m[4]) }));

@@ -108,7 +108,7 @@ export function validateCommunicationDiagram(model: CommunicationDiagram): Diagn
         diagnostics.push({ code: 'AMBIGUOUS_THREAD', path: pointer('', 'messages', plain.index, 'sequence'), message: `Message ${seqOf(plain.index)} has no thread letter, but concurrent threads of the same step exist (${seqOf(entries.find(e => e.thread)!.index)})` });
         continue;
       }
-      const skipped = entries.find((e, j) => e.thread && e.thread !== String.fromCharCode(97 + j));
+      const skipped = entries.find((e, j) => e.thread && e.thread !== String.fromCodePoint(97 + j));
       if (skipped) {
         diagnostics.push({ code: 'SEQUENCE_GAP', path: pointer('', 'messages', skipped.index, 'sequence'), message: `Message ${seqOf(skipped.index)} skips a thread letter: concurrent threads are lettered a, b, c ...` });
       }

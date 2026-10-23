@@ -33,6 +33,10 @@ export default tseslint.config(
       'unicorn/prefer-https': 'off',
       // TypeScript parameters typed `T | undefined` must still be passed; only redundant `return undefined` and defaults are flagged.
       'unicorn/no-useless-undefined': ['error', { checkArguments: false }],
+      // reduce for sums, maxima and small folds is shorter and as clear as the loop it would become.
+      'unicorn/no-array-reduce': 'off',
+      // Chains of === on a discriminant narrow a union type in TypeScript; Array#includes does not.
+      'unicorn/prefer-includes-over-repeated-comparisons': 'off',
       // Named imports from node:path (join, resolve) are the convention across the code base.
       'unicorn/import-style': ['error', { styles: { 'node:path': { named: true } } }],
     },
@@ -46,6 +50,12 @@ export default tseslint.config(
       '@typescript-eslint/no-non-null-assertion': 'off',
       // SVG output is built from numbers in template literals on almost every line.
       '@typescript-eslint/restrict-template-expressions': ['error', { allowNumber: true }],
+      // Spreading a string into code points is intended (font subsetting, coverage checks); graphemes go through Intl.Segmenter where they matter.
+      '@typescript-eslint/no-misused-spread': 'off',
+      // A leading underscore marks a binding that is deliberately unused, such as a property removed by rest destructuring.
+      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_', destructuredArrayIgnorePattern: '^_' }],
+      // `promise.catch(() => {})` is the idiom for ignoring a failure that is handled elsewhere.
+      '@typescript-eslint/no-empty-function': ['error', { allow: ['arrowFunctions'] }],
     },
   },
 );

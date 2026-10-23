@@ -14,7 +14,7 @@ const fixtures = name => readFile(join(root, 'test/fixtures/sequence', name), 'u
 const examples = async () => (await readdir(join(root, 'examples/sequence'))).filter(f => f.endsWith('.json')).sort().map(f => join(root, 'examples/sequence', f));
 const source = doc => sequenceToPlantUml(parseDocument(JSON.stringify(doc)).model);
 const body = doc => { const lines = source(doc).split('\n'); return lines.slice(lines.indexOf('</style>') + 1).filter(l => l && l !== '@enduml'); };
-const decode = s => s.replaceAll(/<U\+([0-9A-F]{4})>/g, (_, h) => String.fromCharCode(Number.parseInt(h, 16))).replaceAll('​', '');
+const decode = s => s.replaceAll(/<U\+([0-9A-F]{4})>/g, (_, h) => String.fromCodePoint(Number.parseInt(h, 16))).replaceAll('\u200B', '');
 const L = (...ids) => ids.map(id => ({ id, name: id }));
 
 test('negative fixtures fail with the exact code and JSON path', async () => {
@@ -69,7 +69,7 @@ test('UML notation: each message sort gets its PlantUML arrow (strict UML style,
     { type: 'message', sort: 'synchronous', from: 'b', to: 'b', name: 'self' },
   ] }).split('\n');
   assert.ok(lines.includes('skinparam style strictuml') && lines.includes('hide footbox') && lines.includes('autonumber'));
-  assert.ok(lines.some(l => /^mainframe \*\*sd\*\* ​<U\+0054>​$/.test(l)), 'frame heading sd T');
+  assert.ok(lines.some(l => /^mainframe \*\*sd\*\* \u200B<U\+0054>\u200B$/.test(l)), 'frame heading sd T');
   const flow = lines.filter(l => /^(uml_|\[o|create |destroy |activate |deactivate )/.test(l)).map(l => l.replace(/ : .*$/, ''));
   assert.deepEqual(flow, [
     'uml_l0 -> uml_l1', 'activate uml_l1',
@@ -124,7 +124,7 @@ test('long labels are wrapped with generated line breaks only; each line is enco
   const line = src.split('\n').find(l => l.startsWith('uml_l0 ->> uml_l1 : '));
   const parts = line.slice('uml_l0 ->> uml_l1 : '.length).split(String.raw`\n`);
   assert.ok(parts.length >= 2);
-  for (const p of parts) assert.match(p, /^​(?:<U\+[0-9A-F]{4}>)+​$/);
+  for (const p of parts) assert.match(p, /^\u200B(?:<U\+[0-9A-F]{4}>)+\u200B$/);
   assert.equal(parts.map(decode).join(''), name);
 });
 
@@ -140,7 +140,7 @@ test('hostile text in every slot is encoded and never becomes PlantUML syntax', 
   ] };
   const src = source(doc);
   // Strip every encoded token: what remains is generated syntax only.
-  const skeleton = src.replaceAll(/​(?:<U\+[0-9A-F]{4}>)*​/g, 'TEXT');
+  const skeleton = src.replaceAll(/\u200B(?:<U\+[0-9A-F]{4}>)*\u200B/g, 'TEXT');
   for (const fragment of ['!include', 'evil', '<b>', '[[', '#red', '<<x>>', 'line:red']) assert.ok(!skeleton.includes(fragment), fragment);
   assert.equal(skeleton.match(/@enduml/g).length, 1);
   assert.ok(!/<U\+00(?:0A|0D)>/.test(src), 'no encoded line breaks');
@@ -221,11 +221,11 @@ test('QA: lifeline-crossing fails when a lifeline crosses a message label or a g
   const gate = async s => (await checkSvg(s)).gates.find(g => g.gate === 'lifeline-crossing');
   assert.ok((await gate(svg)).ok, 'the stored render passes');
   // Without its halo, the reply label is crossed by the order lifeline.
-  const halo = svg.match(/<rect fill="#FFFFFF" height="[\d.]+" width="[\d.]+" x="[\d.]+" y="[\d.]+"\/>(?=<text[^>]*>(?:&#8203;|​)?result = charge)/)[0];
+  const halo = svg.match(/<rect fill="#FFFFFF" height="[\d.]+" width="[\d.]+" x="[\d.]+" y="[\d.]+"\/>(?=<text[^>]*>(?:&#8203;|\u200B)?result = charge)/)[0];
   const unhaloed = await gate(svg.replace(halo, ''));
   assert.ok(!unhaloed.ok && unhaloed.failures.some(f => /result = charge.*crossed by lifeline/.test(f)), JSON.stringify(unhaloed.failures));
   // Moved back onto the service activation bar (PlantUML's own placement), the guard fails.
-  const guard = svg.match(/<text[^>]*x="([\d.]+)"[^>]*>\[(?:&#8203;|​)?result\.accepted/);
+  const guard = svg.match(/<text[^>]*x="([\d.]+)"[^>]*>\[(?:&#8203;|\u200B)?result\.accepted/);
   const bar = svg.match(/<rect fill="#F8FAFC" height="[\d.]+" style="stroke:#334155;stroke-width:1;" width="10" x="([\d.]+)" y="[\d.]+"\/>/g)
     .map(r => Number(r.match(/ x="([\d.]+)"/)[1])).find(x => x < Number(guard[1]) && Number(guard[1]) - x < 40);
   const onBar = await gate(svg.replace(guard[0], guard[0].replace(`x="${guard[1]}"`, `x="${bar - 4}"`)));

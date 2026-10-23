@@ -21,8 +21,10 @@ const frag = (operator, operands, extra = {}) => ({ type: 'fragment', operator, 
 
 const reserveLines = [];
 for (let i = 1; i <= 3; i++) {
-  reserveLines.push(call('job', 'inventory', 'reserve', [`line${i}`], { activate: true }));
-  reserveLines.push(reply('inventory', 'job', 'reserve', i === 3 ? 'partial' : 'ok'));
+  reserveLines.push(
+    call('job', 'inventory', 'reserve', [`line${i}`], { activate: true }),
+    reply('inventory', 'job', 'reserve', i === 3 ? 'partial' : 'ok'),
+  );
 }
 
 const items = [

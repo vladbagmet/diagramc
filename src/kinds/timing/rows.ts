@@ -316,7 +316,7 @@ function contentTop(svg: string, row: Row, all: Text[]): number {
 function levelY(model: TimingDiagram, index: number, t: number, row: Row, svg: string): number {
   const l = model.lifelines[index]!;
   if (l.notation === 'robust') {
-    const state = [...l.changes].reverse().find(c => c.at <= t)?.state ?? l.changes[0]!.state;
+    const state = l.changes.findLast(c => c.at <= t)?.state ?? l.changes[0]!.state;
     const label = row.labels[l.states.indexOf(state)];
     if (label) return label.y - label.size * 0.44;
   }

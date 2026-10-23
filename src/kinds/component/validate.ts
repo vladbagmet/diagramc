@@ -1,6 +1,6 @@
 import { pointer, type Diagnostic } from '../../core/errors.js';
 import { checkDepth, checkNotes, Tree } from '../structure/tree.js';
-import type { ComponentDiagram, Element, Nested, Note, Port } from './model.js';
+import type { ComponentDiagram, Element, Nested, Note } from './model.js';
 
 /**
  * Semantic rules of component diagrams (UML 2.5.1 clause 11.6 and 11.8). Codes
@@ -8,7 +8,6 @@ import type { ComponentDiagram, Element, Nested, Note, Port } from './model.js';
  */
 export const MAX_COMPONENT_DEPTH = 4;
 
-interface Realizer { provides?: string[]; requires?: string[]; ports?: Port[] }
 
 export function buildComponentTree(model: ComponentDiagram): { tree: Tree; notes: { note: Note; path: string }[] } {
   const tree = new Tree();

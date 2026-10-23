@@ -58,12 +58,12 @@ export function wrapText(metrics: FontMetrics, text: string, style: TextStyle, m
   let pending = '';
   for (const token of raw) {
     const punctuation = PUNCTUATION_ONLY.test(token.trim());
-    if (punctuation && tokens.length > 0) { tokens[tokens.length - 1] += token; continue; }
+    if (punctuation && tokens.length > 0) { tokens.push(tokens.pop()! + token); continue; }
     if (punctuation || !token.trim()) { pending += token; continue; }
     tokens.push(pending + token);
     pending = '';
   }
-  if (pending) { if (tokens.length > 0) tokens[tokens.length - 1] += pending; else tokens.push(pending); }
+  if (pending) tokens.push(tokens.length > 0 ? tokens.pop()! + pending : pending);
   const lines: string[] = [];
   let current = '';
   const place = (piece: string): void => {
@@ -89,7 +89,7 @@ export function wrapText(metrics: FontMetrics, text: string, style: TextStyle, m
   if (current) lines.push(current);
   // A line holding only punctuation joins the line before it.
   for (let i = lines.length - 1; i > 0; i--) {
-    if (PUNCTUATION_ONLY.test(lines[i]!.trim()) || !lines[i]!.trim()) { lines[i - 1] += lines[i]!; lines.splice(i, 1); }
+    if (PUNCTUATION_ONLY.test(lines[i]!.trim()) || !lines[i]!.trim()) { lines[i - 1] = lines[i - 1]! + lines[i]!; lines.splice(i, 1); }
   }
   if (lines.length > 1 && (PUNCTUATION_ONLY.test(lines[0]!.trim()) || !lines[0]!.trim())) { lines[1] = lines[0]! + lines[1]!; lines.shift(); }
   // A word kept whole widens the text anyway: when the whole text is not much wider

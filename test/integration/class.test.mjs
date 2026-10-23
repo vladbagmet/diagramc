@@ -17,7 +17,7 @@ function visibleText(svg) {
   return [...svg.matchAll(/<text\b[^>]*>(.*?)<\/text>/gs)].map(m => m[1]
     .replaceAll(/&#(\d+);/g, (_, n) => String.fromCodePoint(Number(n)))
     .replaceAll('&lt;', '<').replaceAll('&gt;', '>').replaceAll('&quot;', '"').replaceAll('&amp;', '&')
-    .replaceAll(/^​|​$/g, ''));
+    .replaceAll(/^\u200B|\u200B$/g, ''));
 }
 // Smetana (PlantUML's built-in layout) can put labels on nodes and draws note
 // pointers through other nodes, so the class fallback guarantees only the gates
@@ -53,7 +53,7 @@ test('PlantUML backend: the pinned runtime measures with Inter and the SVG embed
   const svg = await renderToSvg(parseDocument(JSON.stringify({ kind: 'class', elements: [{ id: 'c', type: 'class', name: 'Customer', attributes: [{ name: 'placeOrder', type: 'Order' }] }] })), plantuml);
   assert.match(svg, /<style>@font-face\{font-family:"Inter";[^}]*src:url\(data:font\/woff2;base64,/);
   const metrics = await loadFonts();
-  const [, length] = svg.match(/textLength="([\d.]+)"[^>]*>&#8203;placeOrder : Order&#8203;/) ?? svg.match(/textLength="([\d.]+)"[^>]*>​placeOrder : Order​/);
+  const [, length] = svg.match(/textLength="([\d.]+)"[^>]*>&#8203;placeOrder : Order&#8203;/) ?? svg.match(/textLength="([\d.]+)"[^>]*>\u200BplaceOrder : Order\u200B/);
   const expected = metrics.measure('placeOrder : Order', { size: 13 });
   assert.ok(Math.abs(Number(length) - expected) / expected < 0.03, `Java measured ${length}, Inter is ${expected}`);
 });
@@ -74,7 +74,7 @@ test('PlantUML backend: same pinned environment produces byte-identical SVG', as
   assert.equal(await renderToSvg(parsed, plantuml), await renderToSvg(parsed, plantuml));
 });
 test('PlantUML backend preserves boundary spaces, generics, nested escapes and markup-like text in every slot', async () => {
-  const samples = ['  Customer<T>  ', '<U+0041> &amp; [[https://evil.invalid]]', '<svg onload="alert(1)">', String.raw`{static} __under__ //italic// \n 🚀`, '​visible​', 'Unicode: 🚀 𠀀 \u{100000} \u{10FFFD}'];
+  const samples = ['  Customer<T>  ', '<U+0041> &amp; [[https://evil.invalid]]', '<svg onload="alert(1)">', String.raw`{static} __under__ //italic// \n 🚀`, '\u200Bvisible\u200B', 'Unicode: 🚀 𠀀 \u{100000} \u{10FFFD}'];
   const model = parseDocument(JSON.stringify({
     classes: samples.map((text, i) => ({ id: `c${i}`, name: text, attributes: [text], methods: [text] })),
     relationships: samples.map((text, i) => ({ type: 'association', from: `c${i}`, to: `c${i}`, label: text })),

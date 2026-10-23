@@ -20,8 +20,8 @@ test('composite structure: every example passes every QA gate', () => assertExam
 test('composite structure: stress example (24 parts, 30+ connectors) renders within 2 s', async () => {
   const { doc } = await assertBudget(KIND);
   let parts = 0;
-  const walk = p => { parts++; (p.parts ?? []).forEach(walk); };
-  doc.elements[0].parts.forEach(walk);
+  const walk = p => { parts++; for (const child of p.parts ?? []) walk(child); };
+  for (const p of doc.elements[0].parts) walk(p);
   assert.ok(parts >= 24 && doc.relationships.length >= 30);
 });
 

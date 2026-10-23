@@ -86,10 +86,10 @@ test('activity: PlantUML source uses UML shapes, encodes every display string an
   assert.doesNotMatch(source, /\bi\b.*\bp\b/u, 'user IDs never reach the source');
   for (const line of ['start', 'stop', 'end', 'endif', 'note right', 'end note']) assert.ok(source.split('\n').some(l => l.trim() === line), `missing ${line}`);
   // Two-way decisions are if/else: guards stay at their own branch and swimlane changes inside branches work.
-  assert.ok(source.split('\n').some(l => l.startsWith('if () then (​<U+')), 'two-way decision as if/else');
+  assert.ok(source.split('\n').some(l => l.startsWith('if () then (\u200B<U+')), 'two-way decision as if/else');
   for (const stereotype of ['<<callBehavior>>', '<<output>>', '<<input>>', '<<object>>']) assert.ok(source.includes(stereotype), stereotype);
-  assert.match(source, /^mainframe \*\*act\*\* ​<U\+0022>/mu);
-  assert.match(source, /^\|​<U\+0022>/mu, 'partition becomes an encoded swimlane');
+  assert.match(source, /^mainframe \*\*act\*\* \u200B<U\+0022>/mu);
+  assert.match(source, /^\|\u200B<U\+0022>/mu, 'partition becomes an encoded swimlane');
 });
 
 test('activity: post-processor draws open arrowheads, drops mid-line arrows and adds the rake', () => {
@@ -117,7 +117,7 @@ test('activity: decisions with more than two branches use switch; repeat loops l
   // PlantUML drops is/not labels of repeat loops: the back guard is the condition, the exit guard labels the next flow.
   const at = repeat.findIndex(l => l.startsWith('repeat while ('));
   assert.ok(at > 0, 'repeat while with the returning guard');
-  assert.match(repeat[at + 1], /^->​<U\+005B>/u, 'exit guard on the leaving flow');
+  assert.match(repeat[at + 1], /^->\u200B<U\+005B>/u, 'exit guard on the leaving flow');
 });
 
 test('activity: post-processor mirrors accept event notches, trims bars and anchors notes with a dashed line', () => {

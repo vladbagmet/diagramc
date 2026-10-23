@@ -21,7 +21,7 @@ const REASONS: Record<string, string> = {
 
 /** `{ path, reason, errno }` details of a file system error, for agents that fix paths. */
 function ioDetails(path: string, error: unknown): { path: string; reason: string; errno?: string } {
-  const code = (error as { code?: unknown })?.code;
+  const code = (error as { code?: unknown } | null | undefined)?.code;
   const errno = typeof code === 'string' ? code : undefined;
   return { path, reason: (errno && REASONS[errno]) ?? 'the operating system refused the operation', ...(errno ? { errno } : {}) };
 }
@@ -32,7 +32,7 @@ export async function readInput(path: string): Promise<string> {
   let size = 0;
   try {
     for await (const chunk of stream) {
-      const bytes = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+      const bytes: Buffer = Buffer.isBuffer(chunk) ? (chunk) : Buffer.from(chunk as string);
       size += bytes.length;
       if (size > MAX_INPUT_BYTES) throw new UmlError('INPUT_TOO_LARGE', `Input exceeds ${MAX_INPUT_BYTES} bytes`);
       chunks.push(bytes);

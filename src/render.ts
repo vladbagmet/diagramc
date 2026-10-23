@@ -72,7 +72,7 @@ const MAX_PROBLEMS = 5;
 /** Runs every QA gate on a rendered SVG and turns failed gates into warnings. */
 export async function layoutWarnings(svg: string, parsed: ParsedDocument, backend?: Backend<unknown>): Promise<LayoutWarning[]> {
   const report = await checkSvg(svg, parsed.texts.map(t => t.text));
-  const held = backend && backend.name === 'plantuml' ? backend.gates : undefined;
+  const held = backend?.name === 'plantuml' ? backend.gates : undefined;
   return report.gates.filter(g => !g.ok && (!held || held.includes(g.gate))).map(g => ({
     code: 'LAYOUT_QUALITY', gate: g.gate,
     message: `Layout check "${g.gate}" found ${g.failures.length} problem${g.failures.length === 1 ? '' : 's'}: ${g.failures[0]}${g.failures.length > 1 ? ` (and ${g.failures.length - 1} more)` : ''}`,

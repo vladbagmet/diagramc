@@ -412,8 +412,6 @@ function moveCrossedLabels(svg: string, depth: number): string {
     const cut = spot ? undefined : crossing(t.rect, s => s.flow && s.p.x === s.q.x && s.p.x > t.rect.x + t.rect.width / 2);
     if (cut && depth <= 8) {
       const x0 = cut.p.x - 0.5, width = Math.ceil(t.rect.x + t.rect.width + 6 - cut.p.x);
-      const spans = (r: Rect): boolean => r.x < x0 && r.x + r.width > x0;
-      // Within the loop's band; else a full-height column, when nothing but bars and lines spans it.
       const banded = shiftBand(svg, x0, width, Math.min(cut.p.y, cut.q.y), Math.max(cut.p.y, cut.q.y), t.tag);
       const clear = (x: number): boolean => !obstacles.some(o => o.x < x && o.x + o.width > x && !bars.has(o)) && !texts.some(o => o !== t && o.rect.x < x && o.rect.x + o.rect.width > x);
       // Within the loop's band; if a swimlane border is in the way, widen that swimlane

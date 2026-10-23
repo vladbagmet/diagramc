@@ -1132,7 +1132,7 @@ function alignBars(ctx: BarContext): void {
     const near = fork ? nearest - stem - bar[FS] : nearest + stem;
     if (fork ? near > bar[F] + 1 : near < bar[F] - 1) places.push(near);
     if (places.some(place => tryBar(id, fork, bar, place, branches, ends, feeds, faceOf))) continue;
-    for (const side of fork ? [-1, 1] : [1, -1]) if (trySideBar(id, fork, bar, side, branches, ends, feeds)) break;
+    for (const side of fork ? [-1, 1] : [1, -1]) if (trySidebar(id, fork, bar, side, branches, ends, feeds)) break;
   }
 
   /**
@@ -1142,7 +1142,7 @@ function alignBars(ctx: BarContext): void {
    * composite (`side` -1 before it, 1 after it across the direction), each branch
    * one straight line across to the side of its vertex that faces the bar.
    */
-  function trySideBar(id: string, fork: boolean, bar: Rect, side: number, branches: StateScene['edges'], ends: string[], feeds: StateScene['edges']): boolean {
+  function trySidebar(id: string, fork: boolean, bar: Rect, side: number, branches: StateScene['edges'], ends: string[], feeds: StateScene['edges']): boolean {
     const barAncestors = ancestors(id);
     const holders = ends.map(o => new Set([...ancestors(o)].filter(a => !barAncestors.has(a) && ctx.headers.has(a))));
     const common = [...holders[0]!].filter(a => holders.every(h => h.has(a)));

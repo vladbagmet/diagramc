@@ -29,7 +29,7 @@ export function validateActivityDiagram(model: ActivityDiagram): Diagnostic[] {
 
   for (const [i, n] of model.nodes.entries()) {
     const at = pointer('', 'nodes', i);
-    if ('partition' in n && n.partition !== undefined) reference(n.partition, pointer(at, 'partition'), partitionIds, diagnostics, 'partition');
+    if ('partition' in n) reference(n.partition, pointer(at, 'partition'), partitionIds, diagnostics, 'partition');
     else if (partitions.length > 0 && n.type !== 'merge' && n.type !== 'join') {
       diagnostics.push({ code: 'MISSING_PARTITION', path: pointer(at, 'partition'), message: `Node "${n.id}" must name its partition: the diagram has partitions` });
     }

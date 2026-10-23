@@ -5,7 +5,7 @@ import { loadFonts } from '../dist/engine/fonts.js';
 import { layoutDiagram, drawDiagram } from '../dist/engine/diagram.js';
 import { measurePackage, drawPackageNode } from '../dist/engine/packages.js';
 import { Canvas } from '../dist/engine/svg.js';
-import { contains, distanceToBorder } from '../dist/engine/geometry.js';
+import { contains } from '../dist/engine/geometry.js';
 import { drawEdge } from '../dist/engine/edges.js';
 import { checkOwnership, nestedIn } from '../dist/model/nesting.js';
 import { checkSvg, inspectSvg } from '../dist/qa/index.js';

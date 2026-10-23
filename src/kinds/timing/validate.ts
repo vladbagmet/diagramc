@@ -35,7 +35,7 @@ export function validateTimingDiagram(model: TimingDiagram): Diagnostic[] {
       if (!states.has(c.state)) add('UNKNOWN_STATE', pointer(at, 'changes', j, 'state'), `"${c.state}" is not a declared state of lifeline "${l.id}"`, { lifeline: l.id, states: l.states });
       const previous = l.changes[j - 1];
       if (previous && c.at <= previous.at) add('TIME_NOT_INCREASING', pointer(at, 'changes', j, 'at'), `State changes of "${l.id}" must have strictly increasing times (${c.at} after ${previous.at})`);
-      else if (previous && c.state === previous.state) add('REDUNDANT_STATE_CHANGE', pointer(at, 'changes', j, 'state'), `Lifeline "${l.id}" is already in state "${c.state}"`);
+      else if (c.state === previous?.state) add('REDUNDANT_STATE_CHANGE', pointer(at, 'changes', j, 'state'), `Lifeline "${l.id}" is already in state "${c.state}"`);
     }
   }
 

@@ -40,9 +40,10 @@ export async function rendererOptions(tools = fileURLToPath(new URL('../../.tool
 export function renderSvg(source: string, options: RendererOptions): Promise<Buffer> {
   return new Promise((accept, reject) => {
     const env = { ...process.env, PLANTUML_SECURITY_PROFILE: 'SECURE', PLANTUML_LIMIT_SIZE: '8192' };
-    for (const key of ['JAVA_TOOL_OPTIONS', '_JAVA_OPTIONS', 'JDK_JAVA_OPTIONS', 'CLASSPATH']) delete env[key as keyof typeof env];
+    for (const key of ['JAVA_TOOL_OPTIONS', '_JAVA_OPTIONS', 'JDK_JAVA_OPTIONS', 'CLASSPATH']) Reflect.deleteProperty(env, key);
     const child = spawn(options.java, [
       '-Xmx256m', '-Djava.awt.headless=true', '-DPLANTUML_SECURITY_PROFILE=SECURE',
+      // eslint-disable-next-line unicorn/text-encoding-identifier-case -- a Java charset name, passed to PlantUML as written.
       '-jar', options.jar, '-charset', 'UTF-8', '-tsvg', '-pipe', '-nometadata', '-failfast2',
     ], { shell: false, env, stdio: ['pipe', 'pipe', 'pipe'] });
     const chunks: Buffer[] = [];

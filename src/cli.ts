@@ -19,9 +19,9 @@ const SETUP_SCRIPT = fileURLToPath(new URL('scripts/setup-renderer.mjs', package
 const kindList = (): string => {
   const lines = [''];
   for (const { kind } of kinds) {
-    const last = lines.length - 1;
-    if (lines[last] && lines[last].length + kind.length > 74) { lines[last] += ','; lines.push(kind); }
-    else lines[last] += `${lines[last] ? ', ' : ''}${kind}`;
+    const last = lines.length - 1, line = lines[last]!;
+    if (line && line.length + kind.length > 74) { lines[last] = `${line},`; lines.push(kind); }
+    else lines[last] = `${line}${line ? ', ' : ''}${kind}`;
   }
   return lines.join('\n  ');
 };
@@ -284,9 +284,11 @@ async function main(): Promise<void> {
   }
 }
 
-main().catch((error: unknown) => {
+try {
+  await main();
+} catch (error: unknown) {
   const failure = error instanceof UmlError ? error : new UmlError('INTERNAL_ERROR', 'Unexpected internal failure', 3);
-  if (!(error instanceof UmlError) && process.env.UML_DEBUG) process.stderr.write(`${(error as Error)?.stack ?? String(error)}\n`);
+  if (!(error instanceof UmlError) && process.env.UML_DEBUG) process.stderr.write(`${error instanceof Error ? error.stack ?? error.message : String(error)}\n`);
   process.stderr.write(JSON.stringify({ error: failure }) + '\n');
   process.exitCode = failure.exitCode;
-});
+}

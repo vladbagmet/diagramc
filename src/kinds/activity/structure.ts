@@ -143,7 +143,7 @@ export function structure(model: ActivityDiagram): Block {
     const meet = meeting(node.id, 'fork', results.map(r => r.end));
     const target = meet === undefined ? undefined : nodes.get(meet);
     const arrivals = results.filter(r => r.end !== null).length;
-    if (!target || target.type !== 'join') throw new StructureError(node.id, `The flows leaving fork "${node.id}" must meet again at one join node`);
+    if (target?.type !== 'join') throw new StructureError(node.id, `The flows leaving fork "${node.id}" must meet again at one join node`);
     if (arrivals !== into.get(target.id)!.length) throw new StructureError(target.id, `Join "${target.id}" has incoming flows that do not come from fork "${node.id}"`);
     take(target.id);
     return { step: { kind: 'fork', node, branches: results.map(r => r.block), join: target }, next: next(target.id) };
@@ -177,7 +177,7 @@ export function structure(model: ActivityDiagram): Block {
     const exits = continuing.length > 0 || leaving.length !== 1 ? continuing : leaving;
     const exit = exits[0];
     const decision = exit && nodes.get(exit.from);
-    if (exits.length !== 1 || !decision || decision.type !== 'decision' || out.get(decision.id)!.length !== 2) {
+    if (exits.length !== 1 || !exit || decision?.type !== 'decision' || out.get(decision.id)!.length !== 2) {
       throw new StructureError(merge.id, `The loop entered at merge "${merge.id}" must be left through exactly one flow, from a two-way decision node`);
     }
     const stay = out.get(decision.id)!.find(e => e !== exit)!;
@@ -224,7 +224,7 @@ const cap = (s: string): string => s[0]!.toUpperCase() + s.slice(1);
 /** Partitions of every node drawn inside a block, nested blocks included. */
 export function blockPartitions(block: Block): Set<string> {
   const out = new Set<string>();
-  const add = (node: { partition?: string } | { id: string }): void => { if ('partition' in node && node.partition !== undefined) out.add(node.partition); };
+  const add = (node: { partition?: string } | { id: string }): void => { if ('partition' in node) out.add(node.partition); };
   for (const step of block) {
     switch (step.kind) {
       case 'node': add(step.node); break;

@@ -52,8 +52,7 @@ export function readPlantUmlActivity(root: XmlElement, scene: Scene): void {
       add(unique === 4 ? 'diamond' : 'signal', boundsOfPoints(p));
     } else if (e.tag === 'ellipse') {
       const r = { x: num(a.cx) - num(a.rx), y: num(a.cy) - num(a.ry), width: 2 * num(a.rx), height: 2 * num(a.ry) };
-      const outer = nodes.find(n => n.type === 'circle' && contains(n.bounds, r, 0.5));
-      if (!outer) add('circle', r);
+      if (!nodes.some(n => n.type === 'circle' && contains(n.bounds, r, 0.5))) add('circle', r);
     } else if (e.tag === 'path' && same(a.fill, color.noteFill)) {
       const r = boundsOfPoints(pathPts(a.d));
       if (!nodes.some(n => n.type === 'note' && contains(n.bounds, r, 0.5))) add('note', r);

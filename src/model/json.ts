@@ -9,10 +9,9 @@ import { UmlError } from '../core/errors.js';
 export function parseJson(text: string): unknown {
   try { return JSON.parse(text); }
   catch (error) {
-    const reason = String((error as Error)?.message ?? 'invalid JSON');
+    const reason = error instanceof Error ? error.message : 'invalid JSON';
     const match = /position (\d+)/u.exec(reason);
     const position = match ? Number(match[1]) : reason.includes('end of JSON') ? text.length : errorPosition(text);
-    if (position === undefined) throw new UmlError('INVALID_JSON', `Input is not valid JSON: ${clean(reason)}`);
     const before = text.slice(0, position);
     const line = before.split('\n').length, column = position - before.lastIndexOf('\n');
     const lineText = text.split('\n')[line - 1] ?? '';
@@ -30,6 +29,11 @@ const clean = (reason: string): string => reason
   .replace(/, (?:\.\.\.)?"[\s\S]*"(?:\.\.\.)? is not valid JSON$/u, '')
   .replace(/^Unexpected token/u, 'Unexpected character');
 
+/** Unwinds errorPosition's scan to the offset of the first rejected character. */
+class Rejected extends Error {
+  constructor(readonly at: number) { super(`JSON rejected at ${at}`); }
+}
+
 /**
  * Offset of the first character a strict JSON reader rejects, for the parse
  * errors whose message has no position. A small recursive-descent scan; only
@@ -37,7 +41,7 @@ const clean = (reason: string): string => reason
  */
 function errorPosition(text: string): number {
   let i = 0;
-  const fail = (): never => { throw i; };
+  const fail = (): never => { throw new Rejected(i); };
   const space = (): void => { while (i < text.length && ' \t\n\r'.includes(text[i]!)) i++; };
   const literal = (word: string): void => { if (text.startsWith(word, i)) i += word.length; else fail(); };
   const string = (): void => {
@@ -105,7 +109,7 @@ function errorPosition(text: string): number {
     }
   };
   try { value(); space(); return Math.min(i, text.length); }
-  catch (error) { return typeof error === 'number' ? Math.min(error, text.length) : 0; }
+  catch (error) { return error instanceof Rejected ? Math.min(error.at, text.length) : 0; }
 }
 
 function hintAt(text: string, position: number): string | undefined {

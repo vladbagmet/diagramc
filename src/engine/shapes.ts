@@ -135,7 +135,7 @@ export function drawBox(canvas: Canvas, box: MeasuredBox, bounds: Rect, data: No
       const first = rowTop + baselineOffset(canvas.metrics, line.style.size, line.lineHeight);
       parts.push(canvas.lines(line.rows, xs, first, line.lineHeight, { ...line.style, fill: line.fill, role: 'text', owner: data.id }));
       if (line.underline) {
-        for (const [i, _] of line.rows.entries()) {
+        for (const [i] of line.rows.entries()) {
           const uy = first + i * line.lineHeight + Math.max(1.5, line.style.size * 0.12);
           parts.push(el('line', { x1: xs[i]!, y1: uy, x2: xs[i]! + line.widths[i]!, y2: uy, stroke: line.fill ?? theme.color.text, 'stroke-width': 0.9 }));
         }

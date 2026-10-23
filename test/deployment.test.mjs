@@ -17,8 +17,8 @@ test('deployment: every example passes every QA gate', () => assertExamples('dep
 test('deployment: stress example (45+ elements, 2 regions) renders within 2 s', async () => {
   const { doc } = await assertBudget('deployment');
   let count = 0;
-  const walk = e => { count++; (e.elements ?? []).forEach(walk); };
-  doc.elements.forEach(walk);
+  const walk = e => { count++; for (const child of e.elements ?? []) walk(child); };
+  for (const e of doc.elements) walk(e);
   assert.ok(count >= 45 && doc.relationships.length >= 25);
 });
 

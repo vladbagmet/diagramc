@@ -481,7 +481,7 @@ export async function layoutDiagram(spec: DiagramSpec, metrics: FontMetrics): Pr
   // Try each direction (and variants); keep the most readable result.
   // The kind's first direction is its convention; others must be clearly better,
   // the more so the more of the diagram is a hierarchy (generalizations, extensions).
-  const hierarchy = spec.edges.filter(e => e.tree || e.reversed).length / Math.max(1, spec.edges.filter(e => e.type !== 'note-anchor').length);
+  const hierarchy = spec.edges.filter(e => e.tree === true || e.reversed === true).length / Math.max(1, spec.edges.filter(e => e.type !== 'note-anchor').length);
   const chosen = await chooseLayout(spec.directions ?? ['DOWN'], (dir, variant) => run(dir, variant, new Set()), measureAttempt, { penalty: i => i ? 0.15 + 0.6 * hierarchy : 0, wrap: !!spec.wrap });
   const best = await withFlips(chosen);
   const result = best.result;
@@ -525,7 +525,7 @@ export async function layoutDiagram(spec: DiagramSpec, metrics: FontMetrics): Pr
       const others = (node: string): Point[] => {
         const r = rects.get(node)!;
         return [...result.edges].filter(([id]) => !bundle.members.some(m => id.startsWith(`${m.spec.id}::`)))
-          .flatMap(([, x]) => [x.points[0]!, x.points.at(-1)!]).filter(q => q && Math.min(Math.abs(q.x - r.x), Math.abs(q.x - r.x - r.width), Math.abs(q.y - r.y), Math.abs(q.y - r.y - r.height)) < 1);
+          .flatMap(([, x]) => [x.points[0], x.points.at(-1)]).filter((q): q is Point => q !== undefined && Math.min(Math.abs(q.x - r.x), Math.abs(q.x - r.x - r.width), Math.abs(q.y - r.y), Math.abs(q.y - r.y - r.height)) < 1);
       };
       const enter = straightenJog(result.edges.get(`${e.id}::in`)!.points, rects.get(bundle.source)!, jog, others(bundle.source), jog / 2);
       const leave = straightenJog([...result.edges.get(`${e.id}::out`)!.points].reverse(), rects.get(bundle.target)!, jog, others(bundle.target), jog / 2).reverse();

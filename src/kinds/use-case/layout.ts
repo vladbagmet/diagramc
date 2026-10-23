@@ -740,10 +740,3 @@ function rectHit(from: Point, r: Rect): Point {
   return { x: from.x + t * dx, y: from.y + t * dy };
 }
 
-/** The middle of the side of `r` that faces point `q`. */
-function sideCenter(r: Rect, q: Point): Point {
-  const c = { x: r.x + r.width / 2, y: r.y + r.height / 2 };
-  return Math.abs(q.x - c.x) * r.height >= Math.abs(q.y - c.y) * r.width
-    ? { x: q.x < c.x ? r.x : r.x + r.width, y: c.y }
-    : { x: c.x, y: q.y < c.y ? r.y : r.y + r.height };
-}

@@ -39,7 +39,7 @@ export function parseXml(source: string): XmlElement {
       const close = source.indexOf('>', lt);
       const tag = source.slice(lt + 2, close).trim();
       const open = stack.pop();
-      if (!open || open.tag !== tag) throw new Error(`Mismatched </${tag}>`);
+      if (open?.tag !== tag) throw new Error(`Mismatched </${tag}>`);
       i = close + 1;
       continue;
     }

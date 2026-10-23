@@ -42,9 +42,9 @@ export function componentGraph(model: ComponentDiagram): StructGraph {
     if (e.type !== 'component' && e.type !== 'class') return;
     values.set(e.id, e);
     for (const p of e.ports ?? []) values.set(p.id, p);
-    if (e.type === 'component') (e.elements ?? []).forEach(collectValues);
+    if (e.type === 'component') for (const child of e.elements ?? []) collectValues(child);
   };
-  model.elements.forEach(collectValues);
+  for (const e of model.elements) collectValues(e);
   for (const r of relationships) {
     if (r.type !== 'delegation') continue;
     const owner = (id: string) => portOf.get(id) ?? id;
@@ -74,9 +74,9 @@ export function componentGraph(model: ComponentDiagram): StructGraph {
   const collect = (e: Element | Nested): void => {
     if (e.type !== 'component' && e.type !== 'class') return;
     for (const v of [e, ...(e.ports ?? [])]) for (const id of [...v.provides ?? [], ...v.requires ?? []]) referenced.add(id);
-    if (e.type === 'component') (e.elements ?? []).forEach(collect);
+    if (e.type === 'component') for (const child of e.elements ?? []) collect(child);
   };
-  model.elements.forEach(collect);
+  for (const e of model.elements) collect(e);
   const touched = new Set(relationships.flatMap(r => r.type === 'assembly' || r.type === 'delegation' ? [] : [r.from, r.to]));
   for (const e of model.elements) if (e.type === 'note') for (const id of e.attachedTo ?? []) touched.add(id);
 

@@ -98,7 +98,7 @@ export function loadFonts(): Promise<FontMetrics> {
         for (const { segment } of graphemes.segment(text)) {
           const covered = [...segment].every(c => face.coverage.has(c.codePointAt(0)!) || DEFAULT_IGNORABLE.test(c));
           const last = out.at(-1);
-          if (last && last.covered === covered) last.text += segment; else out.push({ text: segment, covered });
+          if (last?.covered === covered) last.text += segment; else out.push({ text: segment, covered });
         }
         return out;
       },
@@ -108,7 +108,7 @@ export function loadFonts(): Promise<FontMetrics> {
 }
 
 const DEFAULT_IGNORABLE = /^\p{Default_Ignorable_Code_Point}$/u;
-const WIDE = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}\p{Script=Bopomofo}　-〿！-｠￠-￦]/u;
+const WIDE = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}\p{Script=Bopomofo}\u3000-〿！-｠￠-￦]/u;
 const EMOJI = /\p{Extended_Pictographic}|\p{Regional_Indicator}/u;
 
 /**

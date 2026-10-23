@@ -18,8 +18,8 @@ test('component: every example passes every QA gate', () => assertExamples('comp
 test('component: stress example (30 components, 40+ relationships) renders within 2 s', async () => {
   const { doc } = await assertBudget('component');
   let components = 0;
-  const walk = e => { if (e.type === 'component') components++; (e.elements ?? []).forEach(walk); };
-  doc.elements.forEach(walk);
+  const walk = e => { if (e.type === 'component') components++; for (const child of e.elements ?? []) walk(child); };
+  for (const e of doc.elements) walk(e);
   assert.ok(components >= 30 && doc.relationships.length >= 40);
 });
 

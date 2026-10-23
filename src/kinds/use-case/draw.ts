@@ -14,8 +14,10 @@ export async function drawUseCaseDiagram(scene: UseCaseScene, metrics: FontMetri
   // Subjects (system boundaries) below the edges: rectangle, name at the top center.
   for (const s of scene.subjects) {
     const b = s.bounds;
-    const parts = [el('rect', { x: b.x, y: b.y, width: b.width, height: b.height, fill: theme.color.background, ...stroke })];
-    parts.push(rowsAt(canvas, s.rows, b.x + b.width / 2, b.y + theme.spacing.headerPadY, s.subject.id, 'text'));
+    const parts = [
+      el('rect', { x: b.x, y: b.y, width: b.width, height: b.height, fill: theme.color.background, ...stroke }),
+      rowsAt(canvas, s.rows, b.x + b.width / 2, b.y + theme.spacing.headerPadY, s.subject.id, 'text'),
+    ];
     canvas.frame.push(el('g', nodeAttributes({ id: s.subject.id, type: 'subject' }, b), parts));
   }
 
@@ -33,8 +35,10 @@ export async function drawUseCaseDiagram(scene: UseCaseScene, metrics: FontMetri
       const nameHeight = names.reduce((sum, r) => sum + metrics.lineHeight(r.style.size), 0);
       const y = top + nameHeight + 4;
       const half = rx * Math.sqrt(Math.max(0, 1 - ((y - cy) / ry) ** 2));
-      parts.push(el('line', { x1: cx - half, y1: y, x2: cx + half, y2: y, stroke: theme.color.nodeStroke, 'stroke-width': theme.stroke.compartment }));
-      parts.push(rowsAt(canvas, points, cx, y + 4, u.useCase.id, 'text'));
+      parts.push(
+        el('line', { x1: cx - half, y1: y, x2: cx + half, y2: y, stroke: theme.color.nodeStroke, 'stroke-width': theme.stroke.compartment }),
+        rowsAt(canvas, points, cx, y + 4, u.useCase.id, 'text'),
+      );
     }
     canvas.nodes.push(el('g', nodeAttributes({ id: u.useCase.id, type: 'use-case', parent: u.parent, shape: 'ellipse' }, b), parts));
   }

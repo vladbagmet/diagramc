@@ -13,7 +13,7 @@ import { judgementMessage } from '../test/known-gate-failures.mjs';
 const root = fileURLToPath(new URL('..', import.meta.url));
 const out = join(root, 'artifacts', 'gallery');
 const only = process.argv.slice(2);
-const escape = s => String(s).replaceAll(/[&<>"']/g, c => `&#${c.charCodeAt(0)};`);
+const escape = s => String(s).replaceAll(/[&<>"']/g, c => `&#${c.codePointAt(0)};`);
 
 async function jsonFiles(dir) {
   try { return (await readdir(dir)).filter(f => f.endsWith('.json')).sort().map(f => join(dir, f)); }

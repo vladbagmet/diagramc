@@ -70,7 +70,7 @@ export function validateSchema(schema: JsonSchema, value: unknown): SchemaResult
   const patternAt = new Set(errors.filter(e => e.keyword === 'pattern').map(e => e.instancePath));
   const diagnostics = [
     ...describeErrors(errors.filter(e => e.keyword !== TEXT_KEYWORD), schema, value).map(d => {
-      const reason = (d.details as { rule?: string } | undefined)?.rule === 'pattern' ? textReason.get(d.path ?? '') : undefined;
+      const reason = (d.details as { rule?: string } | undefined)?.rule === 'pattern' ? textReason.get(d.path) : undefined;
       return reason ? { ...d, message: `${d.message} (${reason})` } : d;
     }),
     ...errors.filter(e => e.keyword === TEXT_KEYWORD && !patternAt.has(e.instancePath)).map(e => ({
@@ -221,7 +221,7 @@ function describeErrors(errors: ErrorObject[], root: Schema, document: unknown):
       const own = node && typeof node === 'object' ? (node as Record<string, unknown>)[name] : undefined;
       const byValue = [...absent, ...allowed.filter(a => !present.includes(a) && !absent.includes(a))].find(m => {
         const ms = resolve(root, (schemaOf(root, schema, node).properties as Record<string, unknown> | undefined)?.[m]);
-        return ms && ((ms.enum as unknown[] | undefined)?.includes(own) || ('const' in ms && ms.const === own));
+        return ms && ((ms.enum as unknown[] | undefined)?.includes(own) === true || ('const' in ms && ms.const === own));
       });
       const special = specialPropertyHint(name, allowed, node);
       const guess = special ? undefined : byValue ?? suggest(name, absent) ?? suggest(name, allowed.filter(a => !present.includes(a)));
@@ -232,7 +232,7 @@ function describeErrors(errors: ErrorObject[], root: Schema, document: unknown):
       const rename = fits ? guess : undefined;
       const required = rename !== undefined && absent.includes(rename);
       if (required) missing.get(path)!.names = missing.get(path)!.names.filter(m => m !== rename);
-      const hint = guess === undefined ? '' : fits ? required ? `; rename it to "${rename}"` : `; did you mean "${rename}"` : `; "${guess}" is similar but takes ${article(String(targetType))}`;
+      const hint = guess === undefined ? '' : fits ? required ? `; rename it to "${rename}"` : `; did you mean "${rename}"` : `; "${guess}" is similar but takes ${article(typeof targetType === 'string' ? targetType : JSON.stringify(targetType))}`;
       issues.push({
         path: pointer(path, name), keyword: 'additionalProperties',
         message: `Unknown property "${name}" in ${describeObject(document, path, allowed)}${hint}${special ? ` ${special}` : ''}. Allowed properties: ${allowed.join(', ')}`,
@@ -260,7 +260,7 @@ function describeErrors(errors: ErrorObject[], root: Schema, document: unknown):
     switch (e.keyword) {
       case 'additionalProperties': case 'required': break;
       case 'discriminator': {
-        const tag = String(p.tag ?? 'type');
+        const tag = typeof p.tag === 'string' ? p.tag : 'type';
         const allowed = tagValues(root, schema, tag);
         const tagPath = pointer(path, tag);
         const tagValue = p.tagValue;
@@ -284,7 +284,7 @@ function describeErrors(errors: ErrorObject[], root: Schema, document: unknown):
         break;
       }
       case 'enum': {
-        const allowed = (p.allowedValues as unknown[]) ?? [];
+        const allowed = (p.allowedValues as unknown[] | undefined) ?? [];
         const nearest = typeof value === 'string' ? suggest(value, allowed.map(String), 'value') : undefined;
         issues.push({ path, keyword: 'enum', message: `${where(path)} is ${typeName(value)}${nearest ? `; did you mean "${nearest}"` : ''}. Allowed values: ${quoted(allowed)}`, details: { allowed, ...(nearest ? { suggestion: nearest } : {}) } });
         break;
@@ -329,13 +329,13 @@ function describeErrors(errors: ErrorObject[], root: Schema, document: unknown):
         break;
       }
       case 'minLength': case 'maxLength': case 'minItems': case 'maxItems': case 'minimum': case 'maximum': case 'exclusiveMinimum': case 'exclusiveMaximum': case 'minProperties': case 'maxProperties': {
-        const limit = p.limit;
+        const limit = Number(p.limit);
         const what = { minLength: `at least ${limit} characters long`, maxLength: `at most ${limit} characters long`, minItems: `a list of at least ${limit} item${limit === 1 ? '' : 's'}`, maxItems: `a list of at most ${limit} items`, minimum: `at least ${limit}`, maximum: `at most ${limit}`, exclusiveMinimum: `greater than ${limit}`, exclusiveMaximum: `less than ${limit}`, minProperties: `an object with at least ${limit} properties`, maxProperties: `an object with at most ${limit} properties` }[e.keyword];
         issues.push({ path, keyword: e.keyword, message: `${where(path)} must be ${what}.${sentence(schema.description)}`, details: { limit } });
         break;
       }
       case 'uniqueItems':
-        issues.push({ path, keyword: 'uniqueItems', message: `${where(path)} lists item ${p.j} and item ${p.i} twice; each value may appear once` });
+        issues.push({ path, keyword: 'uniqueItems', message: `${where(path)} lists item ${Number(p.j)} and item ${Number(p.i)} twice; each value may appear once` });
         break;
       case 'dependencies':
         issues.push({ path: pointer(path, String(p.missingProperty)), keyword: 'dependencies', message: `Missing property ${pointer(path, String(p.missingProperty))}, required when ${pointer(path, String(p.property))} is present` });

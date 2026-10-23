@@ -47,9 +47,9 @@ test('bounds and stable ID syntax', () => {
   parse({ ...minimal, classes: [{ id: 'a', name: '🚀'.repeat(100) }] });
   fails({ ...minimal, classes: [{ id: 'a', name: '🚀'.repeat(101) }] }, 'SCHEMA_INVALID');
   fails({ ...minimal, classes: Array.from({ length: 51 }, (_, i) => ({ id: `c${i}`, name: 'C' })) }, 'SCHEMA_INVALID');
-  fails({ ...minimal, classes: [{ id: 'a', name: 'A', attributes: Array.from({length: 21}).fill('x') }] }, 'SCHEMA_INVALID');
+  fails({ ...minimal, classes: [{ id: 'a', name: 'A', attributes: Array.from({ length: 21 }, () => 'x') }] }, 'SCHEMA_INVALID');
   fails({ ...minimal, classes: [{ id: 'a', name: 'A', methods: ['x'.repeat(181)] }] }, 'SCHEMA_INVALID');
-  fails({ ...minimal, relationships: Array.from({length: 101}).fill({ type: 'association', from: 'a', to: 'a' }) }, 'SCHEMA_INVALID');
+  fails({ ...minimal, relationships: Array.from({ length: 101 }, () => ({ type: 'association', from: 'a', to: 'a' })) }, 'SCHEMA_INVALID');
   for (const id of ['!include', 'a\nb', 'a\n', 'a\r', 'x'.repeat(65), 'a" {}']) {
     fails({ ...minimal, classes: [{ id, name: 'A' }] }, 'SCHEMA_INVALID');
     fails({ ...minimalV2, elements: [{ id, type: 'class', name: 'A' }] }, 'SCHEMA_INVALID', '/elements/0/id');
@@ -73,7 +73,7 @@ test('inheritance direction, cycles, self-inheritance and legal association cycl
   parse({ ...model, relationships: [{ type: 'association', from: 'a', to: 'b' }, { type: 'association', from: 'b', to: 'a' }] });
 });
 test('rejects line breaks, controls, blank text, bidi controls, invalid XML characters and unpaired surrogates', () => {
-  for (const text of ['A\n@enduml', 'A\n', 'A\r', 'A\r\n', 'A ', 'A ', 'x\r!include a', 'x\tY', '\0', '\u0085', ' ', ' ', '￾', '￿']) {
+  for (const text of ['A\n@enduml', 'A\n', 'A\r', 'A\r\n', 'A\u2028', 'A\u2029', 'x\r!include a', 'x\tY', '\0', '\u0085', '\u2028', '\u2029', '￾', '￿']) {
     for (const field of ['name', 'attributes', 'methods']) {
       fails({ ...minimal, classes: [{ id: 'a', name: 'A', [field]: field === 'name' ? text : [text] }] }, 'SCHEMA_INVALID');
     }
@@ -100,7 +100,7 @@ test('hostile display text is encoded, never used as PlantUML source syntax or I
   assert.ok(!source.includes(text));
   assert.ok(!source.includes('private_id'));
   assert.equal(source.split('\n').filter(x => x === '@enduml').length, 1);
-  assert.match(displayText('"{}<>\\'), /^​(<U\+[0-9A-F]+>)+​$/);
+  assert.match(displayText('"{}<>\\'), /^\u200B(<U\+[0-9A-F]+>)+\u200B$/);
   assert.equal(source, classToPlantUml(parse(model).model));
 });
 

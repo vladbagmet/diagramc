@@ -211,7 +211,7 @@ export function readSequence(root: XmlElement, scene: Scene): void {
       continue;
     }
     if (e.tag === 'g') {
-      const hit = kids.find(k => k.tag === 'rect' && k.attrs['fill-opacity'] !== undefined);
+      const hit = kids.some(k => k.tag === 'rect' && k.attrs['fill-opacity'] !== undefined);
       const line = kids.find(k => k.tag === 'line');
       if (hit && line) {
         const [a, b] = lineEnds(line);
@@ -584,7 +584,7 @@ export function readTiming(root: XmlElement, scene: Scene): void {
       && text.bounds.y + text.bounds.height / 2 >= c.bounds.y && text.bounds.y + text.bounds.height / 2 <= c.bounds.y + c.bounds.height);
     if (container) {
       const last = pending.at(-1);
-      if (last && last.container === container.id) last.parts.push(text);
+      if (last?.container === container.id) last.parts.push(text);
       else pending.push({ container: container.id, parts: [text] });
       continue;
     }

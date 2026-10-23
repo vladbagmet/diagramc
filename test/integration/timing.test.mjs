@@ -99,7 +99,7 @@ test('review fixtures: dense timing input is rejected precisely; readable inputs
   assert.throws(() => parseDocument(awkward), e => e.code === 'TIMELINE_TOO_DENSE' && e.diagnostics.length > 1 && e.diagnostics.every(d => /needs about \d+ px/.test(d.message)));
   for (const name of ['tim-traffic.json', 'tim-llm2.json']) {
     const { svg } = await assertGates(await review(name));
-    const [, , w, h] = svg.match(/viewBox="([\d.]+) ([\d.]+) ([\d.]+) ([\d.]+)"/).slice(1).map(Number);
+    const [w, h] = svg.match(/viewBox="([\d.]+) ([\d.]+) ([\d.]+) ([\d.]+)"/).slice(3).map(Number);
     assert.ok(w / h < 4, `${name}: aspect ratio ${(w / h).toFixed(1)} (was 12.9 for tim-llm2)`);
   }
 });
