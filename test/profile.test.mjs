@@ -54,7 +54,7 @@ test('profile notation: each extension of one metaclass has its own arrowhead', 
 });
 
 test('profile: hostile and markup-like text stays literal and cannot create active SVG', async () => {
-  const hostile = '" } !include https://evil.invalid <b>bold</b> [[https://evil.invalid]] **x** \\n @enduml';
+  const hostile = String.raw`" } !include https://evil.invalid <b>bold</b> [[https://evil.invalid]] **x** \n @enduml`;
   await assertHostileTextIsLiteral({
     kind: 'profile', title: '<script>x</script>',
     elements: [

@@ -159,7 +159,7 @@ export async function layout(nodes: readonly LayoutNode[], edges: readonly Layou
       const horizontal = p.side === 'NORTH' || p.side === 'SOUTH';
       const width = horizontal ? p.width ?? 0 : 0, height = horizontal ? 0 : p.width ?? 0;
       return {
-        id: p.id, width, height, layoutOptions: { 'elk.port.side': p.side, ...(p.index !== undefined ? { 'elk.port.index': String(p.index) } : {}) },
+        id: p.id, width, height, layoutOptions: { 'elk.port.side': p.side, ...(p.index === undefined ? {} : { 'elk.port.index': String(p.index) }) },
         ...(p.position ? { x: p.position.x - width / 2, y: p.position.y - height / 2 } : {}),
       };
     }) } : {}),

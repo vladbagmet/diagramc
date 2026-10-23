@@ -43,7 +43,7 @@ export function structure(model: ActivityDiagram): Block {
   const back = new Set<ActivityEdge>();
   const state = new Map<string, 'active' | 'done'>([[initial.id, 'active']]);
   const stack: { id: string; next: number }[] = [{ id: initial.id, next: 0 }];
-  while (stack.length) {
+  while (stack.length > 0) {
     const top = stack.at(-1)!;
     const edges = out.get(top.id)!;
     if (top.next >= edges.length) { state.set(top.id, 'done'); stack.pop(); continue; }
@@ -174,7 +174,7 @@ export function structure(model: ActivityDiagram): Block {
     // branches inside the loop, unless such a flow is the only way out.
     const leaving = [...body].flatMap(id => out.get(id)!.filter(e => !back.has(e) && !body.has(e.to)));
     const continuing = leaving.filter(e => !terminates(e.to));
-    const exits = continuing.length || leaving.length !== 1 ? continuing : leaving;
+    const exits = continuing.length > 0 || leaving.length !== 1 ? continuing : leaving;
     const exit = exits[0];
     const decision = exit && nodes.get(exit.from);
     if (exits.length !== 1 || !decision || decision.type !== 'decision' || out.get(decision.id)!.length !== 2) {
@@ -187,8 +187,8 @@ export function structure(model: ActivityDiagram): Block {
     const s2 = stay.to === merge.id ? { block: [], end: merge.id } : seq(stay.to, new Set([merge.id]));
     if (s2.end !== merge.id) throw new StructureError(decision.id, `The loop flow of decision "${decision.id}" does not return to merge "${merge.id}" in sequence`);
     let step: Step;
-    if (!s1.block.length) step = { kind: 'while', merge, decision, guard: stay.guard!, body: s2.block, exitGuard: exit.guard! };
-    else if (!s2.block.length) step = { kind: 'repeat', merge, decision, body: s1.block, backGuard: stay.guard!, exitGuard: exit.guard! };
+    if (s1.block.length === 0) step = { kind: 'while', merge, decision, guard: stay.guard!, body: s2.block, exitGuard: exit.guard! };
+    else if (s2.block.length === 0) step = { kind: 'repeat', merge, decision, body: s1.block, backGuard: stay.guard!, exitGuard: exit.guard! };
     else {
       const only = s2.block.length === 1 ? s2.block[0]! : undefined;
       if (only?.kind !== 'node' || only.node.type !== 'action' || !isExecutable(only.node)) {
@@ -245,7 +245,7 @@ export interface Span { min: number; max: number }
 
 export function blockSpan(block: Block, index: ReadonlyMap<string, number>): Span | undefined {
   const lanes = [...blockPartitions(block)].map(p => index.get(p)).filter((i): i is number => i !== undefined);
-  return lanes.length ? { min: Math.min(...lanes), max: Math.max(...lanes) } : undefined;
+  return lanes.length > 0 ? { min: Math.min(...lanes), max: Math.max(...lanes) } : undefined;
 }
 
 /**

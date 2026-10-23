@@ -33,7 +33,7 @@ export async function stressCenters(nodes: readonly StressNode[], edges: readonl
     children: nodes.map(n => ({ id: n.id, width: n.width, height: n.height })),
     edges: edges.map((e, i) => ({
       id: `::e${i}`, sources: [e.source], targets: [e.target],
-      ...(e.length ? { layoutOptions: { 'elk.stress.desiredEdgeLength': String(e.length) } } : {}),
+      ...(e.length !== undefined && e.length > 0 ? { layoutOptions: { 'elk.stress.desiredEdgeLength': String(e.length) } } : {}),
     })),
   };
   const result = await elk.layout(graph);

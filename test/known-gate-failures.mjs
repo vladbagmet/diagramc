@@ -46,10 +46,10 @@ export function judgeFailures(document, failures) {
 export function judgementMessage(document, failures) {
   const { unexpected, stale } = judgeFailures(document, failures);
   const parts = [];
-  if (unexpected.length) {
+  if (unexpected.length > 0) {
     const doc = typeof document === 'string' ? JSON.parse(document) : document;
-    parts.push(`QA gates failed (kind ${doc.kind}, ${doc.title !== undefined ? `title ${JSON.stringify(doc.title)}` : `hash ${hashOf(doc)}`}):\n  ${unexpected.join('\n  ')}`);
+    parts.push(`QA gates failed (kind ${doc.kind}, ${doc.title === undefined ? `hash ${hashOf(doc)}` : `title ${JSON.stringify(doc.title)}`}):\n  ${unexpected.join('\n  ')}`);
   }
-  if (stale.length) parts.push(`fixed, remove from KNOWN_GATE_FAILURES (test/known-gate-failures.mjs): ${stale.join('; ')}`);
-  return parts.length ? parts.join('\n') : undefined;
+  if (stale.length > 0) parts.push(`fixed, remove from KNOWN_GATE_FAILURES (test/known-gate-failures.mjs): ${stale.join('; ')}`);
+  return parts.length > 0 ? parts.join('\n') : undefined;
 }

@@ -27,27 +27,27 @@ export function validateActivityDiagram(model: ActivityDiagram): Diagnostic[] {
   const nodeIndex = new Map(model.nodes.map((n, i) => [n.id, i]));
   const partitionIds = new Map(partitions.map(p => [p.id, p]));
 
-  model.nodes.forEach((n, i) => {
+  for (const [i, n] of model.nodes.entries()) {
     const at = pointer('', 'nodes', i);
     if ('partition' in n && n.partition !== undefined) reference(n.partition, pointer(at, 'partition'), partitionIds, diagnostics, 'partition');
-    else if (partitions.length && n.type !== 'merge' && n.type !== 'join') {
+    else if (partitions.length > 0 && n.type !== 'merge' && n.type !== 'join') {
       diagnostics.push({ code: 'MISSING_PARTITION', path: pointer(at, 'partition'), message: `Node "${n.id}" must name its partition: the diagram has partitions` });
     }
-  });
+  }
 
   const initials = model.nodes.filter(n => n.type === 'initial');
-  if (!initials.length) diagnostics.push({ code: 'MISSING_INITIAL_NODE', path: '/nodes', message: 'An activity needs exactly one initial node' });
-  initials.slice(1).forEach(n => diagnostics.push({ code: 'MULTIPLE_INITIAL_NODES', path: pointer('', 'nodes', nodeIndex.get(n.id)!), message: `Second initial node "${n.id}"; an activity has exactly one initial node` }));
+  if (initials.length === 0) diagnostics.push({ code: 'MISSING_INITIAL_NODE', path: '/nodes', message: 'An activity needs exactly one initial node' });
+  for (const n of initials.slice(1)) diagnostics.push({ code: 'MULTIPLE_INITIAL_NODES', path: pointer('', 'nodes', nodeIndex.get(n.id)!), message: `Second initial node "${n.id}"; an activity has exactly one initial node` });
 
   const incoming = new Map<string, number[]>(), outgoing = new Map<string, number[]>();
   for (const n of model.nodes) { incoming.set(n.id, []); outgoing.set(n.id, []); }
   const guards = new Map<string, Map<string, string>>();
   let referencesOk = true;
-  model.edges.forEach((e, i) => {
+  for (const [i, e] of model.edges.entries()) {
     const at = pointer('', 'edges', i);
     const fromOk = reference(e.from, pointer(at, 'from'), nodes, diagnostics, 'node', { from: e.from, to: e.to });
     const toOk = reference(e.to, pointer(at, 'to'), nodes, diagnostics, 'node', { from: e.from, to: e.to });
-    if (!fromOk || !toOk) { referencesOk = false; return; }
+    if (!fromOk || !toOk) { referencesOk = false; continue; }
     const from = nodes.get(e.from)!, to = nodes.get(e.to)!;
     outgoing.get(e.from)!.push(i);
     incoming.get(e.to)!.push(i);
@@ -58,8 +58,8 @@ export function validateActivityDiagram(model: ActivityDiagram): Diagnostic[] {
       else {
         const seen = guards.get(e.from) ?? new Map<string, string>();
         const first = seen.get(e.guard);
-        if (first !== undefined) diagnostics.push({ code: 'DUPLICATE_GUARD', path: pointer(at, 'guard'), message: `Decision "${e.from}" already has a flow with guard [${e.guard}] (${first})` });
-        else seen.set(e.guard, at);
+        if (first === undefined) {seen.set(e.guard, at);}
+        else {diagnostics.push({ code: 'DUPLICATE_GUARD', path: pointer(at, 'guard'), message: `Decision "${e.from}" already has a flow with guard [${e.guard}] (${first})` });}
         guards.set(e.from, seen);
       }
     } else if (e.guard !== undefined) {
@@ -75,9 +75,9 @@ export function validateActivityDiagram(model: ActivityDiagram): Diagnostic[] {
     } else if (from.type === 'object' || to.type === 'object') {
       diagnostics.push({ code: 'INVALID_CONTROL_FLOW', path: pointer(at, 'type'), message: `Flows into or out of object node "${from.type === 'object' ? e.from : e.to}" must be object flows` });
     }
-  });
+  }
 
-  model.nodes.forEach((n, i) => {
+  for (const [i, n] of model.nodes.entries()) {
     const at = pointer('', 'nodes', i);
     const ins = incoming.get(n.id)!, outs = outgoing.get(n.id)!;
     const degree = DEGREE[n.type];
@@ -85,36 +85,36 @@ export function validateActivityDiagram(model: ActivityDiagram): Diagnostic[] {
       if (ins.length < degree.inMin || ins.length > degree.inMax || outs.length < degree.outMin || outs.length > degree.outMax) {
         diagnostics.push({ code: degree.code, path: at, message: `${cap(n.type)} node "${n.id}" needs ${degree.text}; it has ${ins.length} incoming and ${outs.length} outgoing`, details: { incoming: ins.length, outgoing: outs.length } });
       }
-      return;
+      continue;
     }
     if (ins.length > 1) diagnostics.push({ code: 'IMPLICIT_MERGE', path: pointer('', 'edges', ins[1]!, 'to'), message: `Node "${n.id}" has several incoming flows; join them with an explicit merge (or join) node` });
     if (outs.length > 1) diagnostics.push({ code: 'IMPLICIT_FORK', path: pointer('', 'edges', outs[1]!, 'from'), message: `Node "${n.id}" has several outgoing flows; split them with an explicit decision (or fork) node` });
-    if (!outs.length && !isFinal(n)) diagnostics.push({ code: 'MISSING_OUTGOING_FLOW', path: at, message: `Node "${n.id}" has no outgoing flow; end the flow with an activity final or flow final node` });
-  });
+    if (outs.length === 0 && !isFinal(n)) diagnostics.push({ code: 'MISSING_OUTGOING_FLOW', path: at, message: `Node "${n.id}" has no outgoing flow; end the flow with an activity final or flow final node` });
+  }
 
-  if (initials.length && referencesOk) {
+  if (initials.length > 0 && referencesOk) {
     const reached = new Set<string>([initials[0]!.id]);
     const queue = [initials[0]!.id];
-    while (queue.length) {
+    while (queue.length > 0) {
       const id = queue.shift()!;
       for (const j of outgoing.get(id)!) {
         const to = model.edges[j]!.to;
         if (!reached.has(to)) { reached.add(to); queue.push(to); }
       }
     }
-    model.nodes.forEach((n, i) => {
+    for (const [i, n] of model.nodes.entries()) {
       if (!reached.has(n.id) && n.type !== 'initial') diagnostics.push({ code: 'UNREACHABLE_NODE', path: pointer('', 'nodes', i), message: `Node "${n.id}" cannot be reached from the initial node` });
-    });
+    }
   }
 
-  if (!diagnostics.length) {
+  if (diagnostics.length === 0) {
     let blocks: Block | undefined;
     try { blocks = structure(model); }
     catch (error) {
       if (!(error instanceof StructureError)) throw error;
       diagnostics.push({ code: 'UNSTRUCTURED_FLOW', path: pointer('', 'nodes', nodeIndex.get(error.nodeId) ?? 0), message: `${error.message}. Activity diagrams must be well structured (see docs/kinds/activity.md)`, details: { node: error.nodeId } });
     }
-    if (blocks && partitions.length) checkSwimlanes(blocks, model, nodeIndex, diagnostics);
+    if (blocks && partitions.length > 0) checkSwimlanes(blocks, model, nodeIndex, diagnostics);
   }
   return diagnostics;
 }
@@ -175,7 +175,7 @@ function checkSwimlanes(blocks: Block, model: ActivityDiagram, nodeIndex: Readon
         if (step.kind === 'decision' && step.branches.length > 2 && !clash) {
           const own = step.node.partition;
           const others = [...new Set(step.branches.flatMap(b => [...blockPartitions(b.body)]))].filter(p => p !== own);
-          if (others.length) diagnostics.push(multiway(step, others, fresh, index));
+          if (others.length > 0) diagnostics.push(multiway(step, others, fresh, index));
         }
         for (const b of branches) visit(b.body);
       } else if (step.kind === 'while' || step.kind === 'repeat') visit(step.body);

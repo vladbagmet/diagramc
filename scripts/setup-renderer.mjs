@@ -27,7 +27,7 @@ async function checksum(path) {
       const { bytesRead } = await file.read(buffer, 0, buffer.length, null);
       if (!bytesRead) break;
       size += bytesRead;
-      if (size > maxDownloadBytes) return undefined;
+      if (size > maxDownloadBytes) return;
       hash.update(buffer.subarray(0, bytesRead));
     }
     return hash.digest('hex');

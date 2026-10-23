@@ -75,7 +75,7 @@ export function planSelfLoops(loops: readonly SelfLoopSpec[], options: { leftCor
   let left = 0, aboveLeft: SelfLoopPlan['reserveAbove'], belowLeft: SelfLoopPlan['reserveBelow'];
   let cornerDepth = 0, leftDepth = 0;
   const corners = options.leftCorners ? 4 : 2;
-  loops.slice(0, corners).forEach((loop, i) => {
+  for (const [i, loop] of loops.slice(0, corners).entries()) {
     const source = loop.sourceLabelWidth ?? loop.endLabelWidth, target = loop.targetLabelWidth ?? loop.endLabelWidth;
     // The leg on the right border sits below the target labels' band; the far leg
     // leaves room for the target labels and the loop's top for the source labels.
@@ -88,29 +88,43 @@ export function planSelfLoops(loops: readonly SelfLoopSpec[], options: { leftCor
     const center = loop.centerLabel ? loop.centerLabel.width + 12 : 0;
     const reserve = { width: inset + extent + center + 10, height: rise + 8 };
     if (i < 2) right = Math.max(right, extent + center + 10); else left = Math.max(left, extent + center + 10);
-    if (slot === 'top') above = reserve; else if (slot === 'bottom') below = reserve; else if (slot === 'top-left') aboveLeft = reserve; else belowLeft = reserve;
+    switch (slot) {
+    case 'top': {
+    above = reserve;
+    break;
+    }
+    case 'bottom': {
+    below = reserve;
+    break;
+    }
+    case 'top-left': {
+    aboveLeft = reserve;
+    break;
+    }
+    default: belowLeft = reserve;
+    }
     if (i < 2) cornerDepth += depth; else leftDepth += depth;
-  });
+  }
   // Further loops nest on the right side, between the corner loops' legs.
   let extent = 0, halfSpan = 4, previousCenter = 0;
-  loops.slice(corners).forEach((loop, i) => {
+  for (const [i, loop] of loops.slice(corners).entries()) {
     // Legs of nested loops keep two arrowheads apart (the end-spacing gate).
     const band = Math.max(loop.endLabelRows ? loop.endLabelRows * (loop.labelHeight + 2) + 6 : 0, MIN_BAND);
     halfSpan += band;
     extent = Math.max(i === 0 ? 26 : extent + 16 + previousCenter, loop.endLabelWidth + 14);
     previousCenter = loop.centerLabel ? loop.centerLabel.width + 12 : 0;
     planned.push({ slot: 'side', extent, halfSpan });
-  });
+  }
   const sides = loops.length > corners;
   if (sides) right = Math.max(right, extent + previousCenter + 10);
   const side = sides ? 2 * halfSpan + 12 : 0;
   const rightHeight = cornerDepth + side + (sides ? 2 * GROUP_GAP : loops.length >= 2 ? MIN_BAND : 4);
   const leftHeight = leftDepth + (loops.length >= 4 ? MIN_BAND : 4);
   return {
-    reserveRight: loops.length ? right : 0,
+    reserveRight: loops.length > 0 ? right : 0,
     reserveAbove: above, reserveBelow: below,
     ...(left ? { reserveLeft: left, reserveAboveLeft: aboveLeft, reserveBelowLeft: belowLeft } : {}),
-    minHeight: loops.length ? Math.max(rightHeight, left ? leftHeight : 0) : 0,
+    minHeight: loops.length > 0 ? Math.max(rightHeight, left ? leftHeight : 0) : 0,
     loops: planned,
   };
 }
@@ -148,5 +162,5 @@ export function selfLoopRoute(rect: Rect, plan: SelfLoopPlan, index: number): Po
 /** Side of an end label inside loop `index` (the `onlySide` of src/engine/labels.ts): left-corner loops are mirrored. */
 export function selfLoopLabelSide(plan: SelfLoopPlan, index: number, end: 'source' | 'target'): 1 | -1 {
   const mirrored = plan.loops[index]?.slot === 'top-left' || plan.loops[index]?.slot === 'bottom-left';
-  return (end === 'source') !== mirrored ? -1 : 1;
+  return (end === 'source') === mirrored ? 1 : -1;
 }

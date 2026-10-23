@@ -81,15 +81,15 @@ export function timingToPlantUml(model: TimingDiagram): string {
   lines.push(`scale ${step} as ${px} pixels`);
 
   const stateAlias = new Map<string, string>();
-  model.lifelines.forEach(l => {
+  for (const l of model.lifelines) {
     const alias = ids.get(l.id)!;
     lines.push(`${l.notation} "${wrappedDisplayText(lifelineLabel(l), 40)}" as ${alias}`);
-    l.states.forEach((s, j) => {
+    for (const [j, s] of l.states.entries()) {
       const sa = `${alias}s${j}`;
       stateAlias.set(`${l.id}\u0000${s}`, sa);
       lines.push(`${alias} has "${displayText(s)}" as ${sa}`);
-    });
-  });
+    }
+  }
 
   // State changes and notes grouped by time.
   const events = new Map<number, string[]>();

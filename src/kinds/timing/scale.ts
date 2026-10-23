@@ -27,7 +27,7 @@ export function estimateWidth(text: string, size = 13): number {
   let em = 0;
   for (const c of text) {
     const code = c.codePointAt(0)!;
-    if (code >= 0x20 && code <= 0x7e) em += ASCII_ADVANCE[code - 0x20]! / 1000;
+    if (code >= 0x20 && code <= 0x7E) em += ASCII_ADVANCE[code - 0x20]! / 1000;
     else if (/[\u1100-\u11FF\u2E80-\uA4CF\uAC00-\uD7AF\uF900-\uFAFF\uFE30-\uFE4F\uFF00-\uFFEF]|\p{Extended_Pictographic}/u.test(c)) em += 1.05;
     else em += 0.8;
   }
@@ -87,34 +87,34 @@ export function timeScale(model: TimingDiagram): TimeScale {
   const start = times[0]!, end = times.at(-1)!;
   const span = Math.max(1, end - start);
   const needs: SpaceNeed[] = [];
-  model.lifelines.forEach((l, i) => {
-    l.changes.forEach((c, j) => {
+  for (const [i, l] of model.lifelines.entries()) {
+    for (const [j, c] of l.changes.entries()) {
       const next = l.changes[j + 1]?.at ?? end;
       if (l.notation === 'concise') {
         needs.push({ path: pointer('', 'lifelines', i, 'changes', j, 'state'), what: `value "${c.state}" of lifeline "${l.id}"`, from: c.at, to: next, px: estimateWidth(c.state) + VALUE_PAD, text: true });
       } else if (j + 1 < l.changes.length) {
         needs.push({ path: pointer('', 'lifelines', i, 'changes', j + 1, 'at'), what: `state change of lifeline "${l.id}"`, from: c.at, to: next, px: MIN_STEP_PX, text: false });
       }
-    });
-  });
+    }
+  }
   // Notes on one lifeline and side must not run into the next one.
   const notes = (model.notes ?? []).map((n, i) => ({ n, i })).sort((a, b) => a.n.at - b.n.at || a.i - b.i);
-  notes.forEach(({ n, i }, k) => {
+  for (const [k, { n, i }] of notes.entries()) {
     const next = notes.slice(k + 1).find(o => o.n.lifeline === n.lifeline && (o.n.position ?? 'top') === (n.position ?? 'top'));
-    if (!next) return;
+    if (!next) continue;
     const width = Math.max(...wrapLines(n.text, NOTE_WRAP).map(line => estimateWidth(line))) + 30;
     needs.push({ path: pointer('', 'notes', i, 'text'), what: `note on lifeline "${n.lifeline}" at ${n.at}`, from: n.at, to: next.n.at, px: width, text: true });
-  });
+  }
   // Highlight captions sit at the top: each needs its interval, and room before the next caption.
   const highlights = (model.highlights ?? []).map((h, i) => ({ h, i })).filter(x => x.h.label !== undefined).sort((a, b) => a.h.from - b.h.from || a.i - b.i);
-  highlights.forEach(({ h, i }, k) => {
+  for (const [k, { h, i }] of highlights.entries()) {
     const next = highlights[k + 1];
     const until = next && next.h.from < h.to ? next.h.from : h.to;
     needs.push({ path: pointer('', 'highlights', i, 'label'), what: `highlight caption "${h.label}"`, from: h.from, to: until, px: estimateWidth(h.label!, 12) + 12, text: true });
-  });
-  (model.durationConstraints ?? []).forEach((c, i) => {
+  }
+  for (const [i, c] of (model.durationConstraints ?? []).entries()) {
     needs.push({ path: pointer('', 'durationConstraints', i), what: `duration constraint {${c.min}..${c.max}}`, from: c.from, to: c.to, px: 36, text: true });
-  });
+  }
   const max = MAX_WIDTH / span;
   let perUnit = MIN_WIDTH / span;
   for (const n of needs) if (n.to > n.from) perUnit = Math.max(perUnit, n.px / (n.to - n.from));

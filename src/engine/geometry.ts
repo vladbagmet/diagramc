@@ -27,7 +27,7 @@ export function contains(outer: Rect, inner: Rect, tolerance = 0): boolean {
 }
 
 export function union(rects: readonly Rect[]): Rect {
-  if (!rects.length) return { x: 0, y: 0, width: 0, height: 0 };
+  if (rects.length === 0) return { x: 0, y: 0, width: 0, height: 0 };
   const x = Math.min(...rects.map(r => r.x)), y = Math.min(...rects.map(r => r.y));
   return { x, y, width: Math.max(...rects.map(right)) - x, height: Math.max(...rects.map(bottom)) - y };
 }

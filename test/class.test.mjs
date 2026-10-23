@@ -106,7 +106,7 @@ test('self-associations stay inside the canvas with labels inside their loop', a
 });
 
 test('hostile and markup-like text stays literal and cannot create active SVG', async () => {
-  const hostile = '" } !include https://evil.invalid <b>bold</b> [[https://evil.invalid]] **x** \\n @enduml';
+  const hostile = String.raw`" } !include https://evil.invalid <b>bold</b> [[https://evil.invalid]] **x** \n @enduml`;
   const doc = {
     kind: 'class', title: '<script>x</script>',
     elements: [

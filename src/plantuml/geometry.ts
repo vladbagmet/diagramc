@@ -5,10 +5,10 @@
  * element or text is introduced.
  */
 
-const NUM = '-?[\\d.]+';
+const NUM = String.raw`-?[\d.]+`;
 const round = (n: number): string => String(Math.round(n * 1000) / 1000);
-const num = (tag: string, name: string): number => Number(tag.match(new RegExp(`\\s${name}="(${NUM})"`, 'u'))?.[1] ?? NaN);
-const setAttr = (tag: string, name: string, value: number): string => tag.replace(new RegExp(`(\\s${name}=")${NUM}(")`, 'u'), `$1${round(value)}$2`);
+const num = (tag: string, name: string): number => Number((new RegExp(String.raw`\s${name}="(${NUM})"`, 'u').exec(tag))?.[1] ?? Number.NaN);
+const setAttr = (tag: string, name: string, value: number): string => tag.replace(new RegExp(String.raw`(\s${name}=")${NUM}(")`, 'u'), `$1${round(value)}$2`);
 
 export interface Mapping {
   x?: (x: number) => number;
@@ -22,7 +22,7 @@ export interface Mapping {
  */
 export function mapCoordinates(svg: string, map: Mapping): string {
   const fx = map.x ?? ((v: number) => v), fy = map.y ?? ((v: number) => v);
-  return svg.replace(/<(line|rect|polygon|polyline|path|text|ellipse)\b[^>]*>/gu, (tag, name: string) => {
+  return svg.replaceAll(/<(line|rect|polygon|polyline|path|text|ellipse)\b[^>]*>/gu, (tag, name: string) => {
     switch (name) {
       case 'line': return setAttr(setAttr(setAttr(setAttr(tag, 'x1', fx(num(tag, 'x1'))), 'x2', fx(num(tag, 'x2'))), 'y1', fy(num(tag, 'y1'))), 'y2', fy(num(tag, 'y2')));
       case 'rect': {
@@ -39,7 +39,7 @@ export function mapCoordinates(svg: string, map: Mapping): string {
           return ` points="${out.join(name === 'polygon' ? ',' : ' ')}"`;
         });
       case 'path':
-        return tag.replace(/ d="([^"]*)"/u, (_, d: string) => ` d="${d.replace(/([MLAHVZz])([^MLAHVZz]*)/gu, (_m, c: string, args: string) => {
+        return tag.replace(/ d="([^"]*)"/u, (_, d: string) => ` d="${d.replaceAll(/([MLAHVZz])([^MLAHVZz]*)/gu, (_m, c: string, args: string) => {
           const n = args.trim().split(/[ ,]+/u).filter(Boolean).map(Number);
           if (c === 'Z' || c === 'z') return `${c} `;
           if (c === 'H') return `H${n.map(v => round(fx(v))).join(' ')} `;
@@ -69,7 +69,7 @@ export function setCanvas(svg: string, width: number, height: number): string {
 
 /** Canvas size from the root viewBox. */
 export function canvasSize(svg: string): { width: number; height: number } | undefined {
-  const m = svg.match(/<svg\s[^>]*viewBox="[-\d.]+ [-\d.]+ ([\d.]+) ([\d.]+)"/u);
+  const m = /<svg\s[^>]*viewBox="[-\d.]+ [-\d.]+ ([\d.]+) ([\d.]+)"/u.exec(svg);
   return m ? { width: Number(m[1]), height: Number(m[2]) } : undefined;
 }
 
@@ -81,19 +81,32 @@ export function drawingBounds(svg: string): { minX: number; minY: number; maxX: 
     minX = Math.min(minX, x); minY = Math.min(minY, y); maxX = Math.max(maxX, x); maxY = Math.max(maxY, y);
   };
   for (const [tag, name] of svg.matchAll(/<(line|rect|polygon|polyline|path|text|ellipse)\b[^>]*>/gu)) {
-    if (name === 'line') { add(num(tag, 'x1'), num(tag, 'y1')); add(num(tag, 'x2'), num(tag, 'y2')); }
-    else if (name === 'rect') { const x = num(tag, 'x'), y = num(tag, 'y'); add(x, y); add(x + num(tag, 'width'), y + num(tag, 'height')); }
-    else if (name === 'text') { const x = num(tag, 'x'), y = num(tag, 'y'), s = num(tag, 'font-size') || 12; add(x, y - s); add(x + (num(tag, 'textLength') || 0), y + s * 0.3); }
-    else if (name === 'ellipse') { const cx = num(tag, 'cx'), cy = num(tag, 'cy'), rx = num(tag, 'rx'), ry = num(tag, 'ry'); add(cx - rx, cy - ry); add(cx + rx, cy + ry); }
-    else if (name === 'path') {
-      for (const [, c, args] of (tag.match(/\sd="([^"]*)"/u)?.[1] ?? '').matchAll(/([MLA])([^MLAHVZz]*)/gu)) {
+    switch (name) {
+    case 'line': { add(num(tag, 'x1'), num(tag, 'y1')); add(num(tag, 'x2'), num(tag, 'y2')); 
+    break;
+    }
+    case 'rect': { const x = num(tag, 'x'), y = num(tag, 'y'); add(x, y); add(x + num(tag, 'width'), y + num(tag, 'height')); 
+    break;
+    }
+    case 'text': { const x = num(tag, 'x'), y = num(tag, 'y'), s = num(tag, 'font-size') || 12; add(x, y - s); add(x + (num(tag, 'textLength') || 0), y + s * 0.3); 
+    break;
+    }
+    case 'ellipse': { const cx = num(tag, 'cx'), cy = num(tag, 'cy'), rx = num(tag, 'rx'), ry = num(tag, 'ry'); add(cx - rx, cy - ry); add(cx + rx, cy + ry); 
+    break;
+    }
+    case 'path': {
+      for (const [, c, args] of ((/\sd="([^"]*)"/u.exec(tag))?.[1] ?? '').matchAll(/([MLA])([^MLAHVZz]*)/gu)) {
         const n = args!.trim().split(/[ ,]+/u).filter(Boolean).map(Number);
         if (c === 'A') { for (let i = 0; i + 6 < n.length; i += 7) add(n[i + 5]!, n[i + 6]!); }
         else for (let i = 0; i + 1 < n.length; i += 2) add(n[i]!, n[i + 1]!);
       }
-    } else {
-      const n = (tag.match(/\spoints="([^"]*)"/u)?.[1] ?? '').split(/[ ,]+/u).filter(Boolean).map(Number);
+    
+    break;
+    }
+    default: {
+      const n = ((/\spoints="([^"]*)"/u.exec(tag))?.[1] ?? '').split(/[ ,]+/u).filter(Boolean).map(Number);
       for (let i = 0; i + 1 < n.length; i += 2) add(n[i]!, n[i + 1]!);
+    }
     }
   }
   return { minX, minY, maxX, maxY };

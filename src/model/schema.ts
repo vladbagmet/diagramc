@@ -58,7 +58,7 @@ export function validateSchema(schema: JsonSchema, value: unknown): SchemaResult
   const texts: DocumentText[] = [];
   collected = texts;
   let ok: boolean;
-  try { ok = validate(value) as boolean; }
+  try { ok = validate(value); }
   finally { collected = undefined; }
   if (ok) return { diagnostics: [], texts: dedupe(texts) };
   // One problem per string: an empty string only as too short; a string that breaks its
@@ -143,7 +143,7 @@ function describeObject(document: unknown, path: string, allowed: readonly strin
 /** Allowed property names of an object schema (after following references and discriminated unions). */
 function allowedProperties(root: Schema, schema: Schema | undefined, node: unknown): string[] {
   if (!schema) return [];
-  if (schema.properties) return Object.keys(schema.properties as object);
+  if (schema.properties) return Object.keys(schema.properties);
   const branches = (schema.oneOf ?? schema.anyOf) as unknown[] | undefined;
   if (branches && node && typeof node === 'object') {
     const type = (node as Record<string, unknown>).type;
@@ -232,7 +232,7 @@ function describeErrors(errors: ErrorObject[], root: Schema, document: unknown):
       const rename = fits ? guess : undefined;
       const required = rename !== undefined && absent.includes(rename);
       if (required) missing.get(path)!.names = missing.get(path)!.names.filter(m => m !== rename);
-      const hint = guess === undefined ? '' : !fits ? `; "${guess}" is similar but takes ${article(String(targetType))}` : required ? `; rename it to "${rename}"` : `; did you mean "${rename}"`;
+      const hint = guess === undefined ? '' : fits ? required ? `; rename it to "${rename}"` : `; did you mean "${rename}"` : `; "${guess}" is similar but takes ${article(String(targetType))}`;
       issues.push({
         path: pointer(path, name), keyword: 'additionalProperties',
         message: `Unknown property "${name}" in ${describeObject(document, path, allowed)}${hint}${special ? ` ${special}` : ''}. Allowed properties: ${allowed.join(', ')}`,
@@ -278,7 +278,7 @@ function describeErrors(errors: ErrorObject[], root: Schema, document: unknown):
             details: { allowed, value: tagValue, ...(nearest ? { suggestion: nearest } : other ? { suggestion: other.tagValue, also: { [other.property]: other.value } } : {}) } });
         } else {
           issues.push({ path: tagPath, keyword: 'discriminator',
-            message: `${where(path)} needs a string property "${tag}"${tagValue !== undefined ? ` (it is ${typeName(tagValue)})` : ''}. Allowed values: ${quoted(allowed)}`,
+            message: `${where(path)} needs a string property "${tag}"${tagValue === undefined ? '' : ` (it is ${typeName(tagValue)})`}. Allowed values: ${quoted(allowed)}`,
             details: { allowed } });
         }
         break;
@@ -300,7 +300,7 @@ function describeErrors(errors: ErrorObject[], root: Schema, document: unknown):
         else if (expected === 'object' && typeof value === 'string') {
           const required = (schema.required as string[] | undefined) ?? [];
           const attribute = /\/attributes\/\d+$/u.test(path) ? parseAttribute(value) : undefined;
-          hint = attribute ? `; write it as ${JSON.stringify(attribute)}` : `; write an object${required.length ? ` with ${quoted(required)}` : ''}, not a string`;
+          hint = attribute ? `; write it as ${JSON.stringify(attribute)}` : `; write an object${required.length > 0 ? ` with ${quoted(required)}` : ''}, not a string`;
           if (attribute) { issues.push({ path, keyword: 'type', message: `${where(path)} must be an object, but it is ${typeName(value)}${hint}.`, details: { expected, suggestion: attribute } }); break; }
         } else if (expected === 'integer' && typeof value === 'number') hint = '; use whole numbers';
         else if (expected === 'string' && value !== null && typeof value === 'object' && !Array.isArray(value) && typeof (value as { id?: unknown }).id === 'string') {
@@ -316,8 +316,8 @@ function describeErrors(errors: ErrorObject[], root: Schema, document: unknown):
       case 'pattern': {
         const fixed = typeof value === 'string' ? fixPattern(String(p.pattern), value) : undefined;
         issues.push({ path, keyword: 'pattern',
-          message: `${where(path)} ${typeName(value)} is not valid.${sentence(schema.description) || ' It must match the documented format.'}${fixed !== undefined ? ` For example: ${JSON.stringify(fixed)}.` : ''}`,
-          details: { ...(fixed !== undefined ? { suggestion: fixed } : {}) } });
+          message: `${where(path)} ${typeName(value)} is not valid.${sentence(schema.description) || ' It must match the documented format.'}${fixed === undefined ? '' : ` For example: ${JSON.stringify(fixed)}.`}`,
+          details: { ...(fixed === undefined ? {} : { suggestion: fixed }) } });
         break;
       }
       case UNWRAPPED_KEYWORD:

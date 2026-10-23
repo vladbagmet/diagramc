@@ -40,7 +40,7 @@ export function measureUseCase(metrics: FontMetrics, u: UseCase): MeasuredUseCas
   const nameRows = rows.length;
   if (u.extensionPoints?.length) {
     rows.push(row('extension points', LABEL, 1, theme.color.mutedText));
-    u.extensionPoints.forEach((p, i) => { for (const t of wrapText(metrics, p, BODY, 170)) rows.push(row(t, BODY, i + 2)); });
+    for (const [i, p] of u.extensionPoints.entries()) { for (const t of wrapText(metrics, p, BODY, 170)) rows.push(row(t, BODY, i + 2)); }
   }
   const blockHeight = rows.reduce((sum, r) => sum + metrics.lineHeight(r.style.size), 0) + (nameRows < rows.length ? 8 : 0);
   const blockWidth = Math.max(...rows.map(r => r.width));
@@ -92,7 +92,7 @@ export function pastSubjects(scene: UseCaseScene): number {
     if (e.type !== 'association') continue;
     const own = new Set([subjectOf.get(e.source), subjectOf.get(e.target)]);
     const zones = scene.subjects.filter(s => !own.has(s.subject.id)).map(s => inflate(s.bounds, PAST));
-    if (!zones.length) continue;
+    if (zones.length === 0) continue;
     for (let k = 1; k < e.points.length; k++) {
       const a = e.points[k - 1]!, b = e.points[k]!, n = Math.ceil(distance(a, b) / 4);
       for (let i = 0; i < n; i++) {
@@ -131,9 +131,7 @@ async function layoutVariant(model: UseCaseDiagram, metrics: FontMetrics, separa
     changed = false;
     for (const { r } of relationships) {
       if (r.type !== 'generalization' || !actorIds.includes(r.from) || !actorIds.includes(r.to)) continue;
-      if (secondary.has(r.from) !== secondary.has(r.to) && !associations.some(a => a.from === r.from)) {
-        if (secondary.has(r.to)) { secondary.add(r.from); changed = true; }
-      }
+      if (secondary.has(r.from) !== secondary.has(r.to) && !associations.some(a => a.from === r.from) && secondary.has(r.to)) { secondary.add(r.from); changed = true; }
     }
   }
 
@@ -220,7 +218,7 @@ async function layoutVariant(model: UseCaseDiagram, metrics: FontMetrics, separa
       }
     }
     switch (r.type) {
-      case 'association': return { key, r, reversed: false, style: 'solid', target: 'none', ...(r.name !== undefined ? { center: r.name } : {}), ends };
+      case 'association': return { key, r, reversed: false, style: 'solid', target: 'none', ...(r.name === undefined ? {} : { center: r.name }), ends };
       case 'include': return { key, r, reversed: false, style: 'dashed', target: 'open-arrow', center: '«include»', ends };
       case 'extend': return { key, r, reversed: true, style: 'dashed', target: 'open-arrow', center: '«extend»', ends };
       default: return { key, r, reversed: true, style: 'solid', target: 'hollow-triangle', ends };
@@ -249,10 +247,10 @@ async function layoutVariant(model: UseCaseDiagram, metrics: FontMetrics, separa
     const labels: LayoutLabel[] = [];
     const c = centerLines.get(p.key);
     if (c) labels.push({ id: `${p.key}::center`, width: Math.max(...c.widths) + 4, height: c.lines.length * lineHeight, placement: 'center' });
-    p.ends.forEach((e, k) => labels.push({ id: `${p.key}::end${k}`, width: e.width + 4, height: lineHeight, placement: (e.end === 'source') !== p.reversed ? 'tail' : 'head' }));
+    for (const [k, e] of p.ends.entries()) labels.push({ id: `${p.key}::end${k}`, width: e.width + 4, height: lineHeight, placement: (e.end === 'source') === p.reversed ? 'head' : 'tail' });
     let source = p.reversed ? p.r.to : p.r.from, target = p.reversed ? p.r.from : p.r.to;
     // Lines leave the left column and enter the right one (ELK's layer constraints).
-    const column = (id: string): number => !actorIds.includes(id) ? 0 : secondary.has(id) ? 1 : -1;
+    const column = (id: string): number => actorIds.includes(id) ? secondary.has(id) ? 1 : -1 : 0;
     if (column(source) > column(target) || column(target) < 0 || column(source) > 0) [source, target] = [target, source];
     return { id: p.key, source, target, labels, directionPriority: p.r.type === 'association' ? 5 : 1 };
   });
@@ -332,7 +330,7 @@ async function layoutVariant(model: UseCaseDiagram, metrics: FontMetrics, separa
     if (type === 'actor') {
       // A side of the figure, away from its associations when the specific actors stand in its column.
       const assoc = plans.filter(p => p.r.type === 'association' && (p.r.from === target || p.r.to === target)).map(p => center(rect(p.r.from === target ? p.r.to : p.r.from)));
-      const assocSide = assoc.length ? Math.sign(assoc.reduce((sum, q) => sum + q.x - c.x, 0)) || 1 : 1;
+      const assocSide = assoc.length > 0 ? Math.sign(assoc.reduce((sum, q) => sum + q.x - c.x, 0)) || 1 : 1;
       const side = Math.abs(mean.x - c.x) < r.width ? -assocSide : Math.sign(mean.x - c.x) || -assocSide;
       const apart = 2 * theme.size.triangle.halfWidth + 6;
       tip = { x: side < 0 ? r.x : r.x + r.width, y: mean.y > c.y ? Math.min(r.y + r.height - 2, c.y + apart) : Math.max(r.y + 2, c.y - apart) };
@@ -465,17 +463,17 @@ async function layoutVariant(model: UseCaseDiagram, metrics: FontMetrics, separa
       return d.indexOf(Math.min(...d));
     };
     let n = 0;
-    ends.forEach((a, i) => { for (const b of ends.slice(i + 1)) {
+    for (const [i, a] of ends.entries()) { for (const b of ends.slice(i + 1)) {
       if (a.node !== b.node || a.e === b.e || side(a.node, a.p) !== side(b.node, b.p)) continue;
       const d = distance(a.p, b.p);
       if (d > 0.5 && d < Math.max(theme.spacing.edgeEdge, a.half + b.half + 6) + 0.5) n++;
-    } });
+    } }
     return n;
   };
   const problems = (): number => sharedPairs(sceneEdges).length + crowded();
   for (let pass = 0; pass < 6; pass++) {
     const pairs = sharedPairs(sceneEdges);
-    if (!pairs.length) break;
+    if (pairs.length === 0) break;
     let improved = false;
     for (const id of [...new Set(pairs.flat())].reverse()) {
       const again = reroutable.get(id), e = sceneEdges.find(x => x.id === id);
@@ -523,7 +521,7 @@ async function layoutVariant(model: UseCaseDiagram, metrics: FontMetrics, separa
   for (const id of subjectIds) {
     const b = rect(id);
     const corners = [{ x: b.x, y: b.y }, { x: b.x + b.width, y: b.y }, { x: b.x + b.width, y: b.y + b.height }, { x: b.x, y: b.y + b.height }];
-    corners.forEach((c, k) => obstacles.segments.push([c, corners[(k + 1) % 4]!]));
+    for (const [k, c] of corners.entries()) obstacles.segments.push([c, corners[(k + 1) % 4]!]);
   }
   for (const e of sceneEdges) {
     const box = markerBox(e.points.at(-1)!, e.points.at(-2)!, e.targetMarker);
@@ -533,11 +531,11 @@ async function layoutVariant(model: UseCaseDiagram, metrics: FontMetrics, separa
   const meta = new Map<string, Omit<UseCaseScene['labels'][number], 'id' | 'rect'>>();
   for (const p of plans) {
     const route = routes.get(p.key)!;
-    p.ends.forEach((e, k) => {
+    for (const [k, e] of p.ends.entries()) {
       const id = `${p.key}::end${k}`;
       requests.push({ id, owner: p.key, width: e.width, height: lineHeight, route, at: e.end, side: 1, clearance: 4 + (e.end === 'target' ? markerHalf(p.target) : 0) });
       meta.set(id, { owner: p.key, lines: [e.text], widths: [e.width], end: e.end, anchor: e.end === 'source' ? route[0]! : route.at(-1)! });
-    });
+    }
   }
   for (const p of plans) {
     const c = centerLines.get(p.key);
@@ -624,14 +622,14 @@ function reorderColumns(model: UseCaseDiagram, nodes: Map<string, Rect>, caption
     const touched = ends.map(([a, b]) => ids.includes(a) || ids.includes(b));
     const segments = ends.map(segment);
     let crossings = 0, length = 0;
-    segments.forEach(([p, q], i) => {
+    for (const [i, [p, q]] of segments.entries()) {
       const [a, b] = ends[i]!;
       if (touched[i]) {
         length += distance(p, q);
         crossings += solid.filter(o => o.id !== a && o.id !== b && through(p, q, o.r)).length;
         for (let j = 0; j < segments.length; j++) if (j !== i && (!touched[j] || j > i) && properCross(p, q, segments[j]![0], segments[j]![1])) crossings++;
       } else crossings += solid.filter(o => ids.includes(o.id) && o.id !== a && o.id !== b && through(p, q, o.r)).length;
-    });
+    }
     return crossings * CROSSING + length;
   };
   const others = (skip: readonly string[]) => [...nodes].filter(([id]) => !skip.includes(id) && !subjects.has(id));
@@ -663,7 +661,7 @@ function reorderColumns(model: UseCaseDiagram, nodes: Map<string, Rect>, caption
     for (const e of movable.filter(x => !anchored.has(x.id))) {
       const r = nodes.get(e.id)!;
       const s = subjectOf.get(e.id);
-      const lo = s !== undefined ? nodes.get(s)!.y : all.y, hi = s !== undefined ? nodes.get(s)!.y + nodes.get(s)!.height - r.height : all.y + all.height - r.height;
+      const lo = s === undefined ? all.y : nodes.get(s)!.y, hi = s === undefined ? all.y + all.height - r.height : nodes.get(s)!.y + nodes.get(s)!.height - r.height;
       const steps = Math.min(40, Math.max(1, Math.floor((hi - lo) / 16)));
       let best = r, current = local([e.id]);
       for (let k = 0; k <= steps; k++) {

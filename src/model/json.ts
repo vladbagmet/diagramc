@@ -10,7 +10,7 @@ export function parseJson(text: string): unknown {
   try { return JSON.parse(text); }
   catch (error) {
     const reason = String((error as Error)?.message ?? 'invalid JSON');
-    const match = reason.match(/position (\d+)/u);
+    const match = /position (\d+)/u.exec(reason);
     const position = match ? Number(match[1]) : reason.includes('end of JSON') ? text.length : errorPosition(text);
     if (position === undefined) throw new UmlError('INVALID_JSON', `Input is not valid JSON: ${clean(reason)}`);
     const before = text.slice(0, position);
@@ -58,7 +58,8 @@ function errorPosition(text: string): number {
   const value = (): void => {
     space();
     const c = text[i];
-    if (c === '{') {
+    switch (c) {
+    case '{': {
       i++; space();
       if (text[i] === '}') { i++; return; }
       for (;;) {
@@ -69,7 +70,10 @@ function errorPosition(text: string): number {
         if (text[i] === '}') { i++; return; }
         fail();
       }
-    } else if (c === '[') {
+    
+    break;
+    }
+    case '[': {
       i++; space();
       if (text[i] === ']') { i++; return; }
       for (;;) {
@@ -78,14 +82,30 @@ function errorPosition(text: string): number {
         if (text[i] === ']') { i++; return; }
         fail();
       }
-    } else if (c === '"') string();
-    else if (c === 't') literal('true');
-    else if (c === 'f') literal('false');
-    else if (c === 'n') literal('null');
-    else number();
+    
+    break;
+    }
+    case '"': {
+    string();
+    break;
+    }
+    case 't': {
+    literal('true');
+    break;
+    }
+    case 'f': {
+    literal('false');
+    break;
+    }
+    case 'n': {
+    literal('null');
+    break;
+    }
+    default: number();
+    }
   };
-  try { value(); space(); return i < text.length ? i : text.length; }
-  catch (at) { return typeof at === 'number' ? Math.min(at, text.length) : 0; }
+  try { value(); space(); return Math.min(i, text.length); }
+  catch (error) { return typeof error === 'number' ? Math.min(error, text.length) : 0; }
 }
 
 function hintAt(text: string, position: number): string | undefined {

@@ -43,10 +43,10 @@ test('UML notation: arrowheads and line styles per message sort; found and lost 
   ] });
   const m = scene.interaction.messages;
   const expect = [['filled', false], ['open', true], ['open', false], ['open', true], ['filled', false], ['filled', false], ['open', false]];
-  expect.forEach(([head, dashed], i) => {
+  for (const [i, [head, dashed]] of expect.entries()) {
     assert.equal(m[i].head.style, head, `message ${i} head`);
     assert.equal(m[i].dashed, dashed, `message ${i} dashed`);
-  });
+  }
   // Synchronous and asynchronous arrows point at the receiver (right), the reply back (left).
   assert.ok(m[0].head.direction.x > 0.99 && m[1].head.direction.x < -0.99 && m[2].head.direction.x > 0.99);
   // Create ends on the created head's border; the head sits at the message's height.
@@ -135,7 +135,7 @@ test('review fixes: identifiers wrap at word parts, untitled diagrams get a marg
 });
 
 test('hostile, markup-like and Unicode text stays literal in every slot', async () => {
-  const hostile = '" } !include https://evil.invalid <b>bold</b> [[https://evil.invalid]] **x** \\n @enduml';
+  const hostile = String.raw`" } !include https://evil.invalid <b>bold</b> [[https://evil.invalid]] **x** \n @enduml`;
   const samples = [hostile, '  spaced  ', '<svg onload="alert(1)">', 'Unicode: 🚀 𠀀 \u{10FFFD} 漢字'];
   for (const text of samples) {
     const doc = { kind: 'sequence', title: text, lifelines: [{ id: 'a', name: text, classifier: text, symbol: 'actor' }, { id: 'b', name: text }, { id: 'c', name: 'c' }], items: [
@@ -162,7 +162,7 @@ test('CLI renders sequence diagrams to SVG and PNG', async t => {
     const result = cli(['render', join(root, 'examples/sequence/minimal.json'), '-o', out]);
     assert.equal(result.status, 0, result.stderr);
     const bytes = await readFile(out);
-    if (format === 'png') assert.deepEqual([...bytes.subarray(0, 4)], [0x89, 0x50, 0x4e, 0x47]);
+    if (format === 'png') assert.deepEqual([...bytes.subarray(0, 4)], [0x89, 0x50, 0x4E, 0x47]);
     else assert.match(bytes.toString(), /data-diagram-type="SEQUENCE"/);
   }
 });

@@ -28,7 +28,7 @@ export async function drawUseCaseDiagram(scene: UseCaseScene, metrics: FontMetri
     const top = cy - m.blockHeight / 2;
     const names = m.rows.slice(0, m.nameRows), points = m.rows.slice(m.nameRows);
     parts.push(rowsAt(canvas, names, cx, top, u.useCase.id, 'text'));
-    if (points.length) {
+    if (points.length > 0) {
       // Extension points compartment: a chord across the ellipse, then the points.
       const nameHeight = names.reduce((sum, r) => sum + metrics.lineHeight(r.style.size), 0);
       const y = top + nameHeight + 4;

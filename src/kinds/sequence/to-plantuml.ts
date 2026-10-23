@@ -52,26 +52,26 @@ export function sequenceToPlantUml(model: SequenceDiagram): string {
 
   const emit = (items: readonly Item[], depth: number): void => {
     const pad = '  '.repeat(depth);
-    items.forEach((item, index) => {
+    for (const [index, item] of items.entries()) {
       if (isMessage(item)) {
         const label = messageLabel(item);
         const text = label ? ` : ${wrappedDisplayText(label, WRAP.message)}` : '';
         if (item.type === 'found') {
           lines.push(`${pad}[o${item.sort === 'synchronous' ? '->' : '->>'} ${alias(item.to)}${text}`);
           if (item.activate) lines.push(`${pad}activate ${alias(item.to)}`);
-          return;
+          continue;
         }
         if (item.type === 'lost') {
           lines.push(`${pad}${alias(item.from)} ${item.sort === 'synchronous' ? '->' : '->>'}o]${text}`);
           if (item.deactivate) lines.push(`${pad}deactivate ${alias(item.from)}`);
-          return;
+          continue;
         }
         if (item.sort === 'create') lines.push(`${pad}create ${alias(item.to)}`);
         lines.push(`${pad}${alias(item.from)} ${ARROW[item.sort]} ${alias(item.to)}${text}`);
         if (item.deactivate) lines.push(`${pad}deactivate ${alias(item.from)}`);
         if (item.activate) lines.push(`${pad}activate ${alias(item.to)}`);
         if (item.sort === 'delete') lines.push(`${pad}destroy ${alias(item.to)}`);
-        return;
+        continue;
       }
       switch (item.type) {
         case 'activate': case 'deactivate': case 'destroy':
@@ -96,7 +96,7 @@ export function sequenceToPlantUml(model: SequenceDiagram): string {
           emitFragment(item, depth);
           break;
       }
-    });
+    }
     // The destruction X reaches 9px below its message: leave room before a fragment or frame border.
     const last = items.at(-1);
     if (last && (last.type === 'destroy' || (last.type === 'message' && last.sort === 'delete'))) lines.push(`${pad}||${DESTRUCTION_SPACE}||`);
@@ -105,7 +105,7 @@ export function sequenceToPlantUml(model: SequenceDiagram): string {
   const emitFragment = (f: Fragment, depth: number): void => {
     const pad = '  '.repeat(depth);
     const guard = (g: string | undefined): string => g === undefined ? '' : displayText(g);
-    f.operands.forEach((operand, i) => {
+    for (const [i, operand] of f.operands.entries()) {
       if (i > 0) {
         lines.push(`${pad}else${operand.guard === undefined ? '' : ` ${guard(operand.guard)}`}`);
       } else if (NATIVE.has(f.operator) && !(f.operator === 'loop' && f.min !== undefined)) {
@@ -115,7 +115,7 @@ export function sequenceToPlantUml(model: SequenceDiagram): string {
         lines.push(`${pad}group ${displayText(heading)}${operand.guard === undefined ? '' : ` [${guard(operand.guard)}]`}`);
       }
       emit(operand.items, depth + 1);
-    });
+    }
     lines.push(`${pad}end`);
   };
 
@@ -126,7 +126,7 @@ export function sequenceToPlantUml(model: SequenceDiagram): string {
   // post-processor removes the empty rows they add at the bottom.
   for (const [pair, px] of noteSpacers(model)) {
     const spaces = Math.min(MAX_LABEL_UNITS, Math.ceil(px / NBSP_PX));
-    lines.push(`${alias(model.lifelines[pair]!.id)} -[hidden]> ${alias(model.lifelines[pair + 1]!.id)} : ${displayText('\u00a0'.repeat(spaces))}`);
+    lines.push(`${alias(model.lifelines[pair]!.id)} -[hidden]> ${alias(model.lifelines[pair + 1]!.id)} : ${displayText('\u00A0'.repeat(spaces))}`);
   }
   return plantUmlDocument(lines);
 }

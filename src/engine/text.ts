@@ -58,12 +58,12 @@ export function wrapText(metrics: FontMetrics, text: string, style: TextStyle, m
   let pending = '';
   for (const token of raw) {
     const punctuation = PUNCTUATION_ONLY.test(token.trim());
-    if (punctuation && tokens.length) { tokens[tokens.length - 1] += token; continue; }
+    if (punctuation && tokens.length > 0) { tokens[tokens.length - 1] += token; continue; }
     if (punctuation || !token.trim()) { pending += token; continue; }
     tokens.push(pending + token);
     pending = '';
   }
-  if (pending) { if (tokens.length) tokens[tokens.length - 1] += pending; else tokens.push(pending); }
+  if (pending) { if (tokens.length > 0) tokens[tokens.length - 1] += pending; else tokens.push(pending); }
   const lines: string[] = [];
   let current = '';
   const place = (piece: string): void => {

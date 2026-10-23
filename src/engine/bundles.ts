@@ -73,7 +73,7 @@ export function bundleHub(members: readonly BundleMember[], vertical: boolean): 
   const mid = length / 2;
   const paths = members.map((_, i) => [at(0, lane[i]!), at(length, lane[i]!)]);
   const labels = members.map((m, i) => {
-    if (!m.label) return undefined;
+    if (!m.label) return;
     const p = at(mid - alongOf(m) / 2, lane[i]! + LABEL_GAP);
     return { x: p.x, y: p.y, width: m.label.width, height: m.label.height };
   });

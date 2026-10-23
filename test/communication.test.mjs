@@ -116,7 +116,7 @@ test('communication: a crossing costs more than a slightly larger grid (F-B-21)'
 });
 
 test('communication: hostile and markup-like text stays literal and cannot create active SVG', async () => {
-  const hostile = '" } <b>bold</b> [[https://evil.invalid]] **x** \\n @enduml';
+  const hostile = String.raw`" } <b>bold</b> [[https://evil.invalid]] **x** \n @enduml`;
   const doc = {
     kind: 'communication', title: '<script>x</script>',
     lifelines: [{ id: 'a', name: hostile, type: '<svg onload="alert(1)">' }, { id: 'b', name: '  spaced  ', type: '&amp;' }],
@@ -129,7 +129,7 @@ test('communication: hostile and markup-like text stays literal and cannot creat
   const { svg } = await assertGates(doc);
   assert.doesNotMatch(svg, /<(?:a|image|script|foreignObject|use)\b/);
   // Attribute values are escaped text; only real attribute names matter.
-  assert.doesNotMatch(svg.replace(/"[^"]*"/g, '""'), /<[^>]*\s(?:[\w:]*href|on\w+)\s*=/);
+  assert.doesNotMatch(svg.replaceAll(/"[^"]*"/g, '""'), /<[^>]*\s(?:[\w:]*href|on\w+)\s*=/);
   const scene = await inspectSvg(svg);
   assert.ok(scene.texts.some(t => t.content === `${hostile} : <svg onload="alert(1)">`));
   assert.ok(scene.texts.some(t => t.content === '  spaced   : &amp;'), 'boundary spaces preserved');

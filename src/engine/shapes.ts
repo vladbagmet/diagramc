@@ -50,7 +50,7 @@ export function measureBox(metrics: FontMetrics, compartments: readonly Compartm
     });
     const content = lines.reduce((sum, l) => sum + l.rows.length * l.lineHeight, 0);
     const pad = c.header ? headerPadY : padY;
-    return { header: !!c.header, lines, height: lines.length ? content + 2 * pad : EMPTY_COMPARTMENT };
+    return { header: !!c.header, lines, height: lines.length > 0 ? content + 2 * pad : EMPTY_COMPARTMENT };
   });
   return { width, height: measured.reduce((sum, c) => sum + c.height, 0), compartments: measured };
 }
@@ -119,7 +119,7 @@ export function drawBox(canvas: Canvas, box: MeasuredBox, bounds: Rect, data: No
     'stroke-dasharray': options.dashed ? theme.stroke.dash : undefined,
   })];
   let y = bounds.y;
-  box.compartments.forEach((c, index) => {
+  for (const [index, c] of box.compartments.entries()) {
     const height = index === box.compartments.length - 1 ? bounds.y + bounds.height - y : c.height;
     if (c.header) {
       const inset = theme.stroke.node / 2;
@@ -135,15 +135,15 @@ export function drawBox(canvas: Canvas, box: MeasuredBox, bounds: Rect, data: No
       const first = rowTop + baselineOffset(canvas.metrics, line.style.size, line.lineHeight);
       parts.push(canvas.lines(line.rows, xs, first, line.lineHeight, { ...line.style, fill: line.fill, role: 'text', owner: data.id }));
       if (line.underline) {
-        line.rows.forEach((_, i) => {
+        for (const [i, _] of line.rows.entries()) {
           const uy = first + i * line.lineHeight + Math.max(1.5, line.style.size * 0.12);
           parts.push(el('line', { x1: xs[i]!, y1: uy, x2: xs[i]! + line.widths[i]!, y2: uy, stroke: line.fill ?? theme.color.text, 'stroke-width': 0.9 }));
-        });
+        }
       }
       rowTop += line.rows.length * line.lineHeight;
     }
     y += height;
-  });
+  }
   parts.push(...options.above ?? []);
   return el('g', nodeAttributes(data, options.outline ?? bounds), parts);
 }

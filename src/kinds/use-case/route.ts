@@ -218,7 +218,7 @@ export class Router {
     const done = new Set<number>();
     const h = (j: number): number => j === goal ? 0 : distance(corners[j]!, goalCenter);
     const open: number[] = [-1];
-    while (open.length) {
+    while (open.length > 0) {
       open.sort((x, y) => (best.get(x)! + (x < 0 ? 0 : h(x))) - (best.get(y)! + (y < 0 ? 0 : h(y))));
       const i = open.shift()!;
       if (i === goal) break;
@@ -287,7 +287,7 @@ function nearRun(a: Point, b: Point, c: Point, d: Point, tol: number, fan?: Poin
   let first = -1, last = -1;
   for (let s = 0; s <= steps; s++) {
     const t = s / steps, p = { x: c.x + (d.x - c.x) * t, y: c.y + (d.y - c.y) * t };
-    if (fanning && distance(p, fan!) < GATE_FAN) continue;
+    if (fanning && distance(p, fan) < GATE_FAN) continue;
     if (distanceToSegment(p, a, b) <= tol) { if (first < 0) first = s; last = s; }
   }
   return first < 0 ? 0 : (last - first) / steps * length;
@@ -303,7 +303,7 @@ export interface CheckedLine { id: string; type: string; source: string; target:
 export function sharedPairs(lines: readonly CheckedLine[]): [string, string][] {
   const out: [string, string][] = [];
   const tree = (a: CheckedLine, b: CheckedLine): boolean => a.type === b.type && a.target === b.target && a.targetMarker === 'hollow-triangle' && b.targetMarker === 'hollow-triangle' && distance(a.points.at(-1)!, b.points.at(-1)!) < 0.5;
-  lines.forEach((e, i) => {
+  for (const [i, e] of lines.entries()) {
     for (const o of lines.slice(i + 1)) {
       if (tree(e, o) || e.source === o.id || e.target === o.id || o.source === e.id || o.target === e.id) continue;
       const fan = [e.points[0]!, e.points.at(-1)!].find(p => [o.points[0]!, o.points.at(-1)!].some(q => distance(p, q) < 0.5));
@@ -312,6 +312,6 @@ export function sharedPairs(lines: readonly CheckedLine[]): [string, string][] {
       const onLine = (p: Point, line: readonly Point[]): boolean => line.slice(1).some((q, k) => distanceToSegment(p, line[k]!, q) < 1.5);
       if (shared > GATE_SHARED - 1 || e.points.slice(1, -1).some(p => onLine(p, o.points)) || o.points.slice(1, -1).some(p => onLine(p, e.points))) out.push([e.id, o.id]);
     }
-  });
+  }
   return out;
 }

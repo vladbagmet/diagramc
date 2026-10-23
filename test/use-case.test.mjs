@@ -75,7 +75,7 @@ test('use case: UML 2.5.1 notation of actors, use cases, subjects and relationsh
   for (const e of [include, extend]) {
     assert.equal(e.targetMarker, 'open-arrow');
     assert.equal(e.sourceMarker, 'none');
-    assert.match(svg, new RegExp(`data-uml-id="${e.id.replace('/', '\\/')}"[^>]*><path [^>]*stroke-dasharray`));
+    assert.match(svg, new RegExp(`data-uml-id="${e.id.replace('/', String.raw`\/`)}"[^>]*><path [^>]*stroke-dasharray`));
     assert.ok(distanceToEllipse(e.points.at(-1), node(e.target).bounds) < 1, 'line ends on the ellipse');
   }
   assert.ok(scene.texts.some(t => t.content === '«include»' && t.role === 'label'));

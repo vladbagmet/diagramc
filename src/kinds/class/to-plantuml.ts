@@ -24,7 +24,7 @@ export function classToPlantUml(model: ClassDiagram): string {
     const keyword = element.type === 'class' && element.abstract ? 'abstract class' : 'class';
     const keywordText = classifierKeyword(element.type);
     const stereotypes = [...(keywordText ? [keywordText] : []), ...(element.stereotypes ?? [])];
-    const stereo = stereotypes.length ? ` <<${displayText(stereotypes.join(', '))}>>` : '';
+    const stereo = stereotypes.length > 0 ? ` <<${displayText(stereotypes.join(', '))}>>` : '';
     lines.push(`${keyword} "${displayText(element.name)}" as ${alias}${stereo} {`);
     for (const literal of element.literals ?? []) lines.push(`  ${displayText(literal)}`);
     for (const a of element.attributes ?? []) lines.push(`  ${isStatic(a) ? '{static} ' : ''}{field} ${displayText(formatAttribute(a))}`);

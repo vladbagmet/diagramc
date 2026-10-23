@@ -109,12 +109,22 @@ export function pathPoints(d: string): Point[] {
     for (let i = 0; i + n <= values.length; i += n) {
       const v = values.slice(i, i + n);
       const ox = relative ? x : 0, oy = relative ? y : 0;
-      if (lower === 'h') x = ox + v[0]!;
-      else if (lower === 'v') y = oy + v[0]!;
-      else if (lower === 'a') { x = ox + v[5]!; y = oy + v[6]!; }
-      else {
+      switch (lower) {
+      case 'h': {
+      x = ox + v[0]!;
+      break;
+      }
+      case 'v': {
+      y = oy + v[0]!;
+      break;
+      }
+      case 'a': { x = ox + v[5]!; y = oy + v[6]!; 
+      break;
+      }
+      default: {
         for (let k = 0; k + 1 < n - 2; k += 2) out.push({ x: ox + v[k]!, y: oy + v[k + 1]! });
         x = ox + v[n - 2]!; y = oy + v[n - 1]!;
+      }
       }
       out.push({ x, y });
       if (lower === 'm' && i === 0) { startX = x; startY = y; }
@@ -143,7 +153,7 @@ export async function inspectSvg(svg: string): Promise<Scene> {
     }
     if (element.tag === 'style') {
       const css = textContent(element);
-      const stripped = css.replace(/url\(data:font\/woff2;base64,[A-Za-z0-9+/=]+\)/gu, '');
+      const stripped = css.replaceAll(/url\(data:font\/woff2;base64,[A-Za-z0-9+/=]+\)/gu, '');
       if (/url\(|@import|expression\(|javascript:/iu.test(stripped)) scene.unsafe.push('<style> with external reference');
     }
     if (element.attrs.style && /url\(|expression\(|javascript:/iu.test(element.attrs.style)) scene.unsafe.push(`${element.tag} style=url(...)`);
@@ -151,10 +161,21 @@ export async function inspectSvg(svg: string): Promise<Scene> {
   }
 
   if (renderer === 'engine') readEngine(root, scene);
-  else if (root.attrs['data-diagram-type'] === 'SEQUENCE') readSequence(root, scene);
-  else if (root.attrs['data-diagram-type'] === 'TIMING') readTiming(root, scene);
-  else if (root.attrs['data-diagram-type'] === 'ACTIVITY') readPlantUmlActivity(root, scene);
-  else readPlantUml(root, scene);
+  else switch (root.attrs['data-diagram-type']) {
+ case 'SEQUENCE': {
+ readSequence(root, scene);
+ break;
+ }
+ case 'TIMING': {
+ readTiming(root, scene);
+ break;
+ }
+ case 'ACTIVITY': {
+ readPlantUmlActivity(root, scene);
+ break;
+ }
+ default: readPlantUml(root, scene);
+ }
   return scene;
 }
 
@@ -162,14 +183,14 @@ export async function inspectSvg(svg: string): Promise<Scene> {
 function badBreaks(rows: readonly string[], style: { size: number; bold: boolean; italic: boolean }, metrics: FontMetrics, starts: ReadonlySet<number>): string[] {
   const out: string[] = [];
   // A row that is a whole logical line (data-uml-starts) may be punctuation, e.g. a name "]]>".
-  rows.forEach((row, i) => {
+  for (const [i, row] of rows.entries()) {
     if (rows.length > 1 && /^[\p{P}\p{S}]+$/u.test(row.trim()) && !(starts.has(i) && (starts.has(i + 1) || i === rows.length - 1))) out.push(`line ${JSON.stringify(row)} holds only punctuation`);
-  });
+  }
   for (let i = 1; i < rows.length; i++) {
     if (starts.has(i)) continue;
     const before = rows[i - 1]!, after = rows[i]!;
     if (/\s$/u.test(before) || /^\s/u.test(after) || !before || !after) continue;
-    const head = before.match(/\S+$/u)![0], tail = after.match(/^\S+/u)![0];
+    const head = /\S+$/u.exec(before)![0], tail = /^\S+/u.exec(after)![0];
     // Is the boundary between two pieces of the word? Then it is a proper break.
     let at = 0, proper = false, piece = '';
     for (const p of wordPieces(head + tail)) {
@@ -191,21 +212,21 @@ function readText(element: XmlElement, ancestors: XmlElement[], metrics: FontMet
   const style = { size, bold, italic };
   const ascent = metrics.ascent(size), descent = metrics.descent(size);
   const box = (x: number, y: number, content: string, length?: string, anchor?: string): Rect => {
-    const width = length !== undefined ? Number.parseFloat(length) : metrics.measure(content.trimEnd(), style);
+    const width = length === undefined ? metrics.measure(content.trimEnd(), style) : Number.parseFloat(length);
     const left = anchor === 'middle' ? x - width / 2 : anchor === 'end' ? x - width : x;
     return { x: left, y: y - ascent, width, height: ascent + descent };
   };
   const spans = element.children.filter((c): c is XmlElement => typeof c !== 'string' && c.tag === 'tspan');
   const content = textContent(element);
-  const rows = spans.length ? spans.map(s => textContent(s)) : [content];
-  const lines = spans.length
+  const rows = spans.length > 0 ? spans.map(s => textContent(s)) : [content];
+  const lines = spans.length > 0
     ? spans.map(s => box(Number(s.attrs.x), Number(s.attrs.y), textContent(s), undefined, element.attrs['text-anchor']))
     : [box(Number(element.attrs.x), Number(element.attrs.y), content, renderer === 'plantuml' ? element.attrs.textLength : undefined, element.attrs['text-anchor'])];
   const owner = [...ancestors].reverse().find(a => a.attrs['data-uml-role'] === 'node' || a.attrs.class === 'entity');
   // PlantUML: texts inside an entity belong to it, texts inside a link are labels.
   const plantRole = renderer === 'plantuml' ? (owner ? 'text' : ancestors.some(a => a.attrs.class === 'link') ? 'label' : undefined) : undefined;
   return {
-    content: renderer === 'plantuml' ? content.replace(/^​|​$/gu, '') : content,
+    content: renderer === 'plantuml' ? content.replaceAll(/^​|​$/gu, '') : content,
     size, bold, italic, lines, rows, badBreaks: badBreaks(rows, style, metrics, new Set((element.attrs['data-uml-starts'] ?? '0').split(' ').map(Number))), bounds: union(lines),
     ...(element.attrs['data-uml-role'] ? { role: element.attrs['data-uml-role'] } : plantRole ? { role: plantRole } : {}),
     ...(element.attrs['data-uml-owner'] ? { owner: element.attrs['data-uml-owner'] } : {}),
@@ -219,7 +240,8 @@ function readText(element: XmlElement, ancestors: XmlElement[], metrics: FontMet
 function readEngine(root: XmlElement, scene: Scene): void {
   for (const { element } of walk(root)) {
     const a = element.attrs;
-    if (a['data-uml-role'] === 'node') {
+    switch (a['data-uml-role']) {
+    case 'node': {
       const ball = numbers(a['data-uml-ball']), socket = numbers(a['data-uml-socket']);
       scene.nodes.push({
         id: a['data-uml-id'] ?? '', type: a['data-uml-type'] ?? '', bounds: rect4(a['data-uml-bounds'])!,
@@ -230,24 +252,40 @@ function readEngine(root: XmlElement, scene: Scene): void {
         ...(a['data-uml-tab'] ? { tab: rect4(a['data-uml-tab'])! } : {}),
         ...(socket.length === 5 ? { socket: { x: socket[0]!, y: socket[1]!, r: socket[2]!, u: { x: socket[3]!, y: socket[4]! } } } : {}),
       });
-    } else if (a['data-uml-role'] === 'edge') {
+    
+    break;
+    }
+    case 'edge': {
       scene.edges.push({
         id: a['data-uml-id'] ?? '', type: a['data-uml-type'] ?? '', source: a['data-uml-source'] ?? '', target: a['data-uml-target'] ?? '',
         points: pointList(a['data-uml-points']), sourceMarker: a['data-uml-source-marker'] ?? 'none', targetMarker: a['data-uml-target-marker'] ?? 'none',
       });
-    } else if (a['data-uml-role'] === 'message-arrow') {
+    
+    break;
+    }
+    case 'message-arrow': {
       const [from, to] = pointList(a['data-uml-points']);
       const path = element.children.find((c): c is XmlElement => typeof c !== 'string' && c.tag === 'path');
       scene.arrows.push({
         owner: a['data-uml-owner'] ?? '', group: a['data-uml-group'] ?? '', source: a['data-uml-source'] ?? '', target: a['data-uml-target'] ?? '',
         marker: a['data-uml-marker'] ?? 'none', from: from!, to: to!, dashed: !!path?.attrs['stroke-dasharray'],
       });
-    } else if (a['data-uml-role'] === 'marker') {
+    
+    break;
+    }
+    case 'marker': {
       const size = point(a['data-uml-size']);
       scene.markers.push({ marker: a['data-uml-marker'] ?? '', end: a['data-uml-end'] ?? '', tip: point(a['data-uml-tip'])!, direction: point(a['data-uml-direction'])!, ...(size ? { size: { length: size.x, halfWidth: size.y } } : {}) });
-    } else if (a['data-uml-role'] === 'frame') {
+    
+    break;
+    }
+    case 'frame': {
       scene.extents.push(rect4(a['data-uml-bounds'])!);
       scene.frameHeading = rect4(a['data-uml-heading'])!;
+    
+    break;
+    }
+    // No default
     }
   }
   for (const n of scene.nodes) scene.extents.push(n.bounds);
@@ -265,13 +303,13 @@ function readPlantUml(root: XmlElement, scene: Scene): void {
         if (child.tag === 'rect') shapes.push({ x: Number(child.attrs.x), y: Number(child.attrs.y), width: Number(child.attrs.width), height: Number(child.attrs.height) });
         if (child.tag === 'path' || child.tag === 'polygon') shapes.push(union((child.attrs.d ? pathPoints(child.attrs.d) : pointList(child.attrs.points)).map(p => ({ ...p, width: 0, height: 0 }))));
       }
-      if (shapes.length) scene.nodes.push({ id: a['data-entity'] ?? a.id ?? '', type: 'entity', bounds: union(shapes) });
+      if (shapes.length > 0) scene.nodes.push({ id: a['data-entity'] ?? a.id ?? '', type: 'entity', bounds: union(shapes) });
     }
     if (element.tag === 'rect') scene.extents.push({ x: Number(a.x ?? 0), y: Number(a.y ?? 0), width: Number(a.width ?? 0), height: Number(a.height ?? 0) });
     if (element.tag === 'line') scene.extents.push(union([{ x: Number(a.x1), y: Number(a.y1), width: 0, height: 0 }, { x: Number(a.x2), y: Number(a.y2), width: 0, height: 0 }]));
     if (element.tag === 'polygon' || element.tag === 'polyline' || element.tag === 'path') {
       const pts = a.d ? pathPoints(a.d) : pointList(a.points);
-      if (pts.length) scene.extents.push(union(pts.map(p => ({ ...p, width: 0, height: 0 }))));
+      if (pts.length > 0) scene.extents.push(union(pts.map(p => ({ ...p, width: 0, height: 0 }))));
     }
     if (element.tag === 'ellipse') scene.extents.push({ x: Number(a.cx) - Number(a.rx), y: Number(a.cy) - Number(a.ry), width: 2 * Number(a.rx), height: 2 * Number(a.ry) });
   }

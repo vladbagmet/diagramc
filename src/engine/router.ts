@@ -120,7 +120,7 @@ class Heap {
   }
   pop(): [number, number] {
     const a = this.items, top = a[0]!, last = a.pop()!;
-    if (a.length) {
+    if (a.length > 0) {
       a[0] = last;
       for (let i = 0; ;) {
         const l = 2 * i + 1, r = l + 1;
@@ -151,7 +151,7 @@ export function routeOrthogonal(request: RouteRequest): Point[] | undefined {
   // another side's end: then only ends on the same side count.
   const ends = (end: RouteEnd, toward: Rect): Attach[] => {
     const strict = attachments(end, toward, margin);
-    return strict.length ? strict : attachments(end, toward, margin, true);
+    return strict.length > 0 ? strict : attachments(end, toward, margin, true);
   };
   const starts = ends(request.source, request.target.rect);
   const goals = ends(request.target, request.source.rect);
@@ -164,7 +164,7 @@ export function routeOrthogonal(request: RouteRequest): Point[] | undefined {
   };
   const okStarts = starts.filter(a => stubClear(a, request.source.rect));
   const okGoals = goals.filter(a => stubClear(a, request.target.rect));
-  if (!okStarts.length || !okGoals.length) return undefined;
+  if (okStarts.length === 0 || okGoals.length === 0) return undefined;
 
   const xs = sortedUnique([
     area.x - 2 * margin, area.x + area.width + 2 * margin,
@@ -264,7 +264,7 @@ export function routeOrthogonal(request: RouteRequest): Point[] | undefined {
     const at = j * W + i;
     goalAt.set(at, [...(goalAt.get(at) ?? []), g]);
   }
-  if (!goalAt.size) return undefined;
+  if (goalAt.size === 0) return undefined;
   // A*: the Manhattan distance to the nearest goal stub never overestimates.
   const goalPoints = okGoals.map(g => g.stub);
   const h = (i: number, j: number): number => Math.min(...goalPoints.map(g => Math.abs(g.x - xs[i]!) + Math.abs(g.y - ys[j]!)));
@@ -275,7 +275,7 @@ export function routeOrthogonal(request: RouteRequest): Point[] | undefined {
     if (c < best[k]!) { best[k] = c; startAttach.set(k, a); heap.push([c + h(i, j), k]); }
   }
   let found: { state: number; goal: Attach; cost: number } | undefined;
-  while (heap.size) {
+  while (heap.size > 0) {
     const [f, k] = heap.pop();
     const c = best[k]!;
     if (found && f >= found.cost) break;

@@ -105,7 +105,7 @@ test('review fixtures: dense timing input is rejected precisely; readable inputs
 });
 
 test('hostile, markup-like and Unicode text stays literal in every slot', async () => {
-  const hostile = '" } !include https://evil.invalid <b>x</b> [[link]] **x** \\n @enduml';
+  const hostile = String.raw`" } !include https://evil.invalid <b>x</b> [[link]] **x** \n @enduml`;
   for (const text of [hostile, '  spaced  ', '<svg onload="alert(1)">', 'Unicode: 🚀 𠀀 \u{10FFFD} 漢字']) {
     const doc = { kind: 'timing', title: text, timeUnit: text.slice(0, 40), lifelines: [
       T('r', 'robust', [text, 'Off'], [[0, text], [10, 'Off']], { name: text, classifier: 'R' }),
@@ -129,7 +129,7 @@ test('CLI renders timing diagrams to SVG and PNG', async t => {
     const result = cli(['render', join(root, 'examples/timing/minimal.json'), '-o', out]);
     assert.equal(result.status, 0, result.stderr);
     const bytes = await readFile(out);
-    if (format === 'png') assert.deepEqual([...bytes.subarray(0, 4)], [0x89, 0x50, 0x4e, 0x47]);
+    if (format === 'png') assert.deepEqual([...bytes.subarray(0, 4)], [0x89, 0x50, 0x4E, 0x47]);
     else assert.match(bytes.toString(), /data-diagram-type="TIMING"/);
   }
 });

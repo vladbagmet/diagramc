@@ -47,7 +47,7 @@ export function stateCompartments(state: State): Compartment[] {
     ...(state.exit === undefined ? [] : [`exit / ${state.exit}`]),
     ...(state.internal ?? []).map(behaviorLabel),
   ];
-  if (behaviors.length) result.push({ lines: behaviors.map(text => ({ text, style: BODY, align: 'left' as const })) });
+  if (behaviors.length > 0) result.push({ lines: behaviors.map(text => ({ text, style: BODY, align: 'left' as const })) });
   return result;
 }
 
@@ -190,14 +190,14 @@ function incomingSides(model: StateMachineDiagram, scene: StateScene, dir: 'DOWN
           if (cost >= bestCost) return;
           if (k === wishes.length) { best = [...pick]; bestCost = cost; return; }
           for (const side of sides) {
-            const share = pick.reduce((sum, p, i) => sum + (p !== side ? 0 : isNote(wishes[i]!) || isNote(wishes[k]!) ? 0.5 : 2.5), 0);
+            const share = pick.reduce((sum, p, i) => sum + (p === side ? isNote(wishes[i]!) || isNote(wishes[k]!) ? 0.5 : 2.5 : 0), 0);
             pick.push(side);
             search(k + 1, cost + (isNote(wishes[k]!) ? 0.3 : 1) * (1 - dotOf[k]!.get(side)!) + share);
             pick.pop();
           }
         };
         search(0, 0);
-        wishes.forEach((w, k) => result.push({ key: `${w.x.t.key}\u0000${w.x.end}`, side: best[k]!, dot: dotOf[k]!.get(best[k]!)!, end: w.x.end }));
+        for (const [k, w] of wishes.entries()) result.push({ key: `${w.x.t.key}\u0000${w.x.end}`, side: best[k]!, dot: dotOf[k]!.get(best[k]!)!, end: w.x.end });
         return result;
       }
       for (const { x, ranked } of wishes) {
@@ -291,10 +291,10 @@ async function layoutOnce(model: StateMachineDiagram, metrics: FontMetrics, dir:
     const type = element.type;
     if (type === 'state' || type === 'fork' || type === 'join' || type === 'note') continue;
     const outs = outgoingOf.get(id) ?? [], ins = incomingOf.get(id) ?? [];
-    outs.forEach((t, index) => {
+    for (const [index, t] of outs.entries()) {
       const real = inSides.get(`${t.key}\u0000source`);
       pseudoSides.set(`${t.key}\u0000source`, real === undefined ? outgoingSide(type, outs, index, ins) : S(real));
-    });
+    }
     for (const t of ins) {
       const real = inSides.get(`${t.key}\u0000target`);
       pseudoSides.set(`${t.key}\u0000target`, real === undefined ? 'NORTH' : S(real));
@@ -349,7 +349,7 @@ async function layoutOnce(model: StateMachineDiagram, metrics: FontMetrics, dir:
       containerOf.set(e.id, path);
       if (!isState(e) || !e.regions) continue;
       const single = e.regions.length === 1 && e.regions[0]!.name === undefined;
-      e.regions.forEach((r, j) => chain(r.elements, [...path, single ? e.id : `${e.id}::region${j}`]));
+      for (const [j, r] of e.regions.entries()) chain(r.elements, [...path, single ? e.id : `${e.id}::region${j}`]);
     }
   };
   chain(model.elements, ['::root']);
@@ -365,7 +365,7 @@ async function layoutOnce(model: StateMachineDiagram, metrics: FontMetrics, dir:
     }, paths[0] ?? ['::root']);
     const key = common.at(-1) ?? '::root';
     notesIn.set(key, [...(notesIn.get(key) ?? []), e]);
-    noteOwner.set(e.id, key === '::root' ? undefined : key.split('::')[0]);
+    noteOwner.set(e.id, key === '::root' ? undefined : key.split('::', 1)[0]);
   }
   const inside = (key: string, elements: readonly Element[]): (Vertex | Note)[] => [...elements.filter(e => !isNote(e)), ...(notesIn.get(key) ?? [])];
 
@@ -386,7 +386,7 @@ async function layoutOnce(model: StateMachineDiagram, metrics: FontMetrics, dir:
       const regionNode = (r: NonNullable<State['regions']>[number], j: number): LayoutNode => ({
         // Wide enough for the region's name in its top-left corner.
         id: `${e.id}::region${j}`, width: r.name === undefined ? 0 : Math.ceil(metrics.measure(r.name, BODY)) + 2 * theme.spacing.padX, height: regionNameHeight, minimumSize: r.name !== undefined,
-        padding: { top: PAD + (r.name !== undefined ? regionNameHeight : 0), left: PAD, bottom: PAD, right: PAD },
+        padding: { top: PAD + (r.name === undefined ? 0 : regionNameHeight), left: PAD, bottom: PAD, right: PAD },
         children: inside(`${e.id}::region${j}`, r.elements).map(toNode),
       });
       const single = e.regions.length === 1 && e.regions[0]!.name === undefined;
@@ -437,9 +437,7 @@ async function layoutOnce(model: StateMachineDiagram, metrics: FontMetrics, dir:
   const stack = (elements: readonly Element[]): void => {
     for (const e of elements) {
       if (!isState(e) || !e.regions) continue;
-      if (e.regions.length > 1 || e.regions[0]!.name !== undefined) {
-        if (regionMode === 'along') for (let j = 1; j < e.regions.length; j++) edges.push({ id: `${e.id}::stack${j}`, source: `${e.id}::region${j - 1}`, target: `${e.id}::region${j}`, directionPriority: 20 });
-      }
+      if ((e.regions.length > 1 || e.regions[0]!.name !== undefined) && regionMode === 'along') for (let j = 1; j < e.regions.length; j++) edges.push({ id: `${e.id}::stack${j}`, source: `${e.id}::region${j - 1}`, target: `${e.id}::region${j}`, directionPriority: 20 });
       for (const r of e.regions) stack(r.elements);
     }
   };
@@ -487,13 +485,13 @@ async function layoutOnce(model: StateMachineDiagram, metrics: FontMetrics, dir:
       const prev = sorted[k]!.rect;
       return sideBySide ? (prev.x + prev.width + c.rect.x) / 2 : (prev.y + prev.height + c.rect.y) / 2;
     });
-    sorted.forEach((c, k) => {
+    for (const [k, c] of sorted.entries()) {
       const lo = k === 0 ? (sideBySide ? body.x : body.y) : cuts[k - 1]!;
       const hi = k === sorted.length - 1 ? (sideBySide ? body.x + body.width : body.y + body.height) : cuts[k]!;
       const cell = sideBySide ? { x: lo, y: body.y, width: hi - lo, height: body.height } : { x: body.x, y: lo, width: body.width, height: hi - lo };
       cells.push({ id: `${e.id}::region${c.j}`, rect: cell });
       if (c.r.name !== undefined) drawn.regionNames.push({ text: c.r.name, x: cell.x + theme.spacing.padX, y: cell.y + 6 });
-    });
+    }
     for (const v of cuts) {
       drawn.separators.push(sideBySide ? { x1: v, y1: body.y, x2: v, y2: body.y + body.height } : { x1: body.x, y1: v, x2: body.x + body.width, y2: v });
     }
@@ -519,10 +517,10 @@ async function layoutOnce(model: StateMachineDiagram, metrics: FontMetrics, dir:
       let lo = vertical ? r.y + top + margin : r.x + margin, hi = vertical ? r.y + r.height - margin : r.x + r.width - margin;
       // Beside the region its inner lines lead to, so they do not cut through another region.
       if (isState(ownerElement) && ownerElement.regions) {
-        const inner = transitions.flatMap(t => t.from === id ? [t.to] : t.to === id ? [t.from] : []);
+        const inner = new Set(transitions.flatMap(t => t.from === id ? [t.to] : t.to === id ? [t.from] : []));
         const cells = regionCells(ownerElement, r, headers.get(owner)!.height).cells.filter(cell => {
           const j = Number(cell.id.slice(cell.id.lastIndexOf('region') + 6));
-          const within = (els: readonly Element[]): boolean => els.some(x => inner.includes(x.id) || (isState(x) && (x.regions ?? []).some(g => within(g.elements))));
+          const within = (els: readonly Element[]): boolean => els.some(x => inner.has(x.id) || (isState(x) && (x.regions ?? []).some(g => within(g.elements))));
           return within(ownerElement.regions![j]!.elements);
         });
         if (cells.length === 1) {
@@ -544,7 +542,7 @@ async function layoutOnce(model: StateMachineDiagram, metrics: FontMetrics, dir:
       const values = list.map(p => hi < lo ? (lo + hi) / 2 : Math.min(hi, Math.max(lo, p.at[axis])));
       for (let k = 1; k < values.length; k++) values[k] = Math.max(values[k]!, values[k - 1]! + gap);
       for (let k = values.length - 2; k >= 0; k--) values[k] = Math.min(values[k]!, values[k + 1]! - gap);
-      list.forEach((p, k) => pointAt.set(p.id, axis === 'y' ? { x: p.at.x, y: values[k]! } : { x: values[k]!, y: p.at.y }));
+      for (const [k, p] of list.entries()) pointAt.set(p.id, axis === 'y' ? { x: p.at.x, y: values[k]! } : { x: values[k]!, y: p.at.y });
     }
   }
   /** An ELK route whose end sat at a connection point that moved: a jog in its end segment reaches the new point. */
@@ -613,11 +611,11 @@ async function layoutOnce(model: StateMachineDiagram, metrics: FontMetrics, dir:
     const c = r[axis] + (vertical ? r.width : r.height) / 2, toward = (note[axis] + (vertical ? note.width : note.height) / 2) < c ? -1 : 1;
     const d = toward * (vertical ? r.width : r.height) / 4;
     const route = e.points.map(p => ({ ...p }));
-    route[route.length - 1]![axis] += d;
+    route.at(-1)![axis] += d;
     if (route.length === 2) {
       route[0]![axis] += d;
       if (route[0]![axis] < note[axis] + 2 || route[0]![axis] > note[axis] + (vertical ? note.width : note.height) - 2) continue;
-    } else route[route.length - 2]![axis] += d;
+    } else route.at(-2)![axis] += d;
     e.points = clipRoute(simplify(route), 'target', r, shapeOf(e.target));
   }
 
@@ -664,7 +662,7 @@ async function layoutOnce(model: StateMachineDiagram, metrics: FontMetrics, dir:
     const owner = points.get(id)?.owner;
     if (owner !== undefined) out.set(owner, undefined);
     let cell: string | undefined;
-    for (let p = parentOfNode.get(id) ?? (owner !== undefined ? parentOfNode.get(owner) : undefined); p !== undefined; p = parentOfNode.get(p)) {
+    for (let p = parentOfNode.get(id) ?? (owner === undefined ? undefined : parentOfNode.get(owner)); p !== undefined; p = parentOfNode.get(p)) {
       if (p.includes('::region')) { cell = p; continue; }
       if (headers.has(p) && !out.has(p)) out.set(p, cell);
       cell = undefined;
@@ -708,7 +706,7 @@ async function layoutOnce(model: StateMachineDiagram, metrics: FontMetrics, dir:
     return repairRoutes(open, repairEdges(), { spacing: theme.spacing.edgeEdge, force, lines: separators, keep: new Set(sceneEdges.filter(e => !only.has(e.id)).map(e => e.id)), shorten: false });
   };
   // Those lines, and lines without a route that found none above.
-  if (stuck.size) {
+  if (stuck.size > 0) {
     const again = repairOpen(new Set([...stuck].filter(id => unrouted.has(id))), stuck);
     for (const e of sceneEdges) if (again.changed.has(e.id)) { e.points = clipEnds(e, again.routes.get(e.id)!); repaired.changed.add(e.id); }
   }
@@ -719,7 +717,7 @@ async function layoutOnce(model: StateMachineDiagram, metrics: FontMetrics, dir:
       const plain = new Set([...force].filter(id => !stuck.has(id))), open = new Set([...force].filter(id => stuck.has(id)));
       const out = { routes: new Map<string, Point[]>(), changed: new Set<string>() };
       for (const [ids, run] of [[plain, (f: ReadonlySet<string>) => repairRoutes(repairNodes, repairEdges(), { spacing: theme.spacing.edgeEdge, force: f, keep: new Set(sceneEdges.filter(e => !f.has(e.id)).map(e => e.id)), shorten: false })], [open, repairOpen]] as const) {
-        if (!ids.size) continue;
+        if (ids.size === 0) continue;
         const r = run(ids);
         for (const id of r.changed) { out.changed.add(id); out.routes.set(id, r.routes.get(id)!); }
       }
@@ -757,7 +755,7 @@ async function layoutOnce(model: StateMachineDiagram, metrics: FontMetrics, dir:
   // Transitions with three or more bends (ELK's back edges wind around neighbours):
   // rerouted when the router finds a route with fewer bends that is not longer.
   const winding = new Set(sceneEdges.filter(e => e.type === 'transition' && e.source !== e.target && e.points.length >= 5).map(e => e.id));
-  if (polish && winding.size) {
+  if (polish && winding.size > 0) {
     const retry = repairRoutes(repairNodes, repairEdges(), { spacing: theme.spacing.edgeEdge, force: winding, shorten: false });
     for (const e of sceneEdges) {
       if (!winding.has(e.id) || !retry.changed.has(e.id)) continue;
@@ -786,7 +784,7 @@ async function layoutOnce(model: StateMachineDiagram, metrics: FontMetrics, dir:
       // Twice the label's distance from its own line is the room another line must leave (gate label-proximity).
       const reach = inflate(room, 12);
       const through = new Set(sceneEdges.filter(o => o !== e && o.source !== o.target && !pinned(o.source) && !pinned(o.target) && o.points.slice(1).some((q, i) => segmentIntersectsRect(o.points[i]!, q, reach))).map(o => o.id));
-      if (!through.size || through.size > 2) continue;
+      if (through.size === 0 || through.size > 2) continue;
       const before = { routes: sceneEdges.map(o => o.points), fitting: fitting(), crossings: countCrossings(sceneEdges.filter(o => o.type === 'transition').map(o => o.points)) };
       const nodesWithRoom: RepairNode[] = [...repairNodes, { id: '::label-room', rect: reach }];
       const retry = repairRoutes(nodesWithRoom, repairEdges(), { spacing: theme.spacing.edgeEdge, force: through, keep: new Set(sceneEdges.filter(o => !through.has(o.id)).map(o => o.id)), shorten: false });
@@ -797,7 +795,7 @@ async function layoutOnce(model: StateMachineDiagram, metrics: FontMetrics, dir:
         for (const id of through) repaired.changed.add(id);
         break;
       }
-      sceneEdges.forEach((o, i) => { o.points = before.routes[i]!; });
+      for (const [i, o] of sceneEdges.entries()) { o.points = before.routes[i]!; }
     }
   }
 
@@ -865,11 +863,11 @@ async function layoutOnce(model: StateMachineDiagram, metrics: FontMetrics, dir:
   for (const c of composites) obstacleRects.push({ ...c.bounds, height: c.header.height });
   for (const c of composites) for (const n of c.regionNames) obstacleRects.push({ x: n.x, y: n.y, width: metrics.measure(n.text, BODY) + 4, height: lineHeight });
   const segments: [Point, Point][] = [];
-  for (const e of sceneEdges) e.points.slice(1).forEach((p, k) => segments.push([e.points[k]!, p]));
+  for (const e of sceneEdges) for (const [k, p] of e.points.slice(1).entries()) segments.push([e.points[k]!, p]);
   // Composite borders: a label never straddles one.
   for (const c of composites) {
     const r = c.bounds, k = [{ x: r.x, y: r.y }, { x: r.x + r.width, y: r.y }, { x: r.x + r.width, y: r.y + r.height }, { x: r.x, y: r.y + r.height }];
-    k.forEach((p, i) => segments.push([p, k[(i + 1) % 4]!]));
+    for (const [i, p] of k.entries()) segments.push([p, k[(i + 1) % 4]!]);
   }
   const requests: LabelRequest[] = [];
   for (const t of transitions) {
@@ -1042,17 +1040,17 @@ function orderRegions(elements: readonly Element[], nodes: readonly LayoutNode[]
       return d;
     });
     const move = (p: Point, d: number): Point => ({ ...p, [axis]: p[axis] + d });
-    ids.forEach((region, j) => {
+    for (const [j, region] of ids.entries()) {
       const d = shift[j]!;
-      if (Math.abs(d) < 0.01) return;
+      if (Math.abs(d) < 0.01) continue;
       for (const [id, r] of result.nodes) if (within(id, region)) result.nodes.set(id, { ...r, [axis]: r[axis] + d });
       for (const [id, p] of result.ports) if (within(id, region)) result.ports.set(id, move(p, d));
-    });
+    }
     for (const edge of edges) {
       const routed = result.edges.get(edge.id);
       if (!routed) continue;
       const s = ids.findIndex(id => within(edge.source, id)), t = ids.findIndex(id => within(edge.target, id));
-      if (s < 0 && t < 0) continue;
+      if (s === -1 && t === -1) continue;
       if (s === t) {
         const d = shift[s]!;
         result.edges.set(edge.id, { points: routed.points.map(p => move(p, d)), labels: new Map([...routed.labels].map(([k, r]) => [k, { ...r, [axis]: r[axis] + d }])) });
@@ -1148,7 +1146,7 @@ function alignBars(ctx: BarContext): void {
     const barAncestors = ancestors(id);
     const holders = ends.map(o => new Set([...ancestors(o)].filter(a => !barAncestors.has(a) && ctx.headers.has(a))));
     const common = [...holders[0]!].filter(a => holders.every(h => h.has(a)));
-    if (!common.length) return false;
+    if (common.length === 0) return false;
     // The outermost such composite.
     const comp = common.find(a => common.every(b => b === a || ancestors(b).has(a)))!;
     const K = rect(comp), header = ctx.headers.get(comp)!;
@@ -1158,7 +1156,7 @@ function alignBars(ctx: BarContext): void {
     const barFace = side < 0 ? barC + thickness : barC;
     // Vertices in order along the direction, each line at the middle of its vertex if free.
     const order = ends.map((o, k) => ({ o, k })).sort((a, b) => rect(a.o)[F] - rect(b.o)[F]);
-    const positions = new Array<number>(ends.length);
+    const positions = Array.from({ length: ends.length }, () => 0);
     const chosen: number[] = [];
     const others = ctx.sceneEdges.filter(e => !branches.includes(e));
     for (const { o, k } of order) {
@@ -1194,10 +1192,10 @@ function alignBars(ctx: BarContext): void {
     if (texts.some(t => overlapArea(inflate(grown, 6), t) > 0)) return false;
     const before = { routes: ctx.sceneEdges.map(e => e.points), crossings: countCrossings(transitionLines()) };
     ctx.setRect(id, grown);
-    branches.forEach((e, k) => {
+    for (const [k, e] of branches.entries()) {
       const f = positions[k]!, o = rect(ends[k]!), face = side < 0 ? o[C] : o[C] + o[CS];
       e.points = fork ? [at(barFace, f), at(face, f)] : [at(face, f), at(barFace, f)];
-    });
+    }
     const lines = branches.map(e => e.points);
     const touchesBar = (e: StateScene['edges'][number], by: number): boolean => e.source !== id && e.target !== id && e.points.slice(1).some((q, k) => segmentIntersectsRect(e.points[k]!, q, inflate(grown, by)));
     const conflicts = new Set<string>(feeds.map(e => e.id));
@@ -1206,7 +1204,7 @@ function alignBars(ctx: BarContext): void {
     for (const e of ctx.sceneEdges) if (conflicts.has(e.id) && again.changed.has(e.id)) e.points = ctx.clipEnds(e, again.routes.get(e.id)!);
     const lost = feeds.some(e => !again.changed.has(e.id));
     if (lost || others.some(e => touchesBar(e, 6)) || countCrossings(transitionLines()) > before.crossings + 1) {
-      ctx.sceneEdges.forEach((e, k) => { e.points = before.routes[k]!; });
+      for (const [k, e] of ctx.sceneEdges.entries()) { e.points = before.routes[k]!; }
       ctx.setRect(id, bar);
       return false;
     }
@@ -1225,7 +1223,7 @@ function alignBars(ctx: BarContext): void {
     // Vertices in cross order, each taking the free position nearest its middle.
     const middle = (o: string): number => rect(o)[C] + rect(o)[CS] / 2;
     const order = ends.map((o, k) => ({ o, k })).sort((a, b) => middle(a.o) - middle(b.o));
-    const positions = new Array<number>(ends.length);
+    const positions = Array.from({ length: ends.length }, () => 0);
     for (const { o, k } of order) {
       const r = rect(o), mid = middle(o);
       const inset = ctx.shapeOf(o) === 'rect' ? theme.size.state.radius + 6 : r[CS] / 2;
@@ -1262,10 +1260,10 @@ function alignBars(ctx: BarContext): void {
     // Apply, then reroute the lines that now cross the bar or a branch.
     const before = { routes: ctx.sceneEdges.map(e => e.points), crossings: countCrossings(transitionLines()) };
     ctx.setRect(id, grown);
-    branches.forEach((e, k) => {
+    for (const [k, e] of branches.entries()) {
       const c = positions[k]!, o = rect(ends[k]!);
       e.points = fork ? [at(c, barFace), at(c, faceOf(o))] : [at(c, faceOf(o)), at(c, barFace)];
-    });
+    }
     const conflicts = new Set<string>(), handled = new Set<string>();
     // Lines on the other side: straight from their vertex when it faces the bar;
     // otherwise they keep their route up to a short stem before the bar, from where
@@ -1308,12 +1306,12 @@ function alignBars(ctx: BarContext): void {
     const lines = branches.map(e => e.points);
     const touchesBar = (e: StateScene['edges'][number], by: number): boolean => e.source !== id && e.target !== id && e.points.slice(1).some((q, k) => segmentIntersectsRect(e.points[k]!, q, inflate(grown, by)));
     for (const e of others) if (touchesBar(e, theme.spacing.edgeEdge) || lines.some(l => countCrossings([l, e.points]) > 0)) conflicts.add(e.id);
-    if (conflicts.size) {
+    if (conflicts.size > 0) {
       const again = ctx.reroute(conflicts);
       for (const e of ctx.sceneEdges) if (conflicts.has(e.id) && again.changed.has(e.id)) e.points = ctx.clipEnds(e, again.routes.get(e.id)!);
     }
     if (others.some(e => touchesBar(e, 6)) || countCrossings(transitionLines()) > before.crossings) {
-      ctx.sceneEdges.forEach((e, k) => { e.points = before.routes[k]!; });
+      for (const [k, e] of ctx.sceneEdges.entries()) { e.points = before.routes[k]!; }
       ctx.setRect(id, bar);
       return false;
     }

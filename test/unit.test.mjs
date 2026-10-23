@@ -47,9 +47,9 @@ test('bounds and stable ID syntax', () => {
   parse({ ...minimal, classes: [{ id: 'a', name: '🚀'.repeat(100) }] });
   fails({ ...minimal, classes: [{ id: 'a', name: '🚀'.repeat(101) }] }, 'SCHEMA_INVALID');
   fails({ ...minimal, classes: Array.from({ length: 51 }, (_, i) => ({ id: `c${i}`, name: 'C' })) }, 'SCHEMA_INVALID');
-  fails({ ...minimal, classes: [{ id: 'a', name: 'A', attributes: Array(21).fill('x') }] }, 'SCHEMA_INVALID');
+  fails({ ...minimal, classes: [{ id: 'a', name: 'A', attributes: Array.from({length: 21}).fill('x') }] }, 'SCHEMA_INVALID');
   fails({ ...minimal, classes: [{ id: 'a', name: 'A', methods: ['x'.repeat(181)] }] }, 'SCHEMA_INVALID');
-  fails({ ...minimal, relationships: Array(101).fill({ type: 'association', from: 'a', to: 'a' }) }, 'SCHEMA_INVALID');
+  fails({ ...minimal, relationships: Array.from({length: 101}).fill({ type: 'association', from: 'a', to: 'a' }) }, 'SCHEMA_INVALID');
   for (const id of ['!include', 'a\nb', 'a\n', 'a\r', 'x'.repeat(65), 'a" {}']) {
     fails({ ...minimal, classes: [{ id, name: 'A' }] }, 'SCHEMA_INVALID');
     fails({ ...minimalV2, elements: [{ id, type: 'class', name: 'A' }] }, 'SCHEMA_INVALID', '/elements/0/id');
@@ -80,7 +80,7 @@ test('rejects line breaks, controls, blank text, bidi controls, invalid XML char
     fails({ ...minimal, relationships: [{ type: 'association', from: 'a', to: 'a', label: text }] }, 'SCHEMA_INVALID');
     fails({ ...minimalV2, elements: [{ id: 'a', type: 'class', name: 'A', attributes: [{ name: 'x', type: text }] }] }, 'SCHEMA_INVALID', '/elements/0/attributes/0/type');
   }
-  for (const name of [' ', '\ud800', '‮Evil']) {
+  for (const name of [' ', '\uD800', '‮Evil']) {
     fails({ ...minimal, classes: [{ id: 'a', name }] }, 'INVALID_TEXT', '/classes/0/name');
     fails({ ...minimalV2, title: name }, 'INVALID_TEXT', '/title');
   }
@@ -94,7 +94,7 @@ test('every validation error carries all diagnostics with JSON paths', () => {
   }
 });
 test('hostile display text is encoded, never used as PlantUML source syntax or IDs', () => {
-  const text = '" } !include https://evil.invalid <img:x> [[url]] **bold** \\n @enduml';
+  const text = String.raw`" } !include https://evil.invalid <img:x> [[url]] **bold** \n @enduml`;
   const model = { classes: [{ id: 'private_id', name: text, attributes: [text], methods: [text] }], relationships: [{ type: 'association', from: 'private_id', to: 'private_id', label: text }] };
   const source = classToPlantUml(parse(model).model);
   assert.ok(!source.includes(text));
@@ -116,7 +116,7 @@ test('renderer invokes without shell, enforces SECURE profile and removes Java i
   const saved = variables.map(key => process.env[key]);
   for (const key of variables) process.env[key] = 'hostile setting';
   try { assert.equal((await renderSvg('source', { java, jar: 'literal path;no shell.jar' })).toString(), fakeSvg); }
-  finally { variables.forEach((key, i) => { if (saved[i] === undefined) delete process.env[key]; else process.env[key] = saved[i]; }); }
+  finally { for (const [i, key] of variables.entries()) { if (saved[i] === undefined) delete process.env[key]; else process.env[key] = saved[i]; } }
 });
 test('renderer reports spawn, failure, malformed output, wrong diagram type, timeout and output limits', async t => {
   const dir = await workspace(t);
@@ -151,7 +151,7 @@ test('CLI help, version, usage and machine-readable read/parse/encoding failures
     for (const args of [[command, '--help'], ['help', command], ['--help', command]]) {
       const result = cli(args);
       assert.equal(result.status, 0, args.join(' '));
-      assert.match(result.stdout, new RegExp(`^Usage: uml ${command}\\b`), args.join(' '));
+      assert.match(result.stdout, new RegExp(String.raw`^Usage: uml ${command}\b`), args.join(' '));
     }
   }
   assert.match(cli(['help']).stdout, /uml render <model\.json\|->/);
@@ -179,7 +179,7 @@ test('CLI help, version, usage and machine-readable read/parse/encoding failures
     [['render', '/does/not/exist', '-o', 'x.svg'], {}, 'INPUT_READ_FAILED', 4],
     [['render', '-', '-o', 'x.svg'], { input: '{' }, 'INVALID_JSON', 2],
     [['validate', '-'], { input: '{' }, 'INVALID_JSON', 2],
-    [['render', '-', '-o', 'x.svg'], { input: Buffer.from([0xff]) }, 'INVALID_ENCODING', 2],
+    [['render', '-', '-o', 'x.svg'], { input: Buffer.from([0xFF]) }, 'INVALID_ENCODING', 2],
     [['render', '-', '-o', 'x.svg'], { input: ' '.repeat(MAX_INPUT_BYTES + 1) }, 'INPUT_TOO_LARGE', 2],
   ]) {
     const result = cli(args, options);
@@ -231,7 +231,7 @@ test('invalid input never spawns renderer or creates/replaces output', async t =
     [JSON.stringify({ ...minimal, extra: true }), 'SCHEMA_INVALID'],
     [JSON.stringify({ ...minimal, classes: [minimal.classes[0], minimal.classes[0]] }), 'DUPLICATE_ID'],
     [JSON.stringify({ ...minimal, classes: [{ id: 'a', name: '￾' }] }), 'SCHEMA_INVALID'],
-    [JSON.stringify({ ...minimal, classes: [{ id: 'a', name: '\ud800' }] }), 'INVALID_TEXT'],
+    [JSON.stringify({ ...minimal, classes: [{ id: 'a', name: '\uD800' }] }), 'INVALID_TEXT'],
     [JSON.stringify({ ...minimal, relationships: [{ type: 'inheritance', from: 'a', to: 'a' }] }), 'INHERITANCE_CYCLE'],
     [JSON.stringify({ ...minimalV2, kind: 'nope' }), 'UNKNOWN_KIND'],
   ]) {
@@ -253,7 +253,7 @@ test('CLI renders SVG and PNG with the own engine without Java', async t => {
   assert.match(await readFile(join(dir, 'a.svg'), 'utf8'), /^<svg [^>]*data-uml-renderer="engine"/);
   result = cli(['render', '-', '-o', join(dir, 'a.png')], { input: JSON.stringify(minimal), env });
   assert.equal(result.status, 0, result.stderr);
-  assert.deepEqual([...(await readFile(join(dir, 'a.png'))).subarray(0, 8)], [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+  assert.deepEqual([...(await readFile(join(dir, 'a.png'))).subarray(0, 8)], [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]);
   result = cli(['render', '-', '-o', join(dir, 'b.out'), '--format', 'png', '--scale', '1'], { input: JSON.stringify(minimal), env });
   assert.equal(result.status, 0, result.stderr);
 });

@@ -30,7 +30,7 @@ export function fixActivitySvg(svg: string, model?: { title?: string }): string 
   }
   const { edge } = theme.color;
   const { length, halfWidth } = theme.size.arrow;
-  svg = svg.replace(/<polygon\b[^>]*>/gu, tag => {
+  svg = svg.replaceAll(/<polygon\b[^>]*>/gu, tag => {
     const a = attrs(tag);
     if (a.fill?.toUpperCase() !== edge.toUpperCase()) return tag;
     const n = (a.points ?? '').split(/[ ,]+/u).filter(Boolean).map(Number);
@@ -42,7 +42,7 @@ export function fixActivitySvg(svg: string, model?: { title?: string }): string 
     const at = (side: number) => `${fmt(tip.x - u.x * length - u.y * halfWidth * side)},${fmt(tip.y - u.y * length + u.x * halfWidth * side)}`;
     return `<polyline fill="none" points="${at(1)} ${fmt(tip.x)},${fmt(tip.y)} ${at(-1)}" style="stroke:${edge};stroke-width:${theme.stroke.edge};stroke-linejoin:miter;stroke-linecap:round;"/>`;
   });
-  svg = svg.replace(/<rect\b[^>]*>/gu, tag => {
+  svg = svg.replaceAll(/<rect\b[^>]*>/gu, tag => {
     if (!tag.includes(`stroke:${CALL_BEHAVIOR_MARK};`)) return tag;
     const a = attrs(tag);
     const x = Number(a.x), y = Number(a.y), w = Number(a.width), h = Number(a.height);
@@ -63,7 +63,7 @@ export function fixActivitySvg(svg: string, model?: { title?: string }): string 
  * place, so the text keeps its position inside the same bounding box.
  */
 function mirrorAcceptEvents(svg: string): string {
-  return svg.replace(/<polygon\b[^>]*>/gu, tag => {
+  return svg.replaceAll(/<polygon\b[^>]*>/gu, tag => {
     const a = attrs(tag);
     if (a.fill !== theme.color.nodeFill) return tag;
     const n = (a.points ?? '').split(/[ ,]+/u).filter(Boolean).map(Number);
@@ -123,11 +123,11 @@ function padLanes(svg: string): string {
 /** Centers each swimlane title (bold text at the top of the lanes) between its lane's borders again. */
 function centerLaneTitles(svg: string, borders: readonly { x: number; y0: number }[]): string {
   const xs = borders.map(b => b.x).sort((a, b) => a - b), top = Math.min(...borders.map(b => b.y0));
-  return svg.replace(/<text\b[^>]*>/gu, tag => {
+  return svg.replaceAll(/<text\b[^>]*>/gu, tag => {
     const a = attrs(tag);
     if (a['font-weight'] !== 'bold' || !(Number(a.y) > top && Number(a.y) < top + 48)) return tag;
     const width = Number(a.textLength), middle = Number(a.x) + width / 2;
-    const left = xs.filter(x => x < middle).at(-1), right = xs.find(x => x > middle);
+    const left = xs.findLast(x => x < middle), right = xs.find(x => x > middle);
     if (left === undefined || right === undefined || right - left < width) return tag;
     return tag.replace(/ x="[^"]*"/u, ` x="${fmt((left + right) / 2 - width / 2)}"`);
   });
@@ -218,7 +218,7 @@ function straightenBarBranches(svg: string): string {
       edits.set(tag, tag.replace(/ x="[^"]*"/u, ` x="${fmt(bar.x)}"`).replace(/ width="[^"]*"/u, ` width="${fmt(bar.width)}"`));
     }
   }
-  return edits.size ? svg.replace(/<(?:line|rect|polyline)\b[^>]*>/gu, tag => edits.get(tag) ?? tag) : svg;
+  return edits.size > 0 ? svg.replaceAll(/<(?:line|rect|polyline)\b[^>]*>/gu, tag => edits.get(tag) ?? tag) : svg;
 }
 
 /** Least horizontal distance between the flow into a fork (out of a join) and any of its branches. */
@@ -274,7 +274,7 @@ function separateBarFlows(svg: string): string {
       edits.set(head, head.replace(/ points="[^"]*"/u, ` points="${[0, 2, 4].map(i => `${fmt(n[i]! + dx)},${fmt(n[i + 1]!)}`).join(' ')}"`));
     }
   }
-  return edits.size ? svg.replace(/<(?:line|polyline)\b[^>]*>/gu, tag => edits.get(tag) ?? tag) : svg;
+  return edits.size > 0 ? svg.replaceAll(/<(?:line|polyline)\b[^>]*>/gu, tag => edits.get(tag) ?? tag) : svg;
 }
 
 /** Overhang of a fork or join bar beyond its outermost flow (each side), and its minimum length. */
@@ -301,13 +301,13 @@ function trimBars(svg: string): string {
     }
     return 0;
   };
-  return svg.replace(/<rect\b[^>]*>/gu, tag => {
+  return svg.replaceAll(/<rect\b[^>]*>/gu, tag => {
     const a = attrs(tag);
     if (a.fill !== theme.color.edge) return tag;
     const bar = { x: Number(a.x), y: Number(a.y), width: Number(a.width), height: Number(a.height) };
     if (!(bar.height <= 10 && bar.width > bar.height)) return tag;
     const touching = ends.filter(p => p.x >= bar.x - 0.5 && p.x <= bar.x + bar.width + 0.5 && p.y >= bar.y - 1.5 && p.y <= bar.y + bar.height + 1.5);
-    if (!touching.length) return tag;
+    if (touching.length === 0) return tag;
     const low = Math.min(...touching.map(p => p.x)), high = Math.max(...touching.map(p => p.x));
     // A flow that turns sideways right at the bar would run along the overhang: none there.
     const overhang = (x: number, side: number): number => touching.some(p => Math.abs(p.x - x) < 0.5 && turn(p, bar) === side) ? 2 : BAR_OVERHANG;
@@ -324,7 +324,7 @@ function trimBars(svg: string): string {
  * dashed anchor line drawn from the note to the node the pointer touched.
  */
 function anchorNotes(svg: string): string {
-  return svg.replace(/<path\b[^>]*>/gu, tag => {
+  return svg.replaceAll(/<path\b[^>]*>/gu, tag => {
     const a = attrs(tag);
     if (a.fill !== theme.color.noteFill || !a.d) return tag;
     const m = /^M([\d.]+),([\d.]+) L([\d.]+),([\d.]+) L([\d.]+),([\d.]+) L([\d.]+),([\d.]+) L([\d.]+),([\d.]+) (.*)$/u.exec(a.d);
@@ -384,7 +384,7 @@ function moveCrossedLabels(svg: string, depth: number): string {
   };
   const texts = [...svg.matchAll(/<text\b[^>]*>/gu)].map(m => ({ tag: m[0], rect: box(attrs(m[0])) }));
   const crossing = (r: Rect, only?: (s: Segment) => boolean): Segment | undefined => segments.find(s => (!only || only(s)) && segmentIntersectsRect(s.p, s.q, inflate(r, 1)));
-  const view = svg.match(/ viewBox="([-\d.]+) ([-\d.]+) ([\d.]+) ([\d.]+)"/u)?.slice(1).map(Number) ?? [0, 0, Infinity, Infinity];
+  const view = (/ viewBox="([-\d.]+) ([-\d.]+) ([\d.]+) ([\d.]+)"/u.exec(svg))?.slice(1).map(Number) ?? [0, 0, Infinity, Infinity];
   const inView = (r: Rect): boolean => r.x >= view[0]! + 2 && r.y >= view[1]! + 2 && r.x + r.width <= view[0]! + view[2]! - 2 && r.y + r.height <= view[1]! + view[3]! - 2;
   const free = (r: Rect, self: Rect): boolean => inView(r) && !crossing(r) && !obstacles.some(o => overlapArea(inflate(r, diamonds.has(o) ? 1 : 2), o) > 0)
     && !arms.some(([p, q]) => segmentIntersectsRect(p, q, r))
@@ -442,7 +442,7 @@ function moveCrossedLabels(svg: string, depth: number): string {
     const target = { ...t.rect, x: line.p.x + 5 };
     return moveCrossedLabels(widened.replace(t.tag, place(t.tag, t.rect, target)), depth + 1);
   }
-  return moved.size ? svg.replace(/<text\b[^>]*>/gu, tag => moved.get(tag) ?? tag) : svg;
+  return moved.size > 0 ? svg.replaceAll(/<text\b[^>]*>/gu, tag => moved.get(tag) ?? tag) : svg;
 }
 
 /** Bounding box of a drawing element (text: its glyph box), or undefined for other tags. */
@@ -469,7 +469,7 @@ function elementBox(name: string, a: Record<string, string>): Rect | undefined {
  */
 function shiftBand(svg: string, x0: number, width: number, y0: number, y1: number, keep: string): string | number | undefined {
   const within = (r: Rect): boolean => r.y >= y0 - 0.5 && r.y + r.height <= y1 + 0.5;
-  const outline = (tag: string): boolean => tag.includes(`stroke:${theme.color.frameStroke};`) || / fill="#FFFFFF"/u.test(tag);
+  const outline = (tag: string): boolean => tag.includes(`stroke:${theme.color.frameStroke};`) || tag.includes(' fill="#FFFFFF"');
   let right = -Infinity, limit = Infinity, unsafe = false;
   for (const [tag, name] of svg.matchAll(/<(rect|text|line|ellipse|polygon|polyline|path)\b[^>]*>/gu)) {
     const r = elementBox(name!, attrs(tag));
@@ -488,7 +488,7 @@ function shiftBand(svg: string, x0: number, width: number, y0: number, y1: numbe
   if (unsafe) return undefined;
   if (right + width > limit - 8) return limit;
   const shift = (x: number): number => x > x0 ? x + width : x;
-  return svg.replace(/<(rect|text|line|ellipse|polygon|polyline|path)\b[^>]*>/gu, (tag, name: string) => {
+  return svg.replaceAll(/<(rect|text|line|ellipse|polygon|polyline|path)\b[^>]*>/gu, (tag, name: string) => {
     const a = attrs(tag);
     const r = elementBox(name, a);
     if (!r || r.x + r.width <= x0 || r.x < x0 && name !== 'line' || outline(tag) || !within(r) || tag === keep) return tag;
@@ -511,7 +511,7 @@ function shiftBand(svg: string, x0: number, width: number, y0: number, y1: numbe
 /** Shifts everything right of `x0` by `width` px, stretching what spans `x0` (frame, lines); nothing above `heading` moves. */
 function insertColumn(svg: string, x0: number, width: number, heading = -Infinity): string {
   const shift = (x: number): number => x > x0 ? x + width : x;
-  return svg.replace(/<(\w+)\b[^>]*>/gu, (tag, name: string) => {
+  return svg.replaceAll(/<(\w+)\b[^>]*>/gu, (tag, name: string) => {
     // The frame heading (everything above `heading`) keeps its place and shape.
     const box = name === 'rect' ? undefined : elementBox(name, attrs(tag));
     if (box && box.y + box.height <= heading) return tag;
@@ -543,7 +543,7 @@ function insertColumn(svg: string, x0: number, width: number, heading = -Infinit
 
 /** Absolute M/L/H/V/A path data with every x coordinate passed through `shift`. */
 function shiftPath(d: string, shift: (x: number) => number): string {
-  return d.replace(/([MLHVA])([^MLHVAZz]*)/gu, (_, command: string, args: string) => {
+  return d.replaceAll(/([MLHVA])([^MLHVAZz]*)/gu, (_, command: string, args: string) => {
     const n = args.split(/[ ,]+/u).filter(Boolean).map(Number);
     if (command === 'H') return `H${n.map(x => fmt(shift(x))).join(' ')} `;
     if (command === 'V') return `V${args}`;

@@ -64,13 +64,13 @@ export class Tree {
 /** Notes: `attachedTo` names existing elements, never another note or a relationship. */
 export function checkNotes(notes: readonly { note: { id: string; attachedTo?: string[] }; path: string }[], tree: Tree, diagnostics: Diagnostic[]): void {
   for (const { note, path } of notes) {
-    (note.attachedTo ?? []).forEach((id, j) => {
+    for (const [j, id] of (note.attachedTo ?? []).entries()) {
       const at = pointer(path, 'attachedTo', j);
       const target = tree.ref(id, at, diagnostics);
       if (target?.type === 'note') diagnostics.push({ code: 'INVALID_ATTACHMENT', path: at, message: `Note "${note.id}" cannot be attached to another note ("${id}")` });
       // A port has one attachment point, shared by its connectors; annotate its owner instead.
       if (target?.type === 'port') diagnostics.push({ code: 'INVALID_ATTACHMENT', path: at, message: `Note "${note.id}" cannot be attached to the port "${id}"; attach it to the port's owner "${target.parent}"` });
-    });
+    }
   }
 }
 

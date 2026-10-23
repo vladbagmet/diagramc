@@ -6,7 +6,7 @@ const node = (id, type, extra = {}) => { nodes.push({ id, type, ...extra }); ret
 const flow = (from, to, guard) => edges.push({ type: 'control', from, to, ...(guard ? { guard } : {}) });
 let prev = node('start', 'initial', { partition: 'intake' });
 const stages = ['Receive', 'Classify', 'Enrich', 'Assemble', 'Verify', 'Dispatch'];
-stages.forEach((stage, s) => {
+for (const [s, stage] of stages.entries()) {
   const p = lanes[Math.floor(s / 2)];
   const a = node(`s${s}-task`, 'action', { name: `${stage} batch ${s + 1}`, partition: p });
   flow(prev, a);
@@ -34,7 +34,7 @@ stages.forEach((stage, s) => {
     flow(ld, next, 'ok');
     prev = next;
   }
-});
+}
 flow(prev, node('end', 'activityFinal', { partition: 'delivery' }));
 const doc = { kind: 'activity', title: 'Batch pipeline', partitions: lanes.map(id => ({ id, name: id[0].toUpperCase() + id.slice(1) })), nodes, edges };
 writeFileSync(process.argv[2], JSON.stringify(doc, null, 2) + '\n');

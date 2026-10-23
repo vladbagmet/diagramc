@@ -114,10 +114,10 @@ export function drawCompartmentText(canvas: Canvas, compartments: MeasuredBox['c
       const first = rowTop + baselineOffset(canvas.metrics, line.style.size, line.lineHeight);
       parts.push(canvas.lines(line.rows, xs, first, line.lineHeight, { ...line.style, fill: line.fill, role: 'text', owner }));
       if (line.underline) {
-        line.rows.forEach((_, i) => {
+        for (const [i, _] of line.rows.entries()) {
           const uy = first + i * line.lineHeight + Math.max(1.5, line.style.size * 0.12);
           parts.push(el('line', { x1: xs[i]!, y1: uy, x2: xs[i]! + line.widths[i]!, y2: uy, stroke: line.fill ?? theme.color.text, 'stroke-width': 0.9 }));
-        });
+        }
       }
       rowTop += line.rows.length * line.lineHeight;
     }
@@ -142,10 +142,10 @@ export function drawNode3d(canvas: Canvas, box: MeasuredBox, bounds: Rect, data:
     el('rect', { ...front, fill: theme.color.nodeFill, ...stroke }),
   ];
   let cy = front.y;
-  box.compartments.forEach((c, i) => {
+  for (const [i, c] of box.compartments.entries()) {
     if (i > 0) parts.push(el('line', { x1: front.x, y1: cy, x2: front.x + front.width, y2: cy, stroke: theme.color.nodeStroke, 'stroke-width': theme.stroke.compartment }));
     cy += c.height;
-  });
+  }
   // `middle`: a node that only shows its name centers it vertically on the front face.
   const slack = options.middle && box.compartments.length === 1 ? Math.max(0, (front.height - box.height) / 2) : 0;
   parts.push(...drawCompartmentText(canvas, box.compartments, { ...front, y: front.y + slack }, data.id), ...options.above ?? []);

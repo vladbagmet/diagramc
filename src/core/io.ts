@@ -53,7 +53,7 @@ export async function readInput(path: string): Promise<string> {
  * is written directly.
  */
 export async function writeOutput(path: string, data: Buffer): Promise<void> {
-  const existing = await stat(path).catch(() => undefined);
+  const existing = await stat(path).catch(() => {});
   if (existing && !existing.isFile() && !existing.isDirectory()) {
     try {
       const target = await open(path, 'w');

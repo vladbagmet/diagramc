@@ -202,8 +202,8 @@ function snap(ids: readonly string[], centers: Map<string, Point>, threshold: nu
   const grid: Grid = { columns: cluster(ids, cx, threshold), rows: cluster(ids, cy, threshold) };
   for (let guard = 0; guard < ids.length * 2; guard++) {
     const col = new Map<string, number>(), row = new Map<string, number>();
-    grid.columns.forEach((c, i) => c.forEach(id => col.set(id, i)));
-    grid.rows.forEach((r, i) => r.forEach(id => row.set(id, i)));
+    for (const [i, c] of grid.columns.entries()) for (const id of c) col.set(id, i);
+    for (const [i, r] of grid.rows.entries()) for (const id of r) row.set(id, i);
     const cells = new Map<string, string>();
     let clash: [string, string] | undefined;
     for (const id of ids) {
@@ -256,7 +256,7 @@ function gridCost(pos: ReadonlyMap<string, Point>, pairs: readonly [string, stri
   }
   const placed = pairs.filter(([a, b]) => pos.has(a) && pos.has(b));
   const segments = placed.map(([a, b]) => [pos.get(a)!, pos.get(b)!] as const);
-  placed.forEach(([a, b], i) => {
+  for (const [i, [a, b]] of placed.entries()) {
     const [p, q] = segments[i]!;
     const dx = Math.abs(p.x - q.x), dy = Math.abs(p.y - q.y);
     cost += Math.hypot(dx, dy) + (dx === 0 || dy === 0 ? 0 : dx === dy ? 0.45 : 1.2);
@@ -271,7 +271,7 @@ function gridCost(pos: ReadonlyMap<string, Point>, pairs: readonly [string, stri
       const [r, t] = segments[j]!;
       if (segmentDistance(p, q, r, t) < 1e-9) cost += CROSSING;
     }
-  });
+  }
   // Links leaving one lifeline at a narrow angle crowd each other's message blocks.
   const spokes = new Map<string, Point[]>();
   for (const [a, b] of placed) {
@@ -304,8 +304,8 @@ const toGrid = (ids: readonly string[], pos: ReadonlyMap<string, Point>): Grid =
 
 const fromGrid = (grid: Grid): Map<string, Point> => {
   const pos = new Map<string, Point>();
-  grid.columns.forEach((c, x) => c.forEach(id => pos.set(id, { x, y: 0 })));
-  grid.rows.forEach((r, y) => r.forEach(id => { pos.get(id)!.y = y; }));
+  for (const [x, c] of grid.columns.entries()) for (const id of c) pos.set(id, { x, y: 0 });
+  for (const [y, r] of grid.rows.entries()) for (const id of r) { pos.get(id)!.y = y; }
   return pos;
 };
 
@@ -329,7 +329,7 @@ function constructGrid(ids: readonly string[], pairs: readonly [string, string][
       const score = links(id) * 100 + degree.get(id)!;
       if (score > best) { best = score; next = id; }
     }
-    if (!pos.size) { pos.set(next, { x: 0, y: 0 }); taken.add('0,0'); continue; }
+    if (pos.size === 0) { pos.set(next, { x: 0, y: 0 }); taken.add('0,0'); continue; }
     const xs = [...pos.values()].map(p => p.x), ys = [...pos.values()].map(p => p.y);
     let cell: Point | undefined, cellCost = Infinity;
     for (let y = Math.min(...ys) - 2; y <= Math.max(...ys) + 2; y++) for (let x = Math.min(...xs) - 2; x <= Math.max(...xs) + 2; x++) {
@@ -420,10 +420,7 @@ function route(a: Rect, b: Rect, others: readonly Rect[]): Point[] {
   // Channels above, below, left and right of everything in between.
   const span = union([a, b, ...others.filter(r => segmentIntersectsRect(straight[0]!, straight[1]!, inflate(r, 4)))]);
   const above = span.y - 24, below = span.y + span.height + 24, left = span.x - 24, rightX = span.x + span.width + 24;
-  options.push([{ x: ca.x, y: a.y }, { x: ca.x, y: above }, { x: cb.x, y: above }, { x: cb.x, y: b.y }]);
-  options.push([{ x: ca.x, y: a.y + a.height }, { x: ca.x, y: below }, { x: cb.x, y: below }, { x: cb.x, y: b.y + b.height }]);
-  options.push([{ x: a.x, y: ca.y }, { x: left, y: ca.y }, { x: left, y: cb.y }, { x: b.x, y: cb.y }]);
-  options.push([{ x: a.x + a.width, y: ca.y }, { x: rightX, y: ca.y }, { x: rightX, y: cb.y }, { x: b.x + b.width, y: cb.y }]);
+  options.push([{ x: ca.x, y: a.y }, { x: ca.x, y: above }, { x: cb.x, y: above }, { x: cb.x, y: b.y }], [{ x: ca.x, y: a.y + a.height }, { x: ca.x, y: below }, { x: cb.x, y: below }, { x: cb.x, y: b.y + b.height }], [{ x: a.x, y: ca.y }, { x: left, y: ca.y }, { x: left, y: cb.y }, { x: b.x, y: cb.y }], [{ x: a.x + a.width, y: ca.y }, { x: rightX, y: ca.y }, { x: rightX, y: cb.y }, { x: b.x + b.width, y: cb.y }]);
   return options.find(o => !blocked(o, others)) ?? straight;
 }
 
@@ -461,8 +458,8 @@ export async function layoutCommunicationDiagram(model: CommunicationDiagram, me
   // reading direction (the stress layout has no preferred orientation).
   {
     const col = new Map<string, number>(), row = new Map<string, number>();
-    grid.columns.forEach((c, i) => c.forEach(id => col.set(id, i)));
-    grid.rows.forEach((r, i) => r.forEach(id => row.set(id, i)));
+    for (const [i, c] of grid.columns.entries()) for (const id of c) col.set(id, i);
+    for (const [i, r] of grid.rows.entries()) for (const id of r) row.set(id, i);
     let flowX = 0, flowY = 0;
     for (const m of model.messages ?? []) {
       const weight = 1 / (1 + (parseSequence(m.sequence)?.length ?? 1));
@@ -473,8 +470,8 @@ export async function layoutCommunicationDiagram(model: CommunicationDiagram, me
     if (flowY < 0) grid.rows.reverse();
   }
   const colOf = new Map<string, number>(), rowOf = new Map<string, number>();
-  grid.columns.forEach((c, i) => c.forEach(id => colOf.set(id, i)));
-  grid.rows.forEach((r, i) => r.forEach(id => rowOf.set(id, i)));
+  for (const [i, c] of grid.columns.entries()) for (const id of c) colOf.set(id, i);
+  for (const [i, r] of grid.rows.entries()) for (const id of r) rowOf.set(id, i);
   const C = grid.columns.length, R = grid.rows.length;
 
   // Self-links: a rectangular loop at the corner of the lifeline that no link
@@ -490,7 +487,7 @@ export async function layoutCommunicationDiagram(model: CommunicationDiagram, me
     const penalty = ([sx, sy]: readonly [number, number]) => away.reduce((sum, d) =>
       sum + (d.x === sx && d.y === sy ? 10 : d.y === 0 && d.x === sx ? 1 : d.x === 0 && d.y === sy ? 0.5 : 0), 0);
     const [sx, sy] = [...corners].sort((a, b) => penalty(a) - penalty(b))[0]!;
-    const width = link.groups.length ? Math.max(...link.groups.map(g => g.width)) : 0;
+    const width = link.groups.length > 0 ? Math.max(...link.groups.map(g => g.width)) : 0;
     const extent = link.groups.reduce((sum, g) => sum + Math.max(g.height, SELF_ARROW), 0) + GROUP_GAP * Math.max(0, link.groups.length - 1);
     const up = Math.max(LOOP_UP, extent + 10 - (n.h / 2 - LOOP_END));
     const side = LOOP_OUT + (width ? 19 + theme.size.arrow.halfWidth + TEXT_GAP + width + 4 : 6);
@@ -569,7 +566,7 @@ export async function layoutCommunicationDiagram(model: CommunicationDiagram, me
     const trouble = new Set<LinkPlan>();
     const order = [...links].sort((x, y) => y.groups.length - x.groups.length || links.indexOf(x) - links.indexOf(y));
     for (const k of order) {
-      if (!k.groups.length) continue;
+      if (k.groups.length === 0) continue;
       const points = routes.get(k.id)!;
       if (k.self) {
         const { sx, sy } = nodes.get(k.from)!.loop!;
@@ -587,8 +584,8 @@ export async function layoutCommunicationDiagram(model: CommunicationDiagram, me
       const nicer: 1 | -1 = (horizontal ? u.x > 0 : u.y > 0) ? 1 : -1;
       const ts = [0.5, 0.42, 0.58, 0.34, 0.66, 0.26, 0.74];
       for (const [groups, sign] of [[forward, 1], [backward, -1]] as const) {
-        if (!groups.length) continue;
-        const signs: (1 | -1)[] = forward.length && backward.length ? [sign] : [nicer, -nicer as 1 | -1];
+        if (groups.length === 0) continue;
+        const signs: (1 | -1)[] = forward.length > 0 && backward.length > 0 ? [sign] : [nicer, -nicer as 1 | -1];
         const result = placeBlock(groups, segment, signs, ts, k.id, world);
         placed.push(...result.candidate.placed);
         total += result.cost;

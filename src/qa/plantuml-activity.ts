@@ -71,7 +71,7 @@ export function readPlantUmlActivity(root: XmlElement, scene: Scene): void {
   }
   // Frame heading: the bent line closing the pentagon at the frame's top left.
   if (frame) {
-    const heading = elements.find(e => e.tag === 'path' && e.attrs.fill === 'none' && pathPts(e.attrs.d).length === 4 && Math.abs(pathPts(e.attrs.d)[0]!.y - frame!.y) < 0.5);
+    const heading = elements.find(e => e.tag === 'path' && e.attrs.fill === 'none' && pathPts(e.attrs.d).length === 4 && Math.abs(pathPts(e.attrs.d)[0]!.y - frame.y) < 0.5);
     if (heading) {
       const p = pathPts(heading.attrs.d);
       scene.frameHeading = { x: frame.x, y: frame.y, width: Math.max(...p.map(q => q.x)) - frame.x, height: Math.max(...p.map(q => q.y)) - frame.y };
@@ -84,14 +84,14 @@ export function readPlantUmlActivity(root: XmlElement, scene: Scene): void {
   // Chain flow segments into edges: points of degree 2 are bends; other points end a chain.
   const key = (p: Point): string => `${Math.round(p.x * 10)},${Math.round(p.y * 10)}`;
   const adjacency = new Map<string, { point: Point; segments: number[] }>();
-  segments.forEach((s, i) => {
+  for (const [i, s] of segments.entries()) {
     for (const p of s) {
       const k = key(p);
       const entry = adjacency.get(k) ?? { point: p, segments: [] };
       entry.segments.push(i);
       adjacency.set(k, entry);
     }
-  });
+  }
   const used = new Set<number>();
   const onNode = (p: Point): InspectedNode | undefined => {
     let best: InspectedNode | undefined, bestDistance = 1.5;
@@ -121,7 +121,7 @@ export function readPlantUmlActivity(root: XmlElement, scene: Scene): void {
     if (!isEnd(point)) continue;
     for (const i of list) if (!used.has(i)) chains.push(follow(point, i));
   }
-  segments.forEach((_, i) => { if (!used.has(i)) chains.push(follow(segments[i]![0], i)); });
+  for (const [i, _] of segments.entries()) { if (!used.has(i)) chains.push(follow(segments[i]![0], i)); }
 
   const edges: InspectedEdge[] = chains.map((chain, i) => {
     const tipAt = (p: Point) => scene.markers.some(m => distance(m.tip, p) <= 0.6);

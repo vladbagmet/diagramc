@@ -57,9 +57,9 @@ export interface Interaction {
 const num = (s: string | undefined): number => Number(s ?? 0);
 const styleOf = (e: XmlElement): { stroke?: string; width?: number; dashed: boolean } => {
   const style = e.attrs.style ?? '';
-  const stroke = style.match(/stroke:(#[0-9A-Fa-f]{6}|none)/u)?.[1];
-  const width = style.match(/stroke-width:([\d.]+)/u)?.[1];
-  return { ...(stroke ? { stroke } : {}), ...(width ? { width: Number(width) } : {}), dashed: /stroke-dasharray/u.test(style) };
+  const stroke = (/stroke:(#[0-9A-Fa-f]{6}|none)/u.exec(style))?.[1];
+  const width = (/stroke-width:([\d.]+)/u.exec(style))?.[1];
+  return { ...(stroke ? { stroke } : {}), ...(width ? { width: Number(width) } : {}), dashed: style.includes('stroke-dasharray') };
 };
 const elements = (e: XmlElement): XmlElement[] => e.children.filter((c): c is XmlElement => typeof c !== 'string');
 const shapeBounds = (e: XmlElement): Rect | undefined => {
@@ -68,8 +68,8 @@ const shapeBounds = (e: XmlElement): Rect | undefined => {
     case 'rect': return { x: num(a.x), y: num(a.y), width: num(a.width), height: num(a.height) };
     case 'ellipse': return { x: num(a.cx) - num(a.rx), y: num(a.cy) - num(a.ry), width: 2 * num(a.rx), height: 2 * num(a.ry) };
     case 'line': return boundsOfPoints([{ x: num(a.x1), y: num(a.y1) }, { x: num(a.x2), y: num(a.y2) }]);
-    case 'polygon': case 'polyline': { const p = pointList(a.points); return p.length ? boundsOfPoints(p) : undefined; }
-    case 'path': { const p = pathPoints(a.d ?? ''); return p.length ? boundsOfPoints(p) : undefined; }
+    case 'polygon': case 'polyline': { const p = pointList(a.points); return p.length > 0 ? boundsOfPoints(p) : undefined; }
+    case 'path': { const p = pathPoints(a.d ?? ''); return p.length > 0 ? boundsOfPoints(p) : undefined; }
     default: return undefined;
   }
 };
@@ -137,12 +137,12 @@ function readMessage(group: XmlElement, id: string): InteractionMessage & { text
   const segments = lines.filter(l => !used.has(l.e));
   const dashed = segments.some(s => s.style.dashed);
   let points: Point[] = [];
-  if (segments.length) {
+  if (segments.length > 0) {
     const pool = segments.map(s => s.ends);
     points = [...pool.shift()!];
-    while (pool.length) {
+    while (pool.length > 0) {
       const k = pool.findIndex(([a, b]) => near(a, points.at(-1)!, 1) || near(b, points.at(-1)!, 1) || near(a, points[0]!, 1) || near(b, points[0]!, 1));
-      if (k < 0) break;
+      if (k === -1) break;
       const [a, b] = pool.splice(k, 1)[0]!;
       if (near(a, points.at(-1)!, 1)) points.push(b); else if (near(b, points.at(-1)!, 1)) points.push(a);
       else if (near(b, points[0]!, 1)) points.unshift(a); else points.unshift(b);
@@ -188,7 +188,7 @@ export function readSequence(root: XmlElement, scene: Scene): void {
       const bounds = box ? shapeBounds(box)! : union([...shapes, ...texts.map(t => t.bounds)]);
       scene.nodes.push({ id, type: 'lifeline-head', bounds });
       if (box) interaction.occluders.push({ ...bounds, order: i });
-      if (texts.length) out.push(merge(texts, { role: 'text', node: id }));
+      if (texts.length > 0) out.push(merge(texts, { role: 'text', node: id }));
       continue;
     }
     if (e.tag === 'g' && cls.includes('message')) {
@@ -200,7 +200,7 @@ export function readSequence(root: XmlElement, scene: Scene): void {
       const numbers = texts.filter(t => t.bold && /^\d+$/u.test(t.content));
       const label = texts.filter(t => !numbers.includes(t));
       for (const n of numbers) out.push({ ...n, role: 'label', owner: id });
-      if (label.length) out.push(merge(label, { role: 'label', owner: id }));
+      if (label.length > 0) out.push(merge(label, { role: 'label', owner: id }));
       const { texts: _texts, ...rest } = message;
       // PlantUML gives found and lost messages the known lifeline at both ends.
       const found = message.circle !== undefined && message.points.length > 0 && distance(message.circle, message.points[0]!) <= distance(message.circle, message.points.at(-1)!);
@@ -231,7 +231,7 @@ export function readSequence(root: XmlElement, scene: Scene): void {
       scene.nodes.push({ id: lastTarget, type: 'lifeline-head', bounds });
       interaction.createdHeads.set(lastTarget, bounds);
       interaction.occluders.push({ ...bounds, order: i });
-      if (texts.length) out.push(merge(texts, { role: 'text', node: lastTarget }));
+      if (texts.length > 0) out.push(merge(texts, { role: 'text', node: lastTarget }));
       continue;
     }
     if (lastTarget && (e.tag === 'text' && num(e.attrs['font-size']) === font.size.name || isHeadIcon(e)) && !scene.nodes.some(n => n.id === lastTarget)) {
@@ -242,7 +242,7 @@ export function readSequence(root: XmlElement, scene: Scene): void {
       const bounds = union([...group.filter(g => g.tag !== 'text').map(g => shapeBounds(g)!), ...texts.map(t => t.bounds)]);
       scene.nodes.push({ id: lastTarget, type: 'lifeline-head', bounds });
       interaction.createdHeads.set(lastTarget, bounds);
-      if (texts.length) out.push(merge(texts, { role: 'text', node: lastTarget }));
+      if (texts.length > 0) out.push(merge(texts, { role: 'text', node: lastTarget }));
       continue;
     }
     if (e.tag === 'path' && fill(e) === color.noteFill) {
@@ -253,7 +253,7 @@ export function readSequence(root: XmlElement, scene: Scene): void {
       while (items[i + 1]?.tag === 'text' && contains(bounds, textOf.get(items[i + 1]!)!.bounds, 2)) texts.push(take(items[++i]!));
       scene.nodes.push({ id, type: 'note', bounds });
       interaction.occluders.push({ ...bounds, order: i });
-      if (texts.length) out.push(merge(texts, { role: 'text', node: id }));
+      if (texts.length > 0) out.push(merge(texts, { role: 'text', node: id }));
       continue;
     }
     if (e.tag === 'rect' && fill(e) === color.background && styleOf(e).stroke === color.background) {
@@ -264,7 +264,7 @@ export function readSequence(root: XmlElement, scene: Scene): void {
       while (items[i + 1]?.tag === 'text' && contains(bounds, textOf.get(items[i + 1]!)!.bounds, 2)) texts.push(take(items[++i]!));
       scene.nodes.push({ id, type: 'state-invariant', bounds });
       interaction.occluders.push({ ...bounds, order: i, text: true });
-      if (texts.length) out.push(merge(texts, { role: 'text', node: id }));
+      if (texts.length > 0) out.push(merge(texts, { role: 'text', node: id }));
       continue;
     }
     if (e.tag === 'rect' && (fill(e) === 'none' || fill(e) === color.background) && i > 1 && items[i + 1]?.tag === 'path' && fill(items[i + 1]!) === color.frameHeadingFill) {
@@ -279,7 +279,7 @@ export function readSequence(root: XmlElement, scene: Scene): void {
       scene.nodes.push({ id, type: 'interaction-use', bounds });
       const [keyword, ...name] = texts;
       if (keyword) out.push({ ...keyword, role: 'text', node: id });
-      if (name.length) out.push(merge(name, { role: 'text', node: id }));
+      if (name.length > 0) out.push(merge(name, { role: 'text', node: id }));
       continue;
     }
     if (e.tag === 'path' && fill(e) === color.frameHeadingFill && i > 1) {
@@ -383,7 +383,7 @@ export function interactionGates(scene: Scene): GateResult[] {
       checkHead(m, failures, at);
     }
   }
-  const results: GateResult[] = [{ gate: 'message-endpoints', ok: !failures.length, failures }];
+  const results: GateResult[] = [{ gate: 'message-endpoints', ok: failures.length === 0, failures }];
   if (interaction.diagram === 'sequence') results.push(lifelineCrossing(scene, interaction));
   else results.push(timingLines(scene, interaction));
   return results;
@@ -425,7 +425,7 @@ export function timingLines(scene: Scene, interaction: Interaction): GateResult 
       const hit = lines.find(l => (l as { owner?: string }).owner !== m.id && sharedLength(a, b, l.a, l.b) > 2);
       if (hit) { failures.push(`${m.id} runs along ${hit.what} at x=${a.x.toFixed(1)}`); break; }
     }
-    if (m.points.length < 2 || !rows.length) continue;
+    if (m.points.length < 2 || rows.length === 0) continue;
     const ends = new Set([rowOf(m.points[0]!), rowOf(m.head?.tip ?? m.points.at(-1)!)]);
     for (const t of scene.texts.filter(t => t.owner === m.id)) {
       const c = { x: t.bounds.x + t.bounds.width / 2, y: t.bounds.y + t.bounds.height / 2 };
@@ -439,7 +439,7 @@ export function timingLines(scene: Scene, interaction: Interaction): GateResult 
       if (guides.some(g => segmentIntersectsRect(g.a, g.b, inner))) { failures.push(`text ${JSON.stringify(t.content)} is crossed by a highlight or constraint line`); break; }
     }
   }
-  return { gate: 'timing-lines', ok: !failures.length, failures };
+  return { gate: 'timing-lines', ok: failures.length === 0, failures };
 }
 
 /**
@@ -474,7 +474,7 @@ export function lifelineCrossing(scene: Scene, interaction: Interaction): GateRe
       }
     }
   }
-  return { gate: 'lifeline-crossing', ok: !failures.length, failures };
+  return { gate: 'lifeline-crossing', ok: failures.length === 0, failures };
 }
 
 function checkHead(m: InteractionMessage, failures: string[], at: (p: Point) => string): void {
@@ -546,7 +546,7 @@ export function readTiming(root: XmlElement, scene: Scene): void {
       if (items[i + 1]?.tag === 'path' && items[i + 1]!.attrs.fill === color.noteFill) i++;
       continue;
     }
-    if (e.tag === 'line' && style.dashed && style.stroke === color.edge && !/dasharray:3,5/u.test(e.attrs.style ?? '')) {
+    if (e.tag === 'line' && style.dashed && style.stroke === color.edge && !(e.attrs.style ?? '').includes('dasharray:3,5')) {
       // Highlight and time-window borders (4,4) and duration-constraint extension lines (2,2); not the time grid (3,5).
       const [a, b] = lineEnds(e);
       (interaction.guides ??= []).push({ a, b });
@@ -562,14 +562,14 @@ export function readTiming(root: XmlElement, scene: Scene): void {
       }
       const heads: XmlElement[] = [];
       while (items[i + 1 + heads.length]?.tag === 'polygon' && items[i + 1 + heads.length]!.attrs.fill === color.edge) heads.push(items[i + 1 + heads.length]!);
-      if (!heads.length) continue;
+      if (heads.length === 0) continue;
       const kind = heads.length === 1 ? 'message' : 'constraint';
       const id = `${kind}${count++}`;
       const message = readMessage({ tag: 'g', attrs: {}, children: [e, ...heads] }, id);
       i += heads.length;
       while (items[i + 1]?.tag === 'text') owned.set(items[++i]!, { role: 'label', owner: id });
       if (kind === 'message') interaction.messages.push({ id, points: message.points, dashed: false, ...(message.head ? { head: message.head } : {}) });
-      scene.edges.push({ id, type: kind === 'message' ? 'message' : 'duration-constraint', source: '', target: '', points: message.points.length ? message.points : lineEnds(e), sourceMarker: 'none', targetMarker: 'none' });
+      scene.edges.push({ id, type: kind === 'message' ? 'message' : 'duration-constraint', source: '', target: '', points: message.points.length > 0 ? message.points : lineEnds(e), sourceMarker: 'none', targetMarker: 'none' });
     }
   }
 

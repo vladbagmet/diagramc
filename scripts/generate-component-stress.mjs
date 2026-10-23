@@ -10,7 +10,7 @@ const subsystems = [
   ['identity', 'Identity', ['Accounts', 'Token Service', 'Profiles']],
 ];
 const externals = [['studio', 'Studio Portal'], ['player', 'Web Player'], ['cdn', 'CDN'], ['payments', 'Payment Provider'], ['mail', 'Mail Relay'], ['analytics', 'Analytics']];
-const id = s => s.replace(/[^A-Za-z]/g, '');
+const id = s => s.replaceAll(/[^A-Za-z]/g, '');
 const elements = [], relationships = [], interfaces = [];
 const iface = (key, name) => { interfaces.push({ id: key, type: 'interface', name }); return key; };
 
@@ -33,8 +33,7 @@ for (const [key, name, parts] of subsystems) {
     ports: [{ id: `${key}In`, name: 'in', provides: [inbound] }, { id: `${key}Out`, name: 'out', requires: ['OUT'] }],
     elements: nested,
   });
-  relationships.push({ type: 'delegation', from: `${key}In`, to: `${key}0in` });
-  relationships.push({ type: 'delegation', from: `${key}${parts.length - 1}out`, to: `${key}Out` });
+  relationships.push({ type: 'delegation', from: `${key}In`, to: `${key}0in` }, { type: 'delegation', from: `${key}${parts.length - 1}out`, to: `${key}Out` });
   for (let k = 1; k < parts.length; k++) relationships.push({ type: 'assembly', from: `${key}0`, to: `${key}${k}`, interface: internal[k - 1] });
 }
 // Outbound ports require the next subsystem's inbound interface (two pipelines).
@@ -56,14 +55,12 @@ ext[4].provides = [iface('iMail', 'IMail')];
 ext[5].provides = [iface('iEvents', 'IEvents')];
 const billingTax = elements.find(e => e.id === 'billing').elements[2];
 billingTax.requires = [...(billingTax.requires ?? []), 'iCharge'];
-relationships.push({ type: 'dependency', from: 'billing', to: 'payments', keyword: 'call' });
-relationships.push({ type: 'dependency', from: 'identity', to: 'mail', keyword: 'send' });
+relationships.push({ type: 'dependency', from: 'billing', to: 'payments', keyword: 'call' }, { type: 'dependency', from: 'identity', to: 'mail', keyword: 'send' });
 for (const s of ['catalog', 'playback', 'billing']) relationships.push({ type: 'dependency', from: s, to: 'analytics', keyword: 'emit' });
 for (const [i, s] of subsystems.entries()) {
   elements.push({ id: `${s[0]}Jar`, type: 'artifact', name: `${s[0]}-service-${i + 1}.0.jar` });
   relationships.push({ type: 'manifest', from: `${s[0]}Jar`, to: s[0] });
 }
-elements.push(...interfaces);
-elements.push({ id: 'note', type: 'note', text: 'Two pipelines meet in Playback: content (ingest, media, catalog) and customers (identity, billing).', attachedTo: ['playback'] });
+elements.push(...interfaces, { id: 'note', type: 'note', text: 'Two pipelines meet in Playback: content (ingest, media, catalog) and customers (identity, billing).', attachedTo: ['playback'] });
 const doc = { kind: 'component', title: 'Streaming platform', elements, relationships };
 console.log(JSON.stringify(doc, null, 1));

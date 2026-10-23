@@ -18,7 +18,7 @@ export function validateDeploymentDiagram(model: DeploymentDiagram): Diagnostic[
     tree.add({ id: element.id, path, type: element.type, parent, value: element as unknown as Record<string, unknown> });
     if (element.type === 'note') notes.push({ note: element, path });
     if (isNodeType(element.type) && 'elements' in element) {
-      (element.elements ?? []).forEach((child, k) => {
+      for (const [k, child] of (element.elements ?? []).entries()) {
         const at = pointer(path, 'elements', k);
         // An execution environment may host nodes (a hypervisor running virtual
         // machines) but not physical devices.
@@ -26,25 +26,25 @@ export function validateDeploymentDiagram(model: DeploymentDiagram): Diagnostic[
           diagnostics.push({ code: 'INVALID_NESTING', path: pointer(at, 'type'), message: 'An execution environment cannot contain a device (hardware); use a node for a virtual machine, or nest the execution environment in the device instead' });
         }
         visit(child, at, element.id);
-      });
+      }
     }
   };
-  model.elements.forEach((e, i) => visit(e, pointer('', 'elements', i), undefined));
+  for (const [i, e] of model.elements.entries()) visit(e, pointer('', 'elements', i), undefined);
   tree.checkIds(relationships, diagnostics);
   checkDepth(tree, MAX_DEPLOYMENT_DEPTH, diagnostics, []);
   checkNotes(notes, tree, diagnostics);
 
-  relationships.forEach((r, i) => {
+  for (const [i, r] of relationships.entries()) {
     const at = pointer('', 'relationships', i);
     if (r.type === 'communicationPath') for (const end of ['fromEnd', 'toEnd'] as const) checkMultiplicity(r[end]?.multiplicity, pointer(at, end, 'multiplicity'), diagnostics);
     const from = tree.ref(r.from, pointer(at, 'from'), diagnostics);
     const to = tree.ref(r.to, pointer(at, 'to'), diagnostics);
-    if (!from || !to) return;
+    if (!from || !to) continue;
     for (const [end, item] of [['from', from], ['to', to]] as const) {
       if (item.type === 'note') diagnostics.push({ code: 'NOTE_IN_RELATIONSHIP', path: pointer(at, end), message: 'Relationships cannot connect notes; use the note\'s "attachedTo" instead' });
     }
-    if (from.type === 'note' || to.type === 'note') return;
-    if (r.from === r.to) { diagnostics.push({ code: 'SELF_CONNECTION', path: pointer(at, 'to'), message: `A ${r.type} must connect two different elements` }); return; }
+    if (from.type === 'note' || to.type === 'note') continue;
+    if (r.from === r.to) { diagnostics.push({ code: 'SELF_CONNECTION', path: pointer(at, 'to'), message: `A ${r.type} must connect two different elements` }); continue; }
     const nested = tree.inside(r.from, r.to) || tree.inside(r.to, r.from);
     switch (r.type) {
       case 'communicationPath':
@@ -66,6 +66,6 @@ export function validateDeploymentDiagram(model: DeploymentDiagram): Diagnostic[
         if (nested) diagnostics.push({ code: 'INVALID_DEPENDENCY', path: pointer(at, 'to'), message: `"${r.from}" and "${r.to}" are nested in one another; nesting already shows how they relate` });
         break;
     }
-  });
+  }
   return diagnostics;
 }

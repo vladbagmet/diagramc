@@ -5,9 +5,7 @@ const services = [['api', 'API'], ['worker', 'Worker'], ['search', 'Search'], ['
 const elements = [], relationships = [];
 const path = (from, to, protocol, extra = {}) => relationships.push({ type: 'communicationPath', from, to, protocol, ...extra });
 
-elements.push({ id: 'browser', type: 'device', name: 'Browser', stereotypes: ['client'] });
-elements.push({ id: 'mobile', type: 'device', name: 'Mobile App', stereotypes: ['client'] });
-elements.push({ id: 'cdn', type: 'node', name: 'CDN Edge', elements: [{ id: 'assets', type: 'artifact', name: 'static-assets.zip' }] });
+elements.push({ id: 'browser', type: 'device', name: 'Browser', stereotypes: ['client'] }, { id: 'mobile', type: 'device', name: 'Mobile App', stereotypes: ['client'] }, { id: 'cdn', type: 'node', name: 'CDN Edge', elements: [{ id: 'assets', type: 'artifact', name: 'static-assets.zip' }] });
 path('browser', 'cdn', 'HTTPS', { fromEnd: { multiplicity: '*' }, toEnd: { multiplicity: '1..*' } });
 
 for (const [r, region] of [['eu', 'eu-west-1'], ['us', 'us-east-1']].entries()) {
@@ -43,7 +41,6 @@ path('eudb', 'usdb', 'TCP', { name: 'replication', fromEnd: { multiplicity: '1' 
 elements.push({ id: 'apiComp', type: 'component', name: 'Public API' });
 relationships.push({ type: 'manifest', from: 'euapiImg', to: 'apiComp' });
 elements.push({ id: 'migrations', type: 'artifact', name: 'migrations.tar' });
-relationships.push({ type: 'deploy', from: 'migrations', to: 'eupg' });
-relationships.push({ type: 'deploy', from: 'migrations', to: 'uspg' });
+relationships.push({ type: 'deploy', from: 'migrations', to: 'eupg' }, { type: 'deploy', from: 'migrations', to: 'uspg' });
 elements.push({ id: 'note', type: 'note', text: 'Both regions are active; writes go to the primary region of each tenant.', attachedTo: ['euregion', 'usregion'] });
 console.log(JSON.stringify({ kind: 'deployment', title: 'Multi-region SaaS', elements, relationships }, null, 1));

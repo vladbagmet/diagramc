@@ -36,7 +36,7 @@ function headerBands(s) {
     if (!s.nodes.some(m => m.parent === n.id && m.type !== 'port')) continue;
     if (n.shape === 'ellipse' || n.type === 'node' || n.type === 'device' || n.type === 'executionEnvironment') continue;
     const texts = s.texts.filter(t => t.owner === n.id).flatMap(t => t.lines);
-    if (!texts.length) continue;
+    if (texts.length === 0) continue;
     const bottom = Math.max(...texts.map(r => r.y + r.height));
     bands.push({ id: n.id, rect: { x: n.bounds.x, y: n.bounds.y, width: n.bounds.width, height: bottom - n.bounds.y } });
   }
@@ -89,7 +89,7 @@ test('layout: role bindings each leave their collaboration use from their own po
 function crossing([a, b], [c, d]) {
   const cross = (o, p, q) => (p.x - o.x) * (q.y - o.y) - (p.y - o.y) * (q.x - o.x);
   const d1 = cross(c, d, a), d2 = cross(c, d, b), d3 = cross(a, b, c), d4 = cross(a, b, d);
-  if (!(((d1 > 0 && d2 < 0) || (d1 < 0 && d2 > 0)) && ((d3 > 0 && d4 < 0) || (d3 < 0 && d4 > 0)))) return undefined;
+  if (!(((d1 > 0 && d2 < 0) || (d1 < 0 && d2 > 0)) && ((d3 > 0 && d4 < 0) || (d3 < 0 && d4 > 0)))) return;
   const k = d1 / (d1 - d2);
   return { x: a.x + (b.x - a.x) * k, y: a.y + (b.y - a.y) * k };
 }
@@ -159,9 +159,9 @@ test('notation: an interface appears once, as a box joined by lines or as one sy
   for (const doc of docs) {
     const { scene: s } = await scene(doc);
     const loose = s.nodes.filter(n => n.type === 'provided-interface' || n.type === 'required-interface').map(n => n.id.split('::').at(-1));
-    const boxes = s.nodes.filter(n => n.type === 'interface').map(n => n.id);
+    const boxes = new Set(s.nodes.filter(n => n.type === 'interface').map(n => n.id));
     for (const i of loose) {
-      assert.ok(!boxes.includes(i), `${i} is both a box and an unconnected symbol`);
+      assert.ok(!boxes.has(i), `${i} is both a box and an unconnected symbol`);
       assert.equal(loose.filter(x => x === i).length, 1, `${i} appears as several unconnected symbols`);
     }
   }

@@ -72,10 +72,10 @@ export const text = (s, content) => s.texts.find(t => t.content === content);
 /** A text element containing `content` (multi-line labels are one element with one tspan per line). */
 export const textIncluding = (s, content) => s.texts.find(t => t.content.includes(content));
 export const node = (s, id) => s.nodes.find(n => n.id === id);
-export const edgeGroup = (svg, id) => svg.match(new RegExp(`<g data-uml-role="edge" data-uml-id="${id.replace(/[/:]/g, m => `\\${m}`)}"[^>]*><path [^>]*>`))?.[0];
+export const edgeGroup = (svg, id) => svg.match(new RegExp(`<g data-uml-role="edge" data-uml-id="${id.replaceAll(/[/:]/g, m => `\\${m}`)}"[^>]*><path [^>]*>`))?.[0];
 export const dashed = (svg, id) => /stroke-dasharray/.test(edgeGroup(svg, id) ?? '');
 export const nodeGroup = (svg, id) => {
   const start = svg.indexOf(`data-uml-id="${id}"`);
-  return start < 0 ? '' : svg.slice(svg.lastIndexOf('<g', start), svg.indexOf('</g>', start));
+  return start === -1 ? '' : svg.slice(svg.lastIndexOf('<g', start), svg.indexOf('</g>', start));
 };
 export const inside = (outer, inner) => contains(outer.bounds, inner.bounds);

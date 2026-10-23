@@ -17,27 +17,27 @@ export function validateObjectDiagram(model: ObjectDiagram): Diagnostic[] {
   const elements = new Map<string, Element>(model.elements.map(e => [e.id, e]));
 
   const classifiers = model.classifiers === undefined ? undefined : new Map<string, ClassifierDeclaration>();
-  (model.classifiers ?? []).forEach((c, i) => {
+  for (const [i, c] of (model.classifiers ?? []).entries()) {
     if (classifiers!.has(c.name)) diagnostics.push({ code: 'DUPLICATE_CLASSIFIER', path: pointer('', 'classifiers', i, 'name'), message: `Classifier "${c.name}" is declared twice` });
     else classifiers!.set(c.name, c);
     const seen = new Set<string>();
-    (c.attributes ?? []).forEach((a, j) => {
+    for (const [j, a] of (c.attributes ?? []).entries()) {
       if (seen.has(a)) diagnostics.push({ code: 'DUPLICATE_MEMBER', path: pointer('', 'classifiers', i, 'attributes', j), message: `Attribute "${a}" is declared twice in "${c.name}"` });
       seen.add(a);
-    });
-  });
+    }
+  }
 
   // Links and note anchors name instances; a note is never a useful suggestion.
   const instanceIds = model.elements.filter(e => !isNote(e)).map(e => e.id);
-  model.elements.forEach((element, i) => {
+  for (const [i, element] of model.elements.entries()) {
     const at = pointer('', 'elements', i);
     if (isNote(element)) {
-      (element.attachedTo ?? []).forEach((id, j) => {
+      for (const [j, id] of (element.attachedTo ?? []).entries()) {
         const path = pointer(at, 'attachedTo', j);
-        if (!reference(id, path, elements, diagnostics, 'element', undefined, instanceIds)) return;
+        if (!reference(id, path, elements, diagnostics, 'element', undefined, instanceIds)) continue;
         if (isNote(elements.get(id)!)) diagnostics.push({ code: 'INVALID_ATTACHMENT', path, message: `Note "${element.id}" cannot be attached to another note ("${id}")` });
-      });
-      return;
+      }
+      continue;
     }
     if (element.name === undefined && element.classifier === undefined) {
       diagnostics.push({ code: 'UNNAMED_UNTYPED_INSTANCE', path: at, message: `Instance "${element.id}" needs a name, a classifier or both` });
@@ -48,25 +48,25 @@ export function validateObjectDiagram(model: ObjectDiagram): Diagnostic[] {
       if (!declared) diagnostics.push({ code: 'UNKNOWN_CLASSIFIER', path: pointer(at, 'classifier'), message: `Classifier "${element.classifier}" is not declared in "classifiers"`, details: { classifier: element.classifier, declared: [...classifiers.keys()] } });
     }
     const features = new Map<string, number>();
-    (element.slots ?? []).forEach((slot, j) => {
+    for (const [j, slot] of (element.slots ?? []).entries()) {
       const path = pointer(at, 'slots', j, 'feature');
       const first = features.get(slot.feature);
-      if (first !== undefined) diagnostics.push({ code: 'DUPLICATE_SLOT', path, message: `Slot "${slot.feature}" already has a value at ${pointer(at, 'slots', first)}` });
-      else features.set(slot.feature, j);
+      if (first === undefined) {features.set(slot.feature, j);}
+      else {diagnostics.push({ code: 'DUPLICATE_SLOT', path, message: `Slot "${slot.feature}" already has a value at ${pointer(at, 'slots', first)}` });}
       if (declared?.attributes && !declared.attributes.includes(slot.feature)) {
         diagnostics.push({ code: 'UNKNOWN_FEATURE', path, message: `"${slot.feature}" is not an attribute of "${declared.name}"`, details: { feature: slot.feature, attributes: declared.attributes } });
       }
-    });
-  });
+    }
+  }
 
-  links.forEach((r, i) => {
+  for (const [i, r] of links.entries()) {
     const at = pointer('', 'relationships', i);
     const fromOk = reference(r.from, pointer(at, 'from'), elements, diagnostics, 'instance', { from: r.from, to: r.to }, instanceIds);
     const toOk = reference(r.to, pointer(at, 'to'), elements, diagnostics, 'instance', { from: r.from, to: r.to }, instanceIds);
-    if (!fromOk || !toOk) return;
+    if (!fromOk || !toOk) continue;
     for (const end of ['from', 'to'] as const) {
       if (isNote(elements.get(r[end])!)) diagnostics.push({ code: 'NOTE_IN_RELATIONSHIP', path: pointer(at, end), message: `Links connect instances; use the note's "attachedTo" instead` });
     }
-  });
+  }
   return diagnostics;
 }

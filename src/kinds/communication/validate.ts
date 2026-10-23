@@ -17,26 +17,26 @@ export function validateCommunicationDiagram(model: CommunicationDiagram): Diagn
   ], diagnostics);
   const lifelines = new Map<string, Lifeline>(model.lifelines.map(l => [l.id, l]));
 
-  model.lifelines.forEach((l, i) => {
+  for (const [i, l] of model.lifelines.entries()) {
     const at = pointer('', 'lifelines', i);
     if (l.name === undefined && l.type === undefined) diagnostics.push({ code: 'LIFELINE_WITHOUT_NAME', path: at, message: `Lifeline "${l.id}" needs a name, a type, or both` });
     if (l.selector !== undefined && l.name === undefined) diagnostics.push({ code: 'SELECTOR_WITHOUT_NAME', path: pointer(at, 'selector'), message: `Lifeline "${l.id}" has a selector but no name; the selector qualifies the name (name[selector])` });
-  });
+  }
 
   const pair = (a: string, b: string): string => a < b ? `${a}\u0000${b}` : `${b}\u0000${a}`;
   const linked = new Map<string, string>();
-  links.forEach((link, i) => {
+  for (const [i, link] of links.entries()) {
     const at = pointer('', 'links', i);
     const ok = [reference(link.from, pointer(at, 'from'), lifelines, diagnostics, 'lifeline'), reference(link.to, pointer(at, 'to'), lifelines, diagnostics, 'lifeline')].every(Boolean);
-    if (!ok) return;
+    if (!ok) continue;
     const key = pair(link.from, link.to), first = linked.get(key);
-    if (first !== undefined) diagnostics.push({ code: 'DUPLICATE_LINK', path: at, message: `Lifelines "${link.from}" and "${link.to}" are already linked (${first}); list all their messages on one link` });
-    else linked.set(key, at);
-  });
+    if (first === undefined) {linked.set(key, at);}
+    else {diagnostics.push({ code: 'DUPLICATE_LINK', path: at, message: `Lifelines "${link.from}" and "${link.to}" are already linked (${first}); list all their messages on one link` });}
+  }
 
   const bySequence = new Map<string, { message: Message; index: number; terms: SequenceTerm[] }>();
   const parsed: ({ terms: SequenceTerm[] } | undefined)[] = [];
-  messages.forEach((m, i) => {
+  for (const [i, m] of messages.entries()) {
     const at = pointer('', 'messages', i);
     const ok = [reference(m.from, pointer(at, 'from'), lifelines, diagnostics, 'lifeline'), reference(m.to, pointer(at, 'to'), lifelines, diagnostics, 'lifeline')].every(Boolean);
     if (ok && !linked.has(pair(m.from, m.to))) {
@@ -52,13 +52,13 @@ export function validateCommunicationDiagram(model: CommunicationDiagram): Diagn
     parsed.push(terms && { terms });
     if (!terms) {
       diagnostics.push({ code: 'INVALID_SEQUENCE_NUMBER', path: pointer(at, 'sequence'), message: `"${m.sequence}" is not a sequence number like 1, 1.2, 2a or 2b.1 (positive integers, optional lowercase thread letter, joined by ".")` });
-      return;
+      continue;
     }
     const key = terms.map(t => `${t.number}${t.thread}`).join('.');
     const first = bySequence.get(key);
-    if (first !== undefined) diagnostics.push({ code: 'DUPLICATE_SEQUENCE_NUMBER', path: pointer(at, 'sequence'), message: `Sequence number ${m.sequence} is already used at ${pointer('', 'messages', first.index)}` });
-    else bySequence.set(key, { message: m, index: i, terms });
-  });
+    if (first === undefined) {bySequence.set(key, { message: m, index: i, terms });}
+    else {diagnostics.push({ code: 'DUPLICATE_SEQUENCE_NUMBER', path: pointer(at, 'sequence'), message: `Sequence number ${m.sequence} is already used at ${pointer('', 'messages', first.index)}` });}
+  }
 
   // Nesting: "1.2" is sent while "1" is handled, so by the receiver of "1".
   const siblings = new Map<string, { terms: SequenceTerm[]; index: number }[]>();
@@ -95,24 +95,24 @@ export function validateCommunicationDiagram(model: CommunicationDiagram): Diagn
       byNumber.set(last.number, [...(byNumber.get(last.number) ?? []), { thread: last.thread, index }]);
     }
     const numbers = [...byNumber.keys()].sort((a, b) => a - b);
-    numbers.forEach((n, k) => {
+    for (const [k, n] of numbers.entries()) {
       const entries = byNumber.get(n)!.sort((a, b) => a.thread.localeCompare(b.thread));
       const seqOf = (index: number) => messages[index]!.sequence;
       if (n !== k + 1) {
         const index = entries[0]!.index;
         diagnostics.push({ code: 'SEQUENCE_GAP', path: pointer('', 'messages', index, 'sequence'), message: `Message ${seqOf(index)} skips a number: siblings are numbered 1, 2, 3 ... and ${k + 1} is missing` });
-        return;
+        continue;
       }
       const plain = entries.find(e => e.thread === '');
       if (plain && entries.length > 1) {
         diagnostics.push({ code: 'AMBIGUOUS_THREAD', path: pointer('', 'messages', plain.index, 'sequence'), message: `Message ${seqOf(plain.index)} has no thread letter, but concurrent threads of the same step exist (${seqOf(entries.find(e => e.thread)!.index)})` });
-        return;
+        continue;
       }
       const skipped = entries.find((e, j) => e.thread && e.thread !== String.fromCharCode(97 + j));
       if (skipped) {
         diagnostics.push({ code: 'SEQUENCE_GAP', path: pointer('', 'messages', skipped.index, 'sequence'), message: `Message ${seqOf(skipped.index)} skips a thread letter: concurrent threads are lettered a, b, c ...` });
       }
-    });
+    }
   }
   return diagnostics;
 }

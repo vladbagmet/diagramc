@@ -23,18 +23,30 @@ let k = 0;
 const pairs = [];
 for (let c = 0; c < 10; c++) {
   const m = [0, 1, 2, 3, 4].map(j => ids[c * 5 + j]);
-  pairs.push([m[0], m[1]], [m[0], m[2]], [m[1], m[3]], [m[2], m[4]], [m[3], m[4]], [m[1], m[2]]);
-  pairs.push([m[4], ids[((c + 1) % 10) * 5 + (c % 3)]], [m[3], ids[((c + 3) % 10) * 5 + 1]]);
+  pairs.push([m[0], m[1]], [m[0], m[2]], [m[1], m[3]], [m[2], m[4]], [m[3], m[4]], [m[1], m[2]], [m[4], ids[((c + 1) % 10) * 5 + (c % 3)]], [m[3], ids[((c + 3) % 10) * 5 + 1]]);
 }
 for (const [a, b] of pairs) {
   if (rel.length >= 80) break;
   if (a === b || rel.some(r => (r.from === a && r.to === b) || (r.from === b && r.to === a))) continue;
   const type = kinds[k++ % kinds.length];
   const r = { type, from: a, to: b };
-  if (type === 'composition') { r.fromEnd = { multiplicity: '1' }; r.toEnd = { multiplicity: '0..*' }; }
-  else if (type === 'aggregation') r.toEnd = { multiplicity: '*' };
-  else if (type === 'association') { r.toEnd = { multiplicity: k % 2 ? '0..1' : '1..*', ...(k % 5 ? {} : { role: b }), navigable: true }; if (k % 4 === 0) r.name = 'has'; }
-  else if (type === 'dependency') r.keyword = 'use';
+  switch (type) {
+  case 'composition': { r.fromEnd = { multiplicity: '1' }; r.toEnd = { multiplicity: '0..*' }; 
+  break;
+  }
+  case 'aggregation': {
+  r.toEnd = { multiplicity: '*' };
+  break;
+  }
+  case 'association': { r.toEnd = { multiplicity: k % 2 ? '0..1' : '1..*', ...(k % 5 ? {} : { role: b }), navigable: true }; if (k % 4 === 0) r.name = 'has'; 
+  break;
+  }
+  case 'dependency': {
+  r.keyword = 'use';
+  // No default
+  break;
+  }
+  }
   rel.push(r);
 }
 console.log(JSON.stringify({ kind: 'class', title: 'Hospital (stress)', elements, relationships: rel }, null, 1));

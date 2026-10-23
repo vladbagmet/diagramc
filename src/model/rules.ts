@@ -14,9 +14,9 @@ export function uniqueIds(items: readonly Identified[], diagnostics: Diagnostic[
   const seen = new Map<string, string>();
   for (const item of items) {
     const first = seen.get(item.id);
-    if (first !== undefined) {
+    if (first === undefined) {seen.set(item.id, item.path);} else {
       diagnostics.push({ code: 'DUPLICATE_ID', path: pointer(item.path, 'id'), message: `Duplicate ID "${item.id}" (first used at ${first})`, details: { id: item.id, first } });
-    } else seen.set(item.id, item.path);
+    }
   }
   return seen;
 }

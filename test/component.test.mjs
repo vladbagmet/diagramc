@@ -64,7 +64,7 @@ test('UML notation: lollipops, sockets and ball-and-socket assemblies face outwa
   const balls = s.nodes.filter(n => n.type === 'provided-interface');
   const sockets = s.nodes.filter(n => n.type === 'required-interface');
   const joints = s.nodes.filter(n => n.type === 'assembly');
-  assert.ok(balls.length >= 1 && joints.length === 4);
+  assert.ok(balls.length > 0 && joints.length === 4);
   for (const j of joints) {
     assert.ok(j.ball && j.socket && Math.abs(j.ball.x - j.socket.x) < 0.01 && Math.abs(j.ball.y - j.socket.y) < 0.01, 'ball inside the socket');
     assert.ok(j.ball.r < j.socket.r);

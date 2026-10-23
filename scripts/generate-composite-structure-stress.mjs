@@ -5,11 +5,7 @@ const joints = ['shoulder', 'elbow', 'wrist'];
 const parts = [], relationships = [];
 const connect = (from, to, extra = {}) => relationships.push({ type: 'connector', from, to, ...extra });
 
-parts.push({ id: 'bus', name: 'bus', type: 'CanBus', ports: [{ id: 'busA', name: 'a' }, { id: 'busB', name: 'b' }] });
-parts.push({ id: 'planner', name: 'planner', type: 'MotionPlanner', ports: [{ id: 'plIn', name: 'goal', type: 'Pose' }, { id: 'plOut', name: 'cmd' }] });
-parts.push({ id: 'safety', name: 'safety', type: 'SafetyMonitor', multiplicity: '1' });
-parts.push({ id: 'log', name: 'log', type: 'EventLog', aggregation: 'shared' });
-parts.push({ id: 'clock', name: 'clock', type: 'Clock', aggregation: 'none' });
+parts.push({ id: 'bus', name: 'bus', type: 'CanBus', ports: [{ id: 'busA', name: 'a' }, { id: 'busB', name: 'b' }] }, { id: 'planner', name: 'planner', type: 'MotionPlanner', ports: [{ id: 'plIn', name: 'goal', type: 'Pose' }, { id: 'plOut', name: 'cmd' }] }, { id: 'safety', name: 'safety', type: 'SafetyMonitor', multiplicity: '1' }, { id: 'log', name: 'log', type: 'EventLog', aggregation: 'shared' }, { id: 'clock', name: 'clock', type: 'Clock', aggregation: 'none' });
 for (const [k, j] of joints.entries()) {
   parts.push({
     id: j, name: j, type: 'JointModule',
@@ -27,10 +23,7 @@ for (const [k, j] of joints.entries()) {
   parts.push({ id: `${j}Limit`, name: `${j}Limit`, type: 'LimitSwitch', multiplicity: '2' });
   connect(`${j}Limit`, 'safety', { toEnd: { role: 'monitor' } });
 }
-parts.push({ id: 'gripper', name: 'gripper', type: 'Gripper', ports: [{ id: 'grCtl', name: 'ctl' }] });
-parts.push({ id: 'camera', name: 'camera', type: 'StereoCamera', multiplicity: '0..1', ports: [{ id: 'camOut', name: 'frames', type: 'Image' }] });
-parts.push({ id: 'vision', name: 'vision', type: 'PoseEstimator', ports: [{ id: 'visIn', name: 'frames', type: 'Image', conjugated: true }] });
-parts.push({ id: 'teach', name: 'pendant', type: 'TeachPendant', aggregation: 'shared' });
+parts.push({ id: 'gripper', name: 'gripper', type: 'Gripper', ports: [{ id: 'grCtl', name: 'ctl' }] }, { id: 'camera', name: 'camera', type: 'StereoCamera', multiplicity: '0..1', ports: [{ id: 'camOut', name: 'frames', type: 'Image' }] }, { id: 'vision', name: 'vision', type: 'PoseEstimator', ports: [{ id: 'visIn', name: 'frames', type: 'Image', conjugated: true }] }, { id: 'teach', name: 'pendant', type: 'TeachPendant', aggregation: 'shared' });
 connect('camOut', 'visIn', { name: 'stream', association: 'Video' });
 connect('vision', 'plIn', { name: 'targets' });
 connect('plOut', 'busA', { name: 'commands' });
@@ -65,7 +58,5 @@ const elements = [
   { id: 'feedback', type: 'collaboration', name: 'Feedback loop', roles: [{ id: 'fPlant', name: 'plant' }, { id: 'fSensor', name: 'sensor' }, { id: 'fController', name: 'controller' }] },
   { id: 'note', type: 'note', text: 'Every joint module repeats the same internal structure.', attachedTo: ['elbow'] },
 ];
-relationships.push({ type: 'connector', from: 'oSubject', to: 'oObserver', name: 'notifies', toEnd: { multiplicity: '*' } });
-relationships.push({ type: 'connector', from: 'fSensor', to: 'fController', name: 'measures' });
-relationships.push({ type: 'connector', from: 'fController', to: 'fPlant', name: 'actuates' });
+relationships.push({ type: 'connector', from: 'oSubject', to: 'oObserver', name: 'notifies', toEnd: { multiplicity: '*' } }, { type: 'connector', from: 'fSensor', to: 'fController', name: 'measures' }, { type: 'connector', from: 'fController', to: 'fPlant', name: 'actuates' });
 console.log(JSON.stringify({ kind: 'composite-structure', title: 'Robot arm controller', elements, relationships }, null, 1));

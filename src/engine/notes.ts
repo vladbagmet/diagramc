@@ -47,10 +47,10 @@ function nearest(r: Rect, p: Point): Point {
 export function placeNotes(notes: readonly NoteToPlace[], nodes: readonly PlacementNode[], lines: readonly { source: string; target: string; points: readonly Point[] }[], ancestors: (id: string) => ReadonlySet<string>, bounds: Rect): Map<string, Rect> {
   const moved = new Map<string, Rect>();
   for (const note of notes) {
-    if (!note.targets.length) continue;
+    if (note.targets.length === 0) continue;
     // Lines other than the note's own anchors (those are routed again when it moves).
     const segments: [Point, Point][] = [];
-    for (const line of lines) if (line.source !== note.id && line.target !== note.id) line.points.slice(1).forEach((q, k) => segments.push([line.points[k]!, q]));
+    for (const line of lines) if (line.source !== note.id && line.target !== note.id) for (const [k, q] of line.points.slice(1).entries()) segments.push([line.points[k]!, q]);
     const own = new Set([note.id, ...ancestors(note.id)]);
     const placedRects = [...moved.entries()].filter(([id]) => id !== note.id).map(([, r]) => r);
     const others = nodes.filter(n => !own.has(n.id));

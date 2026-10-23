@@ -102,12 +102,12 @@ export function runGates(scene: Scene, expectedTexts: readonly string[] = []): Q
     if (skip) { gates.push({ gate: name, ok: true, skipped: true, failures: [] }); return; }
     const failures: string[] = [];
     check(m => failures.push(m));
-    gates.push({ gate: name, ok: !failures.length, failures });
+    gates.push({ gate: name, ok: failures.length === 0, failures });
   };
   const labels = scene.texts.filter(t => t.role === 'label');
   const nodeById = new Map(scene.nodes.map(n => [n.id, n]));
 
-  gate('safe-markup', fail => scene.unsafe.forEach(u => fail(`forbidden markup: ${u}`)));
+  gate('safe-markup', fail => { for (const u of scene.unsafe) fail(`forbidden markup: ${u}`) });
 
   gate('inside-canvas', fail => {
     const v = scene.viewBox;
@@ -142,7 +142,7 @@ export function runGates(scene: Scene, expectedTexts: readonly string[] = []): Q
   };
 
   gate('label-overlap', fail => {
-    labels.forEach((label, i) => {
+    for (const [i, label] of labels.entries()) {
       // A label may sit inside a container (package, component, node) that encloses an
       // end of its own edge, or, for the name of a port or interface symbol, a container
       // of the element it belongs to; never on its tab, on a leaf, or across a border.
@@ -166,7 +166,7 @@ export function runGates(scene: Scene, expectedTexts: readonly string[] = []): Q
       for (const t of scene.texts) if (t.role !== 'label' && overlapArea(label.bounds, t.bounds) > 0.5) fail(`label ${snippet(label.content)} overlaps text ${snippet(t.content)}`);
       for (const other of labels.slice(i + 1)) if (overlapArea(label.bounds, other.bounds) > 0.5) fail(`labels ${snippet(label.content)} and ${snippet(other.content)} overlap`);
       if (scene.frameHeading && overlapArea(label.bounds, scene.frameHeading) > 0.5) fail(`label ${snippet(label.content)} overlaps the frame heading`);
-    });
+    }
     for (const t of scene.texts.filter(t => t.role === 'text')) {
       for (const n of scene.nodes) if (n.id !== t.node && !contains(n.bounds, nodeById.get(t.node ?? '')?.bounds ?? n.bounds) && overlapArea(t.bounds, n.bounds) > 0.5) fail(`text ${snippet(t.content)} of ${t.node} overlaps node ${n.id}`);
     }
@@ -247,7 +247,7 @@ export function runGates(scene: Scene, expectedTexts: readonly string[] = []): Q
       if (!n || n.tab) continue;
       // The container's own texts (not labels of lines inside it), from the top down while they follow each other.
       const own = nodeTexts.filter(t => t.node === id && (t.owner === undefined || t.owner === id)).sort((p, q) => p.bounds.y - q.bounds.y);
-      if (!own.length || own[0]!.bounds.y > n.bounds.y + 40) continue;
+      if (own.length === 0 || own[0]!.bounds.y > n.bounds.y + 40) continue;
       let bottom = own[0]!.bounds.y;
       for (const t of own) { if (t.bounds.y > bottom + 8) break; bottom = Math.max(bottom, t.bounds.y + t.bounds.height); }
       bands.set(id, { x: n.bounds.x, y: n.bounds.y, width: n.bounds.width, height: bottom - n.bounds.y + 2 });
@@ -310,7 +310,7 @@ export function runGates(scene: Scene, expectedTexts: readonly string[] = []): Q
     // judged within SHARED_FAN of it.
     const tree = (a: Scene['edges'][number], b: Scene['edges'][number]): boolean =>
       a.type === b.type && a.target === b.target && a.targetMarker === 'hollow-triangle' && b.targetMarker === 'hollow-triangle' && distance(a.points.at(-1)!, b.points.at(-1)!) < 0.5;
-    scene.edges.forEach((e, i) => {
+    for (const [i, e] of scene.edges.entries()) {
       for (const o of scene.edges.slice(i + 1)) {
         if (tree(e, o) || e.source === o.id || e.target === o.id || o.source === e.id || o.target === e.id) continue;
         // Lines fanning out from one shared end point (an actor's lines) are close near it by design.
@@ -326,7 +326,7 @@ export function runGates(scene: Scene, expectedTexts: readonly string[] = []): Q
         const junction = [...e.points.slice(1, -1).filter(p => onLine(p, o.points)), ...o.points.slice(1, -1).filter(p => onLine(p, e.points))][0];
         if (junction) fail(`edges ${e.id} and ${o.id} meet at (${junction.x.toFixed(0)}, ${junction.y.toFixed(0)}), where a bend of one lies on the other`);
       }
-    });
+    }
   }, !exactEdges);
 
   gate('end-spacing', fail => {
@@ -344,14 +344,14 @@ export function runGates(scene: Scene, expectedTexts: readonly string[] = []): Q
       const d = [Math.abs(p.y - r.y), Math.abs(p.x - r.x - r.width), Math.abs(p.y - r.y - r.height), Math.abs(p.x - r.x)];
       return d.indexOf(Math.min(...d));
     };
-    ends.forEach((a, i) => {
+    for (const [i, a] of ends.entries()) {
       for (const b of ends.slice(i + 1)) {
         if (a.node !== b.node || a.edge === b.edge || side(a.node, a.p) !== side(b.node, b.p)) continue;
         const d = distance(a.p, b.p);
         const min = Math.max(MIN_END_SPACING, half(a.marker) + half(b.marker) + 6);
         if (d > 0.5 && d < min - 0.25) fail(`ends of ${a.edge} and ${b.edge} on ${a.node} are ${d.toFixed(1)}px apart (min ${min.toFixed(0)})`);
       }
-    });
+    }
   }, !engine);
 
   gate('route-length', fail => {
@@ -392,12 +392,12 @@ export function runGates(scene: Scene, expectedTexts: readonly string[] = []): Q
     }
     // Distinct markers must not touch (identical shared markers are drawn once).
     const boxes = scene.markers.map(m => ({ m, box: markerBox(m) }));
-    boxes.forEach(({ m, box }, i) => {
+    for (const [i, { m, box }] of boxes.entries()) {
       for (const other of boxes.slice(i + 1)) {
         if (distance(m.tip, other.m.tip) < 0.5 && m.marker === other.m.marker) continue;
         if (overlapArea(box, other.box) > 0.5) fail(`${m.marker} at (${m.tip.x}, ${m.tip.y}) overlaps ${other.m.marker} at (${other.m.tip.x}, ${other.m.tip.y})`);
       }
-    });
+    }
     for (const m of scene.markers) {
       if (scene.arrows.some(a => distance(a.to, m.tip) <= 0.5)) continue;
       if (!scene.edges.some(e => distance(e.points[0]!, m.tip) <= 0.5 || distance(e.points.at(-1)!, m.tip) <= 0.5)) fail(`${m.marker} at (${m.tip.x}, ${m.tip.y}) is not at an edge end`);
@@ -412,10 +412,10 @@ export function runGates(scene: Scene, expectedTexts: readonly string[] = []): Q
     const headHalf = (a: (typeof scene.arrows)[number]): number => scene.markers.find(m => m.marker === a.marker && distance(m.tip, a.to) <= 0.5)?.size?.halfWidth
       ?? (a.marker.includes('triangle') ? theme.size.triangle.halfWidth : theme.size.arrow.halfWidth);
     const boxes = scene.arrows.map(a => inflate(boundsOfPoints([a.from, a.to]), headHalf(a)));
-    scene.arrows.forEach((a, i) => {
+    for (const [i, a] of scene.arrows.entries()) {
       const name = `message arrow ${a.group}`;
       const edge = scene.edges.find(e => e.id === a.owner);
-      if (!edge) { fail(`${name} has no link ${a.owner}`); return; }
+      if (!edge) { fail(`${name} has no link ${a.owner}`); continue; }
       const u = direction(a.from, a.to);
       const marker = scene.markers.find(m => m.marker === a.marker && distance(m.tip, a.to) <= 0.5);
       if (!marker) fail(`${name}: no ${a.marker} at its tip`);
@@ -430,7 +430,7 @@ export function runGates(scene: Scene, expectedTexts: readonly string[] = []): Q
         if (Math.abs(dot) < 0.99 || t < 0 || t > length) continue;
         if (!best || d < best.d) best = { d, dot, along: true };
       }
-      if (!best) { fail(`${name} is not parallel to, and beside, a segment of link ${a.owner}`); return; }
+      if (!best) { fail(`${name} is not parallel to, and beside, a segment of link ${a.owner}`); continue; }
       if (best.d < 4 || best.d > 26) fail(`${name} is ${best.d.toFixed(1)}px from link ${a.owner} (expected 4 to 26)`);
       const self = edge.source === edge.target;
       const forward = a.source === edge.source && a.target === edge.target;
@@ -443,12 +443,12 @@ export function runGates(scene: Scene, expectedTexts: readonly string[] = []): Q
         if (segmentDistance(e.points[k - 1]!, e.points[k]!, a.from, a.to) < clearance) { fail(`${name} touches or crosses edge ${e.id}`); break; }
       }
       for (const n of scene.nodes) if (overlapArea(boxes[i]!, n.bounds) > 0.5) fail(`${name} overlaps node ${n.id}`);
-      boxes.forEach((other, j) => { if (j > i && overlapArea(boxes[i]!, other) > 0.5) fail(`${name} overlaps message arrow ${scene.arrows[j]!.group}`); });
+      for (const [j, other] of boxes.entries()) { if (j > i && overlapArea(boxes[i]!, other) > 0.5) fail(`${name} overlaps message arrow ${scene.arrows[j]!.group}`); }
       for (const t of labels) if (overlapArea(boxes[i]!, t.bounds) > 0.5) fail(`${name} overlaps label ${snippet(t.content)}`);
       const own = labels.filter(t => t.group === a.group);
-      if (!own.length) fail(`${name} has no labels`);
+      if (own.length === 0) fail(`${name} has no labels`);
       else if (gapBetween(boxes[i]!, union(own.map(t => t.bounds))) > 12) fail(`labels of ${name} are not next to it`);
-    });
+    }
   }, !exactEdges);
 
   gate('literal-text', fail => {
@@ -473,7 +473,7 @@ export function runGates(scene: Scene, expectedTexts: readonly string[] = []): Q
     }
   });
 
-  gate('ports', fail => checkPorts(scene, labels, fail), !exactEdges);
+  gate('ports', fail => { checkPorts(scene, labels, fail); }, !exactEdges);
 
   gates.push(...interactionGates(scene));
   return { ok: gates.every(g => g.ok), renderer: scene.renderer, gates };
@@ -532,7 +532,7 @@ function checkPorts(scene: Scene, labels: readonly Scene['texts'][number][], fai
       for (const t of [back, front]) if (t && offAxis(t.p, c, u) > 0.5) fail(`assembly ${node.id}: connector ${t.edge} is not aligned with the ball and socket`);
       if (touching.length !== 2) fail(`assembly ${node.id}: expected 2 connectors, found ${touching.length}`);
     } else if (ball) {
-      if (!touching.length) fail(`provided interface ${node.id} has no stem`);
+      if (touching.length === 0) fail(`provided interface ${node.id} has no stem`);
       for (const t of touching) {
         if (Math.abs(distance(t.p, ball) - ball.r) > 0.75) fail(`provided interface ${node.id}: stem ${t.edge} does not end on the ball ${at(t.p)}`);
         if (offAxis(ball, t.p, t.into) > 0.5) fail(`provided interface ${node.id}: stem ${t.edge} does not point at the ball's center`);
@@ -540,7 +540,7 @@ function checkPorts(scene: Scene, labels: readonly Scene['texts'][number][], fai
         if (owner && contains(owner.bounds, { x: ball.x, y: ball.y, width: 0, height: 0 })) fail(`provided interface ${node.id} faces into its owner ${owner.id}`);
       }
     } else if (socket) {
-      if (!touching.length) fail(`required interface ${node.id} has no stem`);
+      if (touching.length === 0) fail(`required interface ${node.id} has no stem`);
       const c = { x: socket.x, y: socket.y };
       for (const t of touching) {
         if (distance(t.p, { x: c.x - socket.u.x * socket.r, y: c.y - socket.u.y * socket.r }) > 0.75) fail(`required interface ${node.id}: stem ${t.edge} does not meet the socket's back ${at(t.p)}`);
@@ -583,7 +583,7 @@ export function nearRun(a: Point, b: Point, c: Point, d: Point, tol: number, fan
   let first = -1, last = -1;
   for (let s = 0; s <= steps; s++) {
     const t = s / steps, p = { x: c.x + (d.x - c.x) * t, y: c.y + (d.y - c.y) * t };
-    if (fanning && distance(p, fan!) < SHARED_FAN) continue;
+    if (fanning && distance(p, fan) < SHARED_FAN) continue;
     if (distanceToSegment(p, a, b) <= tol) { if (first < 0) first = s; last = s; }
   }
   return first < 0 ? 0 : (last - first) / steps * length;

@@ -34,7 +34,7 @@ test('INVALID_JSON points at the first wrong character, with a hint for common m
     ['[1 2]', 1, 4, undefined],
     ['{"a":1}x', 1, 8, undefined],
     ['[-]', 1, 3, undefined],
-    ['["x\\""]x', 1, 8, undefined],
+    [String.raw`["x\""]x`, 1, 8, undefined],
     ['{"a":{}, "b":[]]', 1, 16, undefined],
   ];
   for (const [text, line, column, hint] of cases) {
@@ -83,7 +83,7 @@ test('the QA XML reader rejects malformed input instead of guessing', () => {
 });
 
 /** PlantUML source with the <U+XXXX> display tokens decoded, for reading. */
-const readable = source => source.replace(/​/g, '').replace(/<U\+([0-9A-F]{4})>/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)));
+const readable = source => source.replaceAll('​', '').replaceAll(/<U\+([0-9A-F]{4})>/g, (_, hex) => String.fromCharCode(Number.parseInt(hex, 16)));
 
 test('class PlantUML source: every keyword, end, arrow and note maps to PlantUML syntax', () => {
   const { model } = parseDocument(JSON.stringify({

@@ -40,7 +40,7 @@ test('--strict through the CLI: exit 0 and no stderr for an example; exit 5 for 
   result = cli(['render', minimal, '-o', join(dir, 'b.svg')], { env });
   assert.equal(result.status, 0, result.stderr);
   const { warnings } = JSON.parse(result.stderr);
-  assert.ok(warnings.length >= 1 && warnings.every(w => w.code === 'LAYOUT_QUALITY' && w.gate && w.count >= 1 && w.problems.length && w.advice));
+  assert.ok(warnings.length > 0 && warnings.every(w => w.code === 'LAYOUT_QUALITY' && w.gate && w.count >= 1 && w.problems.length && w.advice));
   assert.ok(warnings.some(w => w.gate === 'node-overlap'));
   result = cli(['render', minimal, '-o', join(dir, 'c.svg'), '--strict'], { env });
   assert.equal(result.status, 5);

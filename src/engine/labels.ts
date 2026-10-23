@@ -168,11 +168,9 @@ function centerCandidates(request: LabelRequest): Rect[] {
         const reach = GAP + 2 + (w / 2) * Math.abs(n.x) + (h / 2) * Math.abs(n.y);
         for (const side of [1, -1]) out.push({ x: m.x + n.x * reach * side - w / 2, y: m.y + n.y * reach * side - h / 2, width: w, height: h });
       } else if (vertical) {
-        out.push({ x: m.x + GAP + 2, y: m.y - h / 2, width: w, height: h });
-        out.push({ x: m.x - GAP - 2 - w, y: m.y - h / 2, width: w, height: h });
+        out.push({ x: m.x + GAP + 2, y: m.y - h / 2, width: w, height: h }, { x: m.x - GAP - 2 - w, y: m.y - h / 2, width: w, height: h });
       } else {
-        out.push({ x: m.x - w / 2, y: m.y - GAP - 1 - h, width: w, height: h });
-        out.push({ x: m.x - w / 2, y: m.y + GAP + 1, width: w, height: h });
+        out.push({ x: m.x - w / 2, y: m.y - GAP - 1 - h, width: w, height: h }, { x: m.x - w / 2, y: m.y + GAP + 1, width: w, height: h });
       }
     }
   }
@@ -218,13 +216,13 @@ export function placeLabels(requests: readonly LabelRequest[], obstacles: Obstac
   for (const request of requests) {
     const candidates = request.candidates ?? (request.at === 'center' ? centerCandidates(request) : endCandidates(request));
     let best: Rect | undefined, bestCost = Infinity;
-    candidates.forEach((candidate, index) => {
-      if (bestCost === 0) return;
+    for (const [index, candidate] of candidates.entries()) {
+      if (bestCost === 0) continue;
       const anchor = request.at === 'source' ? request.route[0] : request.at === 'target' ? request.route.at(-1) : undefined;
       const base = labelCost(candidate, obstacles, [...placed.values()], anchor, request);
       const c = base ? base + index * 0.001 : 0;
       if (c < bestCost) { best = candidate; bestCost = c; }
-    });
+    }
     if (best) placed.set(request.id, best);
   }
   return placed;

@@ -16,7 +16,7 @@ const phases = [
   { id: 'change', name: 'Returning change', regions: [['Compute', 'Dispense', 'Verify']] },
 ];
 let previous = 'boot';
-phases.forEach((p, k) => {
+for (const [k, p] of phases.entries()) {
   const regions = p.regions.map((names, j) => {
     const prefix = `${p.id}${j}s`;
     const init = { id: `${p.id}${j}i`, type: 'initial' };
@@ -25,11 +25,11 @@ phases.forEach((p, k) => {
     t(states.at(-1).id, states[0].id, { trigger: 'reset', guard: `retries < ${3 + j}` });
     return { name: `${p.name.toLowerCase()} ${j + 1}`, elements: [init, ...states, { id: `${p.id}${j}f`, type: 'final' }] };
   });
-  regions.forEach((r, j) => t(r.elements.at(-2).id, `${p.id}${j}f`, { trigger: 'done' }));
+  for (const [j, r] of regions.entries()) t(r.elements.at(-2).id, `${p.id}${j}f`, { trigger: 'done' });
   elements.push(state(p.id, p.name, { exit: `log ${p.id}`, regions: regions.map(r => p.regions.length === 1 ? { elements: r.elements } : r) }));
   t(previous, p.id, { trigger: k === 0 ? 'ready' : 'completed' });
   previous = p.id;
-});
+}
 elements.push({ id: 'fault', type: 'choice' }, state('service', 'Service mode', { entry: 'lock door', internal: [{ trigger: 'diagnose', effect: 'runDiagnostics' }] }), state('outOfOrder', 'Out of order'), { id: 'off', type: 'final' });
 t('change', 'boot', { trigger: 'completed', effect: 'resetTotals' });
 t('pay', 'fault', { trigger: 'jam' });

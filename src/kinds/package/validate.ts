@@ -18,40 +18,40 @@ export function validatePackageDiagram(model: PackageDiagram): Diagnostic[] {
 
   // Ownership: nesting through `members` and containment lines share one rule set.
   const ownership: { from: string; to: string; path: string }[] = [];
-  model.elements.forEach((element, i) => {
+  for (const [i, element] of model.elements.entries()) {
     const at = pointer('', 'elements', i);
     if (isNote(element)) {
-      (element.attachedTo ?? []).forEach((id, j) => {
+      for (const [j, id] of (element.attachedTo ?? []).entries()) {
         const path = pointer(at, 'attachedTo', j);
-        if (!reference(id, path, elements, diagnostics)) return;
+        if (!reference(id, path, elements, diagnostics)) continue;
         if (isNote(elements.get(id)!)) diagnostics.push({ code: 'INVALID_ATTACHMENT', path, message: `Note "${element.id}" cannot be attached to another note ("${id}")` });
-      });
+      }
     }
     if (isPackage(element)) {
-      (element.members ?? []).forEach((id, j) => {
+      for (const [j, id] of (element.members ?? []).entries()) {
         const path = pointer(at, 'members', j);
         if (reference(id, path, elements, diagnostics)) ownership.push({ from: element.id, to: id, path });
-      });
+      }
     }
-  });
+  }
 
   const seen = new Map<string, string>();
   const checked: { index: number; from: Element; to: Element }[] = [];
-  relationships.forEach((r, i) => {
+  for (const [i, r] of relationships.entries()) {
     const at = pointer('', 'relationships', i);
     const fromOk = reference(r.from, pointer(at, 'from'), elements, diagnostics, 'element', { from: r.from, to: r.to });
     const toOk = reference(r.to, pointer(at, 'to'), elements, diagnostics, 'element', { from: r.from, to: r.to });
-    if (!fromOk || !toOk) return;
+    if (!fromOk || !toOk) continue;
     const from = elements.get(r.from)!, to = elements.get(r.to)!;
     let ok = true;
     for (const [end, element] of [['from', from], ['to', to]] as const) {
       if (isNote(element)) { ok = false; diagnostics.push({ code: 'NOTE_IN_RELATIONSHIP', path: pointer(at, end), message: `Relationships cannot connect notes; use the note's "attachedTo" instead` }); }
     }
-    if (!ok) return;
-    if (r.from === r.to) { diagnostics.push({ code: 'SELF_RELATIONSHIP', path: pointer(at, 'to'), message: `A ${r.type} cannot connect "${r.from}" to itself` }); return; }
+    if (!ok) continue;
+    if (r.from === r.to) { diagnostics.push({ code: 'SELF_RELATIONSHIP', path: pointer(at, 'to'), message: `A ${r.type} cannot connect "${r.from}" to itself` }); continue; }
     const key = `${r.type}\u0000${r.from}\u0000${r.to}`;
     const first = seen.get(key);
-    if (first !== undefined) { diagnostics.push({ code: 'DUPLICATE_RELATIONSHIP', path: at, message: `Duplicate ${r.type} from "${r.from}" to "${r.to}" (first at ${first})` }); return; }
+    if (first !== undefined) { diagnostics.push({ code: 'DUPLICATE_RELATIONSHIP', path: at, message: `Duplicate ${r.type} from "${r.from}" to "${r.to}" (first at ${first})` }); continue; }
     seen.set(key, at);
     switch (r.type) {
       case 'import': case 'access':
@@ -69,7 +69,7 @@ export function validatePackageDiagram(model: PackageDiagram): Diagnostic[] {
         break;
     }
     if (r.type !== 'containment') checked.push({ index: i, from, to });
-  });
+  }
 
   const owner = checkOwnership(ownership, diagnostics);
   // A relationship between a package and its own (nested) member is meaningless

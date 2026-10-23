@@ -199,7 +199,7 @@ test('interaction overview: inline sd fragments draw lifelines and messages in o
 });
 
 test('interaction overview: hostile and markup-like text stays literal and cannot create active SVG', async () => {
-  const hostile = '" } <b>bold</b> [[https://evil.invalid]] **x** \\n @enduml';
+  const hostile = String.raw`" } <b>bold</b> [[https://evil.invalid]] **x** \n @enduml`;
   const doc = {
     kind: 'interaction-overview', title: '<script>x</script>', lifelines: ['<svg onload="alert(1)">'],
     nodes: [
@@ -214,7 +214,7 @@ test('interaction overview: hostile and markup-like text stays literal and canno
   const { svg } = await assertGates(doc);
   assert.doesNotMatch(svg, /<(?:a|image|script|foreignObject|use)\b/);
   // Attribute values are escaped text; only real attribute names matter.
-  assert.doesNotMatch(svg.replace(/"[^"]*"/g, '""'), /<[^>]*\s(?:[\w:]*href|on\w+)\s*=/);
+  assert.doesNotMatch(svg.replaceAll(/"[^"]*"/g, '""'), /<[^>]*\s(?:[\w:]*href|on\w+)\s*=/);
   const scene = await inspectSvg(svg);
   assert.ok(scene.texts.some(t => t.content === `${hostile}(<a href="x">)`));
   assert.ok(scene.texts.some(t => t.content === '  spaced   : &amp;'), 'boundary spaces preserved');

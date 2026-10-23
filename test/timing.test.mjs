@@ -12,7 +12,7 @@ import { cli, root } from './helpers.mjs';
 // Java-free tests of the timing kind. Real renders are in test/integration/timing.test.mjs.
 const fixtures = name => readFile(join(root, 'test/fixtures/timing', name), 'utf8').then(JSON.parse);
 const source = doc => timingToPlantUml(parseDocument(JSON.stringify(doc)).model);
-const decode = s => s.replace(/<U\+([0-9A-F]{4})>/g, (_, h) => String.fromCharCode(parseInt(h, 16))).replaceAll('​', '');
+const decode = s => s.replaceAll(/<U\+([0-9A-F]{4})>/g, (_, h) => String.fromCharCode(Number.parseInt(h, 16))).replaceAll('​', '');
 const T = (id, notation, states, changes, extra = {}) => ({ id, name: id, notation, states, changes: changes.map(([at, state]) => ({ at, state })), ...extra });
 
 test('negative fixtures fail with the exact code and JSON path', async () => {
@@ -70,8 +70,8 @@ test('time axis: about ten round ticks, and room for every concise value', () =>
   assert.ok(px / step * 10 >= estimateWidth('a long value name') + VALUE_PAD, 'the shortest value interval is wide enough for its text');
   assert.deepEqual(scale({ kind: 'timing', timeUnit: 's', lifelines: [T('r', 'robust', ['a'], [[0, 'a']])], highlights: [{ from: 0, to: 10 }] }), [1, 48], 'at least 480 px wide');
   // Large time values do not blow up the width: the scale follows what needs room (review C-14).
-  const [bigStep, bigPx] = scale({ kind: 'timing', timeUnit: 'ms', lifelines: [T('r', 'robust', ['Closed', 'Open'], [[0, 'Closed'], [2500, 'Open'], [11000, 'Closed']])] });
-  assert.ok(bigPx / bigStep * 11000 <= 600, `a two-change lifeline over 11000 ms stays compact (${bigPx / bigStep * 11000} px)`);
+  const [bigStep, bigPx] = scale({ kind: 'timing', timeUnit: 'ms', lifelines: [T('r', 'robust', ['Closed', 'Open'], [[0, 'Closed'], [2500, 'Open'], [11_000, 'Closed']])] });
+  assert.ok(bigPx / bigStep * 11_000 <= 600, `a two-change lifeline over 11000 ms stays compact (${bigPx / bigStep * 11_000} px)`);
   // Text that cannot get its room even at the widest axis is a validation error, never overlapping text (C-03).
   const dense = { kind: 'timing', timeUnit: 'cycles', lifelines: [T('c', 'concise', ['OK', 'WAITING_FOR_UPSTREAM_ACKNOWLEDGEMENT'], [[0, 'OK'], [500, 'WAITING_FOR_UPSTREAM_ACKNOWLEDGEMENT'], [502, 'OK'], [1000, 'WAITING_FOR_UPSTREAM_ACKNOWLEDGEMENT']])] };
   assert.throws(() => parseDocument(JSON.stringify(dense)), e => {
@@ -84,7 +84,7 @@ test('time axis: about ten round ticks, and room for every concise value', () =>
 });
 
 test('hostile text in every slot is encoded and never becomes PlantUML syntax', () => {
-  const hostile = '" } !include https://evil.invalid\\n@enduml <b>x</b> [[link]] #red @5 is has';
+  const hostile = String.raw`" } !include https://evil.invalid\n@enduml <b>x</b> [[link]] #red @5 is has`;
   const src = source({ kind: 'timing', title: hostile, timeUnit: hostile.slice(0, 40), lifelines: [
     T('r', 'robust', [hostile, 'Off'], [[0, hostile], [10, 'Off']], { name: hostile, classifier: hostile }),
     T('c', 'concise', [hostile], [[0, hostile]], { name: hostile }),
@@ -92,7 +92,7 @@ test('hostile text in every slot is encoded and never becomes PlantUML syntax', 
   durationConstraints: [{ lifeline: 'r', from: 0, to: 10, min: hostile.slice(0, 40), max: hostile.slice(0, 40) }],
   highlights: [{ from: 1, to: 10, label: hostile }],
   notes: [{ lifeline: 'c', at: 0, text: hostile }] });
-  const skeleton = src.replace(/​(?:<U\+[0-9A-F]{4}>)*​/g, 'TEXT');
+  const skeleton = src.replaceAll(/​(?:<U\+[0-9A-F]{4}>)*​/g, 'TEXT');
   for (const fragment of ['!include', 'evil', '<b>', '[[', '#red', ' is has']) assert.ok(!skeleton.includes(fragment), fragment);
   assert.equal(skeleton.match(/@enduml/g).length, 1);
   assert.ok(!src.includes('"r"') && !src.includes(' r@'), 'user IDs never reach the source');

@@ -136,7 +136,7 @@ test('agent first attempts: one report lists every problem, with allowed values 
   for (const file of files) {
     const doc = await load(file);
     const error = errorOf(doc);
-    assert.ok(error.diagnostics.length >= 1, file);
+    assert.ok(error.diagnostics.length > 0, file);
     assert.equal(error.details, undefined, `${file}: no top-level details duplicating diagnostics`);
     // The message alone names every problem (up to twelve).
     for (const d of error.diagnostics.slice(0, 12)) assert.ok(error.message.includes(d.message), `${file}: message summarises ${d.path}`);
@@ -161,7 +161,7 @@ test('agent first attempts: named corrections plus the edits the messages ask fo
       edit(fixed);
     }
     try { parseDocument(JSON.stringify(fixed)); }
-    catch (second) { assert.fail(`${file} needs a second round: ${second.message}`); }
+    catch (error_) { assert.fail(`${file} needs a second round: ${error_.message}`); }
   }
 });
 

@@ -48,9 +48,9 @@ export function renderSvg(source: string, options: RendererOptions): Promise<Buf
     const chunks: Buffer[] = [];
     let size = 0, stderrSize = 0, failure: UmlError | undefined;
     const stop = (error: UmlError): void => { failure ??= error; child.kill('SIGKILL'); };
-    const timer = setTimeout(() => stop(new UmlError('RENDER_TIMEOUT', 'Renderer exceeded time limit', 3)), options.timeoutMs ?? 20_000);
-    const interrupt = () => stop(new UmlError('RENDER_INTERRUPTED', 'Renderer interrupted by SIGINT', 130));
-    const terminate = () => stop(new UmlError('RENDER_INTERRUPTED', 'Renderer interrupted by SIGTERM', 143));
+    const timer = setTimeout(() => { stop(new UmlError('RENDER_TIMEOUT', 'Renderer exceeded time limit', 3)); }, options.timeoutMs ?? 20_000);
+    const interrupt = () => { stop(new UmlError('RENDER_INTERRUPTED', 'Renderer interrupted by SIGINT', 130)); };
+    const terminate = () => { stop(new UmlError('RENDER_INTERRUPTED', 'Renderer interrupted by SIGTERM', 143)); };
     process.once('SIGINT', interrupt);
     process.once('SIGTERM', terminate);
     const cleanup = (): void => {
@@ -74,24 +74,24 @@ export function renderSvg(source: string, options: RendererOptions): Promise<Buf
     });
     child.on('close', (code, signal) => {
       cleanup();
-      if (failure) return reject(failure);
-      if (code !== 0) return reject(new UmlError('RENDER_FAILED', 'PlantUML renderer failed', 3, { exitCode: code, signal }));
+      if (failure) { reject(failure); return; }
+      if (code !== 0) { reject(new UmlError('RENDER_FAILED', 'PlantUML renderer failed', 3, { exitCode: code, signal })); return; }
       const svg = Buffer.concat(chunks);
       const text = svg.toString('utf8');
       const type = options.diagramType && /^[A-Z_]+$/u.test(options.diagramType) ? options.diagramType : '[A-Z_]+';
-      if (!new RegExp(`^\\s*(?:<\\?xml[^>]*>\\s*)?<svg\\s[^>]*data-diagram-type="${type}"`, 'u').test(text) || !text.trimEnd().endsWith('</svg>')) {
-        return reject(new UmlError('RENDER_INVALID_OUTPUT', 'Renderer did not return a complete SVG of the expected diagram type', 3));
+      if (!new RegExp(String.raw`^\s*(?:<\?xml[^>]*>\s*)?<svg\s[^>]*data-diagram-type="${type}"`, 'u').test(text) || !text.trimEnd().endsWith('</svg>')) {
+        reject(new UmlError('RENDER_INVALID_OUTPUT', 'Renderer did not return a complete SVG of the expected diagram type', 3)); return;
       }
       // Preserve spaces in both legacy SVG viewers and SVG2 browsers, whose text
       // defaults can override inherited xml:space. Only fixed CSS is introduced.
       const output = Buffer.from(fitSelfAssociations(text).replace(/<svg\s[^>]*>/u, root => root
         .replace(/\s+xml:space=(?:"[^"]*"|'[^']*')/u, '')
         .replace(/^<svg\s/u, '<svg xml:space="preserve" '))
-        .replace(/<text\b[^>]*>/gu, tag => tag.includes(' style="')
+        .replaceAll(/<text\b[^>]*>/gu, tag => tag.includes(' style="')
           ? tag.replace(/ style="([^"]*)"/u, (_, style: string) => ` style="${style};white-space:pre"`)
           : tag.replace(/^<text/u, '<text style="white-space:pre"')), 'utf8');
       if (output.length > (options.maxOutputBytes ?? MAX_OUTPUT_BYTES)) {
-        return reject(new UmlError('RENDER_OUTPUT_LIMIT', 'Renderer output exceeded byte limit', 3));
+        reject(new UmlError('RENDER_OUTPUT_LIMIT', 'Renderer output exceeded byte limit', 3)); return;
       }
       accept(output);
     });
@@ -105,10 +105,10 @@ export function renderSvg(source: string, options: RendererOptions): Promise<Buf
 function fitSelfAssociations(svg: string): string {
   let top = 0;
   const number = (attributes: string, name: string): number =>
-    Number(attributes.match(new RegExp(`(?:^|\\s)${name}="(-?[\\d.]+)"`, 'u'))?.[1]);
+    Number((new RegExp(String.raw`(?:^|\s)${name}="(-?[\d.]+)"`, 'u').exec(attributes))?.[1]);
   for (const [, attributes, content] of svg.matchAll(/<g class="link"([^>]*)>([\s\S]*?)<\/g>/gu)) {
-    const from = attributes!.match(/ data-entity-1="([^"]+)"/u)?.[1];
-    const to = attributes!.match(/ data-entity-2="([^"]+)"/u)?.[1];
+    const from = (/ data-entity-1="([^"]+)"/u.exec((attributes!)))?.[1];
+    const to = (/ data-entity-2="([^"]+)"/u.exec((attributes!)))?.[1];
     if (!from || from !== to) continue;
     for (const [, text] of content!.matchAll(/<text\b([^>]*)>/gu)) {
       const y = number(text!, 'y'), size = number(text!, 'font-size');
@@ -124,7 +124,7 @@ function fitSelfAssociations(svg: string): string {
   if (top >= 0) return svg;
   top = Math.floor(top - 4);
   return svg.replace(/<svg\s[^>]*>/u, root => {
-    const dimensions = root.match(/ viewBox="0 0 ([\d.]+) ([\d.]+)"/u);
+    const dimensions = / viewBox="0 0 ([\d.]+) ([\d.]+)"/u.exec(root);
     if (!dimensions) return root;
     const height = Number(dimensions[2]) - top;
     return root.replace(dimensions[0], ` viewBox="0 ${top} ${dimensions[1]} ${height}"`)

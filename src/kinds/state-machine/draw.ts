@@ -77,7 +77,7 @@ function compartments(canvas: Canvas, box: MeasuredBox, bounds: Rect, owner: str
   const { padX, padY, headerPadY } = theme.spacing;
   const parts: string[] = [];
   let y = bounds.y;
-  box.compartments.forEach((c, index) => {
+  for (const [index, c] of box.compartments.entries()) {
     const height = index === box.compartments.length - 1 && !composite ? bounds.y + bounds.height - y : c.height;
     if (index > 0) parts.push(el('line', { x1: bounds.x, y1: y, x2: bounds.x + bounds.width, y2: y, stroke: theme.color.nodeStroke, 'stroke-width': theme.stroke.compartment }));
     // A lone name compartment of a simple state is vertically centered.
@@ -90,7 +90,7 @@ function compartments(canvas: Canvas, box: MeasuredBox, bounds: Rect, owner: str
       rowTop += line.rows.length * line.lineHeight;
     }
     y += height;
-  });
+  }
   return parts;
 }
 

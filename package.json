@@ -23,6 +23,7 @@
   "scripts": {
     "build": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\" && tsc && node scripts/finish-build.mjs",
     "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
     "prepack": "npm run build",
     "setup:renderer": "node scripts/setup-renderer.mjs",
     "test": "npm run build && node --test \"test/*.test.mjs\"",
@@ -39,7 +40,13 @@
     "subset-font": "2.9.0"
   },
   "devDependencies": {
+    "@eslint/js": "9.39.5",
     "@types/node": "22.15.30",
-    "typescript": "5.8.3"
+    "eslint": "9.39.5",
+    "eslint-plugin-unicorn": "65.0.1",
+    "globals": "17.13.0",
+    "prettier": "3.9.10",
+    "typescript": "5.8.3",
+    "typescript-eslint": "8.72.0"
   }
 }

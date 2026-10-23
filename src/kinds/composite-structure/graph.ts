@@ -22,7 +22,7 @@ export function compositeStructureGraph(model: CompositeStructureDiagram): Struc
   const roleNames = new Map(model.elements.flatMap(e => e.type === 'collaboration' ? e.roles.map(r => [r.id, r.name] as const) : []));
   const ports = (ps: readonly Port[] | undefined): StructPort[] => (ps ?? []).map(p => {
     const label = typedName(p);
-    return { id: p.id, ...(label !== undefined ? { label } : {}) };
+    return { id: p.id, ...(label === undefined ? {} : { label }) };
   });
   const part = (p: Part): StructNode => ({
     id: p.id, type: 'part', shape: 'box', header: propertyHeader(p),
@@ -39,10 +39,10 @@ export function compositeStructureGraph(model: CompositeStructureDiagram): Struc
           children: [
             ...(e.parts ?? []).map(part),
             ...(e.collaborationUses ?? []).map((u): StructNode => {
-              (u.bindings ?? []).forEach((b, k) => edges.push({
+              for (const [k, b] of (u.bindings ?? []).entries()) edges.push({
                 id: `${u.id}::binding::${k}`, type: 'role-binding', source: u.id, target: b.part, style: 'dashed', sourceMarker: 'none', targetMarker: 'none',
                 ends: [{ end: 'target', text: roleNames.get(b.role) ?? b.role, kind: 'role' }],
-              }));
+              });
               return { id: u.id, type: 'collaboration-use', shape: 'ellipse', dashed: true, header: [{ text: `${u.name} : ${collaborations.get(u.collaboration)?.name ?? u.collaboration}`, style: { size: theme.font.size.name }, align: 'center' }] };
             }),
           ],
@@ -58,20 +58,20 @@ export function compositeStructureGraph(model: CompositeStructureDiagram): Struc
     }
   };
   const nodes = model.elements.map(node);
-  relationships.forEach((r, i) => {
+  for (const [i, r] of relationships.entries()) {
     const id = r.id ?? `relationships/${i}`;
     if (r.type === 'dependency') {
-      edges.push({ id, type: 'dependency', source: r.from, target: r.to, style: 'dashed', sourceMarker: 'none', targetMarker: 'open-arrow', ...(r.keyword !== undefined ? { keyword: r.keyword } : {}), ...(r.name !== undefined ? { name: r.name } : {}) });
-      return;
+      edges.push({ id, type: 'dependency', source: r.from, target: r.to, style: 'dashed', sourceMarker: 'none', targetMarker: 'open-arrow', ...(r.keyword === undefined ? {} : { keyword: r.keyword }), ...(r.name === undefined ? {} : { name: r.name }) });
+      continue;
     }
     const ends: NonNullable<StructEdge['ends']> = [];
     for (const [end, data] of [['source', r.fromEnd], ['target', r.toEnd]] as const) {
       if (data?.multiplicity !== undefined) ends.push({ end, text: data.multiplicity, kind: 'multiplicity' });
       if (data?.role !== undefined) ends.push({ end, text: data.role, kind: 'role' });
     }
-    const name = r.association !== undefined ? `${r.name !== undefined ? `${r.name} ` : ''}: ${r.association}` : r.name;
-    edges.push({ id, type: 'connector', source: r.from, target: r.to, style: 'solid', sourceMarker: 'none', targetMarker: 'none', ...(name !== undefined ? { name } : {}), ends });
-  });
+    const name = r.association === undefined ? r.name : `${r.name === undefined ? '' : `${r.name} `}: ${r.association}`;
+    edges.push({ id, type: 'connector', source: r.from, target: r.to, style: 'solid', sourceMarker: 'none', targetMarker: 'none', ...(name === undefined ? {} : { name }), ends });
+  }
   return {
     kind: 'composite-structure', frameKeyword: 'class', title: model.title, nodes, edges, assemblies: [], directions: ['RIGHT', 'DOWN'],
     // A note on a role points at its collaboration's ellipse (roles are laid out inside it).

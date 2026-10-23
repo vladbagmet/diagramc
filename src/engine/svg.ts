@@ -47,7 +47,7 @@ function attributes(attrs: Attributes): string {
 /** One element. `children` must come from `el`/`Canvas.text` (already safe markup). */
 export function el(tag: string, attrs: Attributes = {}, children: readonly string[] = []): string {
   if (!TAGS.has(tag)) throw new Error(`SVG element not allowed: ${tag}`);
-  return children.length ? `<${tag}${attributes(attrs)}>${children.join('')}</${tag}>` : `<${tag}${attributes(attrs)}/>`;
+  return children.length > 0 ? `<${tag}${attributes(attrs)}>${children.join('')}</${tag}>` : `<${tag}${attributes(attrs)}/>`;
 }
 
 export interface TextOptions extends TextStyle {

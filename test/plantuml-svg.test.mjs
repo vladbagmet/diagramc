@@ -80,5 +80,5 @@ test('PlantUML text wrapping keeps every character and encodes each line separat
   assert.ok(lines.length > 2);
   assert.equal(lines.join(''), text);
   assert.ok(lines.every(l => [...l].length <= 12), lines.join('|'));
-  assert.equal(wrappedDisplayText(text, 12).split('\\n').length, lines.length);
+  assert.equal(wrappedDisplayText(text, 12).split(String.raw`\n`).length, lines.length);
 });

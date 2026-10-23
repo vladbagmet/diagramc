@@ -64,16 +64,16 @@ export function placements(model: StateMachineDiagram): Map<string, Placement> {
   const out = new Map<string, Placement>();
   const visit = (elements: readonly Element[], base: string, regions: string[], ancestors: string[]): void => {
     const region = regions.at(-1)!;
-    elements.forEach((e, i) => {
+    for (const [i, e] of elements.entries()) {
       const path = `${base}/${i}`;
-      if (isNote(e)) return;
+      if (isNote(e)) continue;
       if (!out.has(e.id)) out.set(e.id, { vertex: e, path, region, ancestors, regions });
-      if (!isState(e)) return;
-      (e.connectionPoints ?? []).forEach((p, j) => {
+      if (!isState(e)) continue;
+      for (const [j, p] of (e.connectionPoints ?? []).entries()) {
         if (!out.has(p.id)) out.set(p.id, { vertex: p, path: `${path}/connectionPoints/${j}`, region: e.id, ancestors: [...ancestors, e.id], regions, owner: e.id });
-      });
-      (e.regions ?? []).forEach((r, j) => visit(r.elements, `${path}/regions/${j}/elements`, [...regions, `${e.id}#${j}`], [...ancestors, e.id]));
-    });
+      }
+      for (const [j, r] of (e.regions ?? []).entries()) visit(r.elements, `${path}/regions/${j}/elements`, [...regions, `${e.id}#${j}`], [...ancestors, e.id]);
+    }
   };
   visit(model.elements, '/elements', [''], []);
   return out;

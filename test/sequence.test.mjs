@@ -14,7 +14,7 @@ const fixtures = name => readFile(join(root, 'test/fixtures/sequence', name), 'u
 const examples = async () => (await readdir(join(root, 'examples/sequence'))).filter(f => f.endsWith('.json')).sort().map(f => join(root, 'examples/sequence', f));
 const source = doc => sequenceToPlantUml(parseDocument(JSON.stringify(doc)).model);
 const body = doc => { const lines = source(doc).split('\n'); return lines.slice(lines.indexOf('</style>') + 1).filter(l => l && l !== '@enduml'); };
-const decode = s => s.replace(/<U\+([0-9A-F]{4})>/g, (_, h) => String.fromCharCode(parseInt(h, 16))).replaceAll('​', '');
+const decode = s => s.replaceAll(/<U\+([0-9A-F]{4})>/g, (_, h) => String.fromCharCode(Number.parseInt(h, 16))).replaceAll('​', '');
 const L = (...ids) => ids.map(id => ({ id, name: id }));
 
 test('negative fixtures fail with the exact code and JSON path', async () => {
@@ -84,7 +84,7 @@ test('UML notation: each message sort gets its PlantUML arrow (strict UML style,
 });
 
 test('UML notation: lifeline heads, symbols and message labels', () => {
-  const lines = body({ kind: 'sequence', lifelines: [
+  const lines = new Set(body({ kind: 'sequence', lifelines: [
     { id: 'a', name: 'user', symbol: 'actor' }, { id: 'b', name: 'b', classifier: 'B', symbol: 'boundary' },
     { id: 'c', classifier: 'C', symbol: 'control' }, { id: 'd', name: 'd', symbol: 'entity' }, { id: 'e', name: 'e' },
   ], items: [
@@ -92,11 +92,11 @@ test('UML notation: lifeline heads, symbols and message labels', () => {
     { type: 'message', sort: 'reply', from: 'b', to: 'a', assignment: 'x', name: 'get', arguments: [], returnValue: 'Item' },
     { type: 'message', sort: 'asynchronous', from: 'c', to: 'd', name: 'ping' },
     { type: 'message', sort: 'asynchronous', from: 'd', to: 'e', name: 'ping' },
-  ] }).map(decode);
-  for (const head of ['actor "user" as uml_l0', 'boundary "b : B" as uml_l1', 'control ": C" as uml_l2', 'entity "d" as uml_l3', 'participant "e" as uml_l4']) assert.ok(lines.includes(head), head);
-  assert.ok(lines.includes('uml_l0 -> uml_l1 : get(id, n)'));
-  assert.ok(lines.includes('uml_l1 -->> uml_l0 : x = get() : Item'));
-  assert.ok(lines.includes('uml_l2 ->> uml_l3 : ping'));
+  ] }).map(decode));
+  for (const head of ['actor "user" as uml_l0', 'boundary "b : B" as uml_l1', 'control ": C" as uml_l2', 'entity "d" as uml_l3', 'participant "e" as uml_l4']) assert.ok(lines.has(head), head);
+  assert.ok(lines.has('uml_l0 -> uml_l1 : get(id, n)'));
+  assert.ok(lines.has('uml_l1 -->> uml_l0 : x = get() : Item'));
+  assert.ok(lines.has('uml_l2 ->> uml_l3 : ping'));
 });
 
 test('UML notation: combined fragments, interaction uses, state invariants and notes', () => {
@@ -122,14 +122,14 @@ test('long labels are wrapped with generated line breaks only; each line is enco
   const name = 'averyveryverylongoperationnamewithoutanyspaceswhatsoever plus words';
   const src = source({ kind: 'sequence', lifelines: L('a', 'b'), items: [{ type: 'message', sort: 'asynchronous', from: 'a', to: 'b', name }] });
   const line = src.split('\n').find(l => l.startsWith('uml_l0 ->> uml_l1 : '));
-  const parts = line.slice('uml_l0 ->> uml_l1 : '.length).split('\\n');
+  const parts = line.slice('uml_l0 ->> uml_l1 : '.length).split(String.raw`\n`);
   assert.ok(parts.length >= 2);
   for (const p of parts) assert.match(p, /^​(?:<U\+[0-9A-F]{4}>)+​$/);
   assert.equal(parts.map(decode).join(''), name);
 });
 
 test('hostile text in every slot is encoded and never becomes PlantUML syntax', () => {
-  const hostile = '" } !include https://evil.invalid\\n@enduml <b>x</b> [[link]] ** __ \\ ;line:red #red <<x>>';
+  const hostile = String.raw`" } !include https://evil.invalid\n@enduml <b>x</b> [[link]] ** __ \ ;line:red #red <<x>>`;
   const doc = { kind: 'sequence', title: hostile, lifelines: [{ id: 'a', name: hostile, classifier: hostile }, { id: 'b', name: 'b' }], items: [
     { type: 'message', sort: 'synchronous', from: 'a', to: 'b', name: hostile, arguments: [hostile] },
     { type: 'message', sort: 'reply', from: 'b', to: 'a', name: 'get', assignment: hostile, returnValue: hostile },
@@ -140,7 +140,7 @@ test('hostile text in every slot is encoded and never becomes PlantUML syntax', 
   ] };
   const src = source(doc);
   // Strip every encoded token: what remains is generated syntax only.
-  const skeleton = src.replace(/​(?:<U\+[0-9A-F]{4}>)*​/g, 'TEXT');
+  const skeleton = src.replaceAll(/​(?:<U\+[0-9A-F]{4}>)*​/g, 'TEXT');
   for (const fragment of ['!include', 'evil', '<b>', '[[', '#red', '<<x>>', 'line:red']) assert.ok(!skeleton.includes(fragment), fragment);
   assert.equal(skeleton.match(/@enduml/g).length, 1);
   assert.ok(!/<U\+00(?:0A|0D)>/.test(src), 'no encoded line breaks');
@@ -191,8 +191,8 @@ test('QA reader: a stored sequence render yields lifelines, messages and labels,
   const report = await checkSvg(svg, ['Sorts', 'user', 'signal', 'init', 'drop', 'tick', 'gone', 'self', 'Ctl', 'Store']);
   assert.ok(report.ok, JSON.stringify(report.gates.filter(g => !g.ok)));
   // Engine-only gates are reported as skipped; the ones this reader supplies data for are evaluated.
-  const skipped = report.gates.filter(g => g.skipped).map(g => g.gate);
-  for (const gate of ['label-proximity', 'edge-endpoints', 'markers']) assert.ok(skipped.includes(gate), gate);
+  const skipped = new Set(report.gates.filter(g => g.skipped).map(g => g.gate));
+  for (const gate of ['label-proximity', 'edge-endpoints', 'markers']) assert.ok(skipped.has(gate), gate);
   for (const gate of ['label-overlap', 'label-edge-crossing', 'message-endpoints', 'lifeline-crossing', 'inside-canvas', 'literal-text', 'min-font-size', 'text-fits']) {
     assert.ok(report.gates.some(g => g.gate === gate && !g.skipped), `${gate} evaluated`);
   }
@@ -202,14 +202,14 @@ test('QA reader: the message-endpoints gate catches arrows that miss their lifel
   const svg = await readFile(join(root, 'test/fixtures/sequence/rendered.svg'), 'utf8');
   // Shorten the asynchronous message: its line and arrowhead stop 40px early.
   const group = svg.match(/<g class="message"[^>]*>(?:(?!<\/g>).)*signal(?:(?!<\/g>).)*<\/g>/s)[0];
-  const shifted = group.replace(/(x2?)="([\d.]+)"/g, (m, k, v) => `${k}="${Number(v) - 40}"`).replace(/points="([^"]*)"/g, (m, p) => `points="${p.split(',').map((v, i) => i % 2 ? v : Number(v) - 40).join(',')}"`);
+  const shifted = group.replaceAll(/(x2?)="([\d.]+)"/g, (m, k, v) => `${k}="${Number(v) - 40}"`).replaceAll(/points="([^"]*)"/g, (m, p) => `points="${p.split(',').map((v, i) => i % 2 ? v : Number(v) - 40).join(',')}"`);
   const report = await checkSvg(svg.replace(group, shifted));
   const gate = report.gates.find(g => g.gate === 'message-endpoints');
   assert.ok(!gate.ok && gate.failures.some(f => /not on lifeline/.test(f)), JSON.stringify(gate));
   // Mirror the open arrowhead to the sending end: it now points away from the line.
   const main = [...group.matchAll(/<line style="[^"]*" x1="([\d.]+)" x2="([\d.]+)"/g)].find(l => Math.abs(l[1] - l[2]) > 20);
   const sum = Number(main[1]) + Number(main[2]);
-  const flipped = group.replace(/<line style="stroke:#334155;stroke-width:1.25;" x1="([\d.]+)" x2="([\d.]+)"/g, (m, a, b) =>
+  const flipped = group.replaceAll(/<line style="stroke:#334155;stroke-width:1.25;" x1="([\d.]+)" x2="([\d.]+)"/g, (m, a, b) =>
     Math.abs(a - b) <= 16 ? m.replace(`x1="${a}" x2="${b}"`, `x1="${sum - a}" x2="${sum - b}"`) : m);
   assert.notEqual(flipped, group);
   const report2 = await checkSvg(svg.replace(group, flipped));
@@ -246,7 +246,7 @@ test('post-processing moves a guard off an activation bar, haloing only the dash
   const out = clearLabels(`<svg>${lifeline(150)}${lifeline(270)}${lifeline(390)}${bar}${frame}${guard}</svg>`);
   const x = Number(out.match(/textLength="200" x="([\d.]+)"/)[1]);
   assert.ok(x >= 159, `the guard starts right of the bar (${x})`);
-  assert.match(out, new RegExp(`<rect fill="#FFFFFF" height="[\\d.]+" rx="3" ry="3" width="208" x="${x - 4}" y="[\\d.]+"/><text`), 'halo behind the moved guard');
+  assert.match(out, new RegExp(String.raw`<rect fill="#FFFFFF" height="[\d.]+" rx="3" ry="3" width="208" x="${x - 4}" y="[\d.]+"/><text`), 'halo behind the moved guard');
 });
 
 test('post-processing separates the right borders of nested fragments and moves state invariants off activation bars', () => {

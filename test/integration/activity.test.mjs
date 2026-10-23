@@ -83,7 +83,7 @@ test('activity: UML 2.5.1 notation of every construct', async () => {
   assert.equal(count('note'), 1);
   // UML 7.2.4: the note is attached by a dashed line, not by a speech-bubble pointer.
   const note = scene.nodes.find(n => n.type === 'note');
-  assert.match(svg, new RegExp(`<line x1="${note.bounds.x}" y1="[\\d.]+" x2="[\\d.]+" y2="[\\d.]+" style="[^"]*stroke-dasharray`), 'dashed anchor from the note');
+  assert.match(svg, new RegExp(String.raw`<line x1="${note.bounds.x}" y1="[\d.]+" x2="[\d.]+" y2="[\d.]+" style="[^"]*stroke-dasharray`), 'dashed anchor from the note');
   assert.ok(note.bounds.width > 100 && scene.extents.length > 0);
   // Fork and join bars span their flows, not the whole block.
   for (const bar of scene.nodes.filter(n => n.type === 'bar')) {
@@ -104,7 +104,7 @@ test('activity: partitions are swimlanes in input order with bold names', async 
 });
 
 test('activity: hostile text stays literal in every text slot and creates no active SVG', async () => {
-  const samples = ['" } !include https://evil.invalid <b>bold</b> [[https://evil.invalid]] **x** \\n @enduml', '<svg onload="alert(1)">', '  spaced  ', 'Unicode: 🚀 注文 \u{1F600}', '|lane| :act; <<object>> end'];
+  const samples = [String.raw`" } !include https://evil.invalid <b>bold</b> [[https://evil.invalid]] **x** \n @enduml`, '<svg onload="alert(1)">', '  spaced  ', 'Unicode: 🚀 注文 \u{1F600}', '|lane| :act; <<object>> end'];
   for (const text of samples) {
     const doc = {
       kind: 'activity', title: text, partitions: [{ id: 'p', name: text }],

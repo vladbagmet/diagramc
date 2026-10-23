@@ -17,7 +17,7 @@ const specs = [
 ];
 // A fixed pseudo-random sequence keeps the example deterministic.
 let seed = 11;
-const next = () => (seed = (seed * 1103515245 + 12345) % 2147483648) / 2147483648;
+const next = () => (seed = (seed * 1_103_515_245 + 12_345) % 2_147_483_648) / 2_147_483_648;
 
 // 20 messages, each from one lifeline to the next one down, in its own time slot.
 const messages = [];

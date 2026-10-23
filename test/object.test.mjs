@@ -51,7 +51,7 @@ test('object notation: notes attach with dotted anchor lines; a self link loops 
 });
 
 test('object: hostile and markup-like text stays literal and cannot create active SVG', async () => {
-  const hostile = '" } !include https://evil.invalid <b>bold</b> [[https://evil.invalid]] **x** \\n @enduml';
+  const hostile = String.raw`" } !include https://evil.invalid <b>bold</b> [[https://evil.invalid]] **x** \n @enduml`;
   await assertHostileTextIsLiteral({
     kind: 'object', title: '<script>x</script>',
     elements: [

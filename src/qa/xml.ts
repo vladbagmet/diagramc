@@ -10,8 +10,8 @@ export interface XmlElement {
 export type XmlNode = XmlElement | string;
 
 export function decodeXml(text: string): string {
-  return text.replace(/&(#x[0-9a-fA-F]+|#\d+|lt|gt|amp|quot|apos);/gu, (_, entity: string) => {
-    if (entity[0] === '#') return String.fromCodePoint(entity[1] === 'x' ? parseInt(entity.slice(2), 16) : Number(entity.slice(1)));
+  return text.replaceAll(/&(#x[0-9a-fA-F]+|#\d+|lt|gt|amp|quot|apos);/gu, (_, entity: string) => {
+    if (entity.startsWith('#')) return String.fromCodePoint(entity[1] === 'x' ? Number.parseInt(entity.slice(2), 16) : Number(entity.slice(1)));
     return ({ lt: '<', gt: '>', amp: '&', quot: '"', apos: "'" } as Record<string, string>)[entity]!;
   });
 }

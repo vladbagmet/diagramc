@@ -23,10 +23,10 @@ export function validateSequenceDiagram(model: SequenceDiagram): Diagnostic[] {
 
   const lifelines = new Map<string, Lifeline>(model.lifelines.map(l => [l.id, l]));
   const order = new Map(model.lifelines.map((l, i) => [l.id, i]));
-  model.lifelines.forEach((l, i) => {
+  for (const [i, l] of model.lifelines.entries()) {
     if (l.name === undefined && l.classifier === undefined) add('LIFELINE_NAME_REQUIRED', pointer('', 'lifelines', i), `Lifeline "${l.id}" needs a name, a classifier or both`);
     else checkLength(lifelineLabel(l), pointer('', 'lifelines', i), add);
-  });
+  }
 
   // Lifelines that some create message creates, with the path of the first one.
   const creations = new Map<string, string>();
@@ -76,21 +76,21 @@ export function validateSequenceDiagram(model: SequenceDiagram): Diagnostic[] {
   };
 
   const visit = (items: readonly Item[], base: string, scope: number): void => {
-    items.forEach((item, i) => {
+    for (const [i, item] of items.entries()) {
       const at = pointer(base, i);
       if (isMessage(item)) {
         checkLabel(item, at, add);
         checkLength(messageLabel(item), at, add);
         if (item.type === 'found') {
           if (use(item.to, pointer(at, 'to')) && item.activate) activate(item.to, pointer(at, 'activate'), scope);
-          return;
+          continue;
         }
         if (item.type === 'lost') {
           if (use(item.from, pointer(at, 'from')) && item.deactivate) deactivate(item.from, pointer(at, 'deactivate'), scope);
-          return;
+          continue;
         }
-        if (item.sort === 'create' && item.from === item.to) { add('INVALID_SELF_MESSAGE', pointer(at, 'to'), 'A lifeline cannot create itself'); return; }
-        if (item.sort === 'delete' && item.from === item.to) { add('INVALID_SELF_MESSAGE', pointer(at, 'to'), 'Use a destroy item for a lifeline that ends itself'); return; }
+        if (item.sort === 'create' && item.from === item.to) { add('INVALID_SELF_MESSAGE', pointer(at, 'to'), 'A lifeline cannot create itself'); continue; }
+        if (item.sort === 'delete' && item.from === item.to) { add('INVALID_SELF_MESSAGE', pointer(at, 'to'), 'Use a destroy item for a lifeline that ends itself'); continue; }
         const fromOk = use(item.from, pointer(at, 'from'));
         let toOk: boolean;
         if (item.sort === 'create') {
@@ -101,7 +101,7 @@ export function validateSequenceDiagram(model: SequenceDiagram): Diagnostic[] {
         if (fromOk && item.deactivate) deactivate(item.from, pointer(at, 'deactivate'), scope);
         if (toOk && item.activate) activate(item.to, pointer(at, 'activate'), scope);
         if (toOk && item.sort === 'delete') destroy(item.to, at);
-        return;
+        continue;
       }
       switch (item.type) {
         case 'activate': if (use(item.lifeline, pointer(at, 'lifeline'))) activate(item.lifeline, at, scope); break;
@@ -126,18 +126,18 @@ export function validateSequenceDiagram(model: SequenceDiagram): Diagnostic[] {
         }
         case 'fragment': visitFragment(item, at); break;
       }
-    });
+    }
   };
 
   /** Duplicate-free list of live lifelines; true when every entry is usable. */
   const checkList = (ids: readonly string[], path: string): boolean => {
     let ok = true;
     const seen = new Set<string>();
-    ids.forEach((id, j) => {
+    for (const [j, id] of ids.entries()) {
       if (seen.has(id)) { add('DUPLICATE_REFERENCE', pointer(path, j), `Lifeline "${id}" is listed twice`); ok = false; }
       seen.add(id);
       if (!use(id, pointer(path, j))) ok = false;
-    });
+    }
     return ok;
   };
 
@@ -148,7 +148,7 @@ export function validateSequenceDiagram(model: SequenceDiagram): Diagnostic[] {
       add('FRAGMENT_OPERAND_COUNT', pointer(at, 'operands'), `A ${f.operator} fragment has ${expected} operand${expected === 'exactly one' ? '' : 's'}, not ${count}`);
     }
     if (f.operator !== 'loop' && (f.min !== undefined || f.max !== undefined)) {
-      add('INVALID_LOOP_BOUNDS', pointer(at, f.min !== undefined ? 'min' : 'max'), 'Only loop fragments have iteration bounds');
+      add('INVALID_LOOP_BOUNDS', pointer(at, f.min === undefined ? 'max' : 'min'), 'Only loop fragments have iteration bounds');
     } else if (f.max !== undefined && f.min === undefined) {
       add('INVALID_LOOP_BOUNDS', pointer(at, 'max'), 'A loop maximum requires a minimum');
     } else if (typeof f.max === 'number' && f.min !== undefined && f.min > f.max) {
@@ -156,17 +156,17 @@ export function validateSequenceDiagram(model: SequenceDiagram): Diagnostic[] {
     } else if (f.max === 0) {
       add('INVALID_LOOP_BOUNDS', pointer(at, 'max'), 'A loop maximum of 0 never runs; use a neg fragment or remove the loop');
     }
-    f.operands.forEach((operand, j) => {
+    for (const [j, operand] of f.operands.entries()) {
       if (operand.guard !== undefined) checkLength(operand.guard, pointer(at, 'operands', j, 'guard'), add);
       if (operand.guard === 'else' && !(f.operator === 'alt' && j === count - 1)) {
         add('MISPLACED_ELSE', pointer(at, 'operands', j, 'guard'), 'The "else" guard belongs to the last operand of an alt fragment');
       }
-    });
+    }
     const alternatives = f.operator === 'alt';
     const before: State = { alive: new Set(state.alive), destroyed: new Map(state.destroyed), activations: new Map(state.activations) };
     const destroyedAfter = new Map(state.destroyed);
     const aliveAfter = new Set(state.alive);
-    f.operands.forEach((operand, j) => {
+    for (const [j, operand] of f.operands.entries()) {
       if (alternatives) {
         // Each alternative starts from the state before the fragment, except that a
         // destruction is final in drawing order (PlantUML cannot destroy a lifeline twice).
@@ -179,11 +179,11 @@ export function validateSequenceDiagram(model: SequenceDiagram): Diagnostic[] {
       for (const [id, stack] of state.activations) {
         const open = stack.filter(a => a.scope === scope);
         for (const a of open) add('ACTIVATION_CROSSES_FRAGMENT', a.path, `The activation of "${id}" must end in the interaction operand where it starts (${operandPath})`, { lifeline: id });
-        if (open.length) state.activations.set(id, stack.filter(a => a.scope !== scope));
+        if (open.length > 0) state.activations.set(id, stack.filter(a => a.scope !== scope));
       }
       for (const [id, path] of state.destroyed) if (!destroyedAfter.has(id)) destroyedAfter.set(id, path);
       for (const id of state.alive) aliveAfter.add(id);
-    });
+    }
     if (alternatives) {
       // Creations made in any operand persist (a lifeline is created once); destructions in any operand end it.
       state.alive = aliveAfter;
@@ -218,9 +218,9 @@ export function checkLength(label: string, at: string, add: (code: string, path:
 
 /** Visits every item with its JSON Pointer and fragment depth, in document order. */
 function forEachItem(items: readonly Item[], base: string, visit: (item: Item, path: string, depth: number) => void, depth = 0): void {
-  items.forEach((item, i) => {
+  for (const [i, item] of items.entries()) {
     const path = pointer(base, i);
     visit(item, path, depth);
-    if (item.type === 'fragment') item.operands.forEach((o, j) => forEachItem(o.items, pointer(path, 'operands', j, 'items'), visit, depth + 1));
-  });
+    if (item.type === 'fragment') for (const [j, o] of item.operands.entries()) forEachItem(o.items, pointer(path, 'operands', j, 'items'), visit, depth + 1);
+  }
 }

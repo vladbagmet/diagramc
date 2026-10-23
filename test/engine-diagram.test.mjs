@@ -127,14 +127,14 @@ test('parallel relationships between one pair form a short bundle with each labe
   const { readFile } = await import('node:fs/promises');
   const { renderAndCheck } = await import('../dist/qa/index.js');
   const { labelLineDistances } = await import('../dist/engine/labels.js');
-  const doc = await readFile(new URL('./fixtures/regression/package-awkward.json', import.meta.url), 'utf8');
+  const doc = await readFile(new URL('fixtures/regression/package-awkward.json', import.meta.url), 'utf8');
   const { svg, report } = await renderAndCheck(doc);
   assert.ok(report.ok);
   const scene = await inspectSvg(svg);
   const node = id => scene.nodes.find(n => n.id === id).bounds;
   const gap = Math.max(0, node('lib').y - node('other').y - node('other').height, node('other').y - node('lib').y - node('lib').height)
     + Math.max(0, node('lib').x - node('other').x - node('other').width, node('other').x - node('lib').x - node('lib').width);
-  const pair = scene.edges.filter(e => [e.source, e.target].sort().join() === 'lib,other');
+  const pair = scene.edges.filter(e => [e.source, e.target].sort().join(',') === 'lib,other');
   assert.equal(pair.length, 5);
   const length = pts => pts.slice(1).reduce((s, p, k) => s + Math.hypot(p.x - pts[k].x, p.y - pts[k].y), 0);
   for (const e of pair) {

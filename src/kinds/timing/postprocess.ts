@@ -5,8 +5,8 @@ import type { TimingDiagram } from './model.js';
 import { fixTimingRows } from './rows.js';
 import { overlapArea, segmentIntersectsRect, type Point } from '../../engine/geometry.js';
 
-const NUM = '(-?[\\d.]+)';
-const round = (n: number): string => String(Math.round(n * 10000) / 10000);
+const NUM = String.raw`(-?[\d.]+)`;
+const round = (n: number): string => String(Math.round(n * 10_000) / 10_000);
 
 /** Vertical shift of duration-constraint arrows, away from the state line they would otherwise hug. */
 export const CONSTRAINT_LIFT = 6;
@@ -18,12 +18,12 @@ export const CONSTRAINT_LIFT = 6;
  */
 export function liftConstraints(svg: string): string {
   const edge = theme.color.edge;
-  const pattern = new RegExp(`<line style="stroke:${edge};stroke-width:[\\d.]+;" x1="${NUM}" x2="${NUM}" y1="${NUM}" y2="\\3"/>(<polygon fill="${edge}" points="[^"]*" style="[^"]*"/>)(<polygon fill="${edge}" points="[^"]*" style="[^"]*"/>)(<text [^>]* y=")${NUM}(">[^<]*</text>)`, 'gu');
+  const pattern = new RegExp(String.raw`<line style="stroke:${edge};stroke-width:[\d.]+;" x1="${NUM}" x2="${NUM}" y1="${NUM}" y2="\3"/>(<polygon fill="${edge}" points="[^"]*" style="[^"]*"/>)(<polygon fill="${edge}" points="[^"]*" style="[^"]*"/>)(<text [^>]* y=")${NUM}(">[^<]*</text>)`, 'gu');
   return svg.replace(pattern, (match, x1: string, x2: string, y: string, p1: string, p2: string, textOpen: string, ty: string, textClose: string) => {
     const shift = (polygon: string): string => polygon.replace(/points="([^"]*)"/u, (_, pts: string) =>
       `points="${pts.split(',').map((v, i) => i % 2 ? round(Number(v) - CONSTRAINT_LIFT) : v).join(',')}"`);
     // Both heads must sit on this line's ends (a double-headed arrow), otherwise leave it alone.
-    const tips = [p1, p2].map(p => p.match(/points="([^"]*)"/u)![1]!.split(',').map(Number));
+    const tips = [p1, p2].map(p => /points="([^"]*)"/u.exec(p)![1]!.split(',').map(Number));
     const ys = tips.flatMap(t => t.filter((_, i) => i % 2));
     if (ys.some(v => Math.abs(v - Number(y)) > 6) || !tips.every(t => t.some((v, i) => i % 2 === 0 && (Math.abs(v - Number(x1)) < 0.01 || Math.abs(v - Number(x2)) < 0.01)))) return match;
     const line = match.slice(0, match.indexOf('/>') + 2).replace(/ y1="[^"]*" y2="[^"]*"/u, ` y1="${round(Number(y) - CONSTRAINT_LIFT)}" y2="${round(Number(y) - CONSTRAINT_LIFT)}"`);
@@ -37,8 +37,8 @@ export function liftConstraints(svg: string): string {
  * canvas) is extended to enclose the footer with the theme's frame padding.
  */
 export function encloseFooter(svg: string): string {
-  const footer = svg.match(new RegExp(`<g class="footer"[^>]*><text [^>]*font-size="${NUM}"[^>]* y="${NUM}"`, 'u'));
-  const frame = svg.match(new RegExp(`<g><rect fill="#FFFFFF" height="${NUM}" style="[^"]*" width="${NUM}" x="${NUM}" y="${NUM}"/>`, 'u'));
+  const footer = new RegExp(`<g class="footer"[^>]*><text [^>]*font-size="${NUM}"[^>]* y="${NUM}"`, 'u').exec(svg);
+  const frame = new RegExp(`<g><rect fill="#FFFFFF" height="${NUM}" style="[^"]*" width="${NUM}" x="${NUM}" y="${NUM}"/>`, 'u').exec(svg);
   if (!footer || !frame) return svg;
   const size = Number(footer[1]), baseline = Number(footer[2]);
   const top = Number(frame[4]), height = Number(frame[1]);
@@ -68,7 +68,7 @@ function waveSegments(svg: string): Seg[] {
   }
   for (const [shape] of svg.matchAll(/<(?:polygon|path)\b[^>]*>/gu)) {
     if (!shape.includes(`fill="${theme.color.nodeHeaderFill}"`)) continue;
-    const n = pairs(shape.match(/ (?:points|d)="([^"]*)"/u)?.[1] ?? '');
+    const n = pairs((/ (?:points|d)="([^"]*)"/u.exec(shape))?.[1] ?? '');
     const pts: Point[] = [];
     for (let i = 0; i + 1 < n.length; i += 2) pts.push({ x: n[i]!, y: n[i + 1]! });
     for (let i = 1; i < pts.length; i++) out.push({ a: pts[i - 1]!, b: pts[i]! });
@@ -87,7 +87,7 @@ function waveSegments(svg: string): Seg[] {
  */
 export function nudgeMessages(svg: string): string {
   const edge = theme.color.edge;
-  const pattern = new RegExp(`<line style="stroke:${edge};stroke-width:([\\d.]+);" x1="${NUM}" x2="\\2" y1="${NUM}" y2="${NUM}"/><polygon fill="${edge}" points="([^"]*)" style="([^"]*)"/>(?=<text)`, 'gu');
+  const pattern = new RegExp(String.raw`<line style="stroke:${edge};stroke-width:([\d.]+);" x1="${NUM}" x2="\2" y1="${NUM}" y2="${NUM}"/><polygon fill="${edge}" points="([^"]*)" style="([^"]*)"/>(?=<text)`, 'gu');
   const waves = waveSegments(svg);
   // Every vertical line: state steps, highlight and extension lines (not the time grid), messages.
   const verticals: { x: number; y0: number; y1: number }[] = [];
@@ -146,15 +146,15 @@ export function cutGuides(svg: string): string {
   const boxes: Box[] = [...svg.matchAll(/<text [^>]*>/gu)].map(m => textBox(m[0]));
   for (const [shape] of svg.matchAll(/<path\b[^>]*>/gu)) {
     if (!shape.includes(`fill="${theme.color.noteFill}"`)) continue;
-    const n = pairs(shape.match(/ d="([^"]*)"/u)?.[1] ?? '');
+    const n = pairs((/ d="([^"]*)"/u.exec(shape))?.[1] ?? '');
     const xs = n.filter((_, i) => i % 2 === 0), ys = n.filter((_, i) => i % 2 === 1);
     boxes.push({ x: Math.min(...xs), y: Math.min(...ys), width: Math.max(...xs) - Math.min(...xs), height: Math.max(...ys) - Math.min(...ys) });
   }
-  return svg.replace(/<line style="([^"]*dasharray:(?:4,4|2,2);[^"]*)" x1="(-?[\d.]+)" x2="\2" y1="(-?[\d.]+)" y2="(-?[\d.]+)"\/>/gu, (tag, style: string, gx: string, y1: string, y2: string) => {
+  return svg.replaceAll(/<line style="([^"]*dasharray:(?:4,4|2,2);[^"]*)" x1="(-?[\d.]+)" x2="\2" y1="(-?[\d.]+)" y2="(-?[\d.]+)"\/>/gu, (tag, style: string, gx: string, y1: string, y2: string) => {
     const x = Number(gx), top = Math.min(Number(y1), Number(y2)), bottom = Math.max(Number(y1), Number(y2));
     const cuts = boxes.filter(b => x > b.x - 2 && x < b.x + b.width + 2 && b.y - 2 < bottom && b.y + b.height + 2 > top)
       .map(b => [b.y - 2, b.y + b.height + 2] as const).sort((p, q) => p[0] - q[0]);
-    if (!cuts.length) return tag;
+    if (cuts.length === 0) return tag;
     const parts: string[] = [];
     let from = top;
     for (const [c0, c1] of cuts) { if (c0 - from > 1) parts.push(`<line style="${style}" x1="${gx}" x2="${gx}" y1="${round(from)}" y2="${round(c0)}"/>`); from = Math.max(from, c1); }
@@ -169,7 +169,7 @@ export const MESSAGE_LABEL_GAP = 4;
 export const LABEL_SPACING = 8;
 
 interface Box { x: number; y: number; width: number; height: number }
-const attr = (tag: string, name: string): number => Number(tag.match(new RegExp(`\\s${name}="(-?[\\d.]+)"`, 'u'))?.[1] ?? NaN);
+const attr = (tag: string, name: string): number => Number((new RegExp(String.raw`\s${name}="(-?[\d.]+)"`, 'u').exec(tag))?.[1] ?? Number.NaN);
 const textBox = (tag: string): Box => {
   const size = attr(tag, 'font-size');
   return { x: attr(tag, 'x'), y: attr(tag, 'y') - size * 0.95, width: attr(tag, 'textLength'), height: size * 1.2 };
@@ -185,10 +185,10 @@ const textBox = (tag: string): Box => {
  */
 export function placeMessageLabels(svg: string): string {
   const edge = theme.color.edge;
-  const pattern = new RegExp(`(<line style="stroke:${edge};stroke-width:[\\d.]+;" x1="${NUM}" x2="${NUM}" y1="${NUM}" y2="${NUM}"/><polygon fill="${edge}" points="${NUM},${NUM},${NUM},${NUM},${NUM},${NUM}" style="[^"]*"/>)((?:<text [^>]*>[^<]*</text>)+)`, 'gu');
+  const pattern = new RegExp(String.raw`(<line style="stroke:${edge};stroke-width:[\d.]+;" x1="${NUM}" x2="${NUM}" y1="${NUM}" y2="${NUM}"/><polygon fill="${edge}" points="${NUM},${NUM},${NUM},${NUM},${NUM},${NUM}" style="[^"]*"/>)((?:<text [^>]*>[^<]*</text>)+)`, 'gu');
   const messages = [...svg.matchAll(pattern)];
-  if (!messages.length) return svg;
-  const labelTags = new Set(messages.flatMap(m => [...m[12]!.matchAll(/<text [^>]*>/gu)].map(t => t.index! + m.index! + m[1]!.length)));
+  if (messages.length === 0) return svg;
+  const labelTags = new Set(messages.flatMap(m => [...m[12]!.matchAll(/<text [^>]*>/gu)].map(t => t.index + m.index + m[1]!.length)));
   // Obstacles: solid lines, other texts, concise value shapes and notes.
   const segments: { a: Point; b: Point }[] = [];
   for (const m of svg.matchAll(/<line style="([^"]*)" x1="(-?[\d.]+)" x2="(-?[\d.]+)" y1="(-?[\d.]+)" y2="(-?[\d.]+)"\/>/gu)) {
@@ -197,11 +197,11 @@ export function placeMessageLabels(svg: string): string {
     segments.push({ a: { x: Number(m[2]), y: Number(m[4]) }, b: { x: Number(m[3]), y: Number(m[5]) } });
   }
   const boxes: Box[] = [];
-  for (const m of svg.matchAll(/<text [^>]*>/gu)) if (!labelTags.has(m.index!)) boxes.push(textBox(m[0]));
+  for (const m of svg.matchAll(/<text [^>]*>/gu)) if (!labelTags.has(m.index)) boxes.push(textBox(m[0]));
   for (const [shape] of svg.matchAll(/<(?:polygon|path)\b[^>]*>/gu)) {
-    const fill = shape.match(/ fill="(#[0-9A-F]{6})"/u)?.[1];
+    const fill = (/ fill="(#[0-9A-F]{6})"/u.exec(shape))?.[1];
     if (fill !== theme.color.nodeHeaderFill && fill !== theme.color.noteFill) continue;
-    const n = (shape.match(/ (?:points|d)="([^"]*)"/u)?.[1]?.match(/-?\d+(?:\.\d+)?/gu) ?? []).map(Number);
+    const n = ((/ (?:points|d)="([^"]*)"/u.exec(shape))?.[1]?.match(/-?\d+(?:\.\d+)?/gu) ?? []).map(Number);
     const xs = n.filter((_, i) => i % 2 === 0), ys = n.filter((_, i) => i % 2 === 1);
     boxes.push({ x: Math.min(...xs), y: Math.min(...ys), width: Math.max(...xs) - Math.min(...xs), height: Math.max(...ys) - Math.min(...ys) });
   }
@@ -212,7 +212,7 @@ export function placeMessageLabels(svg: string): string {
   const cuts = [...new Set(segments.filter(s => s.a.y === s.b.y && Math.abs(s.b.x - s.a.x) > width / 2).map(s => s.a.y))].sort((p, q) => p - q);
   const band = (y: number): [number, number] | undefined => {
     const k = cuts.findIndex((c, i) => i + 1 < cuts.length && y >= c - 0.5 && y <= cuts[i + 1]! + 0.5);
-    return k < 0 ? undefined : [cuts[k]!, cuts[k + 1]!];
+    return k === -1 ? undefined : [cuts[k]!, cuts[k + 1]!];
   };
 
   let index = 0;
@@ -221,7 +221,7 @@ export function placeMessageLabels(svg: string): string {
     const [x1, x2, y1, y2] = rest.slice(0, 4).map(Number) as [number, number, number, number];
     const texts = rest[10]!;
     const tags = [...texts.matchAll(/<text [^>]*>/gu)].map(t => t[0]);
-    if (!tags.length || own[0] !== match) return match;
+    if (tags.length === 0 || own[0] !== match) return match;
     const first = textBox(tags[0]!);
     const size = attr(tags[0]!, 'font-size');
     const pitch = tags.length > 1 ? attr(tags[1]!, 'y') - attr(tags[0]!, 'y') : size * 1.2;
@@ -251,7 +251,7 @@ export function placeMessageLabels(svg: string): string {
     const stretch = (b: [number, number] | undefined): number[] => {
       if (!b) return [];
       const inside = Array.from({ length: 41 }, (_, i) => i / 40).filter(t => { const y = along(t).y; return y > b[0] + 2 && y < b[1] - 2; });
-      if (!inside.length) return [];
+      if (inside.length === 0) return [];
       const mid = (inside[0]! + inside.at(-1)!) / 2;
       return inside.sort((p, q) => Math.abs(p - mid) - Math.abs(q - mid) || p - q);
     };
@@ -273,7 +273,7 @@ export function placeMessageLabels(svg: string): string {
     // Labels keep LABEL_SPACING px apart, so two never read as one block.
     boxes.push({ x: chosen.x - LABEL_SPACING, y: chosen.y - LABEL_SPACING, width: chosen.width + 2 * LABEL_SPACING, height: chosen.height + 2 * LABEL_SPACING });
     const dx = chosen.x - first.x, dy = chosen.y - first.y;
-    const moved = texts.replace(/(<text [^>]* x=")(-?[\d.]+)(" y=")(-?[\d.]+)(")/gu, (_m, a: string, x: string, b: string, y: string, c: string) =>
+    const moved = texts.replaceAll(/(<text [^>]* x=")(-?[\d.]+)(" y=")(-?[\d.]+)(")/gu, (_m, a: string, x: string, b: string, y: string, c: string) =>
       `${a}${round(Number(x) + dx)}${b}${round(Number(y) + dy)}${c}`);
     return `${open}${moved}`;
   });

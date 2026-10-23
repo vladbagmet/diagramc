@@ -8,7 +8,7 @@ import type { ComponentDiagram, Element, Nested, Note, Port } from './model.js';
  */
 export const MAX_COMPONENT_DEPTH = 4;
 
-type Realizer = { provides?: string[]; requires?: string[]; ports?: Port[] };
+interface Realizer { provides?: string[]; requires?: string[]; ports?: Port[] }
 
 export function buildComponentTree(model: ComponentDiagram): { tree: Tree; notes: { note: Note; path: string }[] } {
   const tree = new Tree();
@@ -17,11 +17,11 @@ export function buildComponentTree(model: ComponentDiagram): { tree: Tree; notes
     tree.add({ id: element.id, path, type: element.type, parent, value: element as unknown as Record<string, unknown> });
     if (element.type === 'note') notes.push({ note: element, path });
     if (element.type === 'component' || element.type === 'class') {
-      (element.ports ?? []).forEach((port, k) => tree.add({ id: port.id, path: pointer(path, 'ports', k), type: 'port', parent: element.id, value: port as unknown as Record<string, unknown> }));
+      for (const [k, port] of (element.ports ?? []).entries()) tree.add({ id: port.id, path: pointer(path, 'ports', k), type: 'port', parent: element.id, value: port as unknown as Record<string, unknown> });
     }
-    if (element.type === 'component') (element.elements ?? []).forEach((child, k) => visit(child, pointer(path, 'elements', k), element.id));
+    if (element.type === 'component') for (const [k, child] of (element.elements ?? []).entries()) visit(child, pointer(path, 'elements', k), element.id);
   };
-  model.elements.forEach((e, i) => visit(e, pointer('', 'elements', i), undefined));
+  for (const [i, e] of model.elements.entries()) visit(e, pointer('', 'elements', i), undefined);
   return { tree, notes };
 }
 
@@ -43,26 +43,26 @@ export function validateComponentDiagram(model: ComponentDiagram): Diagnostic[] 
     if (item.type !== 'component' && item.type !== 'class' && item.type !== 'port') continue;
     for (const which of ['provides', 'requires'] as const) {
       const seen = new Set<string>();
-      interfaces(item.value, which).forEach((id, j) => {
+      for (const [j, id] of interfaces(item.value, which).entries()) {
         const at = pointer(item.path, which, j);
         if (seen.has(id)) diagnostics.push({ code: 'DUPLICATE_INTERFACE', path: at, message: `Interface "${id}" is listed twice in "${which}" of "${item.id}"` });
         seen.add(id);
         const target = tree.ref(id, at, diagnostics, 'interface');
         if (target && target.type !== 'interface') diagnostics.push({ code: 'NOT_AN_INTERFACE', path: at, message: `"${id}" is a ${target.type}, not an interface` });
-      });
+      }
     }
   }
 
   const connectable = (type: string | undefined): boolean => type === 'component' || type === 'class' || type === 'port';
-  relationships.forEach((r, i) => {
+  for (const [i, r] of relationships.entries()) {
     const at = pointer('', 'relationships', i);
     const from = tree.ref(r.from, pointer(at, 'from'), diagnostics);
     const to = tree.ref(r.to, pointer(at, 'to'), diagnostics);
-    if (!from || !to) return;
+    if (!from || !to) continue;
     for (const [end, item] of [['from', from], ['to', to]] as const) {
       if (item.type === 'note') diagnostics.push({ code: 'NOTE_IN_RELATIONSHIP', path: pointer(at, end), message: 'Relationships cannot connect notes; use the note\'s "attachedTo" instead' });
     }
-    if (from.type === 'note' || to.type === 'note') return;
+    if (from.type === 'note' || to.type === 'note') continue;
     const fromOwner = tree.owner(r.from), toOwner = tree.owner(r.to);
     switch (r.type) {
       case 'assembly': {
@@ -121,6 +121,6 @@ export function validateComponentDiagram(model: ComponentDiagram): Diagnostic[] 
         if (fromOwner === toOwner) diagnostics.push({ code: 'SELF_CONNECTION', path: pointer(at, 'to'), message: 'A dependency must connect two different elements (not an element and its own port)' });
         break;
     }
-  });
+  }
   return diagnostics;
 }

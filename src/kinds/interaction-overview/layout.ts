@@ -56,7 +56,7 @@ export function frameName(model: InteractionOverviewDiagram): string | undefined
   // An entry without a colon names the lifeline's type: drawn ":Type", as in the UML heading "lifelines :User, :Shop".
   const lifeline = (l: string): string => l.includes(':') ? l : `:${l}`;
   const parts = [model.title, model.lifelines && `lifelines ${model.lifelines.map(lifeline).join(', ')}`].filter((p): p is string => !!p);
-  return parts.length ? parts.join(' ') : undefined;
+  return parts.length > 0 ? parts.join(' ') : undefined;
 }
 
 type Vertex = 'NORTH' | 'SOUTH' | 'EAST' | 'WEST';
@@ -126,7 +126,7 @@ export async function layoutInteractionOverview(model: InteractionOverviewDiagra
     const backward = (id: string) => ins(id).filter(f => !back.has(f.id)).map(f => f.from);
     const reach = (start: string, next: (id: string) => string[]): Set<string> => {
       const seen = new Set([start]), stack = [start];
-      while (stack.length) for (const t of next(stack.pop()!)) if (!seen.has(t)) { seen.add(t); stack.push(t); }
+      while (stack.length > 0) for (const t of next(stack.pop()!)) if (!seen.has(t)) { seen.add(t); stack.push(t); }
       return seen;
     };
     const from = reach(b.to, forward), to = reach(b.from, backward);
@@ -140,7 +140,7 @@ export async function layoutInteractionOverview(model: InteractionOverviewDiagra
     const m = measured.get(n.id)!;
     if (isUse(n) || isInline(n)) {
       const spine = eastSpine(n), loops = loopOut(n);
-      const east = loops.map(f => ({ id: `${f.id}::loop`, side: 'EAST' as const, ...(spine !== undefined ? { position: { x: m.width, y: m.height / 2 } } : {}) }));
+      const east = loops.map(f => ({ id: `${f.id}::loop`, side: 'EAST' as const, ...(spine === undefined ? {} : { position: { x: m.width, y: m.height / 2 } }) }));
       if (spine === undefined) return east;
       return [{ id: `${n.id}::in`, side: 'NORTH', position: { x: spine, y: 0 } }, { id: `${n.id}::out`, side: 'SOUTH', position: { x: spine, y: m.height } }, ...east];
     }
@@ -150,7 +150,7 @@ export async function layoutInteractionOverview(model: InteractionOverviewDiagra
       case 'final': case 'flow-final': {
         // Several flows into a final node arrive at different vertices (see assign), never on one shared segment.
         const used = vertices ? [...new Set([...vertices.entries()].filter(([key]) => key.startsWith(`${n.id}\u0000`)).map(([, v]) => v))] : [];
-        return (used.length ? used : ['NORTH' as const]).map(v => ({ id: `${n.id}::${v}`, side: v, position: at(v) }));
+        return (used.length > 0 ? used : ['NORTH' as const]).map(v => ({ id: `${n.id}::${v}`, side: v, position: at(v) }));
       }
       case 'decision': case 'merge':
         if (!vertices) return [];
@@ -164,7 +164,7 @@ export async function layoutInteractionOverview(model: InteractionOverviewDiagra
   const run = (vertices?: Map<string, Vertex>): Promise<LayoutResult> => {
     const nodes: LayoutNode[] = model.nodes.map(n => {
       const m = measured.get(n.id)!, p = ports(n, vertices);
-      return { id: n.id, width: m.width, height: m.height, ...(p.length ? { ports: p } : {}) };
+      return { id: n.id, width: m.width, height: m.height, ...(p.length > 0 ? { ports: p } : {}) };
     });
     const end = (f: typeof flows[number], which: 'from' | 'to'): string => {
       const id = f[which], n = nodeById.get(id)!;
@@ -184,7 +184,7 @@ export async function layoutInteractionOverview(model: InteractionOverviewDiagra
     };
     const edges: LayoutEdge[] = flows.map(f => ({
       id: f.id, source: back.has(f.id) ? end(f, 'to') : end(f, 'from'), target: back.has(f.id) ? end(f, 'from') : end(f, 'to'),
-      ...(f.guard !== undefined ? { labels: [{ id: `${f.id}::guard`, width: Math.ceil(metrics.measure(`[${f.guard}]`, GUARD)) + 4, height: guardHeight, placement: back.has(f.id) ? 'head' as const : 'tail' as const }] } : {}),
+      ...(f.guard === undefined ? {} : { labels: [{ id: `${f.id}::guard`, width: Math.ceil(metrics.measure(`[${f.guard}]`, GUARD)) + 4, height: guardHeight, placement: back.has(f.id) ? 'head' as const : 'tail' as const }] }),
     }));
     return layout(nodes, edges, { direction: 'DOWN' });
   };
@@ -192,7 +192,7 @@ export async function layoutInteractionOverview(model: InteractionOverviewDiagra
   /** Nodes reachable from `start` along forward (not loop-back) flows. */
   const reachable = (start: string): Set<string> => {
     const seen = new Set([start]), stack = [start];
-    while (stack.length) for (const f of outs(stack.pop()!)) if (!back.has(f.id) && !seen.has(f.to)) { seen.add(f.to); stack.push(f.to); }
+    while (stack.length > 0) for (const f of outs(stack.pop()!)) if (!back.has(f.id) && !seen.has(f.to)) { seen.add(f.to); stack.push(f.to); }
     return seen;
   };
   /** True when the forward path from `start` reaches a loop-back to a node at or above `decision`. */
@@ -221,7 +221,7 @@ export async function layoutInteractionOverview(model: InteractionOverviewDiagra
       const set = (f: { id: string }, v: Vertex) => vertices.set(`${n.id}\u0000${f.id}`, v);
       const loops = many.filter(({ f }) => back.has(f.id));
       for (const { f } of loops) set(f, 'EAST');
-      const available: Vertex[] = loops.length ? ['WEST', straight] : ['WEST', straight, 'EAST'];
+      const available: Vertex[] = loops.length > 0 ? ['WEST', straight] : ['WEST', straight, 'EAST'];
       const sorted = many.filter(({ f }) => !back.has(f.id)).sort((x, y) => x.p.x - y.p.x || many.indexOf(x) - many.indexOf(y));
       const aligned = [...sorted].sort((x, y) => Math.abs(x.p.x - c.x) - Math.abs(y.p.x - c.x))[0];
       // A branch whose path loops back (to a merge above) goes east, where loops
@@ -232,7 +232,7 @@ export async function layoutInteractionOverview(model: InteractionOverviewDiagra
         set(looping[0]!.f, 'EAST');
         if (rest.length === 1) set(rest[0]!.f, straight);
         else if (rest.length === 2) { set(rest[0]!.f, 'WEST'); set(rest[1]!.f, straight); }
-        else rest.forEach(({ f }, k) => set(f, k === 0 ? 'WEST' : straight));
+        else for (const [k, { f }] of rest.entries()) set(f, k === 0 ? 'WEST' : straight);
         continue;
       }
       if (sorted.length === 1) set(sorted[0]!.f, straight);
@@ -241,7 +241,7 @@ export async function layoutInteractionOverview(model: InteractionOverviewDiagra
         // so none has to run around that node.
         const rest = sorted.filter(o => o !== aligned);
         set(aligned.f, straight); set(rest[0]!.f, 'WEST'); set(rest[1]!.f, 'EAST');
-      } else if (sorted.length === available.length) sorted.forEach(({ f }, k) => set(f, available[k]!));
+      } else if (sorted.length === available.length) for (const [k, { f }] of sorted.entries()) set(f, available[k]!);
       else if (sorted.length === 2) {
         // Three vertices for two branches: straight for an aligned one, else west and east.
         if (aligned && Math.abs(aligned.p.x - c.x) < 40) {
@@ -251,7 +251,7 @@ export async function layoutInteractionOverview(model: InteractionOverviewDiagra
         } else { set(sorted[0]!.f, 'WEST'); set(sorted[1]!.f, 'EAST'); }
       } else {
         // More branches than vertices: the middle ones share the straight vertex.
-        sorted.forEach(({ f }, k) => set(f, k === 0 ? 'WEST' : k === sorted.length - 1 && available.includes('EAST') ? 'EAST' : straight));
+        for (const [k, { f }] of sorted.entries()) set(f, k === 0 ? 'WEST' : k === sorted.length - 1 && available.includes('EAST') ? 'EAST' : straight);
       }
     }
     return vertices;
@@ -320,12 +320,12 @@ export async function layoutInteractionOverview(model: InteractionOverviewDiagra
       const ok = group.every(f => { const r = routes.get(f.id)!; return r.length >= 3 && Math.abs(r.at(-1)!.x - r.at(-2)!.x) < 0.5 && Math.abs(r.at(-2)!.y - r.at(-3)!.y) < 0.5; });
       if (!ok) continue;
       const sorted = [...group].sort((a, b) => routes.get(a.id)!.at(-3)!.x - routes.get(b.id)!.at(-3)!.x);
-      sorted.forEach((f, k) => {
+      for (const [k, f] of sorted.entries()) {
         const r = routes.get(f.id)!, dx = (k === 0 ? -1 : 1) * FINAL_SPREAD;
         const sign = Math.sign(r.at(-1)!.y - r.at(-2)!.y) || 1;
         const end = { x: c.x + dx, y: c.y - sign * Math.sqrt(radius * radius - dx * dx) };
         routes.set(f.id, simplify([...r.slice(0, -2), { x: end.x, y: r.at(-2)!.y }, end]));
-      });
+      }
     }
   }
   const vectorOf = (v: Vertex): Point => v === 'SOUTH' ? { x: 0, y: 1 } : v === 'WEST' ? { x: -1, y: 0 } : v === 'EAST' ? { x: 1, y: 0 } : { x: 0, y: -1 };
@@ -365,12 +365,12 @@ export async function layoutInteractionOverview(model: InteractionOverviewDiagra
       for (const sign of [-1, 1]) {
         const turning = group.filter(f => { const t = routes.get(f.id)![2]; return t && side(t) === sign; })
           .sort((x, y) => off(routes.get(y.id)![2]!) - off(routes.get(x.id)![2]!));
-        turning.forEach((f, k) => {
+        for (const [k, f] of turning.entries()) {
           sideOf.set(f.id, sign);
           if (k === 0) depth.set(f.id, 0);
           else if (k === 1 && !straightUsed) { depth.set(f.id, SPLIT + guardHeight + 8); straightUsed = true; }
           else fits = false;
-        });
+        }
       }
       if (!fits) continue;
       let ok = true, straight = 0;
@@ -450,7 +450,7 @@ export async function layoutInteractionOverview(model: InteractionOverviewDiagra
   const segments: [Point, Point][] = [];
   const markerBoxes: Rect[] = [];
   for (const route of routes.values()) {
-    route.slice(1).forEach((p, k) => segments.push([route[k]!, p]));
+    for (const [k, p] of route.slice(1).entries()) segments.push([route[k]!, p]);
     const tip = route.at(-1)!, half = theme.size.arrow.halfWidth + 2;
     markerBoxes.push({ x: tip.x - half - 4, y: tip.y - half - 4, width: 2 * half + 8, height: 2 * half + 8 });
   }

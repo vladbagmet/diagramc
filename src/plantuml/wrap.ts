@@ -31,5 +31,5 @@ export function wrapMeasured(metrics: FontMetrics, text: string, style: TextStyl
  * from the input, and every line is encoded separately.
  */
 export function wrappedDisplayText(text: string, max: number): string {
-  return wrapLines(text, max).map(displayText).join('\\n');
+  return wrapLines(text, max).map(displayText).join(String.raw`\n`);
 }

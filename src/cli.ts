@@ -20,7 +20,7 @@ const kindList = (): string => {
   const lines = [''];
   for (const { kind } of kinds) {
     const last = lines.length - 1;
-    if (lines[last] && lines[last]!.length + kind.length > 74) { lines[last] += ','; lines.push(kind); }
+    if (lines[last] && lines[last].length + kind.length > 74) { lines[last] += ','; lines.push(kind); }
     else lines[last] += `${lines[last] ? ', ' : ''}${kind}`;
   }
   return lines.join('\n  ');
@@ -176,18 +176,35 @@ async function render(args: string[]): Promise<void> {
       if (next === undefined || (next.startsWith('-') && next !== '-')) throw usage(`Missing value for ${arg}`);
       return next;
     };
-    if (arg === '-o' || arg === '--output') { if (output !== undefined) throw usage('Duplicate -o'); output = value(); }
-    else if (arg === '--format') {
+    switch (arg) {
+    case '-o': 
+    case '--output': { if (output !== undefined) throw usage('Duplicate -o'); output = value(); 
+    break;
+    }
+    case '--format': {
       const f = value();
       if (f !== 'svg' && f !== 'png') throw usage('--format must be svg or png');
       format = f;
-    } else if (arg === '--backend') backend = value();
-    else if (arg === '--scale') {
+    
+    break;
+    }
+    case '--backend': {
+    backend = value();
+    break;
+    }
+    case '--scale': {
       scale = Number(value());
       if (!Number.isFinite(scale) || scale < 1 || scale > 4) throw usage('--scale must be a number from 1 to 4');
-    } else if (arg === '--strict') strict = true;
-    else if (input === undefined && isInput(arg)) input = arg;
+    
+    break;
+    }
+    case '--strict': {
+    strict = true;
+    break;
+    }
+    default: if (input === undefined && isInput(arg)) input = arg;
     else throw usage(`Unexpected argument ${JSON.stringify(arg)}`);
+    }
   }
   if (!input || !output) throw usage('Usage: uml render <model.json|-> -o <diagram.svg|diagram.png>');
   const extension = /\.(svg|png)$/iu.exec(output)?.[1]?.toLowerCase() as OutputFormat | undefined;
@@ -199,11 +216,11 @@ async function render(args: string[]): Promise<void> {
   selectBackend(parsed, backend);
   // Never discover or launch a renderer until the entire input has been validated.
   const { data, warnings } = await renderChecked(parsed, format, { backend, ...(scale === undefined ? {} : { scale }) });
-  if (strict && warnings.length) {
+  if (strict && warnings.length > 0) {
     throw new UmlError('LAYOUT_QUALITY', `The drawing fails ${warnings.length} layout check${warnings.length === 1 ? '' : 's'} (nothing was written): ${warnings.map(w => w.message).join(' ')}`, 5, { warnings });
   }
   await writeOutput(output, data);
-  if (warnings.length) process.stderr.write(JSON.stringify({ warnings }) + '\n');
+  if (warnings.length > 0) process.stderr.write(JSON.stringify({ warnings }) + '\n');
 }
 
 /** The minimal example model shipped for a kind (examples/<kind>/minimal.json). */
@@ -230,7 +247,7 @@ async function main(): Promise<void> {
     return;
   }
   if (command === '--version') {
-    if (rest.length) throw usage('--version takes no arguments');
+    if (rest.length > 0) throw usage('--version takes no arguments');
     process.stdout.write(`${VERSION}\n`);
     return;
   }
@@ -254,7 +271,7 @@ async function main(): Promise<void> {
       return;
     }
     case 'kinds': {
-      if (rest.length) throw usage('Usage: uml kinds');
+      if (rest.length > 0) throw usage('Usage: uml kinds');
       process.stdout.write(JSON.stringify(kinds.map(k => ({
         kind: k.kind, title: k.title, summary: k.summary, frameKeyword: k.frameKeyword, backends: k.backends.map(b => b.name),
       })), null, 2) + '\n');

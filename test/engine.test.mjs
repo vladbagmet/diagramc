@@ -112,7 +112,7 @@ test('fonts: HarfBuzz measurement of the pinned Inter matches reference widths',
   const metrics = await loadFonts();
   // Reference: Chrome getComputedTextLength() of the embedded subset (docs/decisions/0001-fonts.md).
   assert.ok(Math.abs(metrics.measure('Customer', { size: 13 }) - 59.83) < 0.05);
-  assert.ok(Math.abs(metrics.measure('placeOrder(): Order', { size: 13 }) - 120.40) < 0.05);
+  assert.ok(Math.abs(metrics.measure('placeOrder(): Order', { size: 13 }) - 120.4) < 0.05);
   assert.ok(metrics.measure('Customer', { size: 13, bold: true }) > metrics.measure('Customer', { size: 13 }));
   assert.ok(metrics.measure('注文', { size: 13 }) >= 26, 'CJK falls back to a full-width estimate');
   const css = await fontFaceCss(new Map([['regular', 'abc'], ['bold', 'X']]));

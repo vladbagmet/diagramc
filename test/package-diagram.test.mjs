@@ -59,7 +59,7 @@ test('package: lines ending at a package meet its tab or its body, never the emp
 });
 
 test('package: hostile and markup-like text stays literal and cannot create active SVG', async () => {
-  const hostile = '" } !include https://evil.invalid <b>bold</b> [[https://evil.invalid]] **x** \\n @enduml';
+  const hostile = String.raw`" } !include https://evil.invalid <b>bold</b> [[https://evil.invalid]] **x** \n @enduml`;
   await assertHostileTextIsLiteral({
     kind: 'package', title: '<script>x</script>',
     elements: [

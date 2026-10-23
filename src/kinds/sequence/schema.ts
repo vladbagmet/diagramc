@@ -71,8 +71,8 @@ export const sequenceSchema = kindSchema({
         item('fragment', 'Combined fragment: a frame with the operator in its pentagon and one region per operand, separated by dashed lines. alt: one or more operands; par, strict, seq: two or more; every other operator exactly one.', ['operator', 'operands'], {
           id: ref('id'),
           operator: { enum: ['alt', 'opt', 'loop', 'par', 'break', 'critical', 'neg', 'strict', 'seq', 'assert'], description: 'Interaction operator.' },
-          min: { type: 'integer', minimum: 0, maximum: 1000000, description: 'loop only: minimum number of iterations, drawn loop(min,max).' },
-          max: { anyOf: [{ type: 'integer', minimum: 0, maximum: 1000000 }, { const: '*' }], description: 'loop only: maximum number of iterations or "*"; requires `min`.' },
+          min: { type: 'integer', minimum: 0, maximum: 1_000_000, description: 'loop only: minimum number of iterations, drawn loop(min,max).' },
+          max: { anyOf: [{ type: 'integer', minimum: 0, maximum: 1_000_000 }, { const: '*' }], description: 'loop only: maximum number of iterations or "*"; requires `min`.' },
           operands: { type: 'array', minItems: 1, maxItems: 12, items: ref('operand') },
         }),
       ],

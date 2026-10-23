@@ -29,9 +29,9 @@ function compartments(c: Classifier): Compartment[] {
   const result = [header];
   if (c.type === 'enumeration') {
     result.push({ lines: (c.literals ?? []).map(text => ({ text, style: body, align: 'left' })) });
-    if (attributes.lines.length) result.push(attributes);
-    if (operations.lines.length) result.push(operations);
-  } else if (attributes.lines.length || operations.lines.length) {
+    if (attributes.lines.length > 0) result.push(attributes);
+    if (operations.lines.length > 0) result.push(operations);
+  } else if (attributes.lines.length > 0 || operations.lines.length > 0) {
     result.push(attributes, operations);
   }
   return result;
@@ -56,7 +56,7 @@ export function classDiagramSpec(model: ClassDiagram): DiagramSpec {
       if (data?.multiplicity !== undefined) ends.push({ end, text: data.multiplicity, kind: 'multiplicity' });
       if (data?.role !== undefined) ends.push({ end, text: data.role, kind: 'role' });
     }
-    const extra = { ...(center.length ? { center } : {}), ends };
+    const extra = { ...(center.length > 0 ? { center } : {}), ends };
     switch (r.type) {
       case 'generalization': case 'realization':
         return { ...base, ...extra, style: r.type === 'realization' ? 'dashed' : 'solid', sourceMarker: 'none', targetMarker: 'hollow-triangle', tree: true };

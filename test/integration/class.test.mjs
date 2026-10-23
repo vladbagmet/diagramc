@@ -15,9 +15,9 @@ const plantuml = { backend: 'plantuml' };
 
 function visibleText(svg) {
   return [...svg.matchAll(/<text\b[^>]*>(.*?)<\/text>/gs)].map(m => m[1]
-    .replace(/&#(\d+);/g, (_, n) => String.fromCodePoint(Number(n)))
+    .replaceAll(/&#(\d+);/g, (_, n) => String.fromCodePoint(Number(n)))
     .replaceAll('&lt;', '<').replaceAll('&gt;', '>').replaceAll('&quot;', '"').replaceAll('&amp;', '&')
-    .replace(/^​|​$/g, ''));
+    .replaceAll(/^​|​$/g, ''));
 }
 // Smetana (PlantUML's built-in layout) can put labels on nodes and draws note
 // pointers through other nodes, so the class fallback guarantees only the gates
@@ -58,7 +58,7 @@ test('PlantUML backend: the pinned runtime measures with Inter and the SVG embed
   assert.ok(Math.abs(Number(length) - expected) / expected < 0.03, `Java measured ${length}, Inter is ${expected}`);
 });
 test('PlantUML backend: hostile text stays literal and cannot create active SVG markup', async () => {
-  const hostile = '" } !include https://evil.invalid <b>bold</b> [[https://evil.invalid]] **x** \\n @enduml';
+  const hostile = String.raw`" } !include https://evil.invalid <b>bold</b> [[https://evil.invalid]] **x** \n @enduml`;
   const model = parseDocument(JSON.stringify({
     classes: [{ id: 'a', name: hostile, attributes: [hostile], methods: [hostile, 'emoji: 🚀'] }, { id: 'b', name: 'B' }],
     relationships: [{ type: 'association', from: 'a', to: 'b', label: hostile }],
@@ -74,7 +74,7 @@ test('PlantUML backend: same pinned environment produces byte-identical SVG', as
   assert.equal(await renderToSvg(parsed, plantuml), await renderToSvg(parsed, plantuml));
 });
 test('PlantUML backend preserves boundary spaces, generics, nested escapes and markup-like text in every slot', async () => {
-  const samples = ['  Customer<T>  ', '<U+0041> &amp; [[https://evil.invalid]]', '<svg onload="alert(1)">', '{static} __under__ //italic// \\n 🚀', '​visible​', 'Unicode: 🚀 𠀀 \u{100000} \u{10FFFD}'];
+  const samples = ['  Customer<T>  ', '<U+0041> &amp; [[https://evil.invalid]]', '<svg onload="alert(1)">', String.raw`{static} __under__ //italic// \n 🚀`, '​visible​', 'Unicode: 🚀 𠀀 \u{100000} \u{10FFFD}'];
   const model = parseDocument(JSON.stringify({
     classes: samples.map((text, i) => ({ id: `c${i}`, name: text, attributes: [text], methods: [text] })),
     relationships: samples.map((text, i) => ({ type: 'association', from: `c${i}`, to: `c${i}`, label: text })),
@@ -107,5 +107,5 @@ test('PlantUML backend renders PNG through resvg', async t => {
   const dir = await workspace(t);
   const result = cli(['render', join(root, 'examples/class/minimal.json'), '-o', join(dir, 'a.png'), '--backend', 'plantuml']);
   assert.equal(result.status, 0, result.stderr);
-  assert.deepEqual([...(await readFile(join(dir, 'a.png'))).subarray(0, 4)], [0x89, 0x50, 0x4e, 0x47]);
+  assert.deepEqual([...(await readFile(join(dir, 'a.png'))).subarray(0, 4)], [0x89, 0x50, 0x4E, 0x47]);
 });

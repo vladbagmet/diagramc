@@ -19,18 +19,18 @@ import { escapeText, num } from './svg.js';
 const EMOJI = /(?:\p{Emoji_Presentation}|\p{Extended_Pictographic}️)(?:\p{Emoji_Modifier}|️|‍(?:\p{Emoji_Presentation}|\p{Extended_Pictographic}️?))*/gu;
 
 const unescape = (s: string): string => s.replaceAll('&lt;', '<').replaceAll('&gt;', '>').replaceAll('&quot;', '"').replaceAll('&#39;', "'").replaceAll('&amp;', '&');
-const attribute = (attrs: string, name: string): string | undefined => attrs.match(new RegExp(`\\s${name}="([^"]*)"`, 'u'))?.[1];
+const attribute = (attrs: string, name: string): string | undefined => (new RegExp(String.raw`\s${name}="([^"]*)"`, 'u').exec(attrs))?.[1];
 
 /** Splits own-engine text lines that mix glyphs Inter has and lacks into separate text elements. */
 export function splitFallbackRuns(svg: string, metrics: FontMetrics): string {
-  return svg.replace(/<text([^>]*)>([\s\S]*?)<\/text>/gu, (whole, attrs: string, content: string) => {
+  return svg.replaceAll(/<text([^>]*)>([\s\S]*?)<\/text>/gu, (whole, attrs: string, content: string) => {
     const style = { size: Number(attribute(attrs, 'font-size') ?? theme.font.size.body), bold: attribute(attrs, 'font-weight') === String(theme.font.weight.bold), italic: attribute(attrs, 'font-style') === 'italic' };
     const lines = content.includes('<tspan')
       ? [...content.matchAll(/<tspan x="([^"]*)" y="([^"]*)">([^<]*)<\/tspan>/gu)].map(m => ({ x: Number(m[1]), y: m[2]!, text: unescape(m[3]!) }))
       : [{ x: Number(attribute(attrs, 'x')), y: attribute(attrs, 'y') ?? '0', text: unescape(content) }];
     const runs = lines.map(line => metrics.runs(line.text, style));
     if (runs.every(r => r.length < 2) || lines.some(l => Number.isNaN(l.x))) return whole;
-    const base = attrs.replace(/\s(?:x|y)="[^"]*"/gu, '');
+    const base = attrs.replaceAll(/\s(?:x|y)="[^"]*"/gu, '');
     return lines.map((line, i) => {
       let x = line.x;
       return runs[i]!.map(run => {
@@ -43,7 +43,7 @@ export function splitFallbackRuns(svg: string, metrics: FontMetrics): string {
 }
 
 export async function rasterize(svg: string, scale = 2): Promise<Buffer> {
-  svg = svg.replace(EMOJI, '□');
+  svg = svg.replaceAll(EMOJI, '□');
   if (svg.includes('data-uml-renderer="engine"')) svg = splitFallbackRuns(svg, await loadFonts());
   try {
     const { Resvg } = await import('@resvg/resvg-js');

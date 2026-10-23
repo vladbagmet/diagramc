@@ -118,7 +118,7 @@ const DETOUR_COST = 200;
 /** Proper crossings between orthogonal or straight routes (shared end points and overlaps do not count). */
 export function countCrossings(routes: readonly (readonly Point[])[]): number {
   const segments: [Point, Point, number][] = [];
-  routes.forEach((r, i) => { for (let k = 1; k < r.length; k++) segments.push([r[k - 1]!, r[k]!, i]); });
+  for (const [i, r] of routes.entries()) { for (let k = 1; k < r.length; k++) segments.push([r[k - 1]!, r[k]!, i]); }
   const cross = (o: Point, p: Point, q: Point) => (p.x - o.x) * (q.y - o.y) - (p.y - o.y) * (q.x - o.x);
   let count = 0;
   for (let i = 0; i < segments.length; i++) {

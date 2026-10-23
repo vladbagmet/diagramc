@@ -19,7 +19,7 @@ export function packageDiagramSpec(model: PackageDiagram): DiagramSpec {
         return { ...base, style: 'solid', sourceMarker: 'circle-plus', targetMarker: 'none', priority: 4 };
       case 'dependency': {
         const center = [...(r.keyword === undefined ? [] : [{ text: guillemets([r.keyword]) }]), ...(r.name === undefined ? [] : [{ text: r.name }])];
-        return { ...base, style: 'dashed', sourceMarker: 'none', targetMarker: 'open-arrow', ...(center.length ? { center } : {}) };
+        return { ...base, style: 'dashed', sourceMarker: 'none', targetMarker: 'open-arrow', ...(center.length > 0 ? { center } : {}) };
       }
       default:
         return { ...base, style: 'dashed', sourceMarker: 'none', targetMarker: 'open-arrow', center: [{ text: guillemets([r.type]) }] };

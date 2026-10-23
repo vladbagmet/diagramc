@@ -15,33 +15,33 @@ export function validateStateMachine(model: StateMachineDiagram): Diagnostic[] {
   const ids: { id: string; path: string }[] = [];
   const notes = new Map<string, { path: string; attachedTo: string[] }>();
   const visit = (elements: readonly Element[], base: string, depth: number): void => {
-    elements.forEach((e, i) => {
+    for (const [i, e] of elements.entries()) {
       const path = `${base}/${i}`;
       ids.push({ id: e.id, path });
-      if (isNote(e)) { notes.set(e.id, { path, attachedTo: e.attachedTo ?? [] }); return; }
-      if (!isState(e)) return;
+      if (isNote(e)) { notes.set(e.id, { path, attachedTo: e.attachedTo ?? [] }); continue; }
+      if (!isState(e)) continue;
       checkState(e, path, depth, diagnostics);
-      (e.connectionPoints ?? []).forEach((p, j) => ids.push({ id: p.id, path: `${path}/connectionPoints/${j}` }));
-      (e.regions ?? []).forEach((r, j) => {
+      for (const [j, p] of (e.connectionPoints ?? []).entries()) ids.push({ id: p.id, path: `${path}/connectionPoints/${j}` });
+      for (const [j, r] of (e.regions ?? []).entries()) {
         if (r.id !== undefined) ids.push({ id: r.id, path: `${path}/regions/${j}` });
         visit(r.elements, `${path}/regions/${j}/elements`, depth + 1);
-      });
-    });
+      }
+    }
   };
   visit(model.elements, '/elements', 1);
-  transitions.forEach((t, i) => { if (t.id !== undefined) ids.push({ id: t.id, path: pointer('', 'transitions', i) }); });
+  for (const [i, t] of transitions.entries()) { if (t.id !== undefined) ids.push({ id: t.id, path: pointer('', 'transitions', i) }); }
   uniqueIds(ids, diagnostics);
 
   const where = placements(model);
   const elements = new Map<string, unknown>([...where.keys(), ...notes.keys()].map(id => [id, true]));
 
   for (const [id, note] of notes) {
-    note.attachedTo.forEach((target, j) => {
+    for (const [j, target] of note.attachedTo.entries()) {
       const path = pointer(note.path, 'attachedTo', j);
-      if (!reference(target, path, elements, diagnostics)) return;
+      if (!reference(target, path, elements, diagnostics)) continue;
       if (notes.has(target)) diagnostics.push({ code: 'INVALID_ATTACHMENT', path, message: `Note "${id}" cannot be attached to another note ("${target}")` });
       else if (where.get(target)?.owner) diagnostics.push({ code: 'INVALID_ATTACHMENT', path, message: `Note "${id}" cannot be attached to connection point "${target}"; attach it to its state` });
-    });
+    }
   }
 
   // Regions: at most one initial, one shallow and one deep history each; history only inside composite states.
@@ -57,20 +57,20 @@ export function validateStateMachine(model: StateMachineDiagram): Diagnostic[] {
   }
   for (const byType of perRegion.values()) {
     for (const [type, code] of [['initial', 'MULTIPLE_INITIAL'], ['shallowHistory', 'MULTIPLE_HISTORY'], ['deepHistory', 'MULTIPLE_HISTORY']] as const) {
-      (byType.get(type) ?? []).slice(1).forEach(p => diagnostics.push({ code, path: p.path, message: `A region has at most one ${type} pseudostate; "${p.vertex.id}" is the second` }));
+      for (const p of (byType.get(type) ?? []).slice(1)) diagnostics.push({ code, path: p.path, message: `A region has at most one ${type} pseudostate; "${p.vertex.id}" is the second` });
     }
   }
 
   const incoming = new Map<string, number[]>(), outgoing = new Map<string, number[]>();
-  transitions.forEach((t, i) => {
+  for (const [i, t] of transitions.entries()) {
     const at = pointer('', 'transitions', i);
     const fromOk = reference(t.from, pointer(at, 'from'), elements, diagnostics, 'vertex', { from: t.from, to: t.to });
     const toOk = reference(t.to, pointer(at, 'to'), elements, diagnostics, 'vertex', { from: t.from, to: t.to });
-    if (!fromOk || !toOk) return;
+    if (!fromOk || !toOk) continue;
     for (const [end, id] of [['from', t.from], ['to', t.to]] as const) {
       if (notes.has(id)) diagnostics.push({ code: 'NOTE_IN_TRANSITION', path: pointer(at, end), message: `Transitions connect vertices; note "${id}" uses "attachedTo" instead` });
     }
-    if (notes.has(t.from) || notes.has(t.to)) return;
+    if (notes.has(t.from) || notes.has(t.to)) continue;
     outgoing.set(t.from, [...(outgoing.get(t.from) ?? []), i]);
     incoming.set(t.to, [...(incoming.get(t.to) ?? []), i]);
     const from = where.get(t.from)!, to = where.get(t.to)!;
@@ -95,7 +95,7 @@ export function validateStateMachine(model: StateMachineDiagram): Diagnostic[] {
     if (target === 'entryPoint' && from.ancestors.includes(to.owner!)) diagnostics.push({ code: 'INVALID_ENTRY_POINT_TRANSITION', path: pointer(at, 'from'), message: `Transitions into entry point "${t.to}" must come from outside state "${to.owner}"` });
     if (target === 'exitPoint' && !from.ancestors.includes(to.owner!)) diagnostics.push({ code: 'INVALID_EXIT_POINT_TRANSITION', path: pointer(at, 'from'), message: `Transitions into exit point "${t.to}" must come from a vertex inside state "${to.owner}"` });
     if (source === 'exitPoint' && to.ancestors.includes(from.owner!)) diagnostics.push({ code: 'INVALID_EXIT_POINT_TRANSITION', path: pointer(at, 'to'), message: `Transitions leaving exit point "${t.from}" must target a vertex outside state "${from.owner}"` });
-  });
+  }
 
   for (const p of where.values()) {
     const id = p.vertex.id, ins = incoming.get(id)?.length ?? 0, outs = outgoing.get(id) ?? [];
@@ -104,10 +104,10 @@ export function validateStateMachine(model: StateMachineDiagram): Diagnostic[] {
     };
     switch (p.vertex.type) {
       case 'initial': degree('INITIAL_OUTGOING', outs.length === 1, 'exactly one outgoing transition'); break;
-      case 'choice': degree('CHOICE_DEGREE', ins >= 1 && outs.length >= 1, 'at least one incoming and one outgoing transition');
-        if (outs.length && !outs.some(i => transitions[i]!.guard !== undefined)) diagnostics.push({ code: 'CHOICE_WITHOUT_GUARD', path: p.path, message: `Choice "${id}" needs a guard on at least one outgoing transition` });
+      case 'choice': degree('CHOICE_DEGREE', ins >= 1 && outs.length > 0, 'at least one incoming and one outgoing transition');
+        if (outs.length > 0 && !outs.some(i => transitions[i]!.guard !== undefined)) diagnostics.push({ code: 'CHOICE_WITHOUT_GUARD', path: p.path, message: `Choice "${id}" needs a guard on at least one outgoing transition` });
         break;
-      case 'junction': degree('JUNCTION_DEGREE', ins >= 1 && outs.length >= 1, 'at least one incoming and one outgoing transition'); break;
+      case 'junction': degree('JUNCTION_DEGREE', ins >= 1 && outs.length > 0, 'at least one incoming and one outgoing transition'); break;
       case 'fork': degree('FORK_DEGREE', ins === 1 && outs.length >= 2, 'one incoming and at least two outgoing transitions'); break;
       case 'join': degree('JOIN_DEGREE', ins >= 2 && outs.length === 1, 'at least two incoming transitions and one outgoing transition'); break;
       case 'shallowHistory': case 'deepHistory': degree('HISTORY_DEGREE', outs.length <= 1, 'at most one outgoing (default history) transition'); break;

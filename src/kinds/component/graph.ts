@@ -36,7 +36,7 @@ export function componentGraph(model: ComponentDiagram): StructGraph {
     if (e.type === 'component' || e.type === 'class') for (const p of e.ports ?? []) portOf.set(p.id, e.id);
     if (e.type === 'component') for (const c of e.elements ?? []) walk(c, e.id);
   };
-  model.elements.forEach(e => walk(e, undefined));
+  for (const e of model.elements) walk(e, undefined);
   const values = new Map<string, { provides?: string[]; requires?: string[] }>();
   const collectValues = (e: Element | Nested): void => {
     if (e.type !== 'component' && e.type !== 'class') return;
@@ -66,7 +66,7 @@ export function componentGraph(model: ComponentDiagram): StructGraph {
   };
   const ports = (ps: readonly Port[] | undefined): StructPort[] => (ps ?? []).map(p => {
     const label = portLabel(p);
-    return { id: p.id, ...(label !== undefined ? { label } : {}), stubs: stubs(p.id, p) };
+    return { id: p.id, ...(label === undefined ? {} : { label }), stubs: stubs(p.id, p) };
   });
 
   // Interfaces are boxes when a relationship touches them or nothing provides or requires them.
@@ -144,18 +144,18 @@ export function componentGraph(model: ComponentDiagram): StructGraph {
 
   const edges: StructEdge[] = [];
   const assemblies: StructGraph['assemblies'] = [];
-  relationships.forEach((r, i) => {
+  for (const [i, r] of relationships.entries()) {
     const id = r.id ?? `relationships/${i}`;
     const base = { id, type: r.type, source: r.from, target: r.to };
     switch (r.type) {
       case 'assembly': assemblies.push({ id, requirer: r.from, provider: r.to, name: name(r.interface) }); break;
-      case 'delegation': edges.push({ ...base, style: 'solid', sourceMarker: 'none', targetMarker: 'open-arrow', keyword: 'delegate', ...(r.name !== undefined ? { name: r.name } : {}) }); break;
+      case 'delegation': edges.push({ ...base, style: 'solid', sourceMarker: 'none', targetMarker: 'open-arrow', keyword: 'delegate', ...(r.name === undefined ? {} : { name: r.name }) }); break;
       case 'realization': edges.push({ ...base, style: 'dashed', sourceMarker: 'none', targetMarker: 'hollow-triangle' }); break;
       case 'usage': edges.push({ ...base, style: 'dashed', sourceMarker: 'none', targetMarker: 'open-arrow', keyword: 'use' }); break;
       case 'manifest': edges.push({ ...base, style: 'dashed', sourceMarker: 'none', targetMarker: 'open-arrow', keyword: 'manifest' }); break;
-      case 'dependency': edges.push({ ...base, style: 'dashed', sourceMarker: 'none', targetMarker: 'open-arrow', ...(r.keyword !== undefined ? { keyword: r.keyword } : {}), ...(r.name !== undefined ? { name: r.name } : {}) }); break;
+      case 'dependency': edges.push({ ...base, style: 'dashed', sourceMarker: 'none', targetMarker: 'open-arrow', ...(r.keyword === undefined ? {} : { keyword: r.keyword }), ...(r.name === undefined ? {} : { name: r.name }) }); break;
     }
-  });
+  }
 
   return {
     kind: 'component', frameKeyword: 'cmp', title: model.title, directions: ['RIGHT', 'DOWN'],

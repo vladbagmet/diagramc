@@ -51,16 +51,16 @@ export function parseDocument(text: string): ParsedDocument {
     }]);
   }
   const { diagnostics, texts } = validateSchema(kind.schema, document);
-  if (diagnostics.length) failValidation(withHints(kind, document, [...diagnostics, ...afterFixes(kind, document, diagnostics)]));
+  if (diagnostics.length > 0) failValidation(withHints(kind, document, [...diagnostics, ...afterFixes(kind, document, diagnostics)]));
   const semantic = kind.validate(document);
-  if (semantic.length) failValidation(withHints(kind, document, semantic));
+  if (semantic.length > 0) failValidation(withHints(kind, document, semantic));
   return { kind, model: document, texts, version: 2 };
 }
 
 /** The registered kind an unknown kind name most likely means ("state_machine", "seq", "use case diagram"). */
 export function suggestKind(name: string): string | undefined {
   const all = kinds.map(k => k.kind);
-  const plain = name.toLowerCase().replace(/[\s_]+/gu, '-').replace(/-?diagrams?$/u, '');
+  const plain = name.toLowerCase().replaceAll(/[\s_]+/gu, '-').replace(/-?diagrams?$/u, '');
   return all.find(k => k === plain) ?? all.find(k => plain.length >= 3 && k.startsWith(plain)) ?? suggest(plain, all, 'value')
     ?? ({ uml: undefined, statechart: 'state-machine', state: 'state-machine', iod: 'interaction-overview', overview: 'interaction-overview', usecase: 'use-case', composite: 'composite-structure', act: 'activity', sd: 'sequence', flow: 'activity', flowchart: 'activity', er: 'class', erd: 'class' } as Record<string, string | undefined>)[plain.replaceAll('-', '')];
 }
@@ -97,13 +97,13 @@ function afterFixes(kind: KindDefinition, document: unknown, diagnostics: readon
     if (!changed) return found;
     const next = validateSchema(kind.schema, copy).diagnostics;
     // On the corrected copy, semantic problems get their swap hints too.
-    const later = next.length ? next : withSwapHints(kind, copy, kind.validate(copy));
+    const later = next.length > 0 ? next : withSwapHints(kind, copy, kind.validate(copy));
     const fresh = later.map(d => ({ ...d, path: original(d.path) })).filter(d => !reported.has(key(d)) && !filled.has(d.path));
     for (const d of fresh) {
       reported.add(key(d));
       found.push({ ...d, message: `After the corrections above: ${d.message}`, details: { ...(typeof d.details === 'object' && d.details && !Array.isArray(d.details) ? d.details : d.details === undefined ? {} : { value: d.details }), afterFixes: true } });
     }
-    if (!next.length) return found;
+    if (next.length === 0) return found;
     current = next;
   }
   return found;
@@ -118,7 +118,7 @@ function dropIncomplete(copy: unknown, diagnostics: readonly Diagnostic[], dropp
   for (const d of diagnostics) {
     const details = d.details as { rule?: string; text?: boolean } | undefined;
     if (details?.rule !== 'required' || details.text) continue;
-    const m = d.path.match(/^\/([^/]+)\/(\d+)\/[^/]+$/u);
+    const m = /^\/([^/]+)\/(\d+)\/[^/]+$/u.exec(d.path);
     if (!m || !RELATIONSHIP_ARRAYS.has(m[1]!)) continue;
     items.set(`/${m[1]}`, [...new Set([...(items.get(`/${m[1]}`) ?? []), Number(m[2])])]);
   }
@@ -138,7 +138,7 @@ function dropIncomplete(copy: unknown, diagnostics: readonly Diagnostic[], dropp
 
 /** Maps an array index in the copy back over the items set aside before it. */
 function restoreIndexes(path: string, dropped: readonly { array: string; index: number }[]): string {
-  const m = path.match(/^(\/[^/]+)\/(\d+)(.*)$/u);
+  const m = /^(\/[^/]+)\/(\d+)(.*)$/u.exec(path);
   if (!m) return path;
   let index = Number(m[2]);
   for (const d of [...dropped].filter(d => d.array === m[1]).map(d => d.index).sort((a, b) => a - b)) if (d <= index) index++;
@@ -177,7 +177,7 @@ function applyFixes(document: unknown, diagnostics: readonly Diagnostic[], fille
       if (details.suggestion in object) continue;
       object[details.suggestion] = object[key];
       delete object[key];
-      renames.set(pointer(segments.length ? `/${segments.map(s => s.replaceAll('~', '~0').replaceAll('/', '~1')).join('/')}` : '', details.suggestion), d.path);
+      renames.set(pointer(segments.length > 0 ? `/${segments.map(s => s.replaceAll('~', '~0').replaceAll('/', '~1')).join('/')}` : '', details.suggestion), d.path);
       changed = true;
     } else if (details.rule !== 'additionalProperties' && key in object) {
       object[key] = details.suggestion;
@@ -202,7 +202,7 @@ function withHints(kind: KindDefinition, document: unknown, diagnostics: Diagnos
       const object = valueAt(document, d.path.slice(0, d.path.lastIndexOf('/')));
       const type = object && typeof object === 'object' ? (object as Record<string, unknown>).type : undefined;
       const elsewhere = typeof type === 'string' ? kindsWithProperty(type, details.property).filter(k => k !== kind.kind) : [];
-      if (elsewhere.length) {
+      if (elsewhere.length > 0) {
         return { ...d, message: `${d.message}. "${details.property}" on a ${type} belongs to ${elsewhere.map(k => `${k} diagrams`).join(' and ')}; this ${kind.kind} diagram does not draw it, so remove it (or draw it in a ${elsewhere[0]} diagram)` };
       }
     }
@@ -265,7 +265,7 @@ function findByName(document: unknown, name: string): string | undefined {
 }
 
 /** `/relationships/3/to` -> `/relationships/3`. */
-const itemPath = (path: string): string => path.match(/^\/[^/]+\/\d+/u)?.[0] ?? '';
+const itemPath = (path: string): string => (/^\/[^/]+\/\d+/u.exec(path))?.[0] ?? '';
 
 /** Items (with `from` and `to`) whose diagnostics all disappear when the two are swapped. */
 function swapHints(kind: KindDefinition, document: unknown, diagnostics: readonly Diagnostic[]): Map<string, SwapHint> {
@@ -284,7 +284,7 @@ function swapHints(kind: KindDefinition, document: unknown, diagnostics: readonl
       if (item.toEnd !== undefined) target.fromEnd = item.toEnd;
       if (item.fromEnd !== undefined) target.toEnd = item.fromEnd;
     }
-    if (validateSchema(kind.schema, copy).diagnostics.length) continue;
+    if (validateSchema(kind.schema, copy).diagnostics.length > 0) continue;
     const after = kind.validate(copy);
     const before = diagnostics.filter(d => itemPath(d.path) === path).length;
     if (before && !after.some(d => itemPath(d.path) === path) && after.length < diagnostics.length) {
@@ -319,9 +319,9 @@ function resolveRef(root: Record<string, unknown>, s: unknown): unknown {
 function parseLegacy(kind: KindDefinition, document: unknown): ParsedDocument {
   const legacy = kind.legacy!;
   const { diagnostics, texts } = validateSchema(legacy.schema, document);
-  if (diagnostics.length) failValidation(diagnostics);
+  if (diagnostics.length > 0) failValidation(diagnostics);
   const model = legacy.upgrade(document);
   const semantic = kind.validate(model);
-  if (semantic.length) failValidation(semantic.map((d): Diagnostic => ({ ...d, path: legacy.mapPath(d.path) })));
+  if (semantic.length > 0) failValidation(semantic.map((d): Diagnostic => ({ ...d, path: legacy.mapPath(d.path) })));
   return { kind, model, texts, version: 1 };
 }

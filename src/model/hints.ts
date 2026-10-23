@@ -51,7 +51,7 @@ const VALUE_SYNONYMS: Record<string, readonly string[]> = {
 };
 
 /** Lowercase letters and digits only: "use_case", "Use-Case" and "useCase" compare equal. */
-export const squash = (s: string): string => s.toLowerCase().replace(/[^a-z0-9]/gu, '');
+export const squash = (s: string): string => s.toLowerCase().replaceAll(/[^a-z0-9]/gu, '');
 
 /** Levenshtein distance, capped for speed. */
 export function editDistance(a: string, b: string, cap = 8): number {
@@ -71,7 +71,7 @@ export function editDistance(a: string, b: string, cap = 8): number {
  * word contained in it ("abstract class" -> "class").
  */
 export function suggest(wrong: string, allowed: readonly string[], what: 'property' | 'value' | 'id' = 'property'): string | undefined {
-  if (!allowed.length) return undefined;
+  if (allowed.length === 0) return undefined;
   // UML visibility symbols.
   const symbol = ({ '+': 'public', '-': 'private', '#': 'protected', '~': 'package' } as Record<string, string>)[wrong.trim()];
   if (symbol && allowed.includes(symbol)) return symbol;

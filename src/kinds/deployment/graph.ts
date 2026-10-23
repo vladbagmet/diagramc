@@ -5,7 +5,7 @@ const NODE_KEYWORD = { node: undefined, device: 'device', executionEnvironment: 
 
 /** `name : type = value` (UML 2.5.1 19.4.4, deployment specification properties). */
 export function formatProperty(p: Property): string {
-  return `${p.name}${p.type !== undefined ? ` : ${p.type}` : ''}${p.value !== undefined ? ` = ${p.value}` : ''}`;
+  return `${p.name}${p.type === undefined ? '' : ` : ${p.type}`}${p.value === undefined ? '' : ` = ${p.value}`}`;
 }
 
 /** Maps a validated deployment diagram to the shared structure graph. */
@@ -39,11 +39,11 @@ export function deploymentGraph(model: DeploymentDiagram): StructGraph {
         const ends: NonNullable<StructEdge['ends']> = [];
         if (r.fromEnd?.multiplicity !== undefined) ends.push({ end: 'source', text: r.fromEnd.multiplicity, kind: 'multiplicity' });
         if (r.toEnd?.multiplicity !== undefined) ends.push({ end: 'target', text: r.toEnd.multiplicity, kind: 'multiplicity' });
-        return { ...base, style: 'solid', sourceMarker: 'none', targetMarker: 'none', ...(r.protocol !== undefined ? { keyword: r.protocol } : {}), ...(r.name !== undefined ? { name: r.name } : {}), ends };
+        return { ...base, style: 'solid', sourceMarker: 'none', targetMarker: 'none', ...(r.protocol === undefined ? {} : { keyword: r.protocol }), ...(r.name === undefined ? {} : { name: r.name }), ends };
       }
       case 'deploy': return { ...base, style: 'dashed', sourceMarker: 'none', targetMarker: 'open-arrow', keyword: 'deploy' };
       case 'manifest': return { ...base, style: 'dashed', sourceMarker: 'none', targetMarker: 'open-arrow', keyword: 'manifest' };
-      case 'dependency': return { ...base, style: 'dashed', sourceMarker: 'none', targetMarker: 'open-arrow', ...(r.keyword !== undefined ? { keyword: r.keyword } : {}), ...(r.name !== undefined ? { name: r.name } : {}) };
+      case 'dependency': return { ...base, style: 'dashed', sourceMarker: 'none', targetMarker: 'open-arrow', ...(r.keyword === undefined ? {} : { keyword: r.keyword }), ...(r.name === undefined ? {} : { name: r.name }) };
     }
   });
   return {
