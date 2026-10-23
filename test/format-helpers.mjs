@@ -8,7 +8,7 @@ import { root } from './helpers.mjs';
 
 /** Kinds each format imports, so their examples must survive a round trip. */
 export const ROUND_TRIP = {
-  plantuml: ['class'],
+  plantuml: ['class', 'sequence'],
   mermaid: [],
 };
 

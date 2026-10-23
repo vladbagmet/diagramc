@@ -24,9 +24,39 @@ const classCommon = m => {
   return m;
 };
 
+/** Visits every item of a sequence, fragments' operands included. */
+const items = (list, visit) => { for (const item of list) { visit(item); if (item.type === 'fragment') for (const o of item.operands) items(o.items, visit); } };
+
+const sequenceCommon = m => {
+  for (const l of m.lifelines) if (l.symbol === 'rectangle') delete l.symbol;
+  if (m.autonumber === false) delete m.autonumber;
+  items(m.items, item => {
+    delete item.id;
+    if (item.activate === false) delete item.activate;
+    if (item.deactivate === false) delete item.deactivate;
+  });
+  return m;
+};
+
+/** PlantUML spans the columns between two lifelines: a note or reference over more keeps the outermost two. */
+const outermost = (m, list) => {
+  const order = new Map(m.lifelines.map((l, i) => [l.id, i]));
+  if (list.length <= 2) return list;
+  const s = [...list].sort((a, b) => order.get(a) - order.get(b));
+  return [s[0], s.at(-1)];
+};
+
 export const LOSSES = {
   plantuml: {
     class: classCommon,
+    sequence: m => {
+      sequenceCommon(m);
+      items(m.items, item => {
+        if (item.type === 'note' && item.position === 'over') item.lifelines = outermost(m, item.lifelines);
+        if (item.type === 'ref') item.covered = outermost(m, item.covered);
+      });
+      return m;
+    },
   },
   mermaid: {},
 };
