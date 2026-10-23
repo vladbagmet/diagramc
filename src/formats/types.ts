@@ -13,8 +13,9 @@ export class Losses {
   readonly warnings: Diagnostic[] = [];
   constructor(private readonly format: FormatName) {}
   add(path: string, message: string): void {
-    if (this.warnings.some(w => w.path === path && w.message === message)) return;
-    this.warnings.push({ code: 'EXPORT_LOSSY', path, message: `${message} (not expressible in ${this.format === 'plantuml' ? 'PlantUML' : 'Mermaid'})` });
+    const text = `${this.format === 'plantuml' ? 'PlantUML' : 'Mermaid'} export: ${message}`;
+    if (this.warnings.some(w => w.path === path && w.message === text)) return;
+    this.warnings.push({ code: 'EXPORT_LOSSY', path, message: text });
   }
 }
 

@@ -46,6 +46,69 @@ const outermost = (m, list) => {
   return [s[0], s.at(-1)];
 };
 
+/** Visits every vertex of a state machine, nested regions included. */
+const vertices = (elements, visit) => { for (const e of elements) { visit(e); for (const r of e.regions ?? []) vertices(r.elements, visit); } };
+
+const stateCommon = m => {
+  drop(m.transitions, 'id');
+  vertices(m.elements, v => { for (const r of v.regions ?? []) { delete r.id; delete r.name; } });
+  dropEmpty(m, ['internal', 'connectionPoints', 'attachedTo', 'transitions']);
+  return m;
+};
+
+/** Attached notes are written once per target vertex. */
+const attachedNotes = m => {
+  const out = [];
+  for (const e of m.elements) {
+    if (e.type !== 'note' || !e.attachedTo?.length) { out.push(e); continue; }
+    for (const target of e.attachedTo) out.push({ type: 'note', text: e.text, attachedTo: [target] });
+  }
+  m.elements = out;
+  return m;
+};
+
+/** Region chain of every vertex and connection point ("state#index" keys, outermost first). */
+function regionChains(m) {
+  const chains = new Map();
+  const index = (elements, chain) => {
+    for (const e of elements) {
+      if (e.type === 'note') continue;
+      chains.set(e.id, chain);
+      for (const p of e.connectionPoints ?? []) chains.set(p.id, [...chain, `${e.id}#0`]);
+      (e.regions ?? []).forEach((r, j) => index(r.elements, [...chain, `${e.id}#${j}`]));
+    }
+  };
+  index(m.elements, []);
+  return chains;
+}
+
+/** PlantUML cannot draw a transition into or out of a second or later orthogonal region. */
+const closedRegions = m => {
+  const chains = regionChains(m);
+  m.transitions = (m.transitions ?? []).filter(t => {
+    const a = chains.get(t.from), b = chains.get(t.to);
+    let common = 0;
+    while (common < a.length && common < b.length && a[common] === b[common]) common++;
+    return ![...a.slice(common), ...b.slice(common)].some(k => !k.endsWith('#0'));
+  });
+  if (!m.transitions.length) delete m.transitions;
+  return m;
+};
+
+/**
+ * Order that carries no meaning, applied to both sides before comparing: the
+ * order of transitions (written per region) and of attached notes (written
+ * beside their vertex, with fresh IDs).
+ */
+export const CANONICAL = {
+  'state-machine': m => {
+    if (m.transitions) m.transitions = [...m.transitions].sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b)));
+    const attached = m.elements.filter(e => e.type === 'note' && e.attachedTo?.length).map(({ id, ...rest }) => rest);
+    m.elements = [...m.elements.filter(e => !(e.type === 'note' && e.attachedTo?.length)), ...attached.sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b)))];
+    return m;
+  },
+};
+
 export const LOSSES = {
   plantuml: {
     class: classCommon,
@@ -55,6 +118,20 @@ export const LOSSES = {
         if (item.type === 'note' && item.position === 'over') item.lifelines = outermost(m, item.lifelines);
         if (item.type === 'ref') item.covered = outermost(m, item.covered);
       });
+      return m;
+    },
+    'state-machine': m => closedRegions(attachedNotes(stateCommon(m))),
+    'use-case': m => {
+      drop(m.relationships, 'id');
+      dropEmpty(m, ['stereotypes', 'extensionPoints', 'attachedTo', 'relationships']);
+      // Use cases of a subject are written inside it, right after the subject.
+      const order = [];
+      for (const e of m.elements) {
+        if (e.type === 'useCase' && e.subject !== undefined) continue;
+        order.push(e);
+        if (e.type === 'subject') order.push(...m.elements.filter(u => u.type === 'useCase' && u.subject === e.id));
+      }
+      m.elements = order;
       return m;
     },
   },
