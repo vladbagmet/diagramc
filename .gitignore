@@ -1,7 +1,28 @@
+# Dependencies and build output
 node_modules/
 dist/
+*.tgz
+
+# Private PlantUML runtime downloaded by npm run setup:renderer
 .tools
+
+# Local output: gallery, screenshots scratch space, review renders
+artifacts/
+
+# Coverage output
+coverage/
+.nyc_output/
+
+# Logs and temporary files
+*.log
 *.tmp
+
+# Operating system and editor files
 .DS_Store
-artifacts/gallery/
+.vscode/
+.idea/
+*.swp
+*~
+
+# Local agent settings
 .claude/
