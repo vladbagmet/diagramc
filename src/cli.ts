@@ -26,6 +26,20 @@ const kindList = (): string => {
   }
   return lines.join('\n  ');
 };
+/** Words wrapped to `width` columns, continuation lines indented by `indent`. */
+const wrap = (text: string, indent: string, width = 80): string => {
+  const lines = [''];
+  for (const word of text.split(' ')) {
+    const last = lines.length - 1;
+    if (lines[last] && indent.length + lines[last]!.length + word.length + 1 > width) lines.push(word);
+    else lines[last] += `${lines[last] ? ' ' : ''}${word}`;
+  }
+  return lines.join(`\n${indent}`);
+};
+/** Kinds that export to (or import from) a format, comma separated. */
+const formatKinds = (direction: 'exports' | 'imports', format: FormatName): string =>
+  kinds.filter(k => formatSupport(k.kind)[direction].includes(format)).map(k => k.kind).join(', ');
+
 const plantumlKinds = (): string => kinds.filter(k => k.backends[0]?.name === 'plantuml').map(k => k.kind).join(', ');
 
 const renderer = (): string => `PlantUML kinds (${plantumlKinds()}, and class with --backend
@@ -64,11 +78,8 @@ Commands:
   render     Validate, then draw the diagram and check its layout. Output format
              follows the -o extension (.svg or .png) unless --format is given.
   validate   Validate only. Prints {"valid":true,"kind":...,"version":...} on stdout.
-  export     Validate, then write the model as PlantUML (every kind) or Mermaid
-             text (class, sequence, state-machine, activity, use-case).
-  import     Read PlantUML (class, sequence, state-machine, use-case, activity)
-             or Mermaid (class, sequence, state-machine) text into a validated
-             model.
+  export     ${wrap(`Validate, then write the model as PlantUML (every kind) or Mermaid (${formatKinds('exports', 'mermaid')}) text.`, '             ')}
+  import     ${wrap(`Read PlantUML (${formatKinds('imports', 'plantuml')}) or Mermaid (${formatKinds('imports', 'mermaid')}) text into a validated model.`, '             ')}
   example    Print a minimal valid model of a kind: a starting point to edit.
   schema     Print the JSON Schema of a kind (draft-07): every property, with
              descriptions and allowed values.
@@ -150,8 +161,7 @@ Options:
                             .puml/.plantuml or .mmd/.mermaid).
   -o, --output <path>       Output file; its parent directory must exist.
 
-PlantUML: all ${kinds.length} kinds. Mermaid: ${kinds.filter(k => formatSupport(k.kind).exports.includes('mermaid')).map(k => k.kind).join(', ')};
-the others fail with UNSUPPORTED_EXPORT (exit 2), naming the formats that work.
+${wrap(`PlantUML: all ${kinds.length} kinds. Mermaid: ${formatKinds('exports', 'mermaid')}; the others fail with UNSUPPORTED_EXPORT (exit 2), naming the formats that work.`, '')}
 Constructs the format cannot express are reported, the export still succeeds:
 one JSON object on stderr,
 {"warnings":[{"code":"EXPORT_LOSSY","path","message"}]}, where path is the
@@ -173,8 +183,7 @@ Options:
                             PlantUML, from the header for Mermaid).
   -o, --output <path>       Output file; its parent directory must exist.
 
-PlantUML: class, sequence, state-machine, use-case, activity. Mermaid: class
-(classDiagram), sequence (sequenceDiagram), state-machine (stateDiagram-v2).
+${wrap(`PlantUML: ${formatKinds('imports', 'plantuml')}. Mermaid: ${formatKinds('imports', 'mermaid')} (classDiagram, sequenceDiagram, stateDiagram-v2).`, '')}
 Only the part of each syntax that maps onto the model is read; nothing is
 guessed. Every line that cannot be read is reported at once in "diagnostics",
 each with code UNSUPPORTED_SYNTAX (valid in the format, but not in the model)
