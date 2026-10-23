@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Report a security vulnerability
+    url: https://github.com/vladbagmet/uml_cli/security/advisories/new
+    about: Please report security problems privately, not in a public issue.
+  - name: Contributing guide
+    url: https://github.com/vladbagmet/uml_cli/blob/main/CONTRIBUTING.md
+    about: How to set up, test and open a pull request.
