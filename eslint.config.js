@@ -6,7 +6,8 @@ import unicorn from 'eslint-plugin-unicorn';
 // Rules are only turned off with a reason. Everything else in the presets is
 // enforced and the code is fixed to meet it.
 export default tseslint.config(
-  { ignores: ['dist/', 'coverage/', '.tools/', 'artifacts/', 'node_modules/'] },
+  // Dot-directories hold tool caches, editor state and nested worktrees, never source.
+  { ignores: ['dist/', 'coverage/', 'artifacts/', 'node_modules/', '**/.*/'] },
   js.configs.recommended,
   unicorn.configs.recommended,
   {
