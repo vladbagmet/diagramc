@@ -113,9 +113,9 @@ export async function setupRenderer({ root = defaultRoot, platform = process.pla
   const runtime = runtimes[`${platform}-${arch}`];
   if (!runtime) throw new Error('Automatic setup supports macOS/Linux on arm64/x64 only. Set UML_JAVA and PLANTUML_JAR manually.');
   await mkdir(root, { recursive: true });
-  const jar = 'plantuml-1.2025.10.jar';
+  const jar = 'plantuml-mit-1.2025.10.jar';
   await download(root, `https://github.com/plantuml/plantuml/releases/download/v1.2025.10/${jar}`, jar,
-    '4a01ea09b317180fb8e7eef712dfdca725409d2ee1919e4b5adfe9d8362b6fe5', { log });
+    'a0e2f8f176e812fe1118246e4ffbf2d9c2bf2a0977024b3d533459f5e2df838c', { log });
   const archiveName = `OpenJDK21U-jre_${runtime[0]}_hotspot_${jreVersion}.tar.gz`;
   const archive = await download(root, `https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.11%2B10/${archiveName}`,
     archiveName, runtime[1], { log });
