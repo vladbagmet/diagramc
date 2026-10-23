@@ -22,8 +22,14 @@ for (const [format, kinds] of Object.entries(ROUND_TRIP)) {
       if (limit) {
         test(`${format} round trip of ${name} reports ${limit.why} as a loss and the import as invalid`, () => {
           const exported = exportDocument(parseDocument(text), format);
-          assert.ok(exported.warnings.some(w => w.code === 'EXPORT_LOSSY' && w.path === limit.path), JSON.stringify(exported.warnings));
-          assert.throws(() => importText(exported.text, format), e => e.code === 'IMPORT_INVALID' && e.diagnostics.some(d => d.code === limit.code));
+          assert.ok(
+            exported.warnings.some(w => w.code === 'EXPORT_LOSSY' && w.path === limit.path),
+            JSON.stringify(exported.warnings),
+          );
+          assert.throws(
+            () => importText(exported.text, format),
+            e => e.code === 'IMPORT_INVALID' && e.diagnostics.some(d => d.code === limit.code),
+          );
         });
         continue;
       }
@@ -42,14 +48,21 @@ for (const [format, kinds] of Object.entries(ROUND_TRIP)) {
 test('import reports every unsupported and malformed line at once, with line numbers', () => {
   const source = ['@startuml', 'class A {', '  +ok() : Boolean', '}', 'struct S', 'A --> B : uses', 'A ~~~ B', 'package P {', '}', '@enduml'].join('\n');
   let error;
-  try { importText(source, 'plantuml'); } catch (e) { error = e; }
+  try {
+    importText(source, 'plantuml');
+  } catch (error_) {
+    error = error_;
+  }
   assert.ok(error, 'expected an error');
-  assert.deepEqual(error.diagnostics.map(d => [d.code, d.path, d.details.line]), [
-    ['UNSUPPORTED_SYNTAX', '/lines/5', 5],
-    ['UNSUPPORTED_SYNTAX', '/lines/7', 7],
-    ['UNSUPPORTED_SYNTAX', '/lines/8', 8],
-    ['MALFORMED_LINE', '/lines/9', 9],
-  ]);
+  assert.deepEqual(
+    error.diagnostics.map(d => [d.code, d.path, d.details.line]),
+    [
+      ['UNSUPPORTED_SYNTAX', '/lines/5', 5],
+      ['UNSUPPORTED_SYNTAX', '/lines/7', 7],
+      ['UNSUPPORTED_SYNTAX', '/lines/8', 8],
+      ['MALFORMED_LINE', '/lines/9', 9],
+    ],
+  );
 });
 
 // Every Mermaid export passes the structural check, every PlantUML export is
@@ -65,12 +78,19 @@ for (const { kind } of kinds) {
       const puml = exportDocument(parsed, 'plantuml').text.split('\n');
       assert.equal(puml[0], '@startuml', name);
       assert.equal(puml.filter(l => /^\s*@(?:start|end)uml/u.test(l)).length, 2, `${name}: one diagram`);
-      assert.deepEqual(puml.filter(l => /^\s*!/u.test(l)), [], `${name}: no preprocessor lines`);
+      assert.deepEqual(
+        puml.filter(l => /^\s*!/u.test(l)),
+        [],
+        `${name}: no preprocessor lines`,
+      );
       if (support.exports.includes('mermaid')) {
         const problems = checkMermaid(exportDocument(parsed, 'mermaid').text);
         assert.deepEqual(problems, [], `${name}: ${problems.join('; ')}`);
       } else {
-        assert.throws(() => exportDocument(parsed, 'mermaid'), e => e.code === 'UNSUPPORTED_EXPORT' && e.details.formats.includes('plantuml') && e.message.includes(kind));
+        assert.throws(
+          () => exportDocument(parsed, 'mermaid'),
+          e => e.code === 'UNSUPPORTED_EXPORT' && e.details.formats.includes('plantuml') && e.message.includes(kind),
+        );
       }
     }
   });
@@ -99,7 +119,10 @@ test('the formats each kind exports to and imports from', () => {
 // importer reads the common subset and infers the kind from the content.
 
 const HAND_WRITTEN = [
-  ['plantuml', 'class', `@startuml
+  [
+    'plantuml',
+    'class',
+    `@startuml
 ' a comment
 skinparam classAttributeIconSize 0
 abstract class Animal {
@@ -112,8 +135,12 @@ Animal <|-- Dog
 Dog ..|> Pet
 Dog "1" *-- "4" Leg : has >
 Dog : +fetch(item : Ball) : Boolean
-@enduml`],
-  ['plantuml', 'sequence', `@startuml
+@enduml`,
+  ],
+  [
+    'plantuml',
+    'sequence',
+    `@startuml
 actor User
 participant "Web Shop" as shop
 User -> shop ++ : order(item)
@@ -123,8 +150,12 @@ alt paid
 else not paid
   shop ->> User : reminder
 end
-@enduml`],
-  ['plantuml', 'state-machine', `@startuml
+@enduml`,
+  ],
+  [
+    'plantuml',
+    'state-machine',
+    `@startuml
 [*] --> Idle
 state Idle : entry / reset
 Idle --> Running : start [ready] / log
@@ -133,8 +164,12 @@ state Running {
   Fast --> Slow : brake
 }
 Running --> [*] : stop
-@enduml`],
-  ['plantuml', 'use-case', `@startuml
+@enduml`,
+  ],
+  [
+    'plantuml',
+    'use-case',
+    `@startuml
 left to right direction
 actor :Customer: as c
 rectangle Shop {
@@ -143,8 +178,12 @@ rectangle Shop {
 }
 c -- checkout
 checkout ..> (Pay) : <<include>>
-@enduml`],
-  ['plantuml', 'activity', `@startuml
+@enduml`,
+  ],
+  [
+    'plantuml',
+    'activity',
+    `@startuml
 start
 :Receive order;
 if () then ([in stock])
@@ -153,8 +192,12 @@ else ([out of stock])
   :Reorder;
 endif
 stop
-@enduml`],
-  ['mermaid', 'class', `---
+@enduml`,
+  ],
+  [
+    'mermaid',
+    'class',
+    `---
 title: Animals
 ---
 classDiagram
@@ -166,16 +209,24 @@ classDiagram
   }
   Animal <|-- Dog
   Dog : +fetch() : Boolean
-  note for Dog "Good boy"`],
-  ['mermaid', 'sequence', `sequenceDiagram
+  note for Dog "Good boy"`,
+  ],
+  [
+    'mermaid',
+    'sequence',
+    `sequenceDiagram
   participant A as Alice
   participant B as Bob
   A->>+B: Hello Bob, how are you?
   B-->>-A: Great!
   loop every minute
     A-)B: ping
-  end`],
-  ['mermaid', 'state-machine', `stateDiagram-v2
+  end`,
+  ],
+  [
+    'mermaid',
+    'state-machine',
+    `stateDiagram-v2
   [*] --> Still
   Still --> Moving : push
   Moving --> Still : stop
@@ -183,7 +234,8 @@ classDiagram
     [*] --> Slow
     Slow --> Fast : speed up
   }
-  Moving --> [*] : crash`],
+  Moving --> [*] : crash`,
+  ],
 ];
 
 for (const [format, kind, source] of HAND_WRITTEN) {
@@ -195,11 +247,28 @@ for (const [format, kind, source] of HAND_WRITTEN) {
 }
 
 test('import never guesses: unsupported constructs and malformed lines are reported, each with its line', () => {
-  const errorOf = (text, format, kind) => { try { importText(text, format, kind); } catch (e) { return e; } assert.fail('expected an error'); };
+  const errorOf = (text, format, kind) => {
+    try {
+      importText(text, format, kind);
+    } catch (error) {
+      return error;
+    }
+    assert.fail('expected an error');
+  };
   let e = errorOf('@startuml\nstart\nif (paid?) then (yes)\n  :Ship;\nendif\nstop\n@enduml', 'plantuml', 'activity');
-  assert.ok(e.diagnostics.some(d => d.code === 'UNSUPPORTED_SYNTAX' && d.details.line === 3 && /question text/u.test(d.message)), JSON.stringify(e.diagnostics));
+  assert.ok(
+    e.diagnostics.some(d => d.code === 'UNSUPPORTED_SYNTAX' && d.details.line === 3 && /question text/u.test(d.message)),
+    JSON.stringify(e.diagnostics),
+  );
   e = errorOf('sequenceDiagram\n  participant A\n  A->>B: hi\n  box Purple\n  end', 'mermaid');
-  assert.deepEqual(e.diagnostics.map(d => [d.code, d.details.line]), [['MALFORMED_LINE', 3], ['UNSUPPORTED_SYNTAX', 4], ['MALFORMED_LINE', 5]]);
+  assert.deepEqual(
+    e.diagnostics.map(d => [d.code, d.details.line]),
+    [
+      ['MALFORMED_LINE', 3],
+      ['UNSUPPORTED_SYNTAX', 4],
+      ['MALFORMED_LINE', 5],
+    ],
+  );
   e = errorOf('flowchart LR\n  a --> b', 'mermaid');
   assert.equal(e.code, 'UNSUPPORTED_SYNTAX');
   assert.match(e.message, /flowchart/u);
@@ -210,7 +279,11 @@ test('import never guesses: unsupported constructs and malformed lines are repor
 test('a model that reads but breaks a rule fails with IMPORT_INVALID, pointing into the model it carries', () => {
   const source = '@startuml\nclass A\ninterface I\nI --|> A\n@enduml';
   let error;
-  try { importText(source, 'plantuml'); } catch (e) { error = e; }
+  try {
+    importText(source, 'plantuml');
+  } catch (error_) {
+    error = error_;
+  }
   assert.equal(error?.code, 'IMPORT_INVALID');
   assert.equal(error.details.kind, 'class');
   assert.equal(error.details.model.elements.length, 2);
@@ -228,14 +301,18 @@ test('uml export and uml import on the command line', async t => {
   assert.equal(r.status, 0, r.stderr);
   assert.match(await readFile(join(dir, 'n.mmd'), 'utf8'), /^---\ntitle: "Notation reference"\n---\nclassDiagram\n/u);
   const { warnings } = JSON.parse(r.stderr);
-  assert.ok(warnings.length && warnings.every(w => w.code === 'EXPORT_LOSSY' && w.path.startsWith('/')));
+  assert.ok(warnings.length > 0 && warnings.every(w => w.code === 'EXPORT_LOSSY' && w.path.startsWith('/')));
   // a kind Mermaid cannot draw
   r = cli(['export', join(root, 'examples/timing/door.json'), '--to', 'mermaid']);
   assert.equal(r.status, 2);
   assert.equal(JSON.parse(r.stderr).error.code, 'UNSUPPORTED_EXPORT');
   assert.equal(r.stdout, '');
   // usage errors
-  for (const args of [['export', join(root, 'examples/class/minimal.json')], ['export', join(root, 'examples/class/minimal.json'), '--to', 'xmi'], ['import', '-']]) {
+  for (const args of [
+    ['export', join(root, 'examples/class/minimal.json')],
+    ['export', join(root, 'examples/class/minimal.json'), '--to', 'xmi'],
+    ['import', '-'],
+  ]) {
     r = cli(args, { input: '' });
     assert.equal(r.status, 2, args.join(' '));
     assert.equal(JSON.parse(r.stderr).error.code, 'USAGE');
@@ -258,7 +335,10 @@ test('uml export and uml import on the command line', async t => {
   // unreadable lines: one error object with every problem
   r = cli(['import', '-', '--from', 'plantuml'], { input: '@startuml\nclass A\nA ~~ B\nstruct S\n@enduml\n' });
   assert.equal(r.status, 2);
-  assert.deepEqual(JSON.parse(r.stderr).error.diagnostics.map(d => d.path), ['/lines/3', '/lines/4']);
+  assert.deepEqual(
+    JSON.parse(r.stderr).error.diagnostics.map(d => d.path),
+    ['/lines/3', '/lines/4'],
+  );
 });
 
 test('uml kinds lists the formats, and the help describes export and import', () => {

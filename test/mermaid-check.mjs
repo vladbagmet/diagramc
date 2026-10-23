@@ -27,21 +27,47 @@ export function checkMermaid(text) {
     let closed = false;
     for (; i < lines.length; i++) {
       const t = lines[i].trim();
-      if (t === '---') { closed = true; i++; break; }
+      if (t === '---') {
+        closed = true;
+        i++;
+        break;
+      }
       const m = /^title:\s*(.*)$/u.exec(t);
-      if (!m) { report(i, `unexpected front matter ${JSON.stringify(t)}`); continue; }
-      try { if (typeof JSON.parse(m[1]) !== 'string') throw new Error(); } catch { report(i, 'the title must be a double-quoted string'); }
+      if (!m) {
+        report(i, `unexpected front matter ${JSON.stringify(t)}`);
+        continue;
+      }
+      try {
+        if (typeof JSON.parse(m[1]) !== 'string') throw new Error('not a string');
+      } catch {
+        report(i, 'the title must be a double-quoted string');
+      }
     }
     if (!closed) report(start, 'front matter is not closed with ---');
   }
   while (i < lines.length && !lines[i].trim()) i++;
   const header = lines[i]?.trim();
   let check;
-  if (header === 'classDiagram') check = classLine;
-  else if (header === 'sequenceDiagram') check = sequenceLine;
-  else if (header === 'stateDiagram-v2') check = stateLine;
-  else if (/^flowchart\s+(?:TD|TB|LR|RL|BT)$/u.test(header ?? '')) check = flowchartLine;
-  else { report(i, `expected a diagram header, got ${JSON.stringify(header)}`); return problems; }
+  switch (header) {
+    case 'classDiagram': {
+      check = classLine;
+      break;
+    }
+    case 'sequenceDiagram': {
+      check = sequenceLine;
+      break;
+    }
+    case 'stateDiagram-v2': {
+      check = stateLine;
+      break;
+    }
+    default:
+      if (/^flowchart\s+(?:TD|TB|LR|RL|BT)$/u.test(header ?? '')) check = flowchartLine;
+      else {
+        report(i, `expected a diagram header, got ${JSON.stringify(header)}`);
+        return problems;
+      }
+  }
   const state = { stack: [], declared: new Set(), note: false };
   for (i++; i < lines.length; i++) {
     const t = lines[i].trim();
@@ -52,7 +78,9 @@ export function checkMermaid(text) {
   return problems;
 
   // Each checker returns the problems of one line; blocks are tracked on state.stack with their line.
-  function open(state, kind) { state.stack.push({ kind, line: i }); }
+  function open(state, kind) {
+    state.stack.push({ kind, line: i });
+  }
   function close(state, kinds) {
     const top = state.stack.at(-1);
     if (!top || !kinds.includes(top.kind)) return [`unmatched close of ${kinds.join('/')}`];
@@ -67,37 +95,46 @@ export function checkMermaid(text) {
       if (/[{}]/u.test(t) && !/\{\s*\}$/u.test(t)) return [`member ${JSON.stringify(t)} contains a brace`];
       return [];
     }
-    let m = new RegExp(`^class\\s+(${ID})(?:\\[${QUOTED}\\])?(?:~[^~]+~)?\\s*(\\{)?$`, 'u').exec(t);
-    if (m) { state.declared.add(m[1]); if (m[2]) open(state, 'class'); return []; }
+    let m = new RegExp(String.raw`^class\s+(${ID})(?:\[${QUOTED}\])?(?:~[^~]+~)?\s*(\{)?$`, 'u').exec(t);
+    if (m) {
+      state.declared.add(m[1]);
+      if (m[2]) open(state, 'class');
+      return [];
+    }
     if (DIRECTION.test(t)) return [];
-    if (new RegExp(`^${ID}\\s*:\\s*.+$`, 'u').test(t) && !/(--|\.\.)/u.test(t.split(':')[0])) return [];
-    if (new RegExp(`^note\\s+for\\s+${ID}\\s+${QUOTED}$`, 'u').test(t) || new RegExp(`^note\\s+${QUOTED}$`, 'u').test(t)) return [];
-    if (new RegExp(`^<<[^<>]+>>\\s+${ID}$`, 'u').test(t)) return [];
-    const arrow = '(?:<\\|--|--\\|>|\\*--|--\\*|o--|--o|<-->|-->|<--|--|<\\.\\.|\\.\\.>|\\.\\.\\|>|<\\|\\.\\.|\\.\\.|\\(\\)--|--\\(\\))';
-    m = new RegExp(`^(${ID})\\s*(?:${QUOTED}\\s*)?${arrow}\\s*(?:${QUOTED}\\s*)?(${ID})(?:\\s*:\\s*(.*))?$`, 'u').exec(t);
+    if (new RegExp(String.raw`^${ID}\s*:\s*.+$`, 'u').test(t) && !/(--|\.\.)/u.test(t.split(':', 1)[0])) return [];
+    if (new RegExp(String.raw`^note\s+for\s+${ID}\s+${QUOTED}$`, 'u').test(t) || new RegExp(String.raw`^note\s+${QUOTED}$`, 'u').test(t)) return [];
+    if (new RegExp(String.raw`^<<[^<>]+>>\s+${ID}$`, 'u').test(t)) return [];
+    const arrow = String.raw`(?:<\|--|--\|>|\*--|--\*|o--|--o|<-->|-->|<--|--|<\.\.|\.\.>|\.\.\|>|<\|\.\.|\.\.|\(\)--|--\(\))`;
+    m = new RegExp(String.raw`^(${ID})\s*(?:${QUOTED}\s*)?${arrow}\s*(?:${QUOTED}\s*)?(${ID})(?:\s*:\s*(.*))?$`, 'u').exec(t);
     if (m) return [];
     if (/^classDef\b|^style\b|^cssClass\b/u.test(t)) return [];
     return [`not a classDiagram statement: ${JSON.stringify(t)}`];
   }
 
   // Entity codes (#59;, #quot;) end in ";" but do not split a statement.
-  function rawSemicolon(s) { return s.replace(/#(?:\d{1,7}|[A-Za-z]+);/gu, '').includes(';'); }
+  function rawSemicolon(s) {
+    return s.replaceAll(/#(?:\d{1,7}|[A-Za-z]+);/gu, '').includes(';');
+  }
 
   function sequenceLine(t, state) {
-    const known = id => state.declared.has(id) ? [] : [`participant "${id}" is used before it is declared`];
-    let m = new RegExp(`^(?:create\\s+)?(?:participant|actor)\\s+(${ID})(?:\\s+as\\s+(.+))?$`, 'u').exec(t);
+    const known = id => (state.declared.has(id) ? [] : [`participant "${id}" is used before it is declared`]);
+    let m = new RegExp(String.raw`^(?:create\s+)?(?:participant|actor)\s+(${ID})(?:\s+as\s+(.+))?$`, 'u').exec(t);
     if (m) {
       state.declared.add(m[1]);
       return m[2] !== undefined && rawSemicolon(m[2]) ? ['raw ";" in a participant label'] : [];
     }
-    m = new RegExp(`^(?:destroy|activate|deactivate)\\s+(${ID})$`, 'u').exec(t);
+    m = new RegExp(String.raw`^(?:destroy|activate|deactivate)\s+(${ID})$`, 'u').exec(t);
     if (m) return known(m[1]);
-    m = new RegExp(`^(${ID})\\s*(<<-->>|<<->>|-->>|->>|-->|->|--x|-x|--\\)|-\\))\\s*[+-]?(${ID})\\s*:(.*)$`, 'u').exec(t);
+    m = new RegExp(String.raw`^(${ID})\s*(<<-->>|<<->>|-->>|->>|-->|->|--x|-x|--\)|-\))\s*[+-]?(${ID})\s*:(.*)$`, 'u').exec(t);
     if (m) return [...known(m[1]), ...known(m[3]), ...(rawSemicolon(m[4]) ? ['raw ";" in message text'] : [])];
-    m = new RegExp(`^Note\\s+(?:left of|right of|over)\\s+(${ID})(?:\\s*,\\s*(${ID}))?\\s*:(.*)$`, 'u').exec(t);
+    m = new RegExp(String.raw`^Note\s+(?:left of|right of|over)\s+(${ID})(?:\s*,\s*(${ID}))?\s*:(.*)$`, 'u').exec(t);
     if (m) return [...known(m[1]), ...(m[2] ? known(m[2]) : []), ...(rawSemicolon(m[3]) ? ['raw ";" in note text'] : [])];
     m = /^(loop|alt|opt|par|critical|break|rect|box)\b(.*)$/u.exec(t);
-    if (m) { open(state, m[1]); return rawSemicolon(m[2]) ? ['raw ";" in a block label'] : []; }
+    if (m) {
+      open(state, m[1]);
+      return rawSemicolon(m[2]) ? ['raw ";" in a block label'] : [];
+    }
     m = /^(else|and|option)\b(.*)$/u.exec(t);
     if (m) {
       const owner = { else: 'alt', and: 'par', option: 'critical' }[m[1]];
@@ -109,45 +146,85 @@ export function checkMermaid(text) {
   }
 
   function stateLine(t, state) {
-    if (state.note) { if (t === 'end note') state.note = false; return []; }
-    const ref = `(?:${ID}|\\[\\*\\])`;
-    let m = new RegExp(`^state\\s+(?:${QUOTED}\\s+as\\s+(${ID})|(${ID}))\\s*(<<(?:choice|fork|join)>>)?\\s*(\\{)?$`, 'u').exec(t);
-    if (m) { if (m[4]) open(state, 'state'); return []; }
+    if (state.note) {
+      if (t === 'end note') state.note = false;
+      return [];
+    }
+    const ref = String.raw`(?:${ID}|\[\*\])`;
+    let m = new RegExp(String.raw`^state\s+(?:${QUOTED}\s+as\s+(${ID})|(${ID}))\s*(<<(?:choice|fork|join)>>)?\s*(\{)?$`, 'u').exec(t);
+    if (m) {
+      if (m[4]) open(state, 'state');
+      return [];
+    }
     if (t === '}') return close(state, ['state']);
-    if (t === '--') return state.stack.length ? [] : ['"--" outside a composite state'];
+    if (t === '--') return state.stack.length > 0 ? [] : ['"--" outside a composite state'];
     if (DIRECTION.test(t) || /^classDef\b|^class\s/u.test(t)) return [];
-    if (new RegExp(`^${ref}\\s*-->\\s*${ref}(?:\\s*:\\s*.*)?$`, 'u').test(t)) return [];
-    if (new RegExp(`^note\\s+(?:left|right)\\s+of\\s+${ID}\\s*:\\s*.+$`, 'u').test(t)) return [];
-    if (new RegExp(`^note\\s+(?:left|right)\\s+of\\s+${ID}$`, 'u').test(t)) { state.note = true; return []; }
-    if (new RegExp(`^${ID}\\s*:\\s*.+$`, 'u').test(t)) return [];
+    if (new RegExp(String.raw`^${ref}\s*-->\s*${ref}(?:\s*:\s*.*)?$`, 'u').test(t)) return [];
+    if (new RegExp(String.raw`^note\s+(?:left|right)\s+of\s+${ID}\s*:\s*.+$`, 'u').test(t)) return [];
+    if (new RegExp(String.raw`^note\s+(?:left|right)\s+of\s+${ID}$`, 'u').test(t)) {
+      state.note = true;
+      return [];
+    }
+    if (new RegExp(String.raw`^${ID}\s*:\s*.+$`, 'u').test(t)) return [];
     return [`not a stateDiagram-v2 statement: ${JSON.stringify(t)}`];
   }
 
   function flowchartLine(t, state) {
-    const KEYWORDS = new Set(['end', 'graph', 'subgraph', 'flowchart', 'style', 'class', 'classDef', 'click', 'linkStyle', 'direction', 'call', 'href', 'default']);
+    const KEYWORDS = new Set([
+      'end',
+      'graph',
+      'subgraph',
+      'flowchart',
+      'style',
+      'class',
+      'classDef',
+      'click',
+      'linkStyle',
+      'direction',
+      'call',
+      'href',
+      'default',
+    ]);
     const SHAPES = [
-      `\\[${QUOTED}\\]`, `\\(${QUOTED}\\)`, `\\(\\[${QUOTED}\\]\\)`, `\\(\\(${QUOTED}\\)\\)`, `\\(\\(\\(${QUOTED}\\)\\)\\)`,
-      `\\{${QUOTED}\\}`, `\\{\\{${QUOTED}\\}\\}`, `\\[\\[${QUOTED}\\]\\]`, `\\[\\(${QUOTED}\\)\\]`, `>${QUOTED}\\]`,
-      `\\[/${QUOTED}/\\]`, `\\[\\\\${QUOTED}\\\\\\]`, `\\[/${QUOTED}\\\\\\]`, `\\[\\\\${QUOTED}/\\]`,
-      `@\\{\\s*shape:\\s*[a-z-]+(?:\\s*,\\s*label:\\s*${QUOTED})?\\s*\\}`,
+      String.raw`\[${QUOTED}\]`,
+      String.raw`\(${QUOTED}\)`,
+      String.raw`\(\[${QUOTED}\]\)`,
+      String.raw`\(\(${QUOTED}\)\)`,
+      String.raw`\(\(\(${QUOTED}\)\)\)`,
+      String.raw`\{${QUOTED}\}`,
+      String.raw`\{\{${QUOTED}\}\}`,
+      String.raw`\[\[${QUOTED}\]\]`,
+      String.raw`\[\(${QUOTED}\)\]`,
+      String.raw`>${QUOTED}\]`,
+      String.raw`\[/${QUOTED}/\]`,
+      `\\[\\\\${QUOTED}\\\\\\]`,
+      String.raw`\[/${QUOTED}\\\]`,
+      `\\[\\\\${QUOTED}/\\]`,
+      String.raw`@\{\s*shape:\s*[a-z-]+(?:\s*,\s*label:\s*${QUOTED})?\s*\}`,
     ];
     const NODE = `(${ID})(${SHAPES.join('|')})?`;
     const useNode = (id, shape) => {
       if (KEYWORDS.has(id)) return [`"${id}" is a Mermaid keyword and cannot be a node ID`];
-      if (shape) { state.declared.add(id); return []; }
+      if (shape) {
+        state.declared.add(id);
+        return [];
+      }
       return state.declared.has(id) ? [] : [`node "${id}" is used before it is declared`];
     };
-    let m = new RegExp(`^subgraph\\s+(${ID})(?:\\s*\\[${QUOTED}\\])?$`, 'u').exec(t);
-    if (m) { open(state, 'subgraph'); return KEYWORDS.has(m[1]) ? [`"${m[1]}" is a keyword`] : []; }
+    let m = new RegExp(String.raw`^subgraph\s+(${ID})(?:\s*\[${QUOTED}\])?$`, 'u').exec(t);
+    if (m) {
+      open(state, 'subgraph');
+      return KEYWORDS.has(m[1]) ? [`"${m[1]}" is a keyword`] : [];
+    }
     if (t === 'end') return close(state, ['subgraph']);
     if (DIRECTION.test(t)) return [];
-    if (/^(?:classDef|style|linkStyle)\s/u.test(t) || new RegExp(`^class\\s+${ID}(?:,${ID})*\\s+${ID}$`, 'u').test(t)) return [];
+    if (/^(?:classDef|style|linkStyle)\s/u.test(t) || new RegExp(String.raw`^class\s+${ID}(?:,${ID})*\s+${ID}$`, 'u').test(t)) return [];
     m = new RegExp(`^${NODE}$`, 'u').exec(t);
     if (m) return m[2] ? useNode(m[1], m[2]) : [`a bare ID ${JSON.stringify(t)} declares nothing`];
-    const ARROW = `(?:<-->|-->|---|-\\.->|-\\.-|==>|--o|--x)`;
-    m = new RegExp(`^${NODE}\\s*${ARROW}(?:\\|${QUOTED}\\||\\|[^|"]*\\|)?\\s*${NODE}$`, 'u').exec(t);
+    const ARROW = String.raw`(?:<-->|-->|---|-\.->|-\.-|==>|--o|--x)`;
+    m = new RegExp(String.raw`^${NODE}\s*${ARROW}(?:\|${QUOTED}\||\|[^|"]*\|)?\s*${NODE}$`, 'u').exec(t);
     if (m) return [...useNode(m[1], m[2]), ...useNode(m[3], m[4])];
-    m = new RegExp(`^${NODE}\\s*--\\s+[^-]+?\\s+-->\\s*${NODE}$`, 'u').exec(t);
+    m = new RegExp(String.raw`^${NODE}\s*--\s+[^-]+?\s+-->\s*${NODE}$`, 'u').exec(t);
     if (m) return [...useNode(m[1], m[2]), ...useNode(m[3], m[4])];
     return [`not a flowchart statement: ${JSON.stringify(t)}`];
   }

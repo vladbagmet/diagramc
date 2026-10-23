@@ -100,13 +100,22 @@ export const BODY_STYLE = { size: theme.font.size.body };
 export const guillemets = (names: readonly string[]): string => `«${names.join(', ')}»`;
 
 /** Header lines: «keyword» and «stereotypes» in muted label text above the (wrapped, bold) name. */
-export function headerLines(options: { keyword?: string | undefined; stereotypes?: readonly string[] | undefined; name: string; bold?: boolean; italic?: boolean; underline?: boolean }): BoxLine[] {
+export function headerLines(options: {
+  keyword?: string | undefined;
+  stereotypes?: readonly string[] | undefined;
+  name: string;
+  bold?: boolean;
+  italic?: boolean;
+  underline?: boolean;
+}): BoxLine[] {
   const lines: BoxLine[] = [];
   const muted = theme.color.mutedText;
   if (options.keyword) lines.push({ text: guillemets([options.keyword]), style: KEYWORD_STYLE, align: 'center', fill: muted });
   if (options.stereotypes?.length) lines.push({ text: guillemets(options.stereotypes), style: KEYWORD_STYLE, align: 'center', fill: muted });
   lines.push({
-    text: options.name, style: { ...NAME_STYLE, bold: options.bold ?? true, italic: !!options.italic }, align: 'center',
+    text: options.name,
+    style: { ...NAME_STYLE, bold: options.bold ?? true, italic: !!options.italic },
+    align: 'center',
     // Underlined names (instances) are not wrapped so the underline stays one line.
     ...(options.underline ? { underline: true } : { wrap: theme.size.maxNameWidth }),
   });

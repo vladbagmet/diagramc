@@ -12,10 +12,4 @@ import { mermaidUseCase } from './use-case.js';
  * ports or assembly connectors; deployment, timing and the rest: no diagram
  * type at all), so they fail with UNSUPPORTED_EXPORT.
  */
-export const mermaidFormats: readonly KindFormat[] = [
-  mermaidClass,
-  mermaidSequence,
-  mermaidActivity,
-  mermaidStateMachine,
-  mermaidUseCase,
-];
+export const mermaidFormats: readonly KindFormat[] = [mermaidClass, mermaidSequence, mermaidActivity, mermaidStateMachine, mermaidUseCase];

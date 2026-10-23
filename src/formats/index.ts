@@ -18,7 +18,7 @@ const formatTitle: Record<FormatName, string> = { plantuml: 'PlantUML', mermaid:
 export function formatSupport(kind: string): { exports: FormatName[]; imports: FormatName[] } {
   return {
     exports: FORMATS.filter(f => registry[f].some(k => k.kind === kind)),
-    imports: FORMATS.filter(f => registry[f].some(k => k.kind === kind && k.import)),
+    imports: FORMATS.filter(f => registry[f].some(k => k.kind === kind && k.import !== undefined)),
   };
 }
 
@@ -41,9 +41,12 @@ export function exportDocument(parsed: ParsedDocument, format: FormatName): { te
   const mapping = registry[format].find(k => k.kind === parsed.kind.kind);
   if (!mapping) {
     const working = FORMATS.filter(f => registry[f].some(k => k.kind === parsed.kind.kind));
-    throw new UmlError('UNSUPPORTED_EXPORT',
-      `${formatTitle[format]} cannot express a ${parsed.kind.title.toLowerCase()} faithfully, so ${parsed.kind.kind} models are not exported to ${format}; ${working.length ? `export it with --to ${working.join(' or --to ')}` : 'no text format supports this kind'}`,
-      2, { kind: parsed.kind.kind, format, formats: working });
+    throw new UmlError(
+      'UNSUPPORTED_EXPORT',
+      `${formatTitle[format]} cannot express a ${parsed.kind.title.toLowerCase()} faithfully, so ${parsed.kind.kind} models are not exported to ${format}; ${working.length > 0 ? `export it with --to ${working.join(' or --to ')}` : 'no text format supports this kind'}`,
+      2,
+      { kind: parsed.kind.kind, format, formats: working },
+    );
   }
   const losses = new Losses(format);
   const text = mapping.export(parsed.model, losses);
@@ -51,7 +54,7 @@ export function exportDocument(parsed: ParsedDocument, format: FormatName): { te
 }
 
 /** Kinds `format` can import, in `uml kinds` order. */
-const importable = (format: FormatName): KindFormat[] => registry[format].filter(k => k.import);
+const importable = (format: FormatName): KindFormat[] => registry[format].filter(k => k.import !== undefined);
 
 /**
  * Text in `format` -> a validated model document. Every unsupported or malformed
@@ -63,43 +66,69 @@ export function importText(text: string, format: FormatName, kindName?: string):
   const read = format === 'plantuml' ? readPlantUml(text, problems) : readMermaid(text, problems);
   const candidates = importable(format);
   let mapping: KindFormat | undefined;
-  if (kindName !== undefined) {
+  if (kindName === undefined) {
+    mapping = detect(read, format, candidates, problems);
+  } else {
     mapping = candidates.find(k => k.kind === kindName);
     if (!mapping) {
       const known = kinds.some(k => k.kind === kindName);
-      throw new UmlError(known ? 'UNSUPPORTED_IMPORT' : 'UNKNOWN_KIND',
-        known ? `${kindName} models are not imported from ${format}; ${format} imports ${candidates.map(k => k.kind).join(', ')}` : `Unknown diagram kind ${JSON.stringify(kindName)}; ${format} imports ${candidates.map(k => k.kind).join(', ')}`,
-        2, { kind: kindName, format, kinds: candidates.map(k => k.kind) });
+      throw new UmlError(
+        known ? 'UNSUPPORTED_IMPORT' : 'UNKNOWN_KIND',
+        known
+          ? `${kindName} models are not imported from ${format}; ${format} imports ${candidates.map(k => k.kind).join(', ')}`
+          : `Unknown diagram kind ${JSON.stringify(kindName)}; ${format} imports ${candidates.map(k => k.kind).join(', ')}`,
+        2,
+        { kind: kindName, format, kinds: candidates.map(k => k.kind) },
+      );
     }
-  } else mapping = detect(read, format, candidates, problems);
+  }
   if (!mapping) {
-    if (problems.list.length) failValidation(problems.list);
-    throw new UmlError('UNSUPPORTED_IMPORT', `Could not tell which diagram kind this ${formatTitle[format]} text is; ${format} imports ${candidates.map(k => k.kind).join(', ')}. Pass --kind <kind>`, 2, { format, kinds: candidates.map(k => k.kind) });
+    if (problems.list.length > 0) failValidation(problems.list);
+    throw new UmlError(
+      'UNSUPPORTED_IMPORT',
+      `Could not tell which diagram kind this ${formatTitle[format]} text is; ${format} imports ${candidates.map(k => k.kind).join(', ')}. Pass --kind <kind>`,
+      2,
+      { format, kinds: candidates.map(k => k.kind) },
+    );
   }
   const model = mapping.import!(read, problems);
-  if (problems.list.length) failValidation(problems.list);
+  if (problems.list.length > 0) failValidation(problems.list);
   try {
     return { model, parsed: parseDocument(JSON.stringify(model)) };
   } catch (error) {
     if (!(error instanceof UmlError) || !error.diagnostics) throw error;
     // Paths point into the imported model, which the error carries so they can be followed.
-    throw new UmlError('IMPORT_INVALID', `The ${formatTitle[format]} text was read, but the ${mapping.kind} model it describes is not valid: ${error.message}`, 2, { kind: mapping.kind, model }, error.path, error.diagnostics);
+    throw new UmlError(
+      'IMPORT_INVALID',
+      `The ${formatTitle[format]} text was read, but the ${mapping.kind} model it describes is not valid: ${error.message}`,
+      2,
+      { kind: mapping.kind, model },
+      error.path,
+      error.diagnostics,
+    );
   }
 }
 
 function detect(lines: readonly SourceLine[], format: FormatName, candidates: readonly KindFormat[], problems: Problems): KindFormat | undefined {
   if (format === 'mermaid') {
     // The header names the diagram type; readMermaid reports a missing or unknown header.
-    const header = lines[0]?.text.split(/\s/u)[0];
-    return candidates.find(k => k.detect!(lines.slice(0, 1)) > 0) ?? (header === undefined ? undefined : unsupportedHeader(lines[0]!, header, problems, candidates));
+    const header = lines[0]?.text.split(/\s/u, 1)[0];
+    const found = candidates.find(k => k.detect!(lines.slice(0, 1)) > 0);
+    if (!found && header !== undefined) unsupportedHeader(lines[0]!, header, problems, candidates);
+    return found;
   }
-  const scored = candidates.map(k => ({ k, score: k.detect!(lines) })).filter(s => s.score > 0).sort((a, b) => b.score - a.score);
-  if (!scored.length) return undefined;
+  const scored = candidates
+    .map(k => ({ k, score: k.detect!(lines) }))
+    .filter(s => s.score > 0)
+    .sort((a, b) => b.score - a.score);
+  if (scored.length === 0) return undefined;
   if (scored.length > 1 && scored[0]!.score === scored[1]!.score) return undefined;
   return scored[0]!.k;
 }
 
-function unsupportedHeader(line: SourceLine, header: string, problems: Problems, candidates: readonly KindFormat[]): undefined {
-  problems.unsupported(line, `"${header}" diagrams are not imported; Mermaid import reads ${candidates.map(k => k.kind).join(', ')} (classDiagram, sequenceDiagram, stateDiagram-v2)`);
-  return undefined;
+function unsupportedHeader(line: SourceLine, header: string, problems: Problems, candidates: readonly KindFormat[]): void {
+  problems.unsupported(
+    line,
+    `"${header}" diagrams are not imported; Mermaid import reads ${candidates.map(k => k.kind).join(', ')} (classDiagram, sequenceDiagram, stateDiagram-v2)`,
+  );
 }

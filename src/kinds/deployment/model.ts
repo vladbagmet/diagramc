@@ -18,7 +18,11 @@ export interface Artifact {
   stereotypes?: string[];
 }
 
-export interface Property { name: string; type?: string; value?: string }
+export interface Property {
+  name: string;
+  type?: string;
+  value?: string;
+}
 
 export interface DeploymentSpecification {
   id: string;
@@ -44,12 +48,32 @@ export interface Note {
 export type Nested = DeploymentNode | Artifact | DeploymentSpecification | Component;
 export type Element = Nested | Note;
 
-export interface End { multiplicity?: string }
-interface Base { id?: string; from: string; to: string }
-export interface CommunicationPath extends Base { type: 'communicationPath'; name?: string; protocol?: string; fromEnd?: End; toEnd?: End }
-export interface Deploy extends Base { type: 'deploy' }
-export interface Manifest extends Base { type: 'manifest' }
-export interface Dependency extends Base { type: 'dependency'; keyword?: string; name?: string }
+export interface End {
+  multiplicity?: string;
+}
+interface Base {
+  id?: string;
+  from: string;
+  to: string;
+}
+export interface CommunicationPath extends Base {
+  type: 'communicationPath';
+  name?: string;
+  protocol?: string;
+  fromEnd?: End;
+  toEnd?: End;
+}
+export interface Deploy extends Base {
+  type: 'deploy';
+}
+export interface Manifest extends Base {
+  type: 'manifest';
+}
+export interface Dependency extends Base {
+  type: 'dependency';
+  keyword?: string;
+  name?: string;
+}
 export type Relationship = CommunicationPath | Deploy | Manifest | Dependency;
 
 export interface DeploymentDiagram {

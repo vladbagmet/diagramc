@@ -4,14 +4,22 @@
  * names them). A round trip must give exactly this model.
  */
 
+/** A copy of `object` without `key`. */
+const without = (object, key) => Object.fromEntries(Object.entries(object).filter(([k]) => k !== key));
+
 /** Deletes `keys` from every object of `list` (relationship IDs and the like). */
-const drop = (list, ...keys) => { for (const item of list ?? []) for (const k of keys) delete item[k]; };
+const drop = (list, ...keys) => {
+  for (const item of list ?? []) for (const k of keys) delete item[k];
+};
 /** Removes empty arrays under the given keys anywhere in the model (an empty list reads back as no list). */
 function dropEmpty(node, keys) {
-  if (Array.isArray(node)) { node.forEach(n => dropEmpty(n, keys)); return node; }
+  if (Array.isArray(node)) {
+    for (const n of node) dropEmpty(n, keys);
+    return node;
+  }
   if (!node || typeof node !== 'object') return node;
   for (const [k, v] of Object.entries(node)) {
-    if (Array.isArray(v) && !v.length && keys.includes(k)) delete node[k];
+    if (Array.isArray(v) && v.length === 0 && keys.includes(k)) delete node[k];
     else dropEmpty(v, keys);
   }
   return node;
@@ -25,7 +33,12 @@ const classCommon = m => {
 };
 
 /** Visits every item of a sequence, fragments' operands included. */
-const items = (list, visit) => { for (const item of list) { visit(item); if (item.type === 'fragment') for (const o of item.operands) items(o.items, visit); } };
+const items = (list, visit) => {
+  for (const item of list) {
+    visit(item);
+    if (item.type === 'fragment') for (const o of item.operands) items(o.items, visit);
+  }
+};
 
 const sequenceCommon = m => {
   for (const l of m.lifelines) if (l.symbol === 'rectangle') delete l.symbol;
@@ -47,11 +60,21 @@ const outermost = (m, list) => {
 };
 
 /** Visits every vertex of a state machine, nested regions included. */
-const vertices = (elements, visit) => { for (const e of elements) { visit(e); for (const r of e.regions ?? []) vertices(r.elements, visit); } };
+const vertices = (elements, visit) => {
+  for (const e of elements) {
+    visit(e);
+    for (const r of e.regions ?? []) vertices(r.elements, visit);
+  }
+};
 
 const stateCommon = m => {
   drop(m.transitions, 'id');
-  vertices(m.elements, v => { for (const r of v.regions ?? []) { delete r.id; delete r.name; } });
+  vertices(m.elements, v => {
+    for (const r of v.regions ?? []) {
+      delete r.id;
+      delete r.name;
+    }
+  });
   dropEmpty(m, ['internal', 'connectionPoints', 'attachedTo', 'transitions']);
   return m;
 };
@@ -60,7 +83,10 @@ const stateCommon = m => {
 const attachedNotes = m => {
   const out = [];
   for (const e of m.elements) {
-    if (e.type !== 'note' || !e.attachedTo?.length) { out.push(e); continue; }
+    if (e.type !== 'note' || !e.attachedTo?.length) {
+      out.push(e);
+      continue;
+    }
     for (const target of e.attachedTo) out.push({ type: 'note', text: e.text, attachedTo: [target] });
   }
   m.elements = out;
@@ -75,7 +101,7 @@ function regionChains(m) {
       if (e.type === 'note') continue;
       chains.set(e.id, chain);
       for (const p of e.connectionPoints ?? []) chains.set(p.id, [...chain, `${e.id}#0`]);
-      (e.regions ?? []).forEach((r, j) => index(r.elements, [...chain, `${e.id}#${j}`]));
+      for (const [j, r] of (e.regions ?? []).entries()) index(r.elements, [...chain, `${e.id}#${j}`]);
     }
   };
   index(m.elements, []);
@@ -86,12 +112,13 @@ function regionChains(m) {
 const closedRegions = m => {
   const chains = regionChains(m);
   m.transitions = (m.transitions ?? []).filter(t => {
-    const a = chains.get(t.from), b = chains.get(t.to);
+    const a = chains.get(t.from),
+      b = chains.get(t.to);
     let common = 0;
     while (common < a.length && common < b.length && a[common] === b[common]) common++;
     return ![...a.slice(common), ...b.slice(common)].some(k => !k.endsWith('#0'));
   });
-  if (!m.transitions.length) delete m.transitions;
+  if (m.transitions.length === 0) delete m.transitions;
   return m;
 };
 
@@ -104,38 +131,51 @@ const closedRegions = m => {
  */
 function mermaidState(m) {
   const pseudo = new Map();
-  const visit = (elements, key) => elements.map(e => {
-    if (e.type === 'note') return e;
-    if (e.type === 'junction') return { ...e, type: 'choice' };
-    if (e.type === 'deepHistory' || e.type === 'shallowHistory') return { id: e.id, type: 'state', name: e.type === 'deepHistory' ? 'H*' : 'H' };
-    if (['initial', 'final', 'terminate'].includes(e.type)) { pseudo.set(e.id, { type: e.type === 'initial' ? 'initial' : 'final', key }); return e; }
-    if (e.type !== 'state') return e;
-    const s = { ...e };
-    const points = (s.connectionPoints ?? []).map(p => ({ id: p.id, type: 'state', name: p.name ?? p.id }));
-    delete s.connectionPoints;
-    if (s.regions || points.length) {
-      const regions = (s.regions ?? [{ elements: [] }]).map((r, j) => ({ ...r, elements: visit(r.elements, `${e.id}#${j}`) }));
-      regions[0] = { ...regions[0], elements: [...points, ...regions[0].elements] };
-      s.regions = regions;
-    }
-    return s;
-  });
+  const visit = (elements, key) =>
+    elements.map(e => {
+      if (e.type === 'note') return e;
+      if (e.type === 'junction') return { ...e, type: 'choice' };
+      if (e.type === 'deepHistory' || e.type === 'shallowHistory') return { id: e.id, type: 'state', name: e.type === 'deepHistory' ? 'H*' : 'H' };
+      if (['initial', 'final', 'terminate'].includes(e.type)) {
+        pseudo.set(e.id, { type: e.type === 'initial' ? 'initial' : 'final', key });
+        return e;
+      }
+      if (e.type !== 'state') return e;
+      const s = { ...e };
+      const points = (s.connectionPoints ?? []).map(p => ({ id: p.id, type: 'state', name: p.name ?? p.id }));
+      delete s.connectionPoints;
+      if (s.regions || points.length > 0) {
+        const regions = (s.regions ?? [{ elements: [] }]).map((r, j) => ({ ...r, elements: visit(r.elements, `${e.id}#${j}`) }));
+        regions[0] = { ...regions[0], elements: [...points, ...regions[0].elements] };
+        s.regions = regions;
+      }
+      return s;
+    });
   m.elements = visit(m.elements, '');
   const chains = regionChains(m);
   const regionOf = id => chains.get(id).at(-1) ?? '';
   // Each region's [*] pseudostates collapse into one initial and one final.
   const star = new Map();
-  for (const [id, { type, key }] of pseudo) { const k = `${type}@${key}`; if (!star.has(k)) star.set(k, id); }
-  const canonicalId = id => { const p = pseudo.get(id); return p ? star.get(`${p.type}@${p.key}`) : id; };
-  const strip = elements => elements.filter(e => !(pseudo.has(e.id) && canonicalId(e.id) !== e.id)).map(e => {
-    const out = pseudo.has(e.id) ? { id: e.id, type: pseudo.get(e.id).type } : e;
-    return out.regions ? { ...out, regions: out.regions.map(r => ({ ...r, elements: strip(r.elements) })) } : out;
-  });
+  for (const [id, { type, key }] of pseudo) {
+    const k = `${type}@${key}`;
+    if (!star.has(k)) star.set(k, id);
+  }
+  const canonicalId = id => {
+    const p = pseudo.get(id);
+    return p ? star.get(`${p.type}@${p.key}`) : id;
+  };
+  const strip = elements =>
+    elements
+      .filter(e => !(pseudo.has(e.id) && canonicalId(e.id) !== e.id))
+      .map(e => {
+        const out = pseudo.has(e.id) ? { id: e.id, type: pseudo.get(e.id).type } : e;
+        return out.regions ? { ...out, regions: out.regions.map(r => ({ ...r, elements: strip(r.elements) })) } : out;
+      });
   m.transitions = (m.transitions ?? []).filter(t => regionOf(t.from) === regionOf(t.to)).map(t => ({ ...t, from: canonicalId(t.from), to: canonicalId(t.to) }));
-  if (!m.transitions.length) delete m.transitions;
+  if (m.transitions.length === 0) delete m.transitions;
   m.elements = strip(m.elements);
-  m.elements = attachedNotes({ elements: m.elements.filter(e => e.type !== 'note' || e.attachedTo?.length) }).elements
-    .map(e => (e.type === 'note' ? { ...e, attachedTo: e.attachedTo.filter(t => !pseudo.has(t)) } : e))
+  m.elements = attachedNotes({ elements: m.elements.filter(e => e.type !== 'note' || e.attachedTo?.length) })
+    .elements.map(e => (e.type === 'note' ? { ...e, attachedTo: e.attachedTo.filter(t => !pseudo.has(t)) } : e))
     .filter(e => e.type !== 'note' || e.attachedTo.length);
   return m;
 }
@@ -147,16 +187,22 @@ function mermaidStateCanonical(m) {
   const visit = (elements, key) => {
     for (const e of elements) {
       if (e.type === 'initial' || e.type === 'final') rename.set(e.id, `${e.type}@${key}`);
-      (e.regions ?? []).forEach((r, j) => visit(r.elements, `${e.id}#${j}`));
+      for (const [j, r] of (e.regions ?? []).entries()) visit(r.elements, `${e.id}#${j}`);
     }
   };
   visit(m.elements, '');
-  const fix = elements => elements.map(e => {
-    const out = rename.has(e.id) ? { ...e, id: rename.get(e.id) } : e;
-    return out.regions ? { ...out, regions: out.regions.map(r => ({ ...r, elements: fix(r.elements) })) } : out;
-  }).sort((a, b) => String(a.id ?? JSON.stringify(a)).localeCompare(String(b.id ?? JSON.stringify(b))));
+  const fix = elements =>
+    elements
+      .map(e => {
+        const out = rename.has(e.id) ? { ...e, id: rename.get(e.id) } : e;
+        return out.regions ? { ...out, regions: out.regions.map(r => ({ ...r, elements: fix(r.elements) })) } : out;
+      })
+      .sort((a, b) => String(a.id ?? JSON.stringify(a)).localeCompare(String(b.id ?? JSON.stringify(b))));
   m.elements = fix(m.elements);
-  if (m.transitions) m.transitions = m.transitions.map(t => ({ ...t, from: rename.get(t.from) ?? t.from, to: rename.get(t.to) ?? t.to })).sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b)));
+  if (m.transitions)
+    m.transitions = m.transitions
+      .map(t => ({ ...t, from: rename.get(t.from) ?? t.from, to: rename.get(t.to) ?? t.to }))
+      .sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b)));
   return m;
 }
 
@@ -176,11 +222,22 @@ function activityGraph(m) {
   const lanes = new Map((m.partitions ?? []).map(p => [p.id, p.name]));
   let label = new Map(m.nodes.map(n => [n.id, JSON.stringify([n.type, n.name, lanes.get(n.partition), n.note, n.state])]));
   for (let round = 0; round < 3; round++) {
-    label = new Map(m.nodes.map(n => [n.id, JSON.stringify([
-      label.get(n.id),
-      m.edges.filter(e => e.from === n.id).map(e => [e.guard, label.get(e.to)]).sort(),
-      m.edges.filter(e => e.to === n.id).map(e => [e.guard, label.get(e.from)]).sort(),
-    ])]));
+    label = new Map(
+      m.nodes.map(n => [
+        n.id,
+        JSON.stringify([
+          label.get(n.id),
+          m.edges
+            .filter(e => e.from === n.id)
+            .map(e => [e.guard, label.get(e.to)])
+            .sort(),
+          m.edges
+            .filter(e => e.to === n.id)
+            .map(e => [e.guard, label.get(e.from)])
+            .sort(),
+        ]),
+      ]),
+    );
   }
   return {
     title: m.title,
@@ -191,7 +248,7 @@ function activityGraph(m) {
 }
 
 /** Note IDs are not kept: compare notes without them. */
-const withoutNoteIds = m => ({ ...m, elements: m.elements.map(e => (e.type === 'note' ? (({ id, ...rest }) => rest)(e) : e)) });
+const withoutNoteIds = m => ({ ...m, elements: m.elements.map(e => (e.type === 'note' ? without(e, 'id') : e)) });
 
 export const CANONICAL = {
   'mermaid class': withoutNoteIds,
@@ -199,8 +256,11 @@ export const CANONICAL = {
   activity: activityGraph,
   'state-machine': m => {
     if (m.transitions) m.transitions = [...m.transitions].sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b)));
-    const attached = m.elements.filter(e => e.type === 'note' && e.attachedTo?.length).map(({ id, ...rest }) => rest);
-    m.elements = [...m.elements.filter(e => !(e.type === 'note' && e.attachedTo?.length)), ...attached.sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b)))];
+    const attached = m.elements.filter(e => e.type === 'note' && e.attachedTo?.length).map(e => without(e, 'id'));
+    m.elements = [
+      ...m.elements.filter(e => !(e.type === 'note' && e.attachedTo?.length)),
+      ...attached.sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b))),
+    ];
     return m;
   },
 };
@@ -246,36 +306,44 @@ export const LOSSES = {
       // No boundary, control or entity symbols; created lifelines are declared at their create message.
       for (const l of m.lifelines) if (['boundary', 'control', 'entity'].includes(l.symbol)) delete l.symbol;
       const created = [];
-      items(m.items, i => { if (i.type === 'message' && i.sort === 'create' && !created.includes(i.to)) created.push(i.to); });
+      items(m.items, i => {
+        if (i.type === 'message' && i.sort === 'create' && !created.includes(i.to)) created.push(i.to);
+      });
       m.lifelines = [...m.lifelines.filter(l => !created.includes(l.id)), ...created.map(id => m.lifelines.find(l => l.id === id))];
       const call = (name, args) => `${name}${args === undefined ? '' : `(${args.join(', ')})`}`;
       const separated = new Set(['alt', 'par', 'critical']);
-      const rewrite = list => list.flatMap(item => {
-        switch (item.type) {
-          case 'destroy': return [];
-          case 'found': case 'lost': {
-            const text = `${item.type}: ${item.name === undefined ? '' : call(item.name, item.arguments)}`.trimEnd();
-            return [{ type: 'note', position: item.type === 'found' ? 'left' : 'right', lifelines: [item.type === 'found' ? item.to : item.from], text }];
-          }
-          case 'stateInvariant': return [{ type: 'note', position: 'over', lifelines: [item.lifeline], text: `{${item.constraint}}` }];
-          case 'note': return [item.position === 'over' ? { ...item, lifelines: outermost(m, item.lifelines) } : item];
-          case 'ref': return [{ type: 'note', position: 'over', lifelines: outermost(m, item.covered), text: `ref ${call(item.name, item.arguments)}` }];
-          case 'message': {
-            if (!(item.activate && item.deactivate)) return [item];
-            const { deactivate, ...rest } = item;
-            return [rest, { type: 'deactivate', lifeline: item.from }];
-          }
-          case 'fragment': {
-            if (!['alt', 'opt', 'loop', 'par', 'break', 'critical'].includes(item.operator)) return item.operands.flatMap(o => rewrite(o.items));
-            if (item.operands.length > 1 && !separated.has(item.operator)) {
-              const [first] = item.operands;
-              return [{ ...item, operands: [{ ...first, items: rewrite(item.operands.flatMap(o => o.items)) }] }];
+      const rewrite = list =>
+        list.flatMap(item => {
+          switch (item.type) {
+            case 'destroy':
+              return [];
+            case 'found':
+            case 'lost': {
+              const text = `${item.type}: ${item.name === undefined ? '' : call(item.name, item.arguments)}`.trimEnd();
+              return [{ type: 'note', position: item.type === 'found' ? 'left' : 'right', lifelines: [item.type === 'found' ? item.to : item.from], text }];
             }
-            return [{ ...item, operands: item.operands.map(o => ({ ...o, items: rewrite(o.items) })) }];
+            case 'stateInvariant':
+              return [{ type: 'note', position: 'over', lifelines: [item.lifeline], text: `{${item.constraint}}` }];
+            case 'note':
+              return [item.position === 'over' ? { ...item, lifelines: outermost(m, item.lifelines) } : item];
+            case 'ref':
+              return [{ type: 'note', position: 'over', lifelines: outermost(m, item.covered), text: `ref ${call(item.name, item.arguments)}` }];
+            case 'message': {
+              if (!(item.activate && item.deactivate)) return [item];
+              return [without(item, 'deactivate'), { type: 'deactivate', lifeline: item.from }];
+            }
+            case 'fragment': {
+              if (!['alt', 'opt', 'loop', 'par', 'break', 'critical'].includes(item.operator)) return item.operands.flatMap(o => rewrite(o.items));
+              if (item.operands.length > 1 && !separated.has(item.operator)) {
+                const [first] = item.operands;
+                return [{ ...item, operands: [{ ...first, items: rewrite(item.operands.flatMap(o => o.items)) }] }];
+              }
+              return [{ ...item, operands: item.operands.map(o => ({ ...o, items: rewrite(o.items) })) }];
+            }
+            default:
+              return [item];
           }
-          default: return [item];
-        }
-      });
+        });
       m.items = rewrite(m.items);
       return m;
     },
@@ -286,11 +354,14 @@ export const LOSSES = {
         // No containment line and no cross for a non-navigable end.
         if (r.type === 'containment') r.type = 'association';
         for (const end of [r.fromEnd, r.toEnd]) if (end?.navigable === false) delete end.navigable;
-        if (r.fromEnd && !Object.keys(r.fromEnd).length) delete r.fromEnd;
-        if (r.toEnd && !Object.keys(r.toEnd).length) delete r.toEnd;
+        if (r.fromEnd && Object.keys(r.fromEnd).length === 0) delete r.fromEnd;
+        if (r.toEnd && Object.keys(r.toEnd).length === 0) delete r.toEnd;
       }
       // Notes are written after the classifiers, once per target, with new IDs.
-      return attachedNotes({ ...m, elements: [...m.elements.filter(e => e.type !== 'note'), ...m.elements.filter(e => e.type === 'note').map(({ id, ...rest }) => rest)] });
+      return attachedNotes({
+        ...m,
+        elements: [...m.elements.filter(e => e.type !== 'note'), ...m.elements.filter(e => e.type === 'note').map(e => without(e, 'id'))],
+      });
     },
   },
 };

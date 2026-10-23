@@ -68,7 +68,7 @@ Tests referenced below: `class` = `test/class.test.mjs`, `engine` =
   subsets): not drawn yet; model them with notes.
 - Template parameters (dashed box at the top-right corner) and bound templates.
 - Generalization sets (`{complete, disjoint}`), powertypes.
-- Packages inside class diagrams: the package kind (chunk 1) covers them.
+- Packages inside class diagrams: the package kind covers them.
 - Ports, parts and interfaces in lollipop/socket notation: component and composite
   structure kinds.
 - Member constraints other than `{readOnly}` and `{query}`.

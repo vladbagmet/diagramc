@@ -23,6 +23,17 @@
   containers can sit side by side. The deployment stress example now passes
   every layout check (5120 x 3892 instead of 3906 x 6762, no lines around a region).
 
+### Development
+
+- `npm run check` runs everything a pull request must pass: `npm run typecheck`
+  (now also with `exactOptionalPropertyTypes`), `npm run lint` (ESLint 9 with
+  typescript-eslint strict and stylistic type-checked rules and unicorn),
+  `npm run format:check` (Prettier), `npm run test:coverage` (unit tests with
+  line, branch and function thresholds of 90, 80 and 90 percent over `src/`)
+  and `npm run gallery`. GitHub Actions runs the checks on Node 22 and 24.
+- Stress render budgets measure CPU time instead of wall-clock time, and tests
+  that need the PlantUML runtime are skipped with a reason when it is missing.
+
 ## 1.0.0 (2026-10-20)
 
 First stable release. Compared with the 0.1.0 MVP, which drew class diagrams to

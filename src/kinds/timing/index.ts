@@ -8,11 +8,10 @@ import { postProcessTiming } from './postprocess.js';
 export const timingKind: KindDefinition<TimingDiagram> = {
   kind: 'timing',
   title: 'Timing diagram',
-  summary: 'State and value changes of lifelines along a time axis (robust and concise notation), with messages, duration and time constraints, highlighted intervals and notes.',
+  summary:
+    'State and value changes of lifelines along a time axis (robust and concise notation), with messages, duration and time constraints, highlighted intervals and notes.',
   frameKeyword: 'sd',
   schema: timingSchema,
   validate: validateTimingDiagram,
-  backends: [
-    { name: 'plantuml', diagramType: 'TIMING', toPlantUml: timingToPlantUml, postProcess: postProcessTiming },
-  ],
+  backends: [{ name: 'plantuml', diagramType: 'TIMING', toPlantUml: timingToPlantUml, postProcess: postProcessTiming }],
 };

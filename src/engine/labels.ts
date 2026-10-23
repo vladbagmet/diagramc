@@ -67,14 +67,21 @@ const CENTER_NEAR = 10;
 /** Distance between a rectangle and a segment (0 when they touch). */
 export function rectSegmentDistance(r: Rect, a: Point, b: Point): number {
   if (segmentIntersectsRect(a, b, r)) return 0;
-  const corners = [{ x: r.x, y: r.y }, { x: r.x + r.width, y: r.y }, { x: r.x + r.width, y: r.y + r.height }, { x: r.x, y: r.y + r.height }];
+  const corners = [
+    { x: r.x, y: r.y },
+    { x: r.x + r.width, y: r.y },
+    { x: r.x + r.width, y: r.y + r.height },
+    { x: r.x, y: r.y + r.height },
+  ];
   return Math.min(distanceToRect(a, r), distanceToRect(b, r), ...corners.map((c, k) => segmentDistance(a, b, c, corners[(k + 1) % 4]!)));
 }
 
 /** True when segments a-b and c-d lie on one line and overlap. */
 export function collinearOverlap(a: Point, b: Point, c: Point, d: Point): boolean {
-  const horizontal = (p: Point, q: Point) => Math.abs(p.y - q.y) < 0.5, vertical = (p: Point, q: Point) => Math.abs(p.x - q.x) < 0.5;
-  const overlap = (p0: number, p1: number, q0: number, q1: number) => Math.min(Math.max(p0, p1), Math.max(q0, q1)) - Math.max(Math.min(p0, p1), Math.min(q0, q1)) > 0.5;
+  const horizontal = (p: Point, q: Point) => Math.abs(p.y - q.y) < 0.5,
+    vertical = (p: Point, q: Point) => Math.abs(p.x - q.x) < 0.5;
+  const overlap = (p0: number, p1: number, q0: number, q1: number) =>
+    Math.min(Math.max(p0, p1), Math.max(q0, q1)) - Math.max(Math.min(p0, p1), Math.min(q0, q1)) > 0.5;
   if (horizontal(a, b) && horizontal(c, d) && Math.abs(a.y - c.y) < 0.5) return overlap(a.x, b.x, c.x, d.x);
   if (vertical(a, b) && vertical(c, d) && Math.abs(a.x - c.x) < 0.5) return overlap(a.y, b.y, c.y, d.y);
   return false;
@@ -90,10 +97,11 @@ export function labelLineDistances(rect: Rect, own: readonly Point[], others: re
   const ownSegments = segmentsOf(own);
   const near = Math.min(...ownSegments.map(([a, b]) => rectSegmentDistance(rect, a, b)));
   let other = Infinity;
-  for (const line of others) for (const [a, b] of segmentsOf(line)) {
-    if (ownSegments.some(([c, d]) => collinearOverlap(a, b, c, d))) continue;
-    other = Math.min(other, rectSegmentDistance(rect, a, b));
-  }
+  for (const line of others)
+    for (const [a, b] of segmentsOf(line)) {
+      if (ownSegments.some(([c, d]) => collinearOverlap(a, b, c, d))) continue;
+      other = Math.min(other, rectSegmentDistance(rect, a, b));
+    }
   return { own: near, other };
 }
 
@@ -101,20 +109,24 @@ const GAP = 4;
 
 function endCandidates(request: LabelRequest): Rect[] {
   const route = request.at === 'source' ? [...request.route].reverse() : request.route;
-  const p = route.at(-1)!, q = route.at(-2)!;
-  const u = direction(q, p), n = { x: -u.y, y: u.x };
+  const p = route.at(-1)!,
+    q = route.at(-2)!;
+  const u = direction(q, p),
+    n = { x: -u.y, y: u.x };
   const segment = distance(q, p);
   const vertical = Math.abs(u.y) > Math.abs(u.x);
   const { width: w, height: h } = request;
   // Extent along the segment and across it (labels are axis-aligned boxes).
-  const along = vertical ? h : w, across = vertical ? w : h;
+  const along = vertical ? h : w,
+    across = vertical ? w : h;
   const clearance = Math.max(GAP + 1, request.clearance ?? 0);
   // Slanted end segments (polyline routing): a w x h box whose nearest corner is t0
   // along the line from the end and a0 off it.
   const slanted = Math.abs(u.x) > 0.1 && Math.abs(u.y) > 0.1;
   const box = (t0: number, a0: number, side: number): Rect => {
     if (slanted) {
-      const halfAlong = (w / 2) * Math.abs(u.x) + (h / 2) * Math.abs(u.y), halfAcross = (w / 2) * Math.abs(n.x) + (h / 2) * Math.abs(n.y);
+      const halfAlong = (w / 2) * Math.abs(u.x) + (h / 2) * Math.abs(u.y),
+        halfAcross = (w / 2) * Math.abs(n.x) + (h / 2) * Math.abs(n.y);
       const c = { x: p.x - u.x * (t0 + halfAlong) + n.x * side * (a0 + halfAcross), y: p.y - u.y * (t0 + halfAlong) + n.y * side * (a0 + halfAcross) };
       return { x: c.x - w / 2, y: c.y - h / 2, width: w, height: h };
     }
@@ -128,7 +140,8 @@ function endCandidates(request: LabelRequest): Rect[] {
   // A grid of boxes beside the end segment, nearest to the end point first. Steps
   // move by a label height along vertical lines and by a short hop across them,
   // so crowded ends still keep their labels close.
-  const stepAlong = vertical ? h + LABEL_CLEARANCE + 1 : 10, stepAcross = vertical ? 10 : h + LABEL_CLEARANCE + 1;
+  const stepAlong = vertical ? h + LABEL_CLEARANCE + 1 : 10,
+    stepAcross = vertical ? 10 : h + LABEL_CLEARANCE + 1;
   const candidates: { rect: Rect; score: number }[] = [];
   for (let j = 0; j < 6; j++) {
     const t = GAP - 1 + j * stepAlong;
@@ -150,15 +163,17 @@ function endCandidates(request: LabelRequest): Rect[] {
 function centerCandidates(request: LabelRequest): Rect[] {
   const out: Rect[] = [];
   if (request.suggestion) out.push(request.suggestion);
-  const segments = request.route.slice(1).map((p, i) => [request.route[i]!, p] as const)
+  const segments = request.route
+    .slice(1)
+    .map((p, i) => [request.route[i]!, p] as const)
     .map(([a, b], index) => ({ a, b, index, length: distance(a, b) }));
   const middle = (segments.length - 1) / 2;
-  segments.sort((s, t) => (t.length - s.length) || (Math.abs(s.index - middle) - Math.abs(t.index - middle)));
+  segments.sort((s, t) => t.length - s.length || Math.abs(s.index - middle) - Math.abs(t.index - middle));
   const { width: w, height: h } = request;
   for (const { a, b, length } of segments) {
     const vertical = Math.abs(b.x - a.x) < Math.abs(b.y - a.y);
     const diagonal = Math.abs(b.x - a.x) > 1 && Math.abs(b.y - a.y) > 1;
-    for (const f of [0.5, 0.3, 0.7, 0.15, 0.85, 0.4, 0.6, 0.05, 0.95, ...request.fractions ?? []]) {
+    for (const f of [0.5, 0.3, 0.7, 0.15, 0.85, 0.4, 0.6, 0.05, 0.95, ...(request.fractions ?? [])]) {
       const m = { x: a.x + (b.x - a.x) * f, y: a.y + (b.y - a.y) * f };
       if (length < 2 && f !== 0.5) continue;
       if (diagonal) {
@@ -168,11 +183,9 @@ function centerCandidates(request: LabelRequest): Rect[] {
         const reach = GAP + 2 + (w / 2) * Math.abs(n.x) + (h / 2) * Math.abs(n.y);
         for (const side of [1, -1]) out.push({ x: m.x + n.x * reach * side - w / 2, y: m.y + n.y * reach * side - h / 2, width: w, height: h });
       } else if (vertical) {
-        out.push({ x: m.x + GAP + 2, y: m.y - h / 2, width: w, height: h });
-        out.push({ x: m.x - GAP - 2 - w, y: m.y - h / 2, width: w, height: h });
+        out.push({ x: m.x + GAP + 2, y: m.y - h / 2, width: w, height: h }, { x: m.x - GAP - 2 - w, y: m.y - h / 2, width: w, height: h });
       } else {
-        out.push({ x: m.x - w / 2, y: m.y - GAP - 1 - h, width: w, height: h });
-        out.push({ x: m.x - w / 2, y: m.y + GAP + 1, width: w, height: h });
+        out.push({ x: m.x - w / 2, y: m.y - GAP - 1 - h, width: w, height: h }, { x: m.x - w / 2, y: m.y + GAP + 1, width: w, height: h });
       }
     }
   }
@@ -190,7 +203,9 @@ export function labelCost(rect: Rect, obstacles: Obstacles, placed: readonly Rec
     // Every other line at least twice as far as the own line (gate label-proximity);
     // at an end, lines that end at the same point do not compete.
     const end = request.at === 'source' ? request.route[0] : request.at === 'target' ? request.route.at(-1) : undefined;
-    const others = obstacles.lines.filter(l => l.owner !== request.owner && !(end && [l.points[0]!, l.points.at(-1)!].some(p => distance(p, end) < 0.5))).map(l => l.points);
+    const others = obstacles.lines
+      .filter(l => l.owner !== request.owner && !(end && [l.points[0]!, l.points.at(-1)!].some(p => distance(p, end) < 0.5)))
+      .map(l => l.points);
     const d = labelLineDistances(rect, request.route, others);
     if (request.at === 'center' && d.own > CENTER_NEAR) total += (d.own - CENTER_NEAR) * 20;
     if (d.other < Math.max(d.own + 4, RIVAL_FACTOR * d.own + 3)) total += 250;
@@ -217,14 +232,18 @@ export function placeLabels(requests: readonly LabelRequest[], obstacles: Obstac
   const placed = new Map<string, Rect>();
   for (const request of requests) {
     const candidates = request.candidates ?? (request.at === 'center' ? centerCandidates(request) : endCandidates(request));
-    let best: Rect | undefined, bestCost = Infinity;
-    candidates.forEach((candidate, index) => {
-      if (bestCost === 0) return;
+    let best: Rect | undefined,
+      bestCost = Infinity;
+    for (const [index, candidate] of candidates.entries()) {
+      if (bestCost === 0) continue;
       const anchor = request.at === 'source' ? request.route[0] : request.at === 'target' ? request.route.at(-1) : undefined;
       const base = labelCost(candidate, obstacles, [...placed.values()], anchor, request);
       const c = base ? base + index * 0.001 : 0;
-      if (c < bestCost) { best = candidate; bestCost = c; }
-    });
+      if (c < bestCost) {
+        best = candidate;
+        bestCost = c;
+      }
+    }
     if (best) placed.set(request.id, best);
   }
   return placed;

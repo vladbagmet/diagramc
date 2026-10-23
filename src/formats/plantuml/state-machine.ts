@@ -1,4 +1,14 @@
-import type { Behavior, ConnectionPoint, Element, PseudostateType, Region, State, StateMachineDiagram, Transition, Vertex } from '../../kinds/state-machine/model.js';
+import type {
+  Behavior,
+  ConnectionPoint,
+  Element,
+  PseudostateType,
+  Region,
+  State,
+  StateMachineDiagram,
+  Transition,
+  Vertex,
+} from '../../kinds/state-machine/model.js';
 import { isNote, isState } from '../../kinds/state-machine/model.js';
 import { IdMaker, compact } from '../common.js';
 import type { KindFormat, Losses, Problems, SourceLine } from '../types.js';
@@ -13,8 +23,15 @@ import { STEREOTYPE, decode, document, encode, plantumlAliases, quoted, titleOf 
  */
 
 const PSEUDO: Record<PseudostateType, string> = {
-  initial: 'start', final: 'end', choice: 'choice', junction: 'junction', fork: 'fork', join: 'join',
-  shallowHistory: 'history', deepHistory: 'history*', terminate: 'terminate',
+  initial: 'start',
+  final: 'end',
+  choice: 'choice',
+  junction: 'junction',
+  fork: 'fork',
+  join: 'join',
+  shallowHistory: 'history',
+  deepHistory: 'history*',
+  terminate: 'terminate',
 };
 const PSEUDO_BACK = new Map(Object.entries(PSEUDO).map(([k, v]) => [v, k as PseudostateType]));
 
@@ -24,14 +41,20 @@ export function behaviorText(b: { trigger?: string | undefined; guard?: string |
     b.trigger === undefined ? undefined : encode(b.trigger, '[]/'),
     b.guard === undefined ? undefined : `[${encode(b.guard, '[]')}]`,
     b.effect === undefined ? undefined : `/ ${encode(b.effect)}`,
-  ].filter(p => p !== undefined).join(' ');
+  ]
+    .filter(p => p !== undefined)
+    .join(' ');
 }
 
 /** Inverse of behaviorText; undefined when the text is not of that form. */
 export function parseBehavior(text: string): { trigger?: string; guard?: string; effect?: string } | undefined {
   const m = /^([^[\]/]*?)\s*(?:\[([^\]]*)\])?\s*(?:\/\s*(.*))?$/u.exec(text.trim());
   if (!m) return undefined;
-  return compact({ trigger: m[1] ? decode(m[1]) : undefined, guard: m[2] === undefined ? undefined : decode(m[2].trim()), effect: m[3] === undefined ? undefined : decode(m[3].trim()) });
+  return compact({
+    trigger: m[1] ? decode(m[1]) : undefined,
+    guard: m[2] === undefined ? undefined : decode(m[2].trim()),
+    effect: m[3] === undefined ? undefined : decode(m[3].trim()),
+  });
 }
 
 export function exportStateMachine(model: StateMachineDiagram, losses: Losses): string {
@@ -48,37 +71,46 @@ export function exportStateMachine(model: StateMachineDiagram, losses: Losses): 
       chains.set(e.id, chain);
       if (!isState(e)) continue;
       for (const p of e.connectionPoints ?? []) chains.set(p.id, [...chain, `${e.id}#0`]);
-      (e.regions ?? []).forEach((r, j) => index(r.elements, [...chain, `${e.id}#${j}`]));
+      for (const [j, r] of (e.regions ?? []).entries()) index(r.elements, [...chain, `${e.id}#${j}`]);
     }
   };
   index(model.elements, []);
   const here = new Map<string, string[]>();
-  const put = (key: string, line: string): void => { here.set(key, [...(here.get(key) ?? []), line]); };
-  (model.transitions ?? []).forEach((t, i) => {
+  const put = (key: string, line: string): void => {
+    here.set(key, [...(here.get(key) ?? []), line]);
+  };
+  for (const [i, t] of (model.transitions ?? []).entries()) {
     if (t.id !== undefined) losses.add(`/transitions/${i}/id`, 'Transition IDs are not kept');
-    const a = chains.get(t.from)!, b = chains.get(t.to)!;
+    const a = chains.get(t.from)!,
+      b = chains.get(t.to)!;
     let common = 0;
     while (common < a.length && common < b.length && a[common] === b[common]) common++;
     if ([...a.slice(common), ...b.slice(common)].some(k => !k.endsWith('#0'))) {
       losses.add(`/transitions/${i}`, 'PlantUML cannot draw a transition into or out of a second or later orthogonal region; it is left out');
-      return;
+      continue;
     }
     const label = behaviorText(t);
     put(a.slice(0, common).at(-1) ?? '', `${ids.get(t.from)} --> ${ids.get(t.to)}${label ? ` : ${label}` : ''}`);
-  });
-  model.elements.forEach((e, i) => {
-    if (!isNote(e) || !e.attachedTo?.length) return;
+  }
+  for (const [i, e] of model.elements.entries()) {
+    if (!isNote(e) || !e.attachedTo?.length) continue;
     losses.add(`/elements/${i}/id`, 'The ID of an attached note is not kept');
     if (e.attachedTo.length > 1) losses.add(`/elements/${i}/attachedTo`, 'A note attached to several vertices is written once per vertex');
     for (const target of e.attachedTo) put(chains.get(target)!.at(-1) ?? '', `note right of ${ids.get(target)} : ${encode(e.text)}`);
-  });
-  const flush = (key: string, pad: string): void => { for (const l of here.get(key) ?? []) lines.push(`${pad}${l}`); };
+  }
+  const flush = (key: string, pad: string): void => {
+    for (const l of here.get(key) ?? []) lines.push(`${pad}${l}`);
+  };
 
   const declare = (v: Vertex, path: string, pad: string): void => {
     const alias = ids.get(v.id);
     if (!isState(v)) {
       lines.push(`${pad}state ${alias} <<${PSEUDO[v.type]}>>`);
-      if (v.type === 'junction' || v.type === 'terminate') losses.add(path, `PlantUML has no ${v.type} symbol: it is written as a state stereotyped <<${PSEUDO[v.type]}>>, which PlantUML draws as a plain box; it reads back as a ${v.type}`);
+      if (v.type === 'junction' || v.type === 'terminate')
+        losses.add(
+          path,
+          `PlantUML has no ${v.type} symbol: it is written as a state stereotyped <<${PSEUDO[v.type]}>>, which PlantUML draws as a plain box; it reads back as a ${v.type}`,
+        );
       return;
     }
     const label = v.submachine === undefined ? encode(v.name, '":') : `${encode(v.name, '":')} : ${encode(v.submachine, '":')}`;
@@ -90,13 +122,13 @@ export function exportStateMachine(model: StateMachineDiagram, losses: Losses): 
         const pa = ids.get(point.id);
         lines.push(`${pad}  state ${point.name === undefined ? pa : `${quoted(point.name)} as ${pa}`} <<${point.type}>>`);
       }
-      (v.regions ?? []).forEach((r, j) => {
+      for (const [j, r] of (v.regions ?? []).entries()) {
         if (j > 0) lines.push(`${pad}  --`);
         if (r.id !== undefined) losses.add(`${path}/regions/${j}/id`, 'Region IDs are not kept');
         if (r.name !== undefined) losses.add(`${path}/regions/${j}/name`, 'Region names are not kept');
-        r.elements.forEach((e, k) => declare(e, `${path}/regions/${j}/elements/${k}`, `${pad}  `));
+        for (const [k, e] of r.elements.entries()) declare(e, `${path}/regions/${j}/elements/${k}`, `${pad}  `);
         flush(`${v.id}#${j}`, `${pad}  `);
-      });
+      }
       lines.push(`${pad}}`);
     }
     if (v.entry !== undefined) lines.push(`${pad}${alias} : entry / ${encode(v.entry)}`);
@@ -104,10 +136,10 @@ export function exportStateMachine(model: StateMachineDiagram, losses: Losses): 
     if (v.exit !== undefined) lines.push(`${pad}${alias} : exit / ${encode(v.exit)}`);
     for (const b of v.internal ?? []) lines.push(`${pad}${alias} : ${internalText(b)}`);
   };
-  model.elements.forEach((e, i) => {
+  for (const [i, e] of model.elements.entries()) {
     if (!isNote(e)) declare(e, `/elements/${i}`, '');
     else if (!e.attachedTo?.length) lines.push(`note ${quoted(e.text)} as ${ids.get(e.id)}`);
-  });
+  }
   flush('', '');
   return document(model.title, lines);
 }
@@ -120,7 +152,11 @@ function internalText(b: Behavior): string {
 
 // ---------------------------------------------------------------- import
 
-interface Scope { regions: Region[]; state?: State; line?: SourceLine }
+interface Scope {
+  regions: Region[];
+  state?: State;
+  line?: SourceLine;
+}
 
 export function importStateMachine(lines: readonly SourceLine[], problems: Problems): Record<string, unknown> {
   const ids = new IdMaker();
@@ -133,7 +169,10 @@ export function importStateMachine(lines: readonly SourceLine[], problems: Probl
   let title: string | undefined;
   const elementsHere = (): Element[] => stack.at(-1)?.regions.at(-1)?.elements ?? top;
 
-  const add = (v: Vertex, key: string): void => { elementsHere().push(v); byKey.set(key, v); };
+  const add = (v: Vertex, key: string): void => {
+    elementsHere().push(v);
+    byKey.set(key, v);
+  };
   /** States PlantUML created where a transition first named them; a later declaration places and defines them. */
   const implicit = new Map<string, Element[]>();
   /** Removes an implicitly created state so its declaration can take its place; false when the key is declared. */
@@ -150,7 +189,10 @@ export function importStateMachine(lines: readonly SourceLine[], problems: Probl
     const found = byKey.get(key);
     if (found) return found.id;
     // PlantUML creates an undeclared state where it is first named.
-    if (!/^[\p{L}\p{N}_.]+$/u.test(key) && !written.startsWith('"')) { problems.malformed(line, `invalid state name ${JSON.stringify(written)}`); return undefined; }
+    if (!/^[\p{L}\p{N}_.]+$/u.test(key) && !written.startsWith('"')) {
+      problems.malformed(line, `invalid state name ${JSON.stringify(written)}`);
+      return undefined;
+    }
     const state: State = { id: ids.claim(key) ?? ids.fresh(key), type: 'state', name: key };
     add(state, key);
     implicit.set(key, elementsHere());
@@ -166,40 +208,58 @@ export function importStateMachine(lines: readonly SourceLine[], problems: Probl
       elementsHere().push({ id, type });
       entry[type] = id;
     }
-    return entry[type]!;
+    return entry[type];
   };
 
   for (const line of lines) {
     const t = line.text;
     const heading = titleOf(line);
-    if (heading !== undefined) { title = heading; continue; }
+    if (heading !== undefined) {
+      title = heading;
+      continue;
+    }
     if (t === '}') {
       const scope = stack.pop();
-      if (!scope) { problems.malformed(line, 'unmatched "}"'); continue; }
+      if (!scope) {
+        problems.malformed(line, 'unmatched "}"');
+        continue;
+      }
       // A body that only declares connection points has no regions.
       const regions = scope.regions.filter(r => r.elements.length);
-      if (!regions.length) delete scope.state!.regions;
+      if (regions.length === 0) delete scope.state!.regions;
       else if (regions.length < scope.regions.length) problems.malformed(line, `a region of "${scope.state!.name}" is empty`);
       continue;
     }
     if (t === '--' || t === '||') {
       const scope = stack.at(-1);
-      if (!scope) problems.malformed(line, 'a region separator must be inside a composite state');
-      else scope.regions.push({ elements: [] });
+      if (scope) {
+        scope.regions.push({ elements: [] });
+      } else {
+        problems.malformed(line, 'a region separator must be inside a composite state');
+      }
       continue;
     }
-    let m = new RegExp(String.raw`^state\s+(?:"([^"]*)"\s+as\s+([\p{L}\p{N}_.]+)|([\p{L}\p{N}_.]+)\s+as\s+"([^"]*)"|([\p{L}\p{N}_.]+)|"([^"]*)")\s*(?:${STEREOTYPE})?\s*(\{)?$`, 'u').exec(t);
+    let m = new RegExp(
+      String.raw`^state\s+(?:"([^"]*)"\s+as\s+([\p{L}\p{N}_.]+)|([\p{L}\p{N}_.]+)\s+as\s+"([^"]*)"|([\p{L}\p{N}_.]+)|"([^"]*)")\s*(?:${STEREOTYPE})?\s*(\{)?$`,
+      'u',
+    ).exec(t);
     if (m) {
       const label = m[1] ?? m[4] ?? m[6];
       const key = m[2] ?? m[3] ?? m[5] ?? decode(m[6]!);
       const stereotype = m[7]?.trim();
       const opens = m[8] === '{';
       const earlier = implicit.has(key) ? byKey.get(key)!.id : undefined;
-      if (!redeclare(key)) { problems.malformed(line, `"${key}" is declared twice`); continue; }
+      if (!redeclare(key)) {
+        problems.malformed(line, `"${key}" is declared twice`);
+        continue;
+      }
       const id = earlier ?? ids.claim(key) ?? ids.fresh(key);
       if (stereotype === 'entryPoint' || stereotype === 'exitPoint') {
         const owner = stack.at(-1)?.state;
-        if (!owner || opens) { problems.malformed(line, `an ${stereotype} is declared directly inside its composite state`); continue; }
+        if (!owner || opens) {
+          problems.malformed(line, `an ${stereotype} is declared directly inside its composite state`);
+          continue;
+        }
         const point: ConnectionPoint = { id, type: stereotype, ...(label === undefined ? {} : { name: decode(label) }) };
         (owner.connectionPoints ??= []).push(point);
         byKey.set(key, point);
@@ -207,8 +267,17 @@ export function importStateMachine(lines: readonly SourceLine[], problems: Probl
       }
       if (stereotype !== undefined) {
         const type = PSEUDO_BACK.get(stereotype);
-        if (!type) { problems.unsupported(line, `the stereotype <<${stereotype}>> is not a pseudostate of the model (start, end, choice, junction, fork, join, history, history*, terminate, entryPoint, exitPoint)`); continue; }
-        if (opens || label !== undefined) { problems.malformed(line, `a <<${stereotype}>> pseudostate has no name or body`); continue; }
+        if (!type) {
+          problems.unsupported(
+            line,
+            `the stereotype <<${stereotype}>> is not a pseudostate of the model (start, end, choice, junction, fork, join, history, history*, terminate, entryPoint, exitPoint)`,
+          );
+          continue;
+        }
+        if (opens || label !== undefined) {
+          problems.malformed(line, `a <<${stereotype}>> pseudostate has no name or body`);
+          continue;
+        }
         add({ id, type }, key);
         continue;
       }
@@ -229,28 +298,52 @@ export function importStateMachine(lines: readonly SourceLine[], problems: Probl
       describe(m[1]!, m[2]!, line);
       continue;
     }
-    if (/^state\b/u.test(t)) { problems.unsupported(line, 'expected "state Name", "state \\"Display\\" as alias" with an optional pseudostate stereotype and "{"; colors and other options are not imported'); continue; }
-    m = /^(\[\*\]|\[H\*?\]|"[^"]*"|[\p{L}\p{N}_.]+)\s*-+(?:(?:up|down|left|right|u|d|l|r)-+)?>\s*(\[\*\]|\[H\*?\]|"[^"]*"|[\p{L}\p{N}_.]+)\s*(?::\s*(.*))?$/u.exec(t);
+    if (/^state\b/u.test(t)) {
+      problems.unsupported(
+        line,
+        String.raw`expected "state Name", "state \"Display\" as alias" with an optional pseudostate stereotype and "{"; colors and other options are not imported`,
+      );
+      continue;
+    }
+    m =
+      /^(\[\*\]|\[H\*?\]|"[^"]*"|[\p{L}\p{N}_.]+)\s*-+(?:(?:up|down|left|right|u|d|l|r)-+)?>\s*(\[\*\]|\[H\*?\]|"[^"]*"|[\p{L}\p{N}_.]+)\s*(?::\s*(.*))?$/u.exec(
+        t,
+      );
     if (m) {
-      if (/^\[H/u.test(m[1]!) || /^\[H/u.test(m[2]!)) { problems.unsupported(line, 'write history pseudostates as "state h <<history>>" (or <<history*>>) so they have an ID'); continue; }
+      if (m[1]!.startsWith('[H') || m[2]!.startsWith('[H')) {
+        problems.unsupported(line, 'write history pseudostates as "state h <<history>>" (or <<history*>>) so they have an ID');
+        continue;
+      }
       const from = m[1] === '[*]' ? star('initial') : resolve(m[1]!, line);
       const to = m[2] === '[*]' ? star('final') : resolve(m[2]!, line);
       if (from === undefined || to === undefined) continue;
       const label = m[3] === undefined ? {} : parseBehavior(m[3]);
-      if (!label) { problems.malformed(line, 'expected a transition label "trigger [guard] / effect"'); continue; }
+      if (!label) {
+        problems.malformed(line, 'expected a transition label "trigger [guard] / effect"');
+        continue;
+      }
       transitions.push({ from, to, ...label });
       continue;
     }
     m = /^(?:note\s+(left|right|top|bottom)\s+of\s+("[^"]*"|[\p{L}\p{N}_.]+)\s*:\s*(.+)|note\s+"([^"]*)"\s+as\s+([\p{L}\p{N}_.]+))$/u.exec(t);
     if (m) {
-      if (m[5] !== undefined && stack.length) { problems.unsupported(line, 'floating notes are read at the top level only'); continue; }
-      if (m[5] !== undefined) { top.push({ id: ids.claim(m[5]) ?? ids.fresh('note'), type: 'note', text: decode(m[4]!) }); continue; }
+      if (m[5] !== undefined && stack.length > 0) {
+        problems.unsupported(line, 'floating notes are read at the top level only');
+        continue;
+      }
+      if (m[5] !== undefined) {
+        top.push({ id: ids.claim(m[5]) ?? ids.fresh('note'), type: 'note', text: decode(m[4]!) });
+        continue;
+      }
       const target = resolve(m[2]!, line);
       if (target === undefined) continue;
       top.push({ id: ids.fresh('note'), type: 'note', text: decode(m[3]!.trim()), attachedTo: [target] });
       continue;
     }
-    if (/^note\b/u.test(t)) { problems.unsupported(line, 'only one-line notes are read: "note right of State : text" or "note \\"text\\" as N"'); continue; }
+    if (/^note\b/u.test(t)) {
+      problems.unsupported(line, String.raw`only one-line notes are read: "note right of State : text" or "note \"text\" as N"`);
+      continue;
+    }
     m = /^("[^"]*"|[\p{L}\p{N}_.]+)\s*:\s*(.*)$/u.exec(t);
     if (m) {
       describe(m[1]!.startsWith('"') ? decode(m[1]!.slice(1, -1)) : m[1]!, m[2]!, line);
@@ -263,34 +356,51 @@ export function importStateMachine(lines: readonly SourceLine[], problems: Probl
   /** A state description line: entry, do or exit behavior, or an internal transition. */
   function describe(key: string, text: string, line: SourceLine): void {
     const target = byKey.get(key);
-    if (!target || !isState(target as Element)) { problems.malformed(line, `"${key}" is not a declared state`); return; }
-    const state = target as State;
+    if (!target || !isState(target)) {
+      problems.malformed(line, `"${key}" is not a declared state`);
+      return;
+    }
+    const state = target;
     const special = /^(entry|do|exit)\s*\/\s*(.*)$/u.exec(text.trim());
     if (special) {
-      const slot = special[1] === 'do' ? 'doActivity' : special[1] as 'entry' | 'exit';
-      if (state[slot] !== undefined) { problems.malformed(line, `"${key}" already has a ${special[1]} behavior`); return; }
+      const slot = special[1] === 'do' ? 'doActivity' : (special[1] as 'entry' | 'exit');
+      if (state[slot] !== undefined) {
+        problems.malformed(line, `"${key}" already has a ${special[1]} behavior`);
+        return;
+      }
       state[slot] = decode(special[2]!.trim());
       return;
     }
     const b = parseBehavior(text);
-    if (!b || b.trigger === undefined) { problems.unsupported(line, 'a state description must be "entry / x", "do / x", "exit / x" or an internal transition "trigger [guard] / effect"; free text is not part of the model'); return; }
+    if (b?.trigger === undefined) {
+      problems.unsupported(
+        line,
+        'a state description must be "entry / x", "do / x", "exit / x" or an internal transition "trigger [guard] / effect"; free text is not part of the model',
+      );
+      return;
+    }
     (state.internal ??= []).push(b as Behavior);
   }
 
   const model: Record<string, unknown> = { kind: 'state-machine' };
   if (title !== undefined) model.title = title;
   model.elements = top;
-  if (transitions.length) model.transitions = transitions;
+  if (transitions.length > 0) model.transitions = transitions;
   return model;
 }
 
 export function detectStateMachine(lines: readonly SourceLine[]): number {
   let score = 0;
   for (const { text } of lines) {
-    if (/^state\s/u.test(text) || /\[\*\]/u.test(text)) score += 3;
+    if (/^state\s/u.test(text) || text.includes('[*]')) score += 3;
     else if (/^\S+\s*:\s*(?:entry|do|exit)\s*\//u.test(text)) score += 2;
   }
   return score;
 }
 
-export const plantumlStateMachine: KindFormat<StateMachineDiagram> = { kind: 'state-machine', export: exportStateMachine, import: importStateMachine, detect: detectStateMachine };
+export const plantumlStateMachine: KindFormat<StateMachineDiagram> = {
+  kind: 'state-machine',
+  export: exportStateMachine,
+  import: importStateMachine,
+  detect: detectStateMachine,
+};

@@ -1,10 +1,10 @@
 # 0002: State machine and use case diagrams on the own engine
 
-Status: accepted (chunk 5). Date: 2026-10-19.
+Status: accepted. Date: 2026-10-19.
 
 ## Context
 
-The plan ([full-uml-plan.md](../plans/full-uml-plan.md)) assigned state machine and
+The original plan for the 14 kinds assigned state machine and
 use case diagrams to PlantUML, with one rule: if they fail the quality gates on
 realistic fixtures, they move to the own engine. Both go through PlantUML's Smetana
 graph layout (no Graphviz is allowed), which the MVP review already found weak

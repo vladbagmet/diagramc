@@ -13,18 +13,27 @@ const node = (id, type) => nodes.push({ id, type });
 
 let previous = 'start';
 const stages = ['Register', 'VerifyEmail', 'CollectProfile', 'CheckIdentity', 'ChoosePlan', 'TakePayment', 'ProvisionAccount', 'Welcome'];
-stages.forEach((stage, i) => {
+for (const [i, stage] of stages.entries()) {
   const id = stage.toLowerCase();
   const retry = `${id}-retry`;
   node(retry, 'merge');
   flow(previous, retry);
   if (i % 3 === 1) {
-    const a = `${id}-a`, b = `${id}-b`;
-    inline(id, stage, [{ id: a, type: 'Client' }, { id: b, type: `${stage}Service` }], [
-      { from: a, to: b, name: 'request', arguments: ['data'] },
-      { from: b, to: b, name: 'validate' },
-      { from: b, to: a, name: 'result', sort: 'reply' },
-    ]);
+    const a = `${id}-a`,
+      b = `${id}-b`;
+    inline(
+      id,
+      stage,
+      [
+        { id: a, type: 'Client' },
+        { id: b, type: `${stage}Service` },
+      ],
+      [
+        { from: a, to: b, name: 'request', arguments: ['data'] },
+        { from: b, to: b, name: 'validate' },
+        { from: b, to: a, name: 'result', sort: 'reply' },
+      ],
+    );
   } else use(id, stage, i % 2 ? ['user'] : undefined);
   flow(retry, id);
   const check = `${id}-ok`;
@@ -43,15 +52,23 @@ stages.forEach((stage, i) => {
     flow(reject, abandon);
   }
   if (i === 5) {
-    const fork = 'parallel', join = 'parallel-done';
+    const fork = 'parallel',
+      join = 'parallel-done';
     node(fork, 'fork');
     flow(check, fork, 'valid');
-    const branches = [['invoice', 'SendInvoice'], ['crm', 'UpdateCrm'], ['ledger', 'PostToLedger']];
-    for (const [bid, name] of branches) { use(bid, name); flow(fork, bid); }
+    const branches = [
+      ['invoice', 'SendInvoice'],
+      ['crm', 'UpdateCrm'],
+      ['ledger', 'PostToLedger'],
+    ];
+    for (const [bid, name] of branches) {
+      use(bid, name);
+      flow(fork, bid);
+    }
     node(join, 'join');
     for (const [bid] of branches) flow(bid, join);
     previous = join;
-    return;
+    continue;
   }
   const next = `${id}-next`;
   node(next, 'merge');
@@ -61,7 +78,7 @@ stages.forEach((stage, i) => {
   flow(check, skip, 'skipped');
   flow(skip, next);
   previous = next;
-});
+}
 node('end', 'final');
 flow(previous, 'end');
 const document = { kind: 'interaction-overview', title: 'Onboarding (stress)', lifelines: [':Client', ':Backend'], nodes, flows };

@@ -19,10 +19,16 @@ export function exportPackage(model: PackageDiagram, _losses: Losses): string {
   const byId = new Map(model.elements.map(e => [e.id, e]));
   const emit = (e: Element, indent: string): void => {
     const alias = ids.get(e.id);
-    if (isNote(e)) { lines.push(`${indent}note ${quoted(e.text)} as ${alias}`); return; }
+    if (isNote(e)) {
+      lines.push(`${indent}note ${quoted(e.text)} as ${alias}`);
+      return;
+    }
     if (isPackage(e)) {
       lines.push(`${indent}package ${quoted(e.name)} as ${alias}${stereotypeText(e.stereotypes)} {`);
-      for (const m of e.members ?? []) { const member = byId.get(m); if (member) emit(member, `${indent}  `); }
+      for (const m of e.members ?? []) {
+        const member = byId.get(m);
+        if (member) emit(member, `${indent}  `);
+      }
       lines.push(`${indent}}`);
       return;
     }

@@ -106,8 +106,17 @@ export const theme = {
     rake: { width: 12, height: 12 },
     /** State machine vertices (diameters and sizes in px). */
     state: {
-      radius: 10, initial: 18, final: 24, finalInner: 12, choice: 26, junction: 12, history: 28,
-      point: 14, terminate: 18, bar: 6, barMin: 72,
+      radius: 10,
+      initial: 18,
+      final: 24,
+      finalInner: 12,
+      choice: 26,
+      junction: 12,
+      history: 28,
+      point: 14,
+      terminate: 18,
+      bar: 6,
+      barMin: 72,
     },
     /** Stick figure of an actor, and the minimum ellipse of a use case. */
     actor: { width: 30, height: 52 },

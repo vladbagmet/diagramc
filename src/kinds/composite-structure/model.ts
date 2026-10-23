@@ -21,7 +21,10 @@ export interface Part {
   parts?: Part[];
 }
 
-export interface RoleBinding { role: string; part: string }
+export interface RoleBinding {
+  role: string;
+  part: string;
+}
 
 export interface CollaborationUse {
   id: string;
@@ -41,7 +44,12 @@ export interface StructuredClass {
   collaborationUses?: CollaborationUse[];
 }
 
-export interface Role { id: string; name: string; type?: string; multiplicity?: string }
+export interface Role {
+  id: string;
+  name: string;
+  type?: string;
+  multiplicity?: string;
+}
 
 export interface Collaboration {
   id: string;
@@ -59,10 +67,27 @@ export interface Note {
 
 export type Element = StructuredClass | Collaboration | Note;
 
-export interface ConnectorEnd { role?: string; multiplicity?: string }
-interface Base { id?: string; from: string; to: string }
-export interface Connector extends Base { type: 'connector'; name?: string; association?: string; fromEnd?: ConnectorEnd; toEnd?: ConnectorEnd }
-export interface Dependency extends Base { type: 'dependency'; keyword?: string; name?: string }
+export interface ConnectorEnd {
+  role?: string;
+  multiplicity?: string;
+}
+interface Base {
+  id?: string;
+  from: string;
+  to: string;
+}
+export interface Connector extends Base {
+  type: 'connector';
+  name?: string;
+  association?: string;
+  fromEnd?: ConnectorEnd;
+  toEnd?: ConnectorEnd;
+}
+export interface Dependency extends Base {
+  type: 'dependency';
+  keyword?: string;
+  name?: string;
+}
 export type Relationship = Connector | Dependency;
 
 export interface CompositeStructureDiagram {

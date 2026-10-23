@@ -18,7 +18,7 @@ export function exportCommunication(model: CommunicationDiagram, losses: Losses)
   const links: Link[] = [...(model.links ?? [])];
   const onLink = new Map<Link, Message[]>(links.map(l => [l, []]));
   const pair = (l: { from: string; to: string }, m: Message): boolean => (l.from === m.from && l.to === m.to) || (l.from === m.to && l.to === m.from);
-  (model.messages ?? []).forEach((m, i) => {
+  for (const [i, m] of (model.messages ?? []).entries()) {
     let link = links.find(l => pair(l, m));
     if (!link) {
       // A message needs a link to travel along; one is drawn for it.
@@ -28,12 +28,18 @@ export function exportCommunication(model: CommunicationDiagram, losses: Losses)
       onLink.set(link, []);
     }
     onLink.get(link)!.push(m);
-  });
-  if (model.messages?.length) losses.add('/messages', 'Messages are lines of their link\'s label with an arrow character for their direction; synchronous, asynchronous and reply messages are not told apart by the arrow');
+  }
+  if (model.messages?.length)
+    losses.add(
+      '/messages',
+      "Messages are lines of their link's label with an arrow character for their direction; synchronous, asynchronous and reply messages are not told apart by the arrow",
+    );
   for (const link of links) {
     const messages = onLink.get(link)!;
     // `\n` (written by the exporter, never taken from model text) starts a new label line.
-    const label = messages.map(m => encode(`${messageLabel(m)} ${m.from === link.from && m.from !== m.to ? '→' : m.from === m.to ? '↻' : '←'}`)).join('\\n');
+    const label = messages
+      .map(m => encode(`${messageLabel(m)} ${m.from === link.from && m.from !== m.to ? '→' : m.from === m.to ? '↻' : '←'}`))
+      .join(String.raw`\n`);
     lines.push(`${ids.get(link.from)} -- ${ids.get(link.to)}${label ? ` : ${label}` : ''}`);
   }
   return document(model.title, lines);

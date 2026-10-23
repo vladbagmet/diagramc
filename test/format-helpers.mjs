@@ -35,10 +35,13 @@ export function aliasIds(model, format) {
   const aliases = format === 'plantuml' ? plantumlAliases() : mermaidAliases();
   const ids = new Set();
   const collect = node => {
-    if (Array.isArray(node)) return node.forEach(collect);
+    if (Array.isArray(node)) {
+      for (const n of node) collect(n);
+      return;
+    }
     if (!node || typeof node !== 'object') return;
     if (typeof node.id === 'string') ids.add(node.id);
-    Object.values(node).forEach(collect);
+    for (const value of Object.values(node)) collect(value);
   };
   collect(model);
   const map = new Map([...ids].map(id => [id, aliases.get(id)]));
@@ -58,5 +61,9 @@ const REFERENCE_KEYS = new Set(['id', 'from', 'to', 'attachedTo', 'subject', 'pa
 export function sorted(value) {
   if (Array.isArray(value)) return value.map(sorted);
   if (!value || typeof value !== 'object') return value;
-  return Object.fromEntries(Object.keys(value).sort().map(k => [k, sorted(value[k])]));
+  return Object.fromEntries(
+    Object.keys(value)
+      .sort()
+      .map(k => [k, sorted(value[k])]),
+  );
 }

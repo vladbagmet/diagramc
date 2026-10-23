@@ -10,7 +10,8 @@ import { validateCompositeStructureDiagram } from './validate.js';
 export const compositeStructureKind: KindDefinition<CompositeStructureDiagram> = {
   kind: 'composite-structure',
   title: 'Composite structure diagram',
-  summary: 'Structured classes with parts, reference properties and ports, connectors with end names and multiplicities, collaborations with roles and collaboration uses.',
+  summary:
+    'Structured classes with parts, reference properties and ports, connectors with end names and multiplicities, collaborations with roles and collaboration uses.',
   frameKeyword: 'class',
   schema: compositeStructureSchema,
   validate: validateCompositeStructureDiagram,

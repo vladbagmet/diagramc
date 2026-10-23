@@ -26,11 +26,19 @@ export function wordPieces(word: string): string[] {
   let start = 0;
   const chars = [...word];
   let offset = 0;
-  const cut = (at: number) => { if (at > start) { pieces.push(word.slice(start, at)); start = at; } };
+  const cut = (at: number) => {
+    if (at > start) {
+      pieces.push(word.slice(start, at));
+      start = at;
+    }
+  };
   for (let i = 0; i < chars.length; i++) {
-    const c = chars[i]!, next = chars[i + 1], prev = chars[i - 1];
+    const c = chars[i]!,
+      next = chars[i + 1],
+      prev = chars[i - 1];
     if (i > 0 && (c === '(' || c === '[' || c === '{' || c === '«')) cut(offset);
-    else if (i > 0 && next !== undefined && /\p{Lu}/u.test(c) && (/[\p{Ll}\p{Nd}]/u.test(prev!) || (/\p{Lu}/u.test(prev!) && /\p{Ll}/u.test(next)))) cut(offset);
+    else if (i > 0 && next !== undefined && /\p{Lu}/u.test(c) && (/[\p{Ll}\p{Nd}]/u.test(prev!) || (/\p{Lu}/u.test(prev!) && /\p{Ll}/u.test(next))))
+      cut(offset);
     offset += c.length;
     if (/[._\-/,:;»)\]}]/u.test(c) && next !== undefined && !/[._\-/,:;»)\]}]/u.test(next)) cut(offset);
   }
@@ -58,20 +66,32 @@ export function wrapText(metrics: FontMetrics, text: string, style: TextStyle, m
   let pending = '';
   for (const token of raw) {
     const punctuation = PUNCTUATION_ONLY.test(token.trim());
-    if (punctuation && tokens.length) { tokens[tokens.length - 1] += token; continue; }
-    if (punctuation || !token.trim()) { pending += token; continue; }
+    if (punctuation && tokens.length > 0) {
+      tokens.push(tokens.pop()! + token);
+      continue;
+    }
+    if (punctuation || !token.trim()) {
+      pending += token;
+      continue;
+    }
     tokens.push(pending + token);
     pending = '';
   }
-  if (pending) { if (tokens.length) tokens[tokens.length - 1] += pending; else tokens.push(pending); }
+  if (pending) tokens.push(tokens.length > 0 ? tokens.pop()! + pending : pending);
   const lines: string[] = [];
   let current = '';
   const place = (piece: string): void => {
-    if (current.trim() && width(current + piece) > maxWidth) { lines.push(current); current = ''; }
+    if (current.trim() && width(current + piece) > maxWidth) {
+      lines.push(current);
+      current = '';
+    }
     current += piece;
   };
   for (const token of tokens) {
-    if (width(current + token) <= maxWidth) { current += token; continue; }
+    if (width(current + token) <= maxWidth) {
+      current += token;
+      continue;
+    }
     if (width(token) <= tokenMax) {
       if (current.trim()) lines.push(current);
       current = token;
@@ -79,9 +99,15 @@ export function wrapText(metrics: FontMetrics, text: string, style: TextStyle, m
     }
     // A long word: break at its opportunities, packing pieces greedily.
     for (const piece of wordPieces(token)) {
-      if (width(piece) <= tokenMax) { place(piece); continue; }
+      if (width(piece) <= tokenMax) {
+        place(piece);
+        continue;
+      }
       for (const { segment } of graphemes.segment(piece)) {
-        if (current.trim() && width(current + segment) > maxWidth) { lines.push(current); current = ''; }
+        if (current.trim() && width(current + segment) > maxWidth) {
+          lines.push(current);
+          current = '';
+        }
         current += segment;
       }
     }
@@ -89,9 +115,15 @@ export function wrapText(metrics: FontMetrics, text: string, style: TextStyle, m
   if (current) lines.push(current);
   // A line holding only punctuation joins the line before it.
   for (let i = lines.length - 1; i > 0; i--) {
-    if (PUNCTUATION_ONLY.test(lines[i]!.trim()) || !lines[i]!.trim()) { lines[i - 1] += lines[i]!; lines.splice(i, 1); }
+    if (PUNCTUATION_ONLY.test(lines[i]!.trim()) || !lines[i]!.trim()) {
+      lines[i - 1] = lines[i - 1]! + lines[i]!;
+      lines.splice(i, 1);
+    }
   }
-  if (lines.length > 1 && (PUNCTUATION_ONLY.test(lines[0]!.trim()) || !lines[0]!.trim())) { lines[1] = lines[0]! + lines[1]!; lines.shift(); }
+  if (lines.length > 1 && (PUNCTUATION_ONLY.test(lines[0]!.trim()) || !lines[0]!.trim())) {
+    lines[1] = lines[0]! + lines[1]!;
+    lines.shift();
+  }
   // A word kept whole widens the text anyway: when the whole text is not much wider
   // than that, one line reads better than a stub ("r2 :" above a long classifier name).
   const widest = Math.max(maxWidth, ...lines.map(width));

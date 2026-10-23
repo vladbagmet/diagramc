@@ -1,0 +1,35 @@
+name: Feature request
+description: A new command, option, output format or change in behavior.
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the idea. For a UML construct the tool cannot draw yet, use the
+        "Diagram notation" template instead.
+  - type: textarea
+    id: problem
+    attributes:
+      label: What are you trying to do?
+      description: The task or workflow, and where the tool gets in the way today.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What would help?
+      description: The command, option or behavior you have in mind, with an example of input and output if you can.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives you considered
+  - type: dropdown
+    id: contribute
+    attributes:
+      label: Would you like to work on it?
+      options:
+        - "Yes, I would like to open a pull request"
+        - "Maybe, with some guidance"
+        - "No"

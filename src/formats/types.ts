@@ -20,7 +20,10 @@ export class Losses {
 }
 
 /** One meaningful source line: its 1-based number in the input and its text without indentation. */
-export interface SourceLine { number: number; text: string }
+export interface SourceLine {
+  number: number;
+  text: string;
+}
 
 /**
  * Collects every problem of an import, one diagnostic per offending line. The
@@ -30,15 +33,20 @@ export interface SourceLine { number: number; text: string }
 export class Problems {
   readonly list: Diagnostic[] = [];
   /** Valid in the source format, but it has no place in the model. */
-  unsupported(line: SourceLine, message: string): void { this.add('UNSUPPORTED_SYNTAX', line, message); }
+  unsupported(line: SourceLine, message: string): void {
+    this.add('UNSUPPORTED_SYNTAX', line, message);
+  }
   /** Not understood at all, or contradicts an earlier line. */
-  malformed(line: SourceLine, message: string): void { this.add('MALFORMED_LINE', line, message); }
+  malformed(line: SourceLine, message: string): void {
+    this.add('MALFORMED_LINE', line, message);
+  }
   add(code: string, line: SourceLine, message: string): void {
     this.list.push({ code, path: pointer('/lines', line.number), message: `Line ${line.number}: ${message}`, details: { line: line.number, text: line.text } });
   }
 }
 
 /** The model and text of one kind in one format. Export is required; import is optional. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- the registry holds mappings of every model type, as KindDefinition does.
 export interface KindFormat<M = any> {
   readonly kind: string;
   /** Model (already validated) -> text in the format. Reports losses on `losses`. */

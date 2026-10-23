@@ -27,24 +27,67 @@ interface MessageBase {
   returnValue?: string;
 }
 /** Starts an activation on the receiving lifeline. */
-interface Activates { activate?: boolean }
+interface Activates {
+  activate?: boolean;
+}
 /** Ends the innermost activation of the sending lifeline. */
-interface Deactivates { deactivate?: boolean }
+interface Deactivates {
+  deactivate?: boolean;
+}
 
-export interface Message extends MessageBase, Activates, Deactivates { type: 'message'; sort: MessageSort; from: string; to: string }
+export interface Message extends MessageBase, Activates, Deactivates {
+  type: 'message';
+  sort: MessageSort;
+  from: string;
+  to: string;
+}
 /** A message whose sender is unknown (filled circle at its start). */
-export interface FoundMessage extends MessageBase, Activates { type: 'found'; sort: 'synchronous' | 'asynchronous'; to: string }
+export interface FoundMessage extends MessageBase, Activates {
+  type: 'found';
+  sort: 'synchronous' | 'asynchronous';
+  to: string;
+}
 /** A message whose receiver is unknown (filled circle at its end). */
-export interface LostMessage extends MessageBase, Deactivates { type: 'lost'; sort: 'synchronous' | 'asynchronous'; from: string }
+export interface LostMessage extends MessageBase, Deactivates {
+  type: 'lost';
+  sort: 'synchronous' | 'asynchronous';
+  from: string;
+}
 
-export interface Activation { type: 'activate' | 'deactivate'; lifeline: string }
-export interface Destruction { type: 'destroy'; lifeline: string }
-export interface StateInvariant { type: 'stateInvariant'; id?: string; lifeline: string; constraint: string }
-export interface Note { type: 'note'; id?: string; position: 'over' | 'left' | 'right'; lifelines: string[]; text: string }
-export interface InteractionUse { type: 'ref'; id?: string; covered: string[]; name: string; arguments?: string[] }
+export interface Activation {
+  type: 'activate' | 'deactivate';
+  lifeline: string;
+}
+export interface Destruction {
+  type: 'destroy';
+  lifeline: string;
+}
+export interface StateInvariant {
+  type: 'stateInvariant';
+  id?: string;
+  lifeline: string;
+  constraint: string;
+}
+export interface Note {
+  type: 'note';
+  id?: string;
+  position: 'over' | 'left' | 'right';
+  lifelines: string[];
+  text: string;
+}
+export interface InteractionUse {
+  type: 'ref';
+  id?: string;
+  covered: string[];
+  name: string;
+  arguments?: string[];
+}
 
 export type Operator = 'alt' | 'opt' | 'loop' | 'par' | 'break' | 'critical' | 'neg' | 'strict' | 'seq' | 'assert';
-export interface Operand { guard?: string; items: Item[] }
+export interface Operand {
+  guard?: string;
+  items: Item[];
+}
 export interface Fragment {
   type: 'fragment';
   id?: string;
@@ -66,5 +109,4 @@ export interface SequenceDiagram {
   items: Item[];
 }
 
-export const isMessage = (item: Item): item is Message | FoundMessage | LostMessage =>
-  item.type === 'message' || item.type === 'found' || item.type === 'lost';
+export const isMessage = (item: Item): item is Message | FoundMessage | LostMessage => item.type === 'message' || item.type === 'found' || item.type === 'lost';

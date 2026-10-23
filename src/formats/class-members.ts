@@ -71,8 +71,13 @@ export function parseAttribute(text: string, codec: Codec): Attribute | string {
   if (!m) return `expected an attribute "name : Type [multiplicity] = default {readOnly}", got ${JSON.stringify(text)}`;
   if (m[3] !== undefined && !MULTIPLICITY.test(m[3])) return `invalid multiplicity [${m[3]}]`;
   return compact({
-    name: codec.decode(m[1]!), type: m[2] === undefined ? undefined : codec.decode(m[2]), visibility: vis, multiplicity: m[3],
-    default: m[4] === undefined ? undefined : codec.decode(m[4]), derived: derived || undefined, readOnly: m[5] ? true : undefined,
+    name: codec.decode(m[1]!),
+    type: m[2] === undefined ? undefined : codec.decode(m[2]),
+    visibility: vis,
+    multiplicity: m[3],
+    default: m[4] === undefined ? undefined : codec.decode(m[4]),
+    derived: derived || undefined,
+    readOnly: m[5] ? true : undefined,
   });
 }
 
@@ -90,7 +95,15 @@ export function parseOperation(text: string, codec: Codec): Operation | string {
       const pm = /^(?:(in|out|inout)\s+)?([^:[\]=]+?)\s*(?::\s*([^[\]=]+?))?\s*(?:\[([^\]]*)\])?\s*(?:=\s*(.+))?$/u.exec(p);
       if (!pm) return `expected a parameter "[in|out|inout] name : Type [multiplicity] = default", got ${JSON.stringify(p)}`;
       if (pm[4] !== undefined && !MULTIPLICITY.test(pm[4])) return `invalid multiplicity [${pm[4]}]`;
-      parameters.push(compact({ name: codec.decode(pm[2]!), type: pm[3] === undefined ? undefined : codec.decode(pm[3]), direction: pm[1] as Parameter['direction'], multiplicity: pm[4], default: pm[5] === undefined ? undefined : codec.decode(pm[5].trim()) }));
+      parameters.push(
+        compact({
+          name: codec.decode(pm[2]!),
+          type: pm[3] === undefined ? undefined : codec.decode(pm[3]),
+          direction: pm[1] as Parameter['direction'],
+          multiplicity: pm[4],
+          default: pm[5] === undefined ? undefined : codec.decode(pm[5].trim()),
+        }),
+      );
     }
     operation.parameters = parameters;
   }
@@ -115,6 +128,6 @@ export function parseEnd(text: string | undefined, codec: Codec): { role?: strin
 export function endText(end: { role?: string; multiplicity?: string } | undefined, codec: Codec): string | undefined {
   if (end?.role === undefined && end?.multiplicity === undefined) return undefined;
   let role = end.role === undefined ? undefined : codec.encode(end.role, '"');
-  if (role !== undefined && end.multiplicity === undefined && (MULTIPLICITY.test(role.split(' ').at(-1)!))) role = role.slice(0, -1) + codec.token(role.at(-1)!);
+  if (role !== undefined && end.multiplicity === undefined && MULTIPLICITY.test(role.split(' ').at(-1)!)) role = role.slice(0, -1) + codec.token(role.at(-1)!);
   return [role, end.multiplicity].filter(t => t !== undefined).join(' ');
 }

@@ -238,3 +238,107 @@ Known candidates, to be confirmed one by one:
    import round trip of one example per supported kind, every README command,
    every README image present and referenced, grep for sensitive strings, then
    delete this file.
+
+## Audit result (docs agent)
+
+Checked on 2026-10-23 on branch `worktree-agent-a29b20ed973e412a8`, history
+scanned over `--all` (162 commits at the time).
+
+Deleted on the branch:
+
+- `artifacts/review-preview.png`, `artifacts/review.puml`, `artifacts/review.svg`:
+  leftovers of the MVP review (a class render, its PlantUML source and a browser
+  screenshot). Synthetic content. `artifacts/` is now ignored entirely.
+- `docs/plans/full-uml-plan.md`: the plan for the 14 kinds, executed and
+  closed. Its lasting content (backend per kind and why, layout, quality bar) is
+  in the new `docs/architecture.md`, checked against `src/`.
+- `docs/reports/UML CLI architecture plan.md` and
+  `docs/research_notes/UML CLI architecture plan/` (3 files): pre-implementation
+  research proposing a Rust design that was not built. Nothing current to keep.
+- `docs/reviews/mvp-review.md`: the MVP review; every finding was fixed and is
+  covered by tests.
+- References fixed: decision 0002 linked the deleted plan; the kinds recipe and
+  decisions 0001, 0002 and `docs/kinds/class.md` mentioned internal "chunks".
+
+Findings, one by one:
+
+- `.claude/`: ignored, nothing tracked, and no path under it ever entered history.
+- `.tools/` and binaries: no jar, JRE, tarball, zip or native library has ever
+  been committed. The largest blobs in history are the four Inter fonts (about
+  410 KiB each, intended) and `artifacts/review-preview.png` (152 KiB, now deleted
+  but still in history; harmless).
+- Home paths: none in the tree except this plan (`/Users/Vlad/...` in the ground
+  rules). In history, the same line in commit 42334ba only.
+- E-mail addresses: in the tree only `ann@example.org` (example data) and the
+  upstream authors' addresses inside license texts in `THIRD_PARTY_NOTICES.md`.
+  Every commit's author and committer is `Vlad Bagmet <git@vladbagmet.com>`.
+- Keys, tokens, passwords, private keys: none in the tree or history (searched
+  for common key formats, `api_key`, `bearer`, `BEGIN ... PRIVATE`; the only hits
+  are words like "password" and "TokenService" in example models).
+- Hostnames and URLs: only public ones (github.com, plantuml.com, adoptium.net,
+  omg.org, w3.org, npm registry in the lockfile, and `.invalid` test hosts). No
+  internal hosts, IP addresses or `localhost`.
+- AI attribution: no `Co-Authored-By`, "generated with" or session links in any
+  commit message or tracked file.
+- `examples/` and `test/fixtures/`: synthetic (web shop, hospital, library, ATM,
+  thermostat, elevator, generic "Billing/Catalog" services). No company names or
+  anything that reads like a real internal design.
+- `package-lock.json` and `THIRD_PARTY_NOTICES.md` stay; the notices match the
+  lockfile and the installed license files exactly.
+- `.gitignore`: now covers `node_modules/`, `dist/`, `*.tgz`, `.tools`,
+  `artifacts/` (gallery and any screenshot scratch output), `coverage/`,
+  `.nyc_output/`, `*.log`, `*.tmp`, `.DS_Store`, `.vscode/`, `.idea/`, `*.swp`,
+  `*~`, `.claude/`. The screenshots script should write its scratch files under
+  `artifacts/`.
+
+Needs the owner's decision:
+
+- History rewrite: not needed for secrets. The deleted planning documents and
+  the home path in commit 42334ba stay readable in history; if that matters,
+  publish from a squashed or filtered history.
+- Author e-mail: `git@vladbagmet.com` becomes public with the history. Use a
+  GitHub no-reply address for future commits if that is not wanted.
+- Placeholders to fill: the contact address in `CODE_OF_CONDUCT.md` and the
+  e-mail address in `SECURITY.md` (private vulnerability reporting must also be
+  enabled in the GitHub repository settings for the link there to work).
+- License: MIT was chosen as the default; swap `LICENSE` and `package.json`
+  before publishing if another license is wanted. `"private": true` is still in
+  `package.json`; remove it only if the package will be published to npm.
+- README (owned by the README agent): the "PlantUML renderer" and "Licenses"
+  sections still describe the PlantUML jar as GPL; since decision 0005 it is the
+  MIT build.
+
+## Enforcement summary (quality agent)
+
+What a contributor runs, and what CI enforces:
+
+- Setup: `npm ci`. For sequence, timing and activity diagrams also
+  `npm run setup:renderer` once (downloads a pinned JRE and PlantUML into
+  `.tools/`; no system Java needed).
+- `npm test`: fast unit suite (about a minute). Tests that need the PlantUML
+  runtime are reported as skipped, with the reason, when `.tools/` is missing.
+- `npm run test:integration`: the PlantUML integration tests (need the runtime).
+- `npm run typecheck`: `tsc --noEmit` with `strict`, `noUncheckedIndexedAccess`
+  and `exactOptionalPropertyTypes`.
+- `npm run lint`: ESLint 9 flat config (`eslint.config.js`): typescript-eslint
+  strict-type-checked and stylistic-type-checked on `src/`, the recommended
+  rules and eslint-plugin-unicorn everywhere. Every rule turned off says why in
+  the config; fix findings rather than adding disables.
+- `npm run format` and `npm run format:check`: Prettier (`.prettierrc`: single
+  quotes, semicolons, width 160). The one-time reformat commit is listed in
+  `.git-blame-ignore-revs` (`git config blame.ignoreRevsFile .git-blame-ignore-revs`).
+- `npm run test:coverage`: unit tests with Node's built-in coverage over `src/`
+  (only `src/types/` excluded); fails below 90 percent lines, 80 percent
+  branches or 90 percent functions. The table is printed at the end.
+- `npm run gallery`: renders every example and fails on a layout gate failure
+  that is not a documented exception in `test/known-gate-failures.mjs`.
+- `npm run check`: all of the above except the integration tests, in one
+  command. Run it before opening a pull request (the gallery part needs the
+  renderer).
+- CI (`.github/workflows/ci.yml`): typecheck, lint, format check and coverage
+  on Node 22 and 24 (Ubuntu) and Node 24 (macOS); a separate job installs the
+  renderer (cached by the pins in `scripts/setup-renderer.mjs`) and runs the
+  integration tests and the gallery. Dependabot updates npm packages and
+  actions weekly; `.github/CODEOWNERS` names `@vladbagmet`.
+- Stress render budgets are CPU-time budgets, widened threefold under coverage
+  and twofold when `CI` is set.

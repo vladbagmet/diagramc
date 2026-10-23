@@ -13,9 +13,9 @@ import { document, encode, plantumlAliases, quoted, stereotypeText } from './tex
 
 /** `name : Classifier`, `name` or `: Classifier` (UML 2.5.1 9.8.4). */
 const instanceLabel = (i: Instance): string =>
-  i.classifier === undefined ? i.name ?? '' : `${i.name ?? ''}${i.name === undefined ? '' : ' '}: ${i.classifier}`;
+  i.classifier === undefined ? (i.name ?? '') : `${i.name ?? ''}${i.name === undefined ? '' : ' '}: ${i.classifier}`;
 
-const endLabel = (end: LinkEnd | undefined): string => end?.role === undefined ? '' : ` ${quoted(end.role)}`;
+const endLabel = (end: LinkEnd | undefined): string => (end?.role === undefined ? '' : ` ${quoted(end.role)}`);
 
 function linkLabel(link: Link): string {
   if (link.association === undefined) return link.name === undefined ? '' : encode(link.name);
@@ -27,15 +27,21 @@ export function exportObject(model: ObjectDiagram, _losses: Losses): string {
   const lines: string[] = [];
   for (const e of model.elements) {
     const alias = ids.get(e.id);
-    if (isNote(e)) { lines.push(`note ${quoted(e.text)} as ${alias}`); continue; }
+    if (isNote(e)) {
+      lines.push(`note ${quoted(e.text)} as ${alias}`);
+      continue;
+    }
     const head = `object ${quoted(instanceLabel(e))} as ${alias}${stereotypeText(e.stereotypes)}`;
-    if (!e.slots?.length) { lines.push(head); continue; }
+    if (!e.slots?.length) {
+      lines.push(head);
+      continue;
+    }
     lines.push(`${head} {`);
     for (const s of e.slots) lines.push(`  ${encode(`${s.feature}${s.type === undefined ? '' : ` : ${s.type}`} = ${s.value}`, '{}')}`);
     lines.push('}');
   }
   for (const r of model.relationships ?? []) {
-    const nav = (n: boolean | undefined, yes: string): string => n === undefined ? '' : n ? yes : 'x';
+    const nav = (n: boolean | undefined, yes: string): string => (n === undefined ? '' : n ? yes : 'x');
     const arrow = `${nav(r.fromEnd?.navigable, '<')}--${nav(r.toEnd?.navigable, '>')}`;
     const label = linkLabel(r);
     lines.push(`${ids.get(r.from)}${endLabel(r.fromEnd)} ${arrow}${endLabel(r.toEnd)} ${ids.get(r.to)}${label ? ` : ${label}` : ''}`);

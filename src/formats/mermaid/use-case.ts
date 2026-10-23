@@ -20,7 +20,7 @@ export function exportUseCase(model: UseCaseDiagram, losses: Losses): string {
     const points = u.extensionPoints?.length ? `<br>extension points<br>${u.extensionPoints.map(p => encode(p)).join('<br>')}` : '';
     lines.push(`${pad}${ids.get(u.id)}(["${encode(u.name)}${points}"])`);
   };
-  model.elements.forEach((e, i) => {
+  for (const [i, e] of model.elements.entries()) {
     const id = ids.get(e.id);
     switch (e.type) {
       case 'actor':
@@ -41,11 +41,12 @@ export function exportUseCase(model: UseCaseDiagram, losses: Losses): string {
         for (const t of e.attachedTo ?? []) notes.push(`${id} -.- ${ids.get(t)}`);
         break;
     }
-  });
-  (model.relationships ?? []).forEach((r, i) => {
+  }
+  for (const [i, r] of (model.relationships ?? []).entries()) {
     const path = `/relationships/${i}`;
     if (r.id !== undefined) losses.add(`${path}/id`, 'Relationship IDs are not kept');
-    const from = ids.get(r.from), to = ids.get(r.to);
+    const from = ids.get(r.from),
+      to = ids.get(r.to);
     switch (r.type) {
       case 'association': {
         const ends = r.fromEnd?.multiplicity !== undefined || r.toEnd?.multiplicity !== undefined;
@@ -62,10 +63,12 @@ export function exportUseCase(model: UseCaseDiagram, losses: Losses): string {
         lines.push(`${from} -.->|"«include»"| ${to}`);
         break;
       case 'extend':
-        lines.push(`${from} -.->|"«extend»${r.condition === undefined ? '' : `<br>condition: {${encode(r.condition)}}`}<br>extension point: ${encode(r.extensionPoint)}"| ${to}`);
+        lines.push(
+          `${from} -.->|"«extend»${r.condition === undefined ? '' : `<br>condition: {${encode(r.condition)}}`}<br>extension point: ${encode(r.extensionPoint)}"| ${to}`,
+        );
         break;
     }
-  });
+  }
   lines.push(...notes);
   return document(model.title, 'flowchart LR', lines);
 }

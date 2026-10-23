@@ -10,8 +10,8 @@ export interface XmlElement {
 export type XmlNode = XmlElement | string;
 
 export function decodeXml(text: string): string {
-  return text.replace(/&(#x[0-9a-fA-F]+|#\d+|lt|gt|amp|quot|apos);/gu, (_, entity: string) => {
-    if (entity[0] === '#') return String.fromCodePoint(entity[1] === 'x' ? parseInt(entity.slice(2), 16) : Number(entity.slice(1)));
+  return text.replaceAll(/&(#x[0-9a-fA-F]+|#\d+|lt|gt|amp|quot|apos);/gu, (_, entity: string) => {
+    if (entity.startsWith('#')) return String.fromCodePoint(entity[1] === 'x' ? Number.parseInt(entity.slice(2), 16) : Number(entity.slice(1)));
     return ({ lt: '<', gt: '>', amp: '&', quot: '"', apos: "'" } as Record<string, string>)[entity]!;
   });
 }
@@ -23,9 +23,15 @@ export function parseXml(source: string): XmlElement {
   while (i < source.length) {
     const lt = source.indexOf('<', i);
     const top = stack.at(-1)!;
-    if (lt === -1) { pushText(top, source.slice(i)); break; }
+    if (lt === -1) {
+      pushText(top, source.slice(i));
+      break;
+    }
     if (lt > i) pushText(top, source.slice(i, lt));
-    if (source.startsWith('<!--', lt)) { i = end(source, '-->', lt) ; continue; }
+    if (source.startsWith('<!--', lt)) {
+      i = end(source, '-->', lt);
+      continue;
+    }
     if (source.startsWith('<![CDATA[', lt)) {
       const close = source.indexOf(']]>', lt);
       if (close === -1) throw new Error('Unterminated CDATA');
@@ -33,13 +39,19 @@ export function parseXml(source: string): XmlElement {
       i = close + 3;
       continue;
     }
-    if (source.startsWith('<?', lt)) { i = end(source, '?>', lt); continue; }
-    if (source.startsWith('<!', lt)) { i = end(source, '>', lt); continue; }
+    if (source.startsWith('<?', lt)) {
+      i = end(source, '?>', lt);
+      continue;
+    }
+    if (source.startsWith('<!', lt)) {
+      i = end(source, '>', lt);
+      continue;
+    }
     if (source.startsWith('</', lt)) {
       const close = source.indexOf('>', lt);
       const tag = source.slice(lt + 2, close).trim();
       const open = stack.pop();
-      if (!open || open.tag !== tag) throw new Error(`Mismatched </${tag}>`);
+      if (open?.tag !== tag) throw new Error(`Mismatched </${tag}>`);
       i = close + 1;
       continue;
     }
@@ -73,5 +85,5 @@ export function* walk(element: XmlElement, ancestors: XmlElement[] = []): Genera
 }
 
 export function textContent(element: XmlElement): string {
-  return element.children.map(c => typeof c === 'string' ? c : textContent(c)).join('');
+  return element.children.map(c => (typeof c === 'string' ? c : textContent(c))).join('');
 }

@@ -7,11 +7,16 @@ export const VISIBILITY: Record<Visibility, string> = { public: '+', private: '-
 /** Keyword shown in guillemets above the name, per classifier type. */
 export function classifierKeyword(type: ClassifierType): string | undefined {
   switch (type) {
-    case 'interface': return 'interface';
-    case 'enumeration': return 'enumeration';
-    case 'datatype': return 'dataType';
-    case 'primitive': return 'primitive';
-    default: return undefined;
+    case 'interface':
+      return 'interface';
+    case 'enumeration':
+      return 'enumeration';
+    case 'datatype':
+      return 'dataType';
+    case 'primitive':
+      return 'primitive';
+    default:
+      return undefined;
   }
 }
 

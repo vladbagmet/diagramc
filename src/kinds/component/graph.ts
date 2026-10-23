@@ -30,21 +30,22 @@ export function componentGraph(model: ComponentDiagram): StructGraph {
     if (r.type === 'realization' && interfaces.has(r.to)) joined.add(`${r.from}\u0000provides\u0000${r.to}`);
   }
   // A delegation passes an interface through: draw it once, at the outer end.
-  const parentOf = new Map<string, string>(), portOf = new Map<string, string>();
+  const parentOf = new Map<string, string>(),
+    portOf = new Map<string, string>();
   const walk = (e: Element | Nested, parent: string | undefined): void => {
     if (parent !== undefined) parentOf.set(e.id, parent);
     if (e.type === 'component' || e.type === 'class') for (const p of e.ports ?? []) portOf.set(p.id, e.id);
     if (e.type === 'component') for (const c of e.elements ?? []) walk(c, e.id);
   };
-  model.elements.forEach(e => walk(e, undefined));
+  for (const e of model.elements) walk(e, undefined);
   const values = new Map<string, { provides?: string[]; requires?: string[] }>();
   const collectValues = (e: Element | Nested): void => {
     if (e.type !== 'component' && e.type !== 'class') return;
     values.set(e.id, e);
     for (const p of e.ports ?? []) values.set(p.id, p);
-    if (e.type === 'component') (e.elements ?? []).forEach(collectValues);
+    if (e.type === 'component') for (const child of e.elements ?? []) collectValues(child);
   };
-  model.elements.forEach(collectValues);
+  for (const e of model.elements) collectValues(e);
   for (const r of relationships) {
     if (r.type !== 'delegation') continue;
     const owner = (id: string) => portOf.get(id) ?? id;
@@ -64,20 +65,21 @@ export function componentGraph(model: ComponentDiagram): StructGraph {
     }
     return out;
   };
-  const ports = (ps: readonly Port[] | undefined): StructPort[] => (ps ?? []).map(p => {
-    const label = portLabel(p);
-    return { id: p.id, ...(label !== undefined ? { label } : {}), stubs: stubs(p.id, p) };
-  });
+  const ports = (ps: readonly Port[] | undefined): StructPort[] =>
+    (ps ?? []).map(p => {
+      const label = portLabel(p);
+      return { id: p.id, ...(label === undefined ? {} : { label }), stubs: stubs(p.id, p) };
+    });
 
   // Interfaces are boxes when a relationship touches them or nothing provides or requires them.
   const referenced = new Set<string>();
   const collect = (e: Element | Nested): void => {
     if (e.type !== 'component' && e.type !== 'class') return;
-    for (const v of [e, ...(e.ports ?? [])]) for (const id of [...v.provides ?? [], ...v.requires ?? []]) referenced.add(id);
-    if (e.type === 'component') (e.elements ?? []).forEach(collect);
+    for (const v of [e, ...(e.ports ?? [])]) for (const id of [...(v.provides ?? []), ...(v.requires ?? [])]) referenced.add(id);
+    if (e.type === 'component') for (const child of e.elements ?? []) collect(child);
   };
-  model.elements.forEach(collect);
-  const touched = new Set(relationships.flatMap(r => r.type === 'assembly' || r.type === 'delegation' ? [] : [r.from, r.to]));
+  for (const e of model.elements) collect(e);
+  const touched = new Set(relationships.flatMap(r => (r.type === 'assembly' || r.type === 'delegation' ? [] : [r.from, r.to])));
   for (const e of model.elements) if (e.type === 'note') for (const id of e.attachedTo ?? []) touched.add(id);
 
   // An interface is drawn once (F-A-12). An element whose own port provides or
@@ -95,7 +97,7 @@ export function componentGraph(model: ComponentDiagram): StructGraph {
     for (const which of ['provides', 'requires'] as const) {
       for (const i of v[which] ?? []) {
         if (joined.has(`${owner}\u0000${which}\u0000${i}`)) continue;
-        loose.set(i, [...loose.get(i) ?? [], { owner, which }]);
+        loose.set(i, [...(loose.get(i) ?? []), { owner, which }]);
       }
     }
   }
@@ -111,9 +113,11 @@ export function componentGraph(model: ComponentDiagram): StructGraph {
       const type = which === 'provides' ? 'realization' : 'usage';
       const element = portOf.get(owner) ?? owner;
       if (relationships.some(r => r.type === type && r.to === i && (r.from === owner || r.from === element))) continue;
-      derived.push(which === 'provides'
-        ? { id: `${owner}::realizes::${i}`, type, source: owner, target: i, style: 'dashed', sourceMarker: 'none', targetMarker: 'hollow-triangle' }
-        : { id: `${owner}::uses::${i}`, type, source: owner, target: i, style: 'dashed', sourceMarker: 'none', targetMarker: 'open-arrow', keyword: 'use' });
+      derived.push(
+        which === 'provides'
+          ? { id: `${owner}::realizes::${i}`, type, source: owner, target: i, style: 'dashed', sourceMarker: 'none', targetMarker: 'hollow-triangle' }
+          : { id: `${owner}::uses::${i}`, type, source: owner, target: i, style: 'dashed', sourceMarker: 'none', targetMarker: 'open-arrow', keyword: 'use' },
+      );
     }
   }
 
@@ -121,22 +125,52 @@ export function componentGraph(model: ComponentDiagram): StructGraph {
     switch (e.type) {
       case 'component':
         return {
-          id: e.id, type: 'component', shape: 'box', icon: 'component',
+          id: e.id,
+          type: 'component',
+          shape: 'box',
+          icon: 'component',
           header: headerLines({ keyword: 'component', stereotypes: e.stereotypes, name: e.name }),
-          ports: ports(e.ports), stubs: stubs(e.id, e),
+          ports: ports(e.ports),
+          stubs: stubs(e.id, e),
           children: (e.elements ?? []).map(child => node(child)!),
         };
       case 'class':
-        return { id: e.id, type: 'class', shape: 'box', header: headerLines({ stereotypes: e.stereotypes, name: e.name }), ports: ports(e.ports), stubs: stubs(e.id, e) };
+        return {
+          id: e.id,
+          type: 'class',
+          shape: 'box',
+          header: headerLines({ stereotypes: e.stereotypes, name: e.name }),
+          ports: ports(e.ports),
+          stubs: stubs(e.id, e),
+        };
       case 'interface':
         if (!boxed.has(e.id)) return undefined;
         return {
-          id: e.id, type: 'interface', shape: 'box',
+          id: e.id,
+          type: 'interface',
+          shape: 'box',
           header: headerLines({ keyword: 'interface', stereotypes: e.stereotypes, name: e.name }),
-          ...(e.operations?.length ? { compartments: [e.operations.map(o => ({ text: formatOperation(o), style: { ...BODY_STYLE, italic: !!o.abstract }, align: 'left' as const, underline: !!o.static }))] } : {}),
+          ...(e.operations?.length
+            ? {
+                compartments: [
+                  e.operations.map(o => ({
+                    text: formatOperation(o),
+                    style: { ...BODY_STYLE, italic: !!o.abstract },
+                    align: 'left' as const,
+                    underline: !!o.static,
+                  })),
+                ],
+              }
+            : {}),
         };
       case 'artifact':
-        return { id: e.id, type: 'artifact', shape: 'box', icon: 'artifact', header: headerLines({ keyword: 'artifact', stereotypes: e.stereotypes, name: e.name }) };
+        return {
+          id: e.id,
+          type: 'artifact',
+          shape: 'box',
+          icon: 'artifact',
+          header: headerLines({ keyword: 'artifact', stereotypes: e.stereotypes, name: e.name }),
+        };
       case 'note':
         return { id: e.id, type: 'note', shape: 'note', header: [], noteText: e.text };
     }
@@ -144,23 +178,53 @@ export function componentGraph(model: ComponentDiagram): StructGraph {
 
   const edges: StructEdge[] = [];
   const assemblies: StructGraph['assemblies'] = [];
-  relationships.forEach((r, i) => {
+  for (const [i, r] of relationships.entries()) {
     const id = r.id ?? `relationships/${i}`;
     const base = { id, type: r.type, source: r.from, target: r.to };
     switch (r.type) {
-      case 'assembly': assemblies.push({ id, requirer: r.from, provider: r.to, name: name(r.interface) }); break;
-      case 'delegation': edges.push({ ...base, style: 'solid', sourceMarker: 'none', targetMarker: 'open-arrow', keyword: 'delegate', ...(r.name !== undefined ? { name: r.name } : {}) }); break;
-      case 'realization': edges.push({ ...base, style: 'dashed', sourceMarker: 'none', targetMarker: 'hollow-triangle' }); break;
-      case 'usage': edges.push({ ...base, style: 'dashed', sourceMarker: 'none', targetMarker: 'open-arrow', keyword: 'use' }); break;
-      case 'manifest': edges.push({ ...base, style: 'dashed', sourceMarker: 'none', targetMarker: 'open-arrow', keyword: 'manifest' }); break;
-      case 'dependency': edges.push({ ...base, style: 'dashed', sourceMarker: 'none', targetMarker: 'open-arrow', ...(r.keyword !== undefined ? { keyword: r.keyword } : {}), ...(r.name !== undefined ? { name: r.name } : {}) }); break;
+      case 'assembly':
+        assemblies.push({ id, requirer: r.from, provider: r.to, name: name(r.interface) });
+        break;
+      case 'delegation':
+        edges.push({
+          ...base,
+          style: 'solid',
+          sourceMarker: 'none',
+          targetMarker: 'open-arrow',
+          keyword: 'delegate',
+          ...(r.name === undefined ? {} : { name: r.name }),
+        });
+        break;
+      case 'realization':
+        edges.push({ ...base, style: 'dashed', sourceMarker: 'none', targetMarker: 'hollow-triangle' });
+        break;
+      case 'usage':
+        edges.push({ ...base, style: 'dashed', sourceMarker: 'none', targetMarker: 'open-arrow', keyword: 'use' });
+        break;
+      case 'manifest':
+        edges.push({ ...base, style: 'dashed', sourceMarker: 'none', targetMarker: 'open-arrow', keyword: 'manifest' });
+        break;
+      case 'dependency':
+        edges.push({
+          ...base,
+          style: 'dashed',
+          sourceMarker: 'none',
+          targetMarker: 'open-arrow',
+          ...(r.keyword === undefined ? {} : { keyword: r.keyword }),
+          ...(r.name === undefined ? {} : { name: r.name }),
+        });
+        break;
     }
-  });
+  }
 
   return {
-    kind: 'component', frameKeyword: 'cmp', title: model.title, directions: ['RIGHT', 'DOWN'],
+    kind: 'component',
+    frameKeyword: 'cmp',
+    title: model.title,
+    directions: ['RIGHT', 'DOWN'],
     nodes: model.elements.flatMap(e => node(e) ?? []),
-    edges: [...edges, ...derived], assemblies,
-    anchors: model.elements.flatMap(e => e.type === 'note' ? (e.attachedTo ?? []).map(target => ({ note: e.id, target })) : []),
+    edges: [...edges, ...derived],
+    assemblies,
+    anchors: model.elements.flatMap(e => (e.type === 'note' ? (e.attachedTo ?? []).map(target => ({ note: e.id, target })) : [])),
   };
 }

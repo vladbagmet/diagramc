@@ -30,14 +30,20 @@ export function exportSequence(model: SequenceDiagram, losses: Losses): string {
   const lines: string[] = [];
   const declare = (l: Lifeline): string => {
     const id = ids.get(l.id);
-    if (l.symbol !== undefined && l.symbol !== 'rectangle' && l.symbol !== 'actor') losses.add(`/lifelines/${order.get(l.id)}/symbol`, `Mermaid has no ${l.symbol} symbol; the lifeline is a plain participant`);
+    if (l.symbol !== undefined && l.symbol !== 'rectangle' && l.symbol !== 'actor')
+      losses.add(`/lifelines/${order.get(l.id)}/symbol`, `Mermaid has no ${l.symbol} symbol; the lifeline is a plain participant`);
     const label = lifelineLabel(l);
     return `${l.symbol === 'actor' ? 'actor' : 'participant'} ${id}${label === id ? '' : ` as ${label}`}`;
   };
   const created = new Set<string>();
-  const walk = (items: readonly Item[]): void => { for (const i of items) { if (i.type === 'message' && i.sort === 'create') created.add(i.to); if (i.type === 'fragment') for (const o of i.operands) walk(o.items); } };
+  const walk = (items: readonly Item[]): void => {
+    for (const i of items) {
+      if (i.type === 'message' && i.sort === 'create') created.add(i.to);
+      if (i.type === 'fragment') for (const o of i.operands) walk(o.items);
+    }
+  };
   walk(model.items);
-  if (created.size) losses.add('/lifelines', 'A created lifeline is declared at its create message, so it moves after the other lifelines');
+  if (created.size > 0) losses.add('/lifelines', 'A created lifeline is declared at its create message, so it moves after the other lifelines');
   if (model.autonumber) lines.push('autonumber');
   for (const l of model.lifelines) if (!created.has(l.id)) lines.push(declare(l));
   const a = (id: string): string => ids.get(id);
@@ -49,24 +55,29 @@ export function exportSequence(model: SequenceDiagram, losses: Losses): string {
   };
   const emit = (items: readonly Item[], depth: number, base: string): void => {
     const pad = '  '.repeat(depth);
-    items.forEach((item, index) => {
+    for (const [index, item] of items.entries()) {
       const path = `${base}/${index}`;
-      if ('id' in item && item.id !== undefined) losses.add(`${path}/id`, `The ID of a ${item.type} item is not kept`);
+      if ((item as { id?: string }).id !== undefined) losses.add(`${path}/id`, `The ID of a ${item.type} item is not kept`);
       if (isMessage(item)) {
         if (item.type !== 'message') {
           // Mermaid has no gates: a found or lost message is kept as a note beside its lifeline.
           losses.add(path, `Mermaid has no ${item.type} messages; it is written as a note "${item.type}: name(args)" beside the lifeline`);
           const text = `${item.type}: ${item.name === undefined ? '' : call(item.name, item.arguments)}`.trimEnd();
           lines.push(`${pad}Note ${item.type === 'found' ? `left of ${a(item.to)}` : `right of ${a(item.from)}`}: ${text}`);
-          return;
+          continue;
         }
-        const label = item.name === undefined ? '' : item.sort === 'reply'
-          ? `${item.assignment === undefined ? '' : `${encode(item.assignment, '=():,')} = `}${call(item.name, item.arguments)}${item.returnValue === undefined ? '' : ` : ${encode(item.returnValue)}`}`
-          : call(item.name, item.arguments);
+        const label =
+          item.name === undefined
+            ? ''
+            : item.sort === 'reply'
+              ? `${item.assignment === undefined ? '' : `${encode(item.assignment, '=():,')} = `}${call(item.name, item.arguments)}${item.returnValue === undefined ? '' : ` : ${encode(item.returnValue)}`}`
+              : call(item.name, item.arguments);
         if (item.sort === 'create') {
           const l = model.lifelines.find(x => x.id === item.to)!;
-          if (created.has(l.id)) { lines.push(`${pad}create ${declare(l)}`); created.delete(l.id); }
-          else losses.add(path, 'A second create message to one lifeline is written as a reply-style message');
+          if (created.has(l.id)) {
+            lines.push(`${pad}create ${declare(l)}`);
+            created.delete(l.id);
+          } else losses.add(path, 'A second create message to one lifeline is written as a reply-style message');
         }
         if (item.sort === 'delete') lines.push(`${pad}destroy ${a(item.to)}`);
         const arrow = item.sort === 'create' ? '-->>' : item.sort === 'delete' ? '->>' : ARROW[item.sort];
@@ -77,10 +88,11 @@ export function exportSequence(model: SequenceDiagram, losses: Losses): string {
           lines.push(`${pad}deactivate ${a(item.from)}`);
           losses.add(`${path}/deactivate`, 'A message that both activates and deactivates is written with a separate deactivate line');
         }
-        return;
+        continue;
       }
       switch (item.type) {
-        case 'activate': case 'deactivate':
+        case 'activate':
+        case 'deactivate':
           lines.push(`${pad}${item.type} ${a(item.lifeline)}`);
           break;
         case 'destroy':
@@ -91,7 +103,9 @@ export function exportSequence(model: SequenceDiagram, losses: Losses): string {
           lines.push(`${pad}Note over ${a(item.lifeline)}: {${encode(item.constraint)}}`);
           break;
         case 'note':
-          lines.push(`${pad}Note ${item.position === 'over' ? `over ${span(item.lifelines, `${path}/lifelines`)}` : `${item.position} of ${a(item.lifelines[0]!)}`}: ${encode(item.text)}`);
+          lines.push(
+            `${pad}Note ${item.position === 'over' ? `over ${span(item.lifelines, `${path}/lifelines`)}` : `${item.position} of ${a(item.lifelines[0]!)}`}: ${encode(item.text)}`,
+          );
           break;
         case 'ref':
           losses.add(path, 'Mermaid has no interaction uses; it is written as a note "ref Name(args)"');
@@ -101,25 +115,27 @@ export function exportSequence(model: SequenceDiagram, losses: Losses): string {
           fragment(item, depth, path);
           break;
       }
-    });
+    }
   };
   const fragment = (f: Fragment, depth: number, path: string): void => {
     const pad = '  '.repeat(depth);
     if (!NATIVE.has(f.operator)) {
       losses.add(path, `Mermaid has no ${f.operator} fragment; its operands are written without the frame`);
-      f.operands.forEach((o, i) => emit(o.items, depth, `${path}/operands/${i}/items`));
+      for (const [i, o] of f.operands.entries()) emit(o.items, depth, `${path}/operands/${i}/items`);
       return;
     }
-    if (f.operands.length > 1 && !SEPARATOR[f.operator]) losses.add(path, `Mermaid's ${f.operator} has one operand; the operands are written one after the other`);
-    f.operands.forEach((o, i) => {
+    if (f.operands.length > 1 && !SEPARATOR[f.operator])
+      losses.add(path, `Mermaid's ${f.operator} has one operand; the operands are written one after the other`);
+    for (const [i, o] of f.operands.entries()) {
       // A guard that starts like loop bounds has its parenthesis encoded.
-      const guard = o.guard === undefined ? '' : (o.guard.startsWith('(') ? entity('(') + encode(o.guard.slice(1)) : encode(o.guard));
+      const guard = o.guard === undefined ? '' : o.guard.startsWith('(') ? entity('(') + encode(o.guard.slice(1)) : encode(o.guard);
       const bounds = i === 0 && f.min !== undefined ? `(${f.min}${f.max === undefined ? '' : `,${f.max}`})` : '';
       const head = i === 0 ? f.operator : SEPARATOR[f.operator];
-      if (head === undefined) { if (o.guard !== undefined) losses.add(`${path}/operands/${i}/guard`, 'The guard of a second operand is not kept'); }
-      else lines.push(`${pad}${head}${[bounds, guard].filter(Boolean).length ? ` ${[bounds, guard].filter(Boolean).join(' ')}` : ''}`);
+      if (head === undefined) {
+        if (o.guard !== undefined) losses.add(`${path}/operands/${i}/guard`, 'The guard of a second operand is not kept');
+      } else lines.push(`${pad}${head}${[bounds, guard].some(Boolean) ? ` ${[bounds, guard].filter(Boolean).join(' ')}` : ''}`);
       emit(o.items, depth + 1, `${path}/operands/${i}/items`);
-    });
+    }
     lines.push(`${pad}end`);
   };
   emit(model.items, 0, '/items');
@@ -128,9 +144,14 @@ export function exportSequence(model: SequenceDiagram, losses: Losses): string {
 
 // ---------------------------------------------------------------- import
 
-const ID = String.raw`[A-Za-z0-9_]+`;
+const ID = '[A-Za-z0-9_]+';
 const MESSAGE = new RegExp(String.raw`^(${ID})\s*(<<-->>|<<->>|-->>|->>|-->|->|--x|-x|--\)|-\))\s*([+-]?)\s*(${ID})\s*:(.*)$`, 'u');
-interface Frame { fragment: Fragment | undefined; line: SourceLine; items: Item[]; parent: Item[] }
+interface Frame {
+  fragment: Fragment | undefined;
+  line: SourceLine;
+  items: Item[];
+  parent: Item[];
+}
 
 export function importSequence(lines: readonly SourceLine[], problems: Problems): Record<string, unknown> {
   const ids = new IdMaker();
@@ -138,7 +159,8 @@ export function importSequence(lines: readonly SourceLine[], problems: Problems)
   const byKey = new Map<string, string>();
   const top: Item[] = [];
   const stack: Frame[] = [];
-  let title: string | undefined, autonumber = false;
+  let title: string | undefined,
+    autonumber = false;
   let creating: string | undefined, destroying: { id: string; line: SourceLine } | undefined;
   const current = (): Item[] => stack.at(-1)?.items ?? top;
 
@@ -147,8 +169,10 @@ export function importSequence(lines: readonly SourceLine[], problems: Problems)
     const l: Lifeline = { id };
     const text = (label ?? key).trim();
     const m = /^(.*?)\s*(?:^|\s):\s(.*)$/u.exec(text);
-    if (m) { if (m[1]!.trim()) l.name = decode(m[1]!.trim()); l.classifier = decode(m[2]!.trim()); }
-    else l.name = decode(text);
+    if (m) {
+      if (m[1]!.trim()) l.name = decode(m[1]!.trim());
+      l.classifier = decode(m[2]!.trim());
+    } else l.name = decode(text);
     if (actor) l.symbol = 'actor';
     lifelines.push(l);
     byKey.set(key, id);
@@ -167,7 +191,7 @@ export function importSequence(lines: readonly SourceLine[], problems: Problems)
   const open = (fragment: Fragment | undefined, guard: string | undefined, line: SourceLine): void => {
     const items: Item[] = [];
     if (fragment) {
-      fragment.operands.push({ items, ...(guard === undefined || !guard.trim() ? {} : { guard: decode(guard.trim()) }) });
+      fragment.operands.push({ items, ...(guard?.trim() ? { guard: decode(guard.trim()) } : {}) });
       current().push(fragment);
       stack.push({ fragment, line, items, parent: current() });
     } else stack.push({ fragment, line, items: current(), parent: current() });
@@ -176,29 +200,58 @@ export function importSequence(lines: readonly SourceLine[], problems: Problems)
   for (const line of lines.slice(1)) {
     const t = line.text;
     const heading = titleOf(line);
-    if (heading !== undefined) { title = heading; continue; }
-    if (/^title\s/u.test(t)) { title = decode(t.slice(6).trim()); continue; }
-    if (t === 'autonumber') { autonumber = true; continue; }
-    if (/^autonumber\b/u.test(t)) { problems.unsupported(line, 'autonumber with a start or step is not supported; write "autonumber"'); continue; }
+    if (heading !== undefined) {
+      title = heading;
+      continue;
+    }
+    if (/^title\s/u.test(t)) {
+      title = decode(t.slice(6).trim());
+      continue;
+    }
+    if (t === 'autonumber') {
+      autonumber = true;
+      continue;
+    }
+    if (/^autonumber\b/u.test(t)) {
+      problems.unsupported(line, 'autonumber with a start or step is not supported; write "autonumber"');
+      continue;
+    }
     if (PRESENTATION.test(t) || /^links?\s/u.test(t)) continue;
     let m = new RegExp(String.raw`^(create\s+)?(participant|actor)\s+(${ID})(?:\s+as\s+(.+))?$`, 'u').exec(t);
     if (m) {
-      if (byKey.has(m[3]!)) { problems.malformed(line, `"${m[3]}" is declared twice`); continue; }
+      if (byKey.has(m[3]!)) {
+        problems.malformed(line, `"${m[3]}" is declared twice`);
+        continue;
+      }
       const id = declare(m[3]!, m[4], m[2] === 'actor');
       if (m[1]) creating = id;
       continue;
     }
-    if (/^(?:create\s+)?(?:participant|actor)\b/u.test(t)) { problems.unsupported(line, 'expected "participant Id" or "participant Id as Label" (participant types and other options are not imported)'); continue; }
+    if (/^(?:create\s+)?(?:participant|actor)\b/u.test(t)) {
+      problems.unsupported(line, 'expected "participant Id" or "participant Id as Label" (participant types and other options are not imported)');
+      continue;
+    }
     m = new RegExp(String.raw`^destroy\s+(${ID})$`, 'u').exec(t);
-    if (m) { const id = known(m[1]!, line); if (id) destroying = { id, line }; continue; }
+    if (m) {
+      const id = known(m[1]!, line);
+      if (id) destroying = { id, line };
+      continue;
+    }
     m = new RegExp(String.raw`^(activate|deactivate)\s+(${ID})$`, 'u').exec(t);
-    if (m) { const id = known(m[2]!, line); if (id) current().push({ type: m[1] as 'activate', lifeline: id }); continue; }
+    if (m) {
+      const id = known(m[2]!, line);
+      if (id) current().push({ type: m[1] as 'activate', lifeline: id });
+      continue;
+    }
     m = new RegExp(String.raw`^note\s+(over|left of|right of)\s+(${ID}(?:\s*,\s*${ID})?)\s*:(.*)$`, 'iu').exec(t);
     if (m) {
       const targets = m[2]!.split(',').map(s => known(s.trim(), line));
-      if (targets.some(x => x === undefined)) continue;
+      if (targets.includes(undefined)) continue;
       const position = m[1]!.toLowerCase() === 'over' ? 'over' : m[1]!.toLowerCase() === 'left of' ? 'left' : 'right';
-      if (position !== 'over' && targets.length > 1) { problems.malformed(line, `a note ${m[1]} takes one participant`); continue; }
+      if (position !== 'over' && targets.length > 1) {
+        problems.malformed(line, `a note ${m[1]} takes one participant`);
+        continue;
+      }
       current().push({ type: 'note', position, lifelines: targets as string[], text: decode(m[3]!.trim()) });
       continue;
     }
@@ -216,21 +269,36 @@ export function importSequence(lines: readonly SourceLine[], problems: Problems)
       open(fragment, guard, line);
       continue;
     }
-    if (/^rect\b/u.test(t)) { open(undefined, undefined, line); continue; }
+    if (/^rect\b/u.test(t)) {
+      open(undefined, undefined, line);
+      continue;
+    }
     m = /^(else|and|option)(?:\s+(.*))?$/u.exec(t);
     if (m) {
       const frame = stack.at(-1);
       const expected = { else: 'alt', and: 'par', option: 'critical' }[m[1] as 'else'];
-      if (!frame?.fragment || frame.fragment.operator !== expected) { problems.malformed(line, `"${m[1]}" belongs inside ${expected}`); continue; }
+      if (frame?.fragment?.operator !== expected) {
+        problems.malformed(line, `"${m[1]}" belongs inside ${expected}`);
+        continue;
+      }
       const items: Item[] = [];
-      frame.fragment.operands.push({ items, ...(m[2] === undefined || !m[2].trim() ? {} : { guard: decode(m[2].trim()) }) });
+      frame.fragment.operands.push({ items, ...(m[2]?.trim() ? { guard: decode(m[2].trim()) } : {}) });
       frame.items = items;
       continue;
     }
-    if (t === 'end') { if (!stack.pop()) problems.malformed(line, '"end" without an open block'); continue; }
+    if (t === 'end') {
+      if (!stack.pop()) problems.malformed(line, '"end" without an open block');
+      continue;
+    }
     m = MESSAGE.exec(t);
-    if (m) { message(m, line); continue; }
-    if (/^box\b/u.test(t)) { problems.unsupported(line, 'participant boxes are not part of the sequence model'); continue; }
+    if (m) {
+      message(m, line);
+      continue;
+    }
+    if (/^box\b/u.test(t)) {
+      problems.unsupported(line, 'participant boxes are not part of the sequence model');
+      continue;
+    }
     problems.unsupported(line, 'not a sequenceDiagram statement this importer understands (participants, messages, activations, notes, fragments)');
   }
   for (const frame of stack) problems.malformed(frame.line, 'the block is not closed with "end"');
@@ -238,16 +306,28 @@ export function importSequence(lines: readonly SourceLine[], problems: Problems)
 
   function message(m: RegExpExecArray, line: SourceLine): void {
     const [, f, arrow, mark, to2, label] = m as unknown as [string, string, string, string, string, string];
-    if (!['->>', '-->>', '-)', '--)'].includes(arrow)) { problems.unsupported(line, `the arrow ${arrow} has no message sort in the model (->> synchronous, -) asynchronous, -->> reply)`); return; }
-    const from = known(f, line), to = known(to2, line);
+    if (!['->>', '-->>', '-)', '--)'].includes(arrow)) {
+      problems.unsupported(line, `the arrow ${arrow} has no message sort in the model (->> synchronous, -) asynchronous, -->> reply)`);
+      return;
+    }
+    const from = known(f, line),
+      to = known(to2, line);
     if (!from || !to) return;
     let sort: MessageSort = arrow === '->>' ? 'synchronous' : arrow === '-->>' ? 'reply' : 'asynchronous';
     if (creating !== undefined) {
-      if (creating !== to) { problems.malformed(line, 'the message after "create participant" must be sent to it'); creating = undefined; return; }
+      if (creating !== to) {
+        problems.malformed(line, 'the message after "create participant" must be sent to it');
+        creating = undefined;
+        return;
+      }
       sort = 'create';
       creating = undefined;
     } else if (destroying !== undefined) {
-      if (destroying.id !== to) { problems.unsupported(line, 'a destroyed participant must receive the next message (a deleting message)'); destroying = undefined; return; }
+      if (destroying.id !== to) {
+        problems.unsupported(line, 'a destroyed participant must receive the next message (a deleting message)');
+        destroying = undefined;
+        return;
+      }
       sort = 'delete';
       destroying = undefined;
     }
@@ -259,7 +339,9 @@ export function importSequence(lines: readonly SourceLine[], problems: Problems)
       if (r?.[1] !== undefined) parsed.assignment = decode(r[1].trim());
       if (r?.[3] !== undefined) parsed.returnValue = decode(r[3].trim());
     }
-    current().push(compact({ type: 'message' as const, sort, from, to, ...parsed, activate: mark === '+' || undefined, deactivate: mark === '-' || undefined }));
+    current().push(
+      compact({ type: 'message' as const, sort, from, to, ...parsed, activate: mark === '+' || undefined, deactivate: mark === '-' || undefined }),
+    );
   }
 
   const model: Record<string, unknown> = { kind: 'sequence' };
@@ -270,6 +352,6 @@ export function importSequence(lines: readonly SourceLine[], problems: Problems)
   return model;
 }
 
-export const detectSequence = (lines: readonly SourceLine[]): number => lines[0]?.text === 'sequenceDiagram' ? 1 : 0;
+export const detectSequence = (lines: readonly SourceLine[]): number => (lines[0]?.text === 'sequenceDiagram' ? 1 : 0);
 
 export const mermaidSequence: KindFormat<SequenceDiagram> = { kind: 'sequence', export: exportSequence, import: importSequence, detect: detectSequence };

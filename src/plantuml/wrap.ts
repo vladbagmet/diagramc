@@ -7,7 +7,10 @@ const graphemes = new Intl.Segmenter('en', { granularity: 'grapheme' });
 /** Text "metrics" that count graphemes, so the shared wrapper can wrap to a number of characters. */
 const COUNT: FontMetrics = {
   measure: text => [...graphemes.segment(text)].length,
-  ascent: () => 0, descent: () => 0, lineHeight: () => 1, runs: text => [{ text, covered: true }],
+  ascent: () => 0,
+  descent: () => 0,
+  lineHeight: () => 1,
+  runs: text => [{ text, covered: true }],
 };
 
 /**
@@ -31,5 +34,7 @@ export function wrapMeasured(metrics: FontMetrics, text: string, style: TextStyl
  * from the input, and every line is encoded separately.
  */
 export function wrappedDisplayText(text: string, max: number): string {
-  return wrapLines(text, max).map(displayText).join('\\n');
+  return wrapLines(text, max)
+    .map(displayText)
+    .join(String.raw`\n`);
 }
