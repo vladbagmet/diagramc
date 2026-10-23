@@ -50,6 +50,7 @@ export interface LegacyFormat<M> {
  * Everything the CLI needs to know about one diagram kind. A kind lives in
  * src/kinds/<kind>/ and is registered with one line in src/model/registry.ts.
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- the registry holds kinds of every model type; `unknown` would make their validate and render methods unassignable.
 export interface KindDefinition<M = any> {
   /** Value of the `kind` property, lowercase, e.g. "class" or "state-machine". */
   readonly kind: string;

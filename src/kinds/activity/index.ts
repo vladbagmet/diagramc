@@ -17,7 +17,9 @@ export const activityKind: KindDefinition<ActivityDiagram> = {
     {
       name: 'plantuml',
       diagramType: 'ACTIVITY',
-      async toPlantUml(model) { return activityToPlantUml(model, await loadFonts()); },
+      async toPlantUml(model) {
+        return activityToPlantUml(model, await loadFonts());
+      },
       postProcess: fixActivitySvg,
     },
   ],

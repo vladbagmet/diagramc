@@ -10,7 +10,11 @@ import { theme } from '../core/theme.js';
  */
 
 export type FontStyleKey = 'regular' | 'italic' | 'bold' | 'bold-italic';
-export interface TextStyle { size: number; bold?: boolean; italic?: boolean }
+export interface TextStyle {
+  size: number;
+  bold?: boolean;
+  italic?: boolean;
+}
 
 const files: Record<FontStyleKey, string> = {
   regular: 'Inter-Regular.ttf',
@@ -27,11 +31,17 @@ export const fontFiles: readonly string[] = Object.values(files).map(name => fon
 const SHAPING_FEATURES = ['kern', 'liga', 'calt', 'ccmp', 'locl', 'mark', 'mkmk', 'clig', 'rlig', 'rclt', 'curs', 'dist'];
 
 export function styleKey(style: { bold?: boolean | undefined; italic?: boolean | undefined }): FontStyleKey {
-  return style.bold ? (style.italic ? 'bold-italic' : 'bold') : (style.italic ? 'italic' : 'regular');
+  return style.bold ? (style.italic ? 'bold-italic' : 'bold') : style.italic ? 'italic' : 'regular';
 }
 
 type HarfBuzz = typeof import('harfbuzzjs');
-interface LoadedFace { font: InstanceType<HarfBuzz['Font']>; upem: number; coverage: Set<number>; ascender: number; descender: number }
+interface LoadedFace {
+  font: InstanceType<HarfBuzz['Font']>;
+  upem: number;
+  coverage: Set<number>;
+  ascender: number;
+  descender: number;
+}
 
 export interface FontMetrics {
   /** Advance width in px of a single line of text. */
@@ -80,8 +90,14 @@ export function loadFonts(): Promise<FontMetrics> {
           em = 0;
           let run = '';
           for (const { segment } of graphemes.segment(text)) {
-            if ([...segment].every(c => face.coverage.has(c.codePointAt(0)!) || DEFAULT_IGNORABLE.test(c))) { run += segment; continue; }
-            if (run) { em += shape(face, run); run = ''; }
+            if ([...segment].every(c => face.coverage.has(c.codePointAt(0)!) || DEFAULT_IGNORABLE.test(c))) {
+              run += segment;
+              continue;
+            }
+            if (run) {
+              em += shape(face, run);
+              run = '';
+            }
             em += fallbackWidth(segment);
           }
           if (run) em += shape(face, run);
@@ -89,8 +105,8 @@ export function loadFonts(): Promise<FontMetrics> {
         }
         return em * style.size;
       },
-      ascent: size => size * regular.ascender / regular.upem,
-      descent: size => size * regular.descender / regular.upem,
+      ascent: size => (size * regular.ascender) / regular.upem,
+      descent: size => (size * regular.descender) / regular.upem,
       lineHeight: size => Math.round(size * theme.font.lineHeight),
       runs(text, style) {
         const face = faces[styleKey(style)];
@@ -98,7 +114,8 @@ export function loadFonts(): Promise<FontMetrics> {
         for (const { segment } of graphemes.segment(text)) {
           const covered = [...segment].every(c => face.coverage.has(c.codePointAt(0)!) || DEFAULT_IGNORABLE.test(c));
           const last = out.at(-1);
-          if (last && last.covered === covered) last.text += segment; else out.push({ text: segment, covered });
+          if (last?.covered === covered) last.text += segment;
+          else out.push({ text: segment, covered });
         }
         return out;
       },
@@ -108,7 +125,7 @@ export function loadFonts(): Promise<FontMetrics> {
 }
 
 const DEFAULT_IGNORABLE = /^\p{Default_Ignorable_Code_Point}$/u;
-const WIDE = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}\p{Script=Bopomofo}　-〿！-｠￠-￦]/u;
+const WIDE = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}\p{Script=Bopomofo}\u3000-〿！-｠￠-￦]/u;
 const EMOJI = /\p{Extended_Pictographic}|\p{Regional_Indicator}/u;
 
 /**
@@ -134,8 +151,11 @@ export async function fontFaceCss(usage: ReadonlyMap<FontStyleKey, string>): Pro
     if (!text) continue;
     const characters = [...new Set([...text, ' '])].sort().join('');
     const subset = await subsetFont(readFileSync(fontDirectory + files[key]), characters, { targetFormat: 'woff2', keepFeatures: SHAPING_FEATURES });
-    const bold = key.startsWith('bold'), italic = key.endsWith('italic');
-    rules.push(`@font-face{font-family:"${theme.font.family}";font-style:${italic ? 'italic' : 'normal'};font-weight:${bold ? theme.font.weight.bold : theme.font.weight.regular};src:url(data:font/woff2;base64,${subset.toString('base64')}) format("woff2")}`);
+    const bold = key.startsWith('bold'),
+      italic = key.endsWith('italic');
+    rules.push(
+      `@font-face{font-family:"${theme.font.family}";font-style:${italic ? 'italic' : 'normal'};font-weight:${bold ? theme.font.weight.bold : theme.font.weight.regular};src:url(data:font/woff2;base64,${subset.toString('base64')}) format("woff2")}`,
+    );
   }
   return rules.join('');
 }

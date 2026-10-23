@@ -3,7 +3,8 @@ import { wrapLines } from '../../plantuml/wrap.js';
 import type { TimingDiagram } from './model.js';
 
 /** Width bounds of the time axis, in px. */
-export const MIN_WIDTH = 480, MAX_WIDTH = 3200;
+export const MIN_WIDTH = 480,
+  MAX_WIDTH = 3200;
 /** Smallest distance between two state changes of one lifeline, so every step stays visible. */
 export const MIN_STEP_PX = 14;
 /** Note text wrap width in graphemes (to-plantuml.ts). */
@@ -11,10 +12,10 @@ export const NOTE_WRAP = 32;
 
 /** Advance widths of printable ASCII (U+0020 to U+007E) in Inter Regular, in thousandths of an em, rounded up. */
 const ASCII_ADVANCE = [
-  282, 288, 466, 634, 642, 982, 645, 300, 365, 365, 501, 662, 289, 460, 289, 361, 631, 407, 610, 618, 646, 594, 621, 566,
-  619, 621, 289, 302, 662, 662, 662, 512, 966, 690, 655, 731, 722, 602, 591, 747, 744, 269, 571, 672, 566, 904, 754, 765,
-  639, 765, 644, 642, 646, 745, 690, 986, 683, 679, 629, 365, 361, 365, 472, 457, 323, 562, 613, 572, 613, 584, 371, 614,
-  592, 243, 243, 549, 243, 876, 591, 600, 613, 613, 377, 528, 328, 592, 563, 819, 546, 563, 553, 427, 333, 427, 662,
+  282, 288, 466, 634, 642, 982, 645, 300, 365, 365, 501, 662, 289, 460, 289, 361, 631, 407, 610, 618, 646, 594, 621, 566, 619, 621, 289, 302, 662, 662, 662,
+  512, 966, 690, 655, 731, 722, 602, 591, 747, 744, 269, 571, 672, 566, 904, 754, 765, 639, 765, 644, 642, 646, 745, 690, 986, 683, 679, 629, 365, 361, 365,
+  472, 457, 323, 562, 613, 572, 613, 584, 371, 614, 592, 243, 243, 549, 243, 876, 591, 600, 613, 613, 377, 528, 328, 592, 563, 819, 546, 563, 553, 427, 333,
+  427, 662,
 ];
 
 /**
@@ -66,10 +67,22 @@ export interface TimeScale {
 export function diagramTimes(model: TimingDiagram): number[] {
   const times = new Set<number>();
   for (const l of model.lifelines) for (const c of l.changes) times.add(c.at);
-  for (const m of model.messages ?? []) { times.add(m.fromTime); times.add(m.toTime); }
-  for (const c of model.durationConstraints ?? []) { times.add(c.from); times.add(c.to); }
-  for (const c of model.timeConstraints ?? []) { times.add(c.from); times.add(c.to); }
-  for (const h of model.highlights ?? []) { times.add(h.from); times.add(h.to); }
+  for (const m of model.messages ?? []) {
+    times.add(m.fromTime);
+    times.add(m.toTime);
+  }
+  for (const c of model.durationConstraints ?? []) {
+    times.add(c.from);
+    times.add(c.to);
+  }
+  for (const c of model.timeConstraints ?? []) {
+    times.add(c.from);
+    times.add(c.to);
+  }
+  for (const h of model.highlights ?? []) {
+    times.add(h.from);
+    times.add(h.to);
+  }
   for (const n of model.notes ?? []) times.add(n.at);
   return [...times].sort((a, b) => a - b);
 }
@@ -84,44 +97,79 @@ export function diagramTimes(model: TimingDiagram): number[] {
  */
 export function timeScale(model: TimingDiagram): TimeScale {
   const times = diagramTimes(model);
-  const start = times[0]!, end = times.at(-1)!;
+  const start = times[0]!,
+    end = times.at(-1)!;
   const span = Math.max(1, end - start);
   const needs: SpaceNeed[] = [];
-  model.lifelines.forEach((l, i) => {
-    l.changes.forEach((c, j) => {
+  for (const [i, l] of model.lifelines.entries()) {
+    for (const [j, c] of l.changes.entries()) {
       const next = l.changes[j + 1]?.at ?? end;
       if (l.notation === 'concise') {
-        needs.push({ path: pointer('', 'lifelines', i, 'changes', j, 'state'), what: `value "${c.state}" of lifeline "${l.id}"`, from: c.at, to: next, px: estimateWidth(c.state) + VALUE_PAD, text: true });
+        needs.push({
+          path: pointer('', 'lifelines', i, 'changes', j, 'state'),
+          what: `value "${c.state}" of lifeline "${l.id}"`,
+          from: c.at,
+          to: next,
+          px: estimateWidth(c.state) + VALUE_PAD,
+          text: true,
+        });
       } else if (j + 1 < l.changes.length) {
-        needs.push({ path: pointer('', 'lifelines', i, 'changes', j + 1, 'at'), what: `state change of lifeline "${l.id}"`, from: c.at, to: next, px: MIN_STEP_PX, text: false });
+        needs.push({
+          path: pointer('', 'lifelines', i, 'changes', j + 1, 'at'),
+          what: `state change of lifeline "${l.id}"`,
+          from: c.at,
+          to: next,
+          px: MIN_STEP_PX,
+          text: false,
+        });
       }
-    });
-  });
+    }
+  }
   // Notes on one lifeline and side must not run into the next one.
   const notes = (model.notes ?? []).map((n, i) => ({ n, i })).sort((a, b) => a.n.at - b.n.at || a.i - b.i);
-  notes.forEach(({ n, i }, k) => {
+  for (const [k, { n, i }] of notes.entries()) {
     const next = notes.slice(k + 1).find(o => o.n.lifeline === n.lifeline && (o.n.position ?? 'top') === (n.position ?? 'top'));
-    if (!next) return;
+    if (!next) continue;
     const width = Math.max(...wrapLines(n.text, NOTE_WRAP).map(line => estimateWidth(line))) + 30;
-    needs.push({ path: pointer('', 'notes', i, 'text'), what: `note on lifeline "${n.lifeline}" at ${n.at}`, from: n.at, to: next.n.at, px: width, text: true });
-  });
+    needs.push({
+      path: pointer('', 'notes', i, 'text'),
+      what: `note on lifeline "${n.lifeline}" at ${n.at}`,
+      from: n.at,
+      to: next.n.at,
+      px: width,
+      text: true,
+    });
+  }
   // Highlight captions sit at the top: each needs its interval, and room before the next caption.
-  const highlights = (model.highlights ?? []).map((h, i) => ({ h, i })).filter(x => x.h.label !== undefined).sort((a, b) => a.h.from - b.h.from || a.i - b.i);
-  highlights.forEach(({ h, i }, k) => {
+  const highlights = (model.highlights ?? [])
+    .map((h, i) => ({ h, i }))
+    .filter(x => x.h.label !== undefined)
+    .sort((a, b) => a.h.from - b.h.from || a.i - b.i);
+  for (const [k, { h, i }] of highlights.entries()) {
     const next = highlights[k + 1];
     const until = next && next.h.from < h.to ? next.h.from : h.to;
-    needs.push({ path: pointer('', 'highlights', i, 'label'), what: `highlight caption "${h.label}"`, from: h.from, to: until, px: estimateWidth(h.label!, 12) + 12, text: true });
-  });
-  (model.durationConstraints ?? []).forEach((c, i) => {
+    needs.push({
+      path: pointer('', 'highlights', i, 'label'),
+      what: `highlight caption "${h.label}"`,
+      from: h.from,
+      to: until,
+      px: estimateWidth(h.label!, 12) + 12,
+      text: true,
+    });
+  }
+  for (const [i, c] of (model.durationConstraints ?? []).entries()) {
     needs.push({ path: pointer('', 'durationConstraints', i), what: `duration constraint {${c.min}..${c.max}}`, from: c.from, to: c.to, px: 36, text: true });
-  });
+  }
   const max = MAX_WIDTH / span;
   let perUnit = MIN_WIDTH / span;
   for (const n of needs) if (n.to > n.from) perUnit = Math.max(perUnit, n.px / (n.to - n.from));
   const tooDense = needs.filter(n => n.text && n.to > n.from && n.px / (n.to - n.from) > max + 1e-9);
   perUnit = Math.min(perUnit, max);
   // A concise value that starts at the last time still needs room for its text.
-  const tail = Math.max(0, ...model.lifelines.filter(l => l.notation === 'concise' && l.changes.at(-1)!.at === end).map(l => estimateWidth(l.changes.at(-1)!.state) + VALUE_PAD));
+  const tail = Math.max(
+    0,
+    ...model.lifelines.filter(l => l.notation === 'concise' && l.changes.at(-1)!.at === end).map(l => estimateWidth(l.changes.at(-1)!.state) + VALUE_PAD),
+  );
   const axisEnd = tail ? end + Math.ceil(tail / perUnit) : end;
   return { start, end: axisEnd, perUnit, width: (axisEnd - start) * perUnit, tooDense };
 }

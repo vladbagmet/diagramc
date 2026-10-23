@@ -12,7 +12,11 @@ export interface Lifeline {
   multiObject?: boolean;
 }
 
-export interface Link { id?: string; from: string; to: string }
+export interface Link {
+  id?: string;
+  from: string;
+  to: string;
+}
 
 export type MessageSort = 'synchronous' | 'asynchronous' | 'reply';
 

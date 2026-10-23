@@ -7,7 +7,6 @@ import type { TimingDiagram } from './model.js';
 import { TIME_CONSTRAINT_MARK } from './rows.js';
 import { NOTE_WRAP, plantUmlScale, timeScale } from './scale.js';
 
-
 /** Timing-specific styling from the shared theme (PlantUML's timing diagram uses the style system). */
 export function timingStyle(): string[] {
   const { color, font, stroke } = theme;
@@ -67,7 +66,10 @@ export function timingStyle(): string[] {
  * enough room for its text between two changes.
  */
 export function timingToPlantUml(model: TimingDiagram): string {
-  const ids = aliases(model.lifelines.map(l => l.id), 't');
+  const ids = aliases(
+    model.lifelines.map(l => l.id),
+    't',
+  );
   const lines: string[] = [...timingStyle()];
   if (model.title !== undefined) lines.push(`mainframe **sd** ${displayText(model.title)}`);
   lines.push(`footer ${displayText(`time (${model.timeUnit})`)}`);
@@ -81,28 +83,33 @@ export function timingToPlantUml(model: TimingDiagram): string {
   lines.push(`scale ${step} as ${px} pixels`);
 
   const stateAlias = new Map<string, string>();
-  model.lifelines.forEach(l => {
+  for (const l of model.lifelines) {
     const alias = ids.get(l.id)!;
     lines.push(`${l.notation} "${wrappedDisplayText(lifelineLabel(l), 40)}" as ${alias}`);
-    l.states.forEach((s, j) => {
+    for (const [j, s] of l.states.entries()) {
       const sa = `${alias}s${j}`;
       stateAlias.set(`${l.id}\u0000${s}`, sa);
       lines.push(`${alias} has "${displayText(s)}" as ${sa}`);
-    });
-  });
+    }
+  }
 
   // State changes and notes grouped by time.
   const events = new Map<number, string[]>();
-  const at = (t: number): string[] => { if (!events.has(t)) events.set(t, []); return events.get(t)!; };
+  const at = (t: number): string[] => {
+    if (!events.has(t)) events.set(t, []);
+    return events.get(t)!;
+  };
   for (const l of model.lifelines) for (const c of l.changes) at(c.at).push(`${ids.get(l.id)} is ${stateAlias.get(`${l.id}\u0000${c.state}`)}`);
   // Block form: one source line per wrapped line keeps long notes under PlantUML's line limit.
-  for (const n of model.notes ?? []) at(n.at).push(`note ${n.position ?? 'top'} of ${ids.get(n.lifeline)}`, ...wrapLines(n.text, NOTE_WRAP).map(displayText), 'end note');
+  for (const n of model.notes ?? [])
+    at(n.at).push(`note ${n.position ?? 'top'} of ${ids.get(n.lifeline)}`, ...wrapLines(n.text, NOTE_WRAP).map(displayText), 'end note');
   // PlantUML draws robust state lines only up to the last state change; messages,
   // constraints and highlights after it would point into empty space. Restating each
   // robust lifeline's final state at the last time used anywhere extends its line
   // without a visible change (concise values already run to the end of the axis).
   if (!events.has(end)) {
-    for (const l of model.lifelines) if (l.notation === 'robust') at(end).push(`${ids.get(l.id)} is ${stateAlias.get(`${l.id}\u0000${l.changes.at(-1)!.state}`)}`);
+    for (const l of model.lifelines)
+      if (l.notation === 'robust') at(end).push(`${ids.get(l.id)} is ${stateAlias.get(`${l.id}\u0000${l.changes.at(-1)!.state}`)}`);
   }
   if (!events.has(end)) at(end);
   for (const t of [...events.keys()].sort((a, b) => a - b)) lines.push(`@${t}`, ...events.get(t)!);

@@ -33,13 +33,17 @@ export const classV1: LegacyFormat<ClassDiagram> = {
     return {
       kind: 'class',
       elements: v1.classes.map(c => ({
-        id: c.id, type: 'class' as const, name: c.name,
+        id: c.id,
+        type: 'class' as const,
+        name: c.name,
         attributes: (c.attributes ?? []).map(text => ({ text })),
         operations: (c.methods ?? []).map(text => ({ text })),
       })),
       relationships: v1.relationships.map(r => ({
-        type: r.type === 'inheritance' ? 'generalization' as const : 'association' as const,
-        from: r.from, to: r.to, ...(r.label === undefined ? {} : { name: r.label }),
+        type: r.type === 'inheritance' ? ('generalization' as const) : ('association' as const),
+        from: r.from,
+        to: r.to,
+        ...(r.label === undefined ? {} : { name: r.label }),
       })),
     };
   },

@@ -29,7 +29,9 @@ export interface Operation {
   query?: boolean;
 }
 /** A member taken verbatim from a v1 document ("id: UUID"); not available in v2 input. */
-export interface LegacyMember { text: string }
+export interface LegacyMember {
+  text: string;
+}
 
 export type ClassifierType = 'class' | 'interface' | 'enumeration' | 'datatype' | 'primitive';
 export interface Classifier {
@@ -42,10 +44,19 @@ export interface Classifier {
   operations?: (Operation | LegacyMember)[];
   literals?: string[];
 }
-export interface Note { id: string; type: 'note'; text: string; attachedTo?: string[] }
+export interface Note {
+  id: string;
+  type: 'note';
+  text: string;
+  attachedTo?: string[];
+}
 export type Element = Classifier | Note;
 
-export interface End { role?: string; multiplicity?: string; navigable?: boolean }
+export interface End {
+  role?: string;
+  multiplicity?: string;
+  navigable?: boolean;
+}
 export type RelationshipType = 'generalization' | 'realization' | 'association' | 'aggregation' | 'composition' | 'dependency' | 'containment';
 export interface Relationship {
   id?: string;

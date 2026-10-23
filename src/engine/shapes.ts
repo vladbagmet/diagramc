@@ -26,7 +26,11 @@ export interface Compartment {
   /** The name compartment: tinted background and more padding. */
   header?: boolean;
 }
-interface MeasuredLine extends BoxLine { rows: string[]; widths: number[]; lineHeight: number }
+interface MeasuredLine extends BoxLine {
+  rows: string[];
+  widths: number[];
+  lineHeight: number;
+}
 export interface MeasuredBox {
   width: number;
   height: number;
@@ -40,7 +44,8 @@ export function measureBox(metrics: FontMetrics, compartments: readonly Compartm
   let width = minWidth;
   // Lines that are never wrapped (members) set the box width first; wrapped lines
   // (names) then use all of it, so a name only wraps when the box is narrower.
-  for (const c of compartments) for (const line of c.lines) if (!line.wrap) width = Math.max(width, Math.ceil(metrics.measure(line.text, line.style) + 2 * padX));
+  for (const c of compartments)
+    for (const line of c.lines) if (!line.wrap) width = Math.max(width, Math.ceil(metrics.measure(line.text, line.style) + 2 * padX));
   const measured = compartments.map(c => {
     const lines = c.lines.map((line): MeasuredLine => {
       const rows = line.wrap ? wrapText(metrics, line.text, line.style, Math.max(line.wrap, width - 2 * padX)) : [line.text];
@@ -50,7 +55,7 @@ export function measureBox(metrics: FontMetrics, compartments: readonly Compartm
     });
     const content = lines.reduce((sum, l) => sum + l.rows.length * l.lineHeight, 0);
     const pad = c.header ? headerPadY : padY;
-    return { header: !!c.header, lines, height: lines.length ? content + 2 * pad : EMPTY_COMPARTMENT };
+    return { header: !!c.header, lines, height: lines.length > 0 ? content + 2 * pad : EMPTY_COMPARTMENT };
   });
   return { width, height: measured.reduce((sum, c) => sum + c.height, 0), compartments: measured };
 }
@@ -66,7 +71,8 @@ export function startsData(starts: readonly number[] | undefined): Record<string
 
 /** Baseline offset of a text row inside a line box of `lineHeight`. */
 export function baselineOffset(metrics: FontMetrics, size: number, lineHeight: number): number {
-  const ascent = metrics.ascent(size), descent = metrics.descent(size);
+  const ascent = metrics.ascent(size),
+    descent = metrics.descent(size);
   return (lineHeight - ascent - descent) / 2 + ascent;
 }
 
@@ -85,7 +91,9 @@ export interface NodeData {
 /** The mandatory data-uml-* attributes of a node group (shapes and kinds with their own node drawings). */
 export function nodeAttributes(data: NodeData, bounds: Rect): Record<string, string> {
   return {
-    'data-uml-role': 'node', 'data-uml-id': data.id, 'data-uml-type': data.type,
+    'data-uml-role': 'node',
+    'data-uml-id': data.id,
+    'data-uml-type': data.type,
     ...(data.parent ? { 'data-uml-parent': data.parent } : {}),
     ...(data.shape ? { 'data-uml-shape': data.shape } : {}),
     ...(data.borderOf ? { 'data-uml-border-of': data.borderOf } : {}),
@@ -113,54 +121,68 @@ export interface BoxOptions {
 }
 export function drawBox(canvas: Canvas, box: MeasuredBox, bounds: Rect, data: NodeData, options: BoxOptions = {}): string {
   const { padX, padY, headerPadY } = theme.spacing;
-  const parts: string[] = [...options.behind ?? [], el('rect', {
-    x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height,
-    fill: theme.color.nodeFill, stroke: theme.color.nodeStroke, 'stroke-width': theme.stroke.node,
-    'stroke-dasharray': options.dashed ? theme.stroke.dash : undefined,
-  })];
+  const parts: string[] = [
+    ...(options.behind ?? []),
+    el('rect', {
+      x: bounds.x,
+      y: bounds.y,
+      width: bounds.width,
+      height: bounds.height,
+      fill: theme.color.nodeFill,
+      stroke: theme.color.nodeStroke,
+      'stroke-width': theme.stroke.node,
+      'stroke-dasharray': options.dashed ? theme.stroke.dash : undefined,
+    }),
+  ];
   let y = bounds.y;
-  box.compartments.forEach((c, index) => {
+  for (const [index, c] of box.compartments.entries()) {
     const height = index === box.compartments.length - 1 ? bounds.y + bounds.height - y : c.height;
     if (c.header) {
       const inset = theme.stroke.node / 2;
       parts.push(el('rect', { x: bounds.x + inset, y: y + inset, width: bounds.width - 2 * inset, height: height - inset, fill: theme.color.nodeHeaderFill }));
     }
-    if (index > 0) parts.push(el('line', { x1: bounds.x, y1: y, x2: bounds.x + bounds.width, y2: y, stroke: theme.color.nodeStroke, 'stroke-width': theme.stroke.compartment }));
+    if (index > 0)
+      parts.push(
+        el('line', { x1: bounds.x, y1: y, x2: bounds.x + bounds.width, y2: y, stroke: theme.color.nodeStroke, 'stroke-width': theme.stroke.compartment }),
+      );
     const slack = options.middle && box.compartments.length === 1 ? Math.max(0, (height - c.height) / 2) : 0;
     let rowTop = y + (c.header ? headerPadY : padY) + slack;
     for (const line of c.lines) {
       // One <text> per logical line (wrapped rows become <tspan>s), so the
       // element's text content is the input string itself.
-      const xs = line.widths.map(w => line.align === 'center' ? bounds.x + (bounds.width - w) / 2 : bounds.x + padX);
+      const xs = line.widths.map(w => (line.align === 'center' ? bounds.x + (bounds.width - w) / 2 : bounds.x + padX));
       const first = rowTop + baselineOffset(canvas.metrics, line.style.size, line.lineHeight);
       parts.push(canvas.lines(line.rows, xs, first, line.lineHeight, { ...line.style, fill: line.fill, role: 'text', owner: data.id }));
       if (line.underline) {
-        line.rows.forEach((_, i) => {
+        for (const [i] of line.rows.entries()) {
           const uy = first + i * line.lineHeight + Math.max(1.5, line.style.size * 0.12);
           parts.push(el('line', { x1: xs[i]!, y1: uy, x2: xs[i]! + line.widths[i]!, y2: uy, stroke: line.fill ?? theme.color.text, 'stroke-width': 0.9 }));
-        });
+        }
       }
       rowTop += line.rows.length * line.lineHeight;
     }
     y += height;
-  });
-  parts.push(...options.above ?? []);
+  }
+  parts.push(...(options.above ?? []));
   return el('g', nodeAttributes(data, options.outline ?? bounds), parts);
 }
 
 /** Size of a note holding `text`, wrapped to the theme's note width. */
 export function measureNote(metrics: FontMetrics, text: string): { width: number; height: number; rows: string[] } {
   const style = { size: theme.font.size.body };
-  const pad = 10, fold = theme.size.noteFold;
+  const pad = 10,
+    fold = theme.size.noteFold;
   let rows = wrapText(metrics, text, style, theme.size.maxNoteWidth);
   // A last row of one word ("one / shown.") looks orphaned: wrap narrower, with the
   // same number of rows, so the words spread evenly.
   const single = (r: readonly string[]): boolean => r.length >= 2 && !/\s/.test(r.at(-1)!.trim());
   if (single(rows)) {
-    let lo: number = theme.size.maxNoteWidth / 2, hi: number = theme.size.maxNoteWidth;
+    let lo: number = theme.size.maxNoteWidth / 2,
+      hi: number = theme.size.maxNoteWidth;
     for (let i = 0; i < 8; i++) {
       const mid = (lo + hi) / 2;
-      if (wrapText(metrics, text, style, mid).length === rows.length) hi = mid; else lo = mid;
+      if (wrapText(metrics, text, style, mid).length === rows.length) hi = mid;
+      else lo = mid;
     }
     const balanced = wrapText(metrics, text, style, hi);
     if (balanced.length === rows.length) rows = balanced;
@@ -172,14 +194,22 @@ export function measureNote(metrics: FontMetrics, text: string): { width: number
 /** A UML note: rectangle with a folded top-right corner, left-aligned wrapped text. */
 export function drawNote(canvas: Canvas, rows: readonly string[], bounds: Rect, data: NodeData, starts?: readonly number[]): string {
   const { x, y, width: w, height: h } = bounds;
-  const f = theme.size.noteFold, size = theme.font.size.body, lh = canvas.metrics.lineHeight(size);
+  const f = theme.size.noteFold,
+    size = theme.font.size.body,
+    lh = canvas.metrics.lineHeight(size);
   const outline = `M${num(x)},${num(y)} H${num(x + w - f)} L${num(x + w)},${num(y + f)} V${num(y + h)} H${num(x)} Z`;
   const fold = `M${num(x + w - f)},${num(y)} V${num(y + f)} H${num(x + w)}`;
   const first = y + 9 + baselineOffset(canvas.metrics, size, lh);
   return el('g', nodeAttributes(data, bounds), [
     el('path', { d: outline, fill: theme.color.noteFill, stroke: theme.color.noteStroke, 'stroke-width': theme.stroke.note, 'stroke-linejoin': 'round' }),
     el('path', { d: fold, fill: 'none', stroke: theme.color.noteStroke, 'stroke-width': theme.stroke.note, 'stroke-linejoin': 'round' }),
-    canvas.lines(rows, rows.map(() => x + 10), first, lh, { size, role: 'text', owner: data.id, data: startsData(starts) }),
+    canvas.lines(
+      rows,
+      rows.map(() => x + 10),
+      first,
+      lh,
+      { size, role: 'text', owner: data.id, data: startsData(starts) },
+    ),
   ]);
 }
 
@@ -223,14 +253,36 @@ export function measureFrameHeading(metrics: FontMetrics, keyword: string, name:
  */
 export function drawFrame(canvas: Canvas, keyword: string, name: string, bounds: Rect): string {
   const heading = measureFrameHeading(canvas.metrics, keyword, name);
-  const size = theme.font.size.body, cut = 8;
-  const { x, y } = bounds, w = heading.width, h = heading.height;
+  const size = theme.font.size.body,
+    cut = 8;
+  const { x, y } = bounds,
+    w = heading.width,
+    h = heading.height;
   const baseline = y + baselineOffset(canvas.metrics, size, h);
   const tx = x + theme.spacing.padX;
-  return el('g', { 'data-uml-role': 'frame', 'data-uml-bounds': `${num(bounds.x)} ${num(bounds.y)} ${num(bounds.width)} ${num(bounds.height)}`, 'data-uml-heading': `${num(x)} ${num(y)} ${num(w)} ${num(h)}` }, [
-    el('rect', { x, y, width: bounds.width, height: bounds.height, fill: 'none', stroke: theme.color.frameStroke, 'stroke-width': theme.stroke.frame }),
-    el('polygon', { points: pointsAttr([{ x, y }, { x: x + w, y }, { x: x + w, y: y + h - cut }, { x: x + w - cut, y: y + h }, { x, y: y + h }]), fill: theme.color.frameHeadingFill, stroke: theme.color.frameStroke, 'stroke-width': theme.stroke.frame }),
-    canvas.text(`${keyword} `, tx, baseline, { size, bold: true, role: 'frame-label' }),
-    canvas.text(name, tx + heading.keywordWidth, baseline, { size, role: 'frame-label' }),
-  ]);
+  return el(
+    'g',
+    {
+      'data-uml-role': 'frame',
+      'data-uml-bounds': `${num(bounds.x)} ${num(bounds.y)} ${num(bounds.width)} ${num(bounds.height)}`,
+      'data-uml-heading': `${num(x)} ${num(y)} ${num(w)} ${num(h)}`,
+    },
+    [
+      el('rect', { x, y, width: bounds.width, height: bounds.height, fill: 'none', stroke: theme.color.frameStroke, 'stroke-width': theme.stroke.frame }),
+      el('polygon', {
+        points: pointsAttr([
+          { x, y },
+          { x: x + w, y },
+          { x: x + w, y: y + h - cut },
+          { x: x + w - cut, y: y + h },
+          { x, y: y + h },
+        ]),
+        fill: theme.color.frameHeadingFill,
+        stroke: theme.color.frameStroke,
+        'stroke-width': theme.stroke.frame,
+      }),
+      canvas.text(`${keyword} `, tx, baseline, { size, bold: true, role: 'frame-label' }),
+      canvas.text(name, tx + heading.keywordWidth, baseline, { size, role: 'frame-label' }),
+    ],
+  );
 }

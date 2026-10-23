@@ -26,3 +26,6 @@ coverage/
 
 # Local agent settings
 .claude/
+coverage/
+.nyc_output/
+*.lcov

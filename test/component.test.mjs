@@ -5,8 +5,20 @@ import { join } from 'node:path';
 import { distanceToBorder, center } from '../dist/engine/geometry.js';
 import { root } from './helpers.mjs';
 import {
-  assertBudget, assertDeterministic, assertExamples, assertHostile, assertNegativeFixtures, assertPositiveFixtures,
-  dashed, fixtures, inside, node, nodeGroup, scene, text, textIncluding,
+  assertBudget,
+  assertDeterministic,
+  assertExamples,
+  assertHostile,
+  assertNegativeFixtures,
+  assertPositiveFixtures,
+  dashed,
+  fixtures,
+  inside,
+  node,
+  nodeGroup,
+  scene,
+  text,
+  textIncluding,
 } from './structure-helpers.mjs';
 
 const example = name => readFile(join(root, 'examples/component', name), 'utf8');
@@ -18,8 +30,11 @@ test('component: every example passes every QA gate', () => assertExamples('comp
 test('component: stress example (30 components, 40+ relationships) renders within 2 s', async () => {
   const { doc } = await assertBudget('component');
   let components = 0;
-  const walk = e => { if (e.type === 'component') components++; (e.elements ?? []).forEach(walk); };
-  doc.elements.forEach(walk);
+  const walk = e => {
+    if (e.type === 'component') components++;
+    for (const child of e.elements ?? []) walk(child);
+  };
+  for (const e of doc.elements) walk(e);
   assert.ok(components >= 30 && doc.relationships.length >= 40);
 });
 
@@ -49,11 +64,19 @@ test('UML notation: ports sit centered on their owner border, delegations attach
     assert.equal(p.bounds.width, 12);
   }
   const delegations = s.edges.filter(e => e.type === 'delegation');
-  assert.deepEqual(delegations.map(e => [e.source, e.target, e.sourceMarker, e.targetMarker]),
-    [['pOrders', 'mIn', 'none', 'open-arrow'], ['mOut', 'pPay', 'none', 'open-arrow']]);
+  assert.deepEqual(
+    delegations.map(e => [e.source, e.target, e.sourceMarker, e.targetMarker]),
+    [
+      ['pOrders', 'mIn', 'none', 'open-arrow'],
+      ['mOut', 'pPay', 'none', 'open-arrow'],
+    ],
+  );
   for (const e of delegations) {
     assert.equal(dashed(svg, e.id), false, 'delegation is a solid line');
-    assert.ok(distanceToBorder(e.points[0], node(s, e.source).bounds) < 0.01 && distanceToBorder(e.points.at(-1), node(s, e.target).bounds) < 0.01, 'ends on the port squares');
+    assert.ok(
+      distanceToBorder(e.points[0], node(s, e.source).bounds) < 0.01 && distanceToBorder(e.points.at(-1), node(s, e.target).bounds) < 0.01,
+      'ends on the port squares',
+    );
   }
   assert.equal(s.texts.filter(t => t.content === '«delegate»').length, 2);
   assert.ok(text(s, 'orders') && text(s, 'pay'), 'port names');
@@ -64,13 +87,14 @@ test('UML notation: lollipops, sockets and ball-and-socket assemblies face outwa
   const balls = s.nodes.filter(n => n.type === 'provided-interface');
   const sockets = s.nodes.filter(n => n.type === 'required-interface');
   const joints = s.nodes.filter(n => n.type === 'assembly');
-  assert.ok(balls.length >= 1 && joints.length === 4);
+  assert.ok(balls.length > 0 && joints.length === 4);
   for (const j of joints) {
     assert.ok(j.ball && j.socket && Math.abs(j.ball.x - j.socket.x) < 0.01 && Math.abs(j.ball.y - j.socket.y) < 0.01, 'ball inside the socket');
     assert.ok(j.ball.r < j.socket.r);
     const lines = s.edges.filter(e => e.target === j.id);
     assert.equal(lines.length, 2);
-    const required = lines.find(e => e.type === 'assembly-required'), provided = lines.find(e => e.type === 'assembly-provided');
+    const required = lines.find(e => e.type === 'assembly-required'),
+      provided = lines.find(e => e.type === 'assembly-provided');
     // Requirer meets the socket's back, provider enters through the opening; both on the socket's axis
     // (horizontal left to right, vertical top to bottom).
     for (const axis of ['x', 'y']) {
@@ -105,7 +129,10 @@ test('UML notation: realization, usage, manifest and dependency lines and arrowh
   const byType = Object.fromEntries(s.edges.map(e => [e.type, e]));
   assert.deepEqual([byType.realization.targetMarker, dashed(svg, byType.realization.id)], ['hollow-triangle', true]);
   assert.deepEqual([byType.usage.targetMarker, dashed(svg, byType.usage.id)], ['open-arrow', true]);
-  assert.deepEqual([byType.manifest.source, byType.manifest.target, byType.manifest.targetMarker, dashed(svg, byType.manifest.id)], ['war', 'backend', 'open-arrow', true]);
+  assert.deepEqual(
+    [byType.manifest.source, byType.manifest.target, byType.manifest.targetMarker, dashed(svg, byType.manifest.id)],
+    ['war', 'backend', 'open-arrow', true],
+  );
   assert.deepEqual([byType.dependency.targetMarker, dashed(svg, byType.dependency.id)], ['open-arrow', true]);
   for (const t of ['«use»', '«manifest»', '«trace»', 'telemetry']) assert.ok(textIncluding(s, t), `missing ${t}`);
   assert.ok(text(s, 'api : HttpClient'), 'typed port label');
@@ -122,7 +149,8 @@ test('component: an interface only used as lollipop or socket is not drawn as a 
 test('component: hostile and markup-like text stays literal in every slot', async () => {
   const hostile = '<script>alert(1)</script> " } @enduml [[x]]';
   const doc = {
-    kind: 'component', title: '<svg onload="x">',
+    kind: 'component',
+    title: '<svg onload="x">',
     elements: [
       { id: 'a', type: 'component', name: hostile, stereotypes: ['<b>'], requires: ['i'], ports: [{ id: 'p', name: '<a href="x">', type: '&amp;' }] },
       { id: 'b', type: 'component', name: '  spaced  ', provides: ['i'] },
@@ -136,14 +164,27 @@ test('component: hostile and markup-like text stays literal in every slot', asyn
       { type: 'usage', from: 'b', to: 'i' },
     ],
   };
-  await assertHostile(doc, [hostile, '«<b>»', '<a href="x"> : &amp;', '  spaced  ', '<foreignObject>', 'url(javascript:x)()', '🚀 𠀀 <image href=x>', '«<i>»', '{{x}}']);
+  await assertHostile(doc, [
+    hostile,
+    '«<b>»',
+    '<a href="x"> : &amp;',
+    '  spaced  ',
+    '<foreignObject>',
+    'url(javascript:x)()',
+    '🚀 𠀀 <image href=x>',
+    '«<i>»',
+    '{{x}}',
+  ]);
 });
 
 test('the published component schema describes the contract', async () => {
   const { componentKind } = await import('../dist/kinds/component/index.js');
   const schema = componentKind.schema;
   assert.equal(schema.properties.kind.const, 'component');
-  assert.deepEqual(schema.definitions.relationship.oneOf.map(b => b.properties.type.const), ['assembly', 'delegation', 'realization', 'usage', 'manifest', 'dependency']);
+  assert.deepEqual(
+    schema.definitions.relationship.oneOf.map(b => b.properties.type.const),
+    ['assembly', 'delegation', 'realization', 'usage', 'manifest', 'dependency'],
+  );
   assert.equal(componentKind.frameKeyword, 'cmp');
 });
 
@@ -174,8 +215,10 @@ function iconBoxes(svg) {
   return [...svg.matchAll(/<g data-uml-role="icon"[^>]*>(.*?)<\/g>/g)].map(m => {
     const rects = [...m[1].matchAll(/<rect x="([\d.-]+)" y="([\d.-]+)" width="([\d.]+)" height="([\d.]+)"/g)].map(r => r.slice(1).map(Number));
     return {
-      x: Math.min(...rects.map(r => r[0])), y: Math.min(...rects.map(r => r[1])),
-      right: Math.max(...rects.map(r => r[0] + r[2])), bottom: Math.max(...rects.map(r => r[1] + r[3])),
+      x: Math.min(...rects.map(r => r[0])),
+      y: Math.min(...rects.map(r => r[1])),
+      right: Math.max(...rects.map(r => r[0] + r[2])),
+      bottom: Math.max(...rects.map(r => r[1] + r[3])),
     };
   });
 }

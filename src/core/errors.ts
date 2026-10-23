@@ -22,7 +22,9 @@ export class UmlError extends Error {
     public readonly details?: unknown,
     public readonly path?: string,
     public readonly diagnostics?: readonly Diagnostic[],
-  ) { super(message); }
+  ) {
+    super(message);
+  }
 
   toJSON(): object {
     return {
@@ -47,15 +49,19 @@ const SUMMARY_LIMIT = 12;
 export function failValidation(diagnostics: readonly Diagnostic[]): never {
   const [first] = diagnostics;
   if (!first) throw new UmlError('INTERNAL_ERROR', 'Validation failed without diagnostics', 3);
-  const message = diagnostics.length === 1 ? first.message
-    : `${diagnostics.length} problems; fix all of them (each is also listed in "diagnostics" with its path): `
-      + diagnostics.slice(0, SUMMARY_LIMIT).map((d, i) => `(${i + 1}) ${d.message}`).join(' ')
-      + (diagnostics.length > SUMMARY_LIMIT ? ` (and ${diagnostics.length - SUMMARY_LIMIT} more in "diagnostics")` : '');
+  const message =
+    diagnostics.length === 1
+      ? first.message
+      : `${diagnostics.length} problems; fix all of them (each is also listed in "diagnostics" with its path): ` +
+        diagnostics
+          .slice(0, SUMMARY_LIMIT)
+          .map((d, i) => `(${i + 1}) ${d.message}`)
+          .join(' ') +
+        (diagnostics.length > SUMMARY_LIMIT ? ` (and ${diagnostics.length - SUMMARY_LIMIT} more in "diagnostics")` : '');
   throw new UmlError(first.code, message, 2, undefined, first.path, diagnostics);
 }
 
 /** Appends a JSON Pointer segment, escaping `~` and `/` as RFC 6901 requires. */
 export function pointer(base: string, ...segments: (string | number)[]): string {
-  return segments.reduce<string>((path, segment) =>
-    `${path}/${String(segment).replaceAll('~', '~0').replaceAll('/', '~1')}`, base);
+  return segments.reduce<string>((path, segment) => `${path}/${String(segment).replaceAll('~', '~0').replaceAll('/', '~1')}`, base);
 }

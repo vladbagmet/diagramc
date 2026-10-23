@@ -307,3 +307,38 @@ Needs the owner's decision:
 - README (owned by the README agent): the "PlantUML renderer" and "Licenses"
   sections still describe the PlantUML jar as GPL; since decision 0005 it is the
   MIT build.
+
+## Enforcement summary (quality agent)
+
+What a contributor runs, and what CI enforces:
+
+- Setup: `npm ci`. For sequence, timing and activity diagrams also
+  `npm run setup:renderer` once (downloads a pinned JRE and PlantUML into
+  `.tools/`; no system Java needed).
+- `npm test`: fast unit suite (about a minute). Tests that need the PlantUML
+  runtime are reported as skipped, with the reason, when `.tools/` is missing.
+- `npm run test:integration`: the PlantUML integration tests (need the runtime).
+- `npm run typecheck`: `tsc --noEmit` with `strict`, `noUncheckedIndexedAccess`
+  and `exactOptionalPropertyTypes`.
+- `npm run lint`: ESLint 9 flat config (`eslint.config.js`): typescript-eslint
+  strict-type-checked and stylistic-type-checked on `src/`, the recommended
+  rules and eslint-plugin-unicorn everywhere. Every rule turned off says why in
+  the config; fix findings rather than adding disables.
+- `npm run format` and `npm run format:check`: Prettier (`.prettierrc`: single
+  quotes, semicolons, width 160). The one-time reformat commit is listed in
+  `.git-blame-ignore-revs` (`git config blame.ignoreRevsFile .git-blame-ignore-revs`).
+- `npm run test:coverage`: unit tests with Node's built-in coverage over `src/`
+  (only `src/types/` excluded); fails below 90 percent lines, 80 percent
+  branches or 90 percent functions. The table is printed at the end.
+- `npm run gallery`: renders every example and fails on a layout gate failure
+  that is not a documented exception in `test/known-gate-failures.mjs`.
+- `npm run check`: all of the above except the integration tests, in one
+  command. Run it before opening a pull request (the gallery part needs the
+  renderer).
+- CI (`.github/workflows/ci.yml`): typecheck, lint, format check and coverage
+  on Node 22 and 24 (Ubuntu) and Node 24 (macOS); a separate job installs the
+  renderer (cached by the pins in `scripts/setup-renderer.mjs`) and runs the
+  integration tests and the gallery. Dependabot updates npm packages and
+  actions weekly; `.github/CODEOWNERS` names `@vladbagmet`.
+- Stress render budgets are CPU-time budgets, widened threefold under coverage
+  and twofold when `CI` is set.

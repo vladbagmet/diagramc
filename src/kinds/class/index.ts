@@ -24,7 +24,12 @@ export const classKind: KindDefinition<ClassDiagram> = {
       },
     },
     // Best-effort fallback (Smetana layout): held to the text and safety gates only.
-    { name: 'plantuml', diagramType: 'CLASS', toPlantUml: classToPlantUml, gates: ['safe-markup', 'inside-canvas', 'literal-text', 'min-font-size', 'text-fits'] },
+    {
+      name: 'plantuml',
+      diagramType: 'CLASS',
+      toPlantUml: classToPlantUml,
+      gates: ['safe-markup', 'inside-canvas', 'literal-text', 'min-font-size', 'text-fits'],
+    },
   ],
   legacy: classV1,
 };

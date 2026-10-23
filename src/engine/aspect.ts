@@ -81,10 +81,13 @@ const WRAP_EXCESS = 60;
  */
 export function wrapsAround(route: readonly Point[]): boolean {
   if (route.length < 5) return false;
-  const a = route[0]!, b = route.at(-1)!;
+  const a = route[0]!,
+    b = route.at(-1)!;
   if (routeLength(route) - (Math.abs(a.x - b.x) + Math.abs(a.y - b.y)) < WRAP_EXCESS) return false;
   const turn = (k: number): number => {
-    const p = route[k - 1]!, q = route[k]!, r = route[k + 1]!;
+    const p = route[k - 1]!,
+      q = route[k]!,
+      r = route[k + 1]!;
     return Math.sign((q.x - p.x) * (r.y - q.y) - (q.y - p.y) * (r.x - q.x));
   };
   const leg = (k: number): number => Math.hypot(route[k + 1]!.x - route[k]!.x, route[k + 1]!.y - route[k]!.y);
@@ -108,7 +111,9 @@ export function isDetour(route: readonly Point[], margin = 0): boolean {
 export function routesDetour(routes: readonly (readonly Point[])[]): number {
   return routes.reduce((sum, r) => {
     if (r.length < 2) return sum;
-    const length = routeLength(r), a = r[0]!, b = r.at(-1)!;
+    const length = routeLength(r),
+      a = r[0]!,
+      b = r.at(-1)!;
     const over = wrapsAround(r) ? length - (Math.abs(a.x - b.x) + Math.abs(a.y - b.y)) : length - routeLimit(a, b);
     return over > 0 ? sum + over + DETOUR_COST : sum;
   }, 0);
@@ -118,7 +123,9 @@ const DETOUR_COST = 200;
 /** Proper crossings between orthogonal or straight routes (shared end points and overlaps do not count). */
 export function countCrossings(routes: readonly (readonly Point[])[]): number {
   const segments: [Point, Point, number][] = [];
-  routes.forEach((r, i) => { for (let k = 1; k < r.length; k++) segments.push([r[k - 1]!, r[k]!, i]); });
+  for (const [i, r] of routes.entries()) {
+    for (let k = 1; k < r.length; k++) segments.push([r[k - 1]!, r[k]!, i]);
+  }
   const cross = (o: Point, p: Point, q: Point) => (p.x - o.x) * (q.y - o.y) - (p.y - o.y) * (q.x - o.x);
   let count = 0;
   for (let i = 0; i < segments.length; i++) {
@@ -126,8 +133,17 @@ export function countCrossings(routes: readonly (readonly Point[])[]): number {
     for (let j = i + 1; j < segments.length; j++) {
       const [c, d, rb] = segments[j]!;
       if (ra === rb) continue;
-      if (Math.max(a.x, b.x) < Math.min(c.x, d.x) || Math.max(c.x, d.x) < Math.min(a.x, b.x) || Math.max(a.y, b.y) < Math.min(c.y, d.y) || Math.max(c.y, d.y) < Math.min(a.y, b.y)) continue;
-      const d1 = cross(c, d, a), d2 = cross(c, d, b), d3 = cross(a, b, c), d4 = cross(a, b, d);
+      if (
+        Math.max(a.x, b.x) < Math.min(c.x, d.x) ||
+        Math.max(c.x, d.x) < Math.min(a.x, b.x) ||
+        Math.max(a.y, b.y) < Math.min(c.y, d.y) ||
+        Math.max(c.y, d.y) < Math.min(a.y, b.y)
+      )
+        continue;
+      const d1 = cross(c, d, a),
+        d2 = cross(c, d, b),
+        d3 = cross(a, b, c),
+        d4 = cross(a, b, d);
       if (((d1 > 0 && d2 < 0) || (d1 < 0 && d2 > 0)) && ((d3 > 0 && d4 < 0) || (d3 < 0 && d4 > 0))) count++;
     }
   }
@@ -142,11 +158,15 @@ export const routesLength = (routes: readonly (readonly Point[])[]): number => r
  * candidate's result into a LayoutMeasure.
  */
 export async function pickLayout<T>(candidates: readonly { penalty?: number; run: () => Promise<T> }[], measure: (result: T) => LayoutMeasure): Promise<T> {
-  let best: T | undefined, bestScore = Infinity;
+  let best: T | undefined,
+    bestScore = Infinity;
   for (const candidate of candidates) {
     const result = await candidate.run();
     const score = layoutScore({ ...measure(result), penalty: candidate.penalty ?? 0 });
-    if (score < bestScore - 1e-6) { best = result; bestScore = score; }
+    if (score < bestScore - 1e-6) {
+      best = result;
+      bestScore = score;
+    }
   }
   if (best === undefined) throw new Error('pickLayout needs at least one candidate');
   return best;
@@ -190,8 +210,12 @@ export interface ChooseOptions {
  * applied as in chooseLayout (used to compare the winners of separate chooseLayout runs).
  */
 export function betterLayout<T>(candidates: readonly { result: T; penalty: number }[], measure: (result: T) => LayoutMeasure, maxAspect?: number): T {
-  const scored = candidates.map(c => ({ result: c.result, score: layoutScore({ ...measure(c.result), penalty: c.penalty }), within: maxAspect === undefined || elongation(measure(c.result)) <= maxAspect }));
-  const best = scored.reduce((a, b) => b.score < a.score - 1e-6 ? b : a);
+  const scored = candidates.map(c => ({
+    result: c.result,
+    score: layoutScore({ ...measure(c.result), penalty: c.penalty }),
+    within: maxAspect === undefined || elongation(measure(c.result)) <= maxAspect,
+  }));
+  const best = scored.reduce((a, b) => (b.score < a.score - 1e-6 ? b : a));
   if (best.within) return best.result;
   return scored.filter(c => c.within && c.score <= best.score * MAX_ASPECT_TOLERANCE).sort((a, b) => a.score - b.score)[0]?.result ?? best.result;
 }
@@ -201,7 +225,7 @@ export const MAX_ASPECT_TOLERANCE = 1.6;
 /** See chooseLayout: no wrapped variant once a layout is at most this elongated. */
 const WRAP_UNLESS = 2;
 
-const elongation = (m: LayoutMeasure): number => m.width > 0 && m.height > 0 ? Math.max(m.width / m.height, m.height / m.width) : 1;
+const elongation = (m: LayoutMeasure): number => (m.width > 0 && m.height > 0 ? Math.max(m.width / m.height, m.height / m.width) : 1);
 
 /**
  * The layout chooser every layered own-engine kind uses: for each direction (the
@@ -209,13 +233,22 @@ const elongation = (m: LayoutMeasure): number => m.width > 0 && m.height > 0 ? M
  * when the result is wider than 16:9 across the direction, or the `wrap` variant
  * (if allowed) when it is longer than 3:4 along it. The best by `layoutScore` wins.
  */
-export async function chooseLayout<T>(directions: readonly Direction[], run: (dir: Direction, variant: LayoutVariant) => Promise<T>, measure: (result: T) => LayoutMeasure, options: ChooseOptions = {}): Promise<T> {
-  let best: T | undefined, bestScore = Infinity;
+export async function chooseLayout<T>(
+  directions: readonly Direction[],
+  run: (dir: Direction, variant: LayoutVariant) => Promise<T>,
+  measure: (result: T) => LayoutMeasure,
+  options: ChooseOptions = {},
+): Promise<T> {
+  let best: T | undefined,
+    bestScore = Infinity;
   const all: { result: T; score: number; within: boolean }[] = [];
   const consider = (result: T, penalty: number): void => {
     const score = layoutScore({ ...measure(result), penalty });
     all.push({ result, score, within: options.maxAspect === undefined || elongation(measure(result)) <= options.maxAspect });
-    if (score < bestScore - 1e-6) { best = result; bestScore = score; }
+    if (score < bestScore - 1e-6) {
+      best = result;
+      bestScore = score;
+    }
   };
   const wraps: { dir: Direction; penalty: number; tryRun: (variant: LayoutVariant) => Promise<T | undefined> }[] = [];
   for (const [i, dir] of directions.entries()) {
@@ -223,7 +256,11 @@ export async function chooseLayout<T>(directions: readonly Direction[], run: (di
     // ELK fails on some port configurations in some directions: only the conventional layout must succeed.
     const tryRun = async (variant: LayoutVariant): Promise<T | undefined> => {
       if (i === 0 && variant === 'plain') return run(dir, variant);
-      try { return await run(dir, variant); } catch { return undefined; }
+      try {
+        return await run(dir, variant);
+      } catch {
+        return undefined;
+      }
     };
     const plain = await tryRun('plain');
     if (plain === undefined) continue;

@@ -6,9 +6,34 @@ import { theme } from '../core/theme.js';
  */
 
 const SHAPES = [
-  'class', 'object', 'package', 'component', 'interface', 'node', 'artifact', 'database', 'usecase', 'actor',
-  'participant', 'state', 'activity', 'rectangle', 'frame', 'card', 'folder', 'file', 'collections',
-  'boundary', 'control', 'entity', 'queue', 'agent', 'stack', 'storage', 'cloud', 'partition',
+  'class',
+  'object',
+  'package',
+  'component',
+  'interface',
+  'node',
+  'artifact',
+  'database',
+  'usecase',
+  'actor',
+  'participant',
+  'state',
+  'activity',
+  'rectangle',
+  'frame',
+  'card',
+  'folder',
+  'file',
+  'collections',
+  'boundary',
+  'control',
+  'entity',
+  'queue',
+  'agent',
+  'stack',
+  'storage',
+  'cloud',
+  'partition',
 ];
 
 export function skinParams(): string[] {

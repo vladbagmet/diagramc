@@ -50,7 +50,6 @@ export interface RepairEdge {
   fixedTarget?: boolean;
 }
 
-
 /** Routes may be this factor longer than the gap between their nodes plus SLACK before they count as detours (stricter than the gate). */
 const DETOUR_FACTOR = 2.5;
 const DETOUR_SLACK = 140;
@@ -136,18 +135,29 @@ export const JUNCTION_DISTANCE = 30;
 function crossingPoints(a: readonly Point[], b: readonly Point[]): Point[] {
   const out: Point[] = [];
   const cross = (o: Point, p: Point, q: Point) => (p.x - o.x) * (q.y - o.y) - (p.y - o.y) * (q.x - o.x);
-  for (let i = 1; i < a.length; i++) for (let j = 1; j < b.length; j++) {
-    const p = a[i - 1]!, q = a[i]!, r = b[j - 1]!, t = b[j]!;
-    const d1 = cross(r, t, p), d2 = cross(r, t, q), d3 = cross(p, q, r), d4 = cross(p, q, t);
-    if (!(((d1 > 0 && d2 < 0) || (d1 < 0 && d2 > 0)) && ((d3 > 0 && d4 < 0) || (d3 < 0 && d4 > 0)))) continue;
-    const k = d1 / (d1 - d2);
-    out.push({ x: p.x + (q.x - p.x) * k, y: p.y + (q.y - p.y) * k });
-  }
+  for (let i = 1; i < a.length; i++)
+    for (let j = 1; j < b.length; j++) {
+      const p = a[i - 1]!,
+        q = a[i]!,
+        r = b[j - 1]!,
+        t = b[j]!;
+      const d1 = cross(r, t, p),
+        d2 = cross(r, t, q),
+        d3 = cross(p, q, r),
+        d4 = cross(p, q, t);
+      if (!(((d1 > 0 && d2 < 0) || (d1 < 0 && d2 > 0)) && ((d3 > 0 && d4 < 0) || (d3 < 0 && d4 > 0)))) continue;
+      const k = d1 / (d1 - d2);
+      out.push({ x: p.x + (q.x - p.x) * k, y: p.y + (q.y - p.y) * k });
+    }
   return out;
 }
 
 /** Returns the repaired routes (all edges, changed or not) and the IDs of rerouted edges. */
-export function repairRoutes(nodes: readonly RepairNode[], edges: readonly RepairEdge[], options: RepairOptions = {}): { routes: Map<string, Point[]>; changed: Set<string> } {
+export function repairRoutes(
+  nodes: readonly RepairNode[],
+  edges: readonly RepairEdge[],
+  options: RepairOptions = {},
+): { routes: Map<string, Point[]>; changed: Set<string> } {
   const byId = new Map(nodes.map(n => [n.id, n]));
   const routes = new Map(edges.map(e => [e.id, e.route.map(p => ({ ...p }))]));
   const changed = new Set<string>();
@@ -160,7 +170,15 @@ export function repairRoutes(nodes: readonly RepairNode[], edges: readonly Repai
   const all = union(nodes.map(n => n.rect));
   // Container borders count as lines: routes keep a line spacing away from them instead of hugging them.
   const borders = [
-    ...nodes.filter(n => n.container).map(({ rect: r }) => [{ x: r.x, y: r.y }, { x: r.x + r.width, y: r.y }, { x: r.x + r.width, y: r.y + r.height }, { x: r.x, y: r.y + r.height }, { x: r.x, y: r.y }]),
+    ...nodes
+      .filter(n => n.container)
+      .map(({ rect: r }) => [
+        { x: r.x, y: r.y },
+        { x: r.x + r.width, y: r.y },
+        { x: r.x + r.width, y: r.y + r.height },
+        { x: r.x, y: r.y + r.height },
+        { x: r.x, y: r.y },
+      ]),
     ...(options.lines ?? []).map(l => [...l]),
   ];
 
@@ -169,10 +187,13 @@ export function repairRoutes(nodes: readonly RepairNode[], edges: readonly Repai
     const related = new Set([...ancestors(e.source), ...ancestors(e.target), e.source, e.target]);
     const out: Rect[] = [];
     for (const n of nodes) {
-      out.push(...n.texts ?? []);
+      out.push(...(n.texts ?? []));
       if (related.has(n.id)) continue;
       // A node inside one of the ends (a port, a nested element) is not in the way of lines that end on its container border.
-      if (ancestors(n.id).has(e.source) || ancestors(n.id).has(e.target)) { if (!n.container) out.push(n.bounds ?? n.rect); continue; }
+      if (ancestors(n.id).has(e.source) || ancestors(n.id).has(e.target)) {
+        if (!n.container) out.push(n.bounds ?? n.rect);
+        continue;
+      }
       out.push(n.bounds ?? n.rect);
     }
     return out;
@@ -181,14 +202,20 @@ export function repairRoutes(nodes: readonly RepairNode[], edges: readonly Repai
     for (let k = 1; k < route.length; k++) for (const r of rects) if (segmentIntersectsRect(route[k - 1]!, route[k]!, inflate(r, -1))) return true;
     return false;
   };
-  const endsOf = (exclude: string) => edges.flatMap(o => o.id === exclude ? [] : [
-    { edge: o, node: o.source, p: routes.get(o.id)![0]!, marker: o.sourceMarker },
-    { edge: o, node: o.target, p: routes.get(o.id)!.at(-1)!, marker: o.targetMarker },
-  ]);
+  const endsOf = (exclude: string) =>
+    edges.flatMap(o =>
+      o.id === exclude
+        ? []
+        : [
+            { edge: o, node: o.source, p: routes.get(o.id)![0]!, marker: o.sourceMarker },
+            { edge: o, node: o.target, p: routes.get(o.id)!.at(-1)!, marker: o.targetMarker },
+          ],
+    );
   const minSpacing = (a: Marker, b: Marker): number => Math.max(baseSpacing, markerHalf(a) + markerHalf(b) + 6);
   /** Which rule a route breaks, or undefined. */
   const problem = (e: RepairEdge, route: readonly Point[]): string | undefined => {
-    const s = byId.get(e.source), t = byId.get(e.target);
+    const s = byId.get(e.source),
+      t = byId.get(e.target);
     if (!s || !t || route.length < 2) return undefined;
     if (crosses(route, obstaclesFor(e))) return 'crosses';
     if (!contains(s.rect, t.rect) && !contains(t.rect, s.rect)) {
@@ -196,7 +223,10 @@ export function repairRoutes(nodes: readonly RepairNode[], edges: readonly Repai
       // Much longer than the gap between the nodes, longer than the route-length gate allows between its ends, or wrapping around.
       if (length > DETOUR_FACTOR * rectGap(s.rect, t.rect) + DETOUR_SLACK || isDetour(route, DETOUR_MARGIN)) return 'detour';
     }
-    for (const [end, marker, p, q] of [['source', e.sourceMarker, route[0]!, route[1]!], ['target', e.targetMarker, route.at(-1)!, route.at(-2)!]] as const) {
+    for (const [end, marker, p, q] of [
+      ['source', e.sourceMarker, route[0]!, route[1]!],
+      ['target', e.targetMarker, route.at(-1)!, route.at(-2)!],
+    ] as const) {
       const need = markerLength(marker) + (route.length > 2 ? theme.spacing.bendRadius : 0);
       if (marker !== 'none' && distance(p, q) < need - 0.25) return `short ${end}`;
       const node = end === 'source' ? s : t;
@@ -225,14 +255,21 @@ export function repairRoutes(nodes: readonly RepairNode[], edges: readonly Repai
       if (id === exclude) continue;
       const route = routes.get(id);
       if (!route || route.length < 2) continue;
-      for (const [size, p, q] of [[ends.source, route[0]!, route[1]!], [ends.target, route.at(-1)!, route.at(-2)!]] as const) {
+      for (const [size, p, q] of [
+        [ends.source, route[0]!, route[1]!],
+        [ends.target, route.at(-1)!, route.at(-2)!],
+      ] as const) {
         if (!size) continue;
-        const pad = 6, vertical = Math.abs(q.x - p.x) < Math.abs(q.y - p.y);
-        const along = (vertical ? size.height : size.width) + pad, across = (vertical ? size.width : size.height) + pad;
+        const pad = 6,
+          vertical = Math.abs(q.x - p.x) < Math.abs(q.y - p.y);
+        const along = (vertical ? size.height : size.width) + pad,
+          across = (vertical ? size.width : size.height) + pad;
         const dir = vertical ? Math.sign(q.y - p.y) : Math.sign(q.x - p.x);
-        out.push(vertical
-          ? { x: p.x - across, y: dir > 0 ? p.y : p.y - along, width: 2 * across, height: along }
-          : { x: dir > 0 ? p.x : p.x - along, y: p.y - across, width: along, height: 2 * across });
+        out.push(
+          vertical
+            ? { x: p.x - across, y: dir > 0 ? p.y : p.y - along, width: 2 * across, height: along }
+            : { x: dir > 0 ? p.x : p.x - along, y: p.y - across, width: along, height: 2 * across },
+        );
       }
     }
     return out;
@@ -246,21 +283,33 @@ export function repairRoutes(nodes: readonly RepairNode[], edges: readonly Repai
 
   const reroute = (e: RepairEdge, forLabel = false, detour = false): Point[] | undefined => {
     const route = routes.get(e.id)!;
-    const s = byId.get(e.source)!, t = byId.get(e.target)!;
+    const s = byId.get(e.source)!,
+      t = byId.get(e.target)!;
     const ends = endsOf(e.id);
     const occupied = (node: string) => ends.filter(o => o.node === node && !(e.group !== undefined && o.edge.group === e.group)).map(o => o.p);
     const lines = [...edges.filter(o => o.id !== e.id && !(e.group !== undefined && o.group === e.group)).map(o => routes.get(o.id)!), ...borders];
-    const fixed = (end: Point, next: Point) => ({ fixed: { point: end, out: { x: Math.sign(Math.round(next.x - end.x)), y: Math.sign(Math.round(next.y - end.y)) } } });
+    const fixed = (end: Point, next: Point) => ({
+      fixed: { point: end, out: { x: Math.sign(Math.round(next.x - end.x)), y: Math.sign(Math.round(next.y - end.y)) } },
+    });
+    const labelSpacing = forLabel ? options.labelSpacing?.(e.id) : undefined;
     const request = {
       source: {
-        rect: s.rect, stub: markerLength(e.sourceMarker) + theme.spacing.bendRadius + 6, occupied: occupied(e.source), spacing: Math.max(minSpacing(e.sourceMarker, 'open-arrow'), ownLabelRoom(e.id, 'source')),
+        rect: s.rect,
+        stub: markerLength(e.sourceMarker) + theme.spacing.bendRadius + 6,
+        occupied: occupied(e.source),
+        spacing: Math.max(minSpacing(e.sourceMarker, 'open-arrow'), ownLabelRoom(e.id, 'source')),
         ...(e.fixedSource ? fixed(route[0]!, route[1]!) : {}),
       },
       target: {
-        rect: t.rect, stub: markerLength(e.targetMarker) + theme.spacing.bendRadius + 6, occupied: occupied(e.target), spacing: Math.max(minSpacing(e.targetMarker, 'open-arrow'), ownLabelRoom(e.id, 'target')),
+        rect: t.rect,
+        stub: markerLength(e.targetMarker) + theme.spacing.bendRadius + 6,
+        occupied: occupied(e.target),
+        spacing: Math.max(minSpacing(e.targetMarker, 'open-arrow'), ownLabelRoom(e.id, 'target')),
         ...(e.group !== undefined || e.fixedTarget ? fixed(route.at(-1)!, route.at(-2)!) : {}),
       },
-      obstacles: [...obstaclesFor(e), ...labelRoom(e.id)], lines, ...(forLabel && options.labelSpacing?.(e.id) ? { spacing: options.labelSpacing(e.id) } : {}),
+      obstacles: [...obstaclesFor(e), ...labelRoom(e.id)],
+      lines,
+      ...(labelSpacing ? { spacing: labelSpacing } : {}),
     };
     let next = routeOrthogonal({ ...request, area: inflate(union([s.rect, t.rect]), 160) });
     if (!next || problem(e, next) === 'crosses') next = routeOrthogonal({ ...request, area: inflate(all, 40) });
@@ -272,7 +321,8 @@ export function repairRoutes(nodes: readonly RepairNode[], edges: readonly Repai
     return next && problem(e, next) !== 'crosses' ? next : undefined;
   };
   const crossingsWith = (route: readonly Point[], id: string): number =>
-    countCrossings([route, ...edges.filter(o => o.id !== id).map(o => routes.get(o.id)!)]) - countCrossings(edges.filter(o => o.id !== id).map(o => routes.get(o.id)!));
+    countCrossings([route, ...edges.filter(o => o.id !== id).map(o => routes.get(o.id)!)]) -
+    countCrossings(edges.filter(o => o.id !== id).map(o => routes.get(o.id)!));
 
   // 1. Routes that break a rule.
   for (let pass = 0; pass < 2; pass++) {
@@ -300,7 +350,8 @@ export function repairRoutes(nodes: readonly RepairNode[], edges: readonly Repai
     for (const e of edges) {
       if (e.source === e.target || options.keep?.has(e.id)) continue;
       const route = routes.get(e.id)!;
-      const s = byId.get(e.source)!, t = byId.get(e.target)!;
+      const s = byId.get(e.source)!,
+        t = byId.get(e.target)!;
       if (contains(s.rect, t.rect) || contains(t.rect, s.rect)) continue;
       const length = routeLength(route);
       if (length <= SHORTEN_FACTOR * rectGap(s.rect, t.rect) + SHORTEN_SLACK) continue;
@@ -320,36 +371,69 @@ export function repairRoutes(nodes: readonly RepairNode[], edges: readonly Repai
       const route = routes.get(e.id)!;
       let best: Point[] | undefined;
       for (let k = 1; k + 2 < route.length; k++) {
-        const p = route[k - 1]!, a = route[k]!, b = route[k + 1]!, q = route[k + 2]!;
-        const horizontal = Math.abs(a.y - b.y) < 0.5, axis = horizontal ? 'y' as const : 'x' as const;
-        const s1 = Math.sign(p[axis] - a[axis]), s2 = Math.sign(q[axis] - b[axis]);
+        const p = route[k - 1]!,
+          a = route[k]!,
+          b = route[k + 1]!,
+          q = route[k + 2]!;
+        const horizontal = Math.abs(a.y - b.y) < 0.5,
+          axis = horizontal ? ('y' as const) : ('x' as const);
+        const s1 = Math.sign(p[axis] - a[axis]),
+          s2 = Math.sign(q[axis] - b[axis]);
         if (!s1 || s1 !== s2) continue;
         // End segments keep room for their marker and a bend.
         const room = (end: Point, next: Point, marker: Marker) => Math.abs(end[axis] - next[axis]) - markerLength(marker) - theme.spacing.bendRadius - 6;
-        const reach = Math.min(k - 1 === 0 ? room(p, a, e.sourceMarker) : Math.abs(p[axis] - a[axis]), k + 2 === route.length - 1 ? room(q, b, e.targetMarker) : Math.abs(q[axis] - b[axis]));
+        const reach = Math.min(
+          k - 1 === 0 ? room(p, a, e.sourceMarker) : Math.abs(p[axis] - a[axis]),
+          k + 2 === route.length - 1 ? room(q, b, e.targetMarker) : Math.abs(q[axis] - b[axis]),
+        );
         for (let d = Math.floor(reach / 4) * 4; d >= 4; d -= 4) {
-          const next = simplify(route.map((pt, i) => i === k || i === k + 1 ? { ...pt, [axis]: pt[axis] + s1 * d } : pt));
+          const next = simplify(route.map((pt, i) => (i === k || i === k + 1 ? { ...pt, [axis]: pt[axis] + s1 * d } : pt)));
           if (best && routeLength(next) >= routeLength(best)) break;
           if (severity(problem(e, next)) > severity('detour') || crossingsWith(next, e.id) > crossingsWith(route, e.id)) continue;
           const moved: [Point, Point] = [next[k]!, next[k + 1]!];
           // Not along a node's outline either (gate edge-endpoints: 4 px).
           if (obstaclesFor(e).some(r => segmentIntersectsRect(moved[0], moved[1], inflate(r, 8)))) continue;
-          const tooNear = edges.some(o => o.id !== e.id && routes.get(o.id)!.slice(1).some((c, i) => {
-            const c0 = routes.get(o.id)![i]!;
-            const parallel = horizontal ? Math.abs(c0.y - c.y) < 0.5 : Math.abs(c0.x - c.x) < 0.5;
-            if (!parallel) return false;
-            const lo = Math.max(Math.min(moved[0][horizontal ? 'x' : 'y'], moved[1][horizontal ? 'x' : 'y']), Math.min(c0[horizontal ? 'x' : 'y'], c[horizontal ? 'x' : 'y']));
-            const hi = Math.min(Math.max(moved[0][horizontal ? 'x' : 'y'], moved[1][horizontal ? 'x' : 'y']), Math.max(c0[horizontal ? 'x' : 'y'], c[horizontal ? 'x' : 'y']));
-            return hi - lo > 0 && Math.abs(c0[axis] - moved[0][axis]) < baseSpacing;
-          }));
+          const tooNear = edges.some(
+            o =>
+              o.id !== e.id &&
+              routes
+                .get(o.id)!
+                .slice(1)
+                .some((c, i) => {
+                  const c0 = routes.get(o.id)![i]!;
+                  const parallel = horizontal ? Math.abs(c0.y - c.y) < 0.5 : Math.abs(c0.x - c.x) < 0.5;
+                  if (!parallel) return false;
+                  const lo = Math.max(
+                    Math.min(moved[0][horizontal ? 'x' : 'y'], moved[1][horizontal ? 'x' : 'y']),
+                    Math.min(c0[horizontal ? 'x' : 'y'], c[horizontal ? 'x' : 'y']),
+                  );
+                  const hi = Math.min(
+                    Math.max(moved[0][horizontal ? 'x' : 'y'], moved[1][horizontal ? 'x' : 'y']),
+                    Math.max(c0[horizontal ? 'x' : 'y'], c[horizontal ? 'x' : 'y']),
+                  );
+                  return hi - lo > 0 && Math.abs(c0[axis] - moved[0][axis]) < baseSpacing;
+                }),
+          );
           if (tooNear) continue;
           // No bend of one line on the other (gate shared-segments).
           const distToSeg = (pt: Point, c: Point, f: Point): number => {
-            const l2 = (f.x - c.x) ** 2 + (f.y - c.y) ** 2, t = l2 ? Math.max(0, Math.min(1, ((pt.x - c.x) * (f.x - c.x) + (pt.y - c.y) * (f.y - c.y)) / l2)) : 0;
+            const l2 = (f.x - c.x) ** 2 + (f.y - c.y) ** 2,
+              t = l2 ? Math.max(0, Math.min(1, ((pt.x - c.x) * (f.x - c.x) + (pt.y - c.y) * (f.y - c.y)) / l2)) : 0;
             return Math.hypot(pt.x - c.x - t * (f.x - c.x), pt.y - c.y - t * (f.y - c.y));
           };
           const onLine = (pt: Point, line: readonly Point[]): boolean => line.slice(1).some((c, i) => distToSeg(pt, line[i]!, c) < 2);
-          if (edges.some(o => o.id !== e.id && (next.slice(1, -1).some(pt => onLine(pt, routes.get(o.id)!)) || routes.get(o.id)!.slice(1, -1).some(pt => onLine(pt, next))))) continue;
+          if (
+            edges.some(
+              o =>
+                o.id !== e.id &&
+                (next.slice(1, -1).some(pt => onLine(pt, routes.get(o.id)!)) ||
+                  routes
+                    .get(o.id)!
+                    .slice(1, -1)
+                    .some(pt => onLine(pt, next))),
+            )
+          )
+            continue;
           best = next;
           break;
         }

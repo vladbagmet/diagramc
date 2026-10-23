@@ -6,7 +6,10 @@ import { quoted, suggest } from './hints.js';
 import { fixPattern } from './patterns.js';
 
 /** A display string found while validating, with its JSON Pointer. */
-export interface DocumentText { path: string; text: string }
+export interface DocumentText {
+  path: string;
+  text: string;
+}
 
 let collected: DocumentText[] | undefined;
 
@@ -36,14 +39,19 @@ ajv.addKeyword({
   validate: function check(delimiters: string, data: string) {
     const problem = unwrappedProblem(data, delimiters);
     if (!problem) return true;
-    (check as unknown as { errors: Partial<ErrorObject>[] }).errors = [{ keyword: UNWRAPPED_KEYWORD, message: problem.message, params: { suggestion: problem.suggestion } }];
+    (check as unknown as { errors: Partial<ErrorObject>[] }).errors = [
+      { keyword: UNWRAPPED_KEYWORD, message: problem.message, params: { suggestion: problem.suggestion } },
+    ];
     return false;
   },
 });
 
 const cache = new WeakMap<JsonSchema, ValidateFunction>();
 
-export interface SchemaResult { diagnostics: Diagnostic[]; texts: DocumentText[] }
+export interface SchemaResult {
+  diagnostics: Diagnostic[];
+  texts: DocumentText[];
+}
 
 /**
  * Validates `value` against `schema`. Every problem becomes its own diagnostic,
@@ -54,12 +62,18 @@ export interface SchemaResult { diagnostics: Diagnostic[]; texts: DocumentText[]
  */
 export function validateSchema(schema: JsonSchema, value: unknown): SchemaResult {
   let validate = cache.get(schema);
-  if (!validate) { validate = ajv.compile(schema); cache.set(schema, validate); }
+  if (!validate) {
+    validate = ajv.compile(schema);
+    cache.set(schema, validate);
+  }
   const texts: DocumentText[] = [];
   collected = texts;
   let ok: boolean;
-  try { ok = validate(value) as boolean; }
-  finally { collected = undefined; }
+  try {
+    ok = validate(value);
+  } finally {
+    collected = undefined;
+  }
   if (ok) return { diagnostics: [], texts: dedupe(texts) };
   // One problem per string: an empty string only as too short; a string that breaks its
   // pattern and the display text rules as one diagnostic that gives the text rule's reason.
@@ -69,14 +83,21 @@ export function validateSchema(schema: JsonSchema, value: unknown): SchemaResult
   const textReason = new Map(errors.filter(e => e.keyword === TEXT_KEYWORD).map(e => [e.instancePath, e.message ?? 'Invalid display text']));
   const patternAt = new Set(errors.filter(e => e.keyword === 'pattern').map(e => e.instancePath));
   const diagnostics = [
-    ...describeErrors(errors.filter(e => e.keyword !== TEXT_KEYWORD), schema, value).map(d => {
-      const reason = (d.details as { rule?: string } | undefined)?.rule === 'pattern' ? textReason.get(d.path ?? '') : undefined;
+    ...describeErrors(
+      errors.filter(e => e.keyword !== TEXT_KEYWORD),
+      schema,
+      value,
+    ).map(d => {
+      const reason = (d.details as { rule?: string } | undefined)?.rule === 'pattern' ? textReason.get(d.path) : undefined;
       return reason ? { ...d, message: `${d.message} (${reason})` } : d;
     }),
-    ...errors.filter(e => e.keyword === TEXT_KEYWORD && !patternAt.has(e.instancePath)).map(e => ({
-      code: 'INVALID_TEXT', path: e.instancePath,
-      message: `${e.instancePath || '(document root)'}: ${e.message ?? 'Invalid display text'}; display text must be nonblank, well-formed Unicode without bidi controls`,
-    })),
+    ...errors
+      .filter(e => e.keyword === TEXT_KEYWORD && !patternAt.has(e.instancePath))
+      .map(e => ({
+        code: 'INVALID_TEXT',
+        path: e.instancePath,
+        message: `${e.instancePath || '(document root)'}: ${e.message ?? 'Invalid display text'}; display text must be nonblank, well-formed Unicode without bidi controls`,
+      })),
   ];
   return { texts: [], diagnostics: sortByPath(diagnostics, value) };
 }
@@ -110,10 +131,20 @@ function at(document: unknown, path: string): unknown {
 }
 
 /** JSON Schema type name of a value. */
-const jsonType = (v: unknown): string => v === null ? 'null' : Array.isArray(v) ? 'array' : typeof v === 'number' ? (Number.isInteger(v) ? 'integer' : 'number') : typeof v;
-const typeName = (v: unknown): string => v === null ? 'null' : Array.isArray(v) ? 'an array' : typeof v === 'object' ? 'an object' : typeof v === 'string' ? `the string ${JSON.stringify(v.length > 40 ? `${v.slice(0, 40)}…` : v)}` : `${typeof v} ${JSON.stringify(v)}`;
+const jsonType = (v: unknown): string =>
+  v === null ? 'null' : Array.isArray(v) ? 'array' : typeof v === 'number' ? (Number.isInteger(v) ? 'integer' : 'number') : typeof v;
+const typeName = (v: unknown): string =>
+  v === null
+    ? 'null'
+    : Array.isArray(v)
+      ? 'an array'
+      : typeof v === 'object'
+        ? 'an object'
+        : typeof v === 'string'
+          ? `the string ${JSON.stringify(v.length > 40 ? `${v.slice(0, 40)}…` : v)}`
+          : `${typeof v} ${JSON.stringify(v)}`;
 const where = (path: string): string => path || '(document root)';
-const sentence = (s: unknown): string => typeof s === 'string' && s ? ` ${s.endsWith('.') ? s : `${s}.`}` : '';
+const sentence = (s: unknown): string => (typeof s === 'string' && s ? ` ${s.endsWith('.') ? s : `${s}.`}` : '');
 
 /**
  * The description the schema gives the property at `path` itself (the one next
@@ -121,12 +152,14 @@ const sentence = (s: unknown): string => typeof s === 'string' && s ? ` ${s.ends
  * definition it refers to. Undefined when the walk cannot follow the path.
  */
 function ownDescription(root: Schema, document: unknown, path: string): string | undefined {
-  let schema: Schema | undefined = root, raw: Schema | undefined = root, node: unknown = document;
+  let schema: Schema | undefined = root,
+    raw: Schema | undefined = root,
+    node: unknown = document;
   for (const part of path.split('/').slice(1)) {
     const key = part.replaceAll('~1', '/').replaceAll('~0', '~');
     if (!schema) return undefined;
     const object = schemaOf(root, schema, node);
-    raw = (object.properties as Record<string, Schema> | undefined)?.[key] ?? (Array.isArray(node) ? object.items as Schema | undefined : undefined);
+    raw = (object.properties as Record<string, Schema> | undefined)?.[key] ?? (Array.isArray(node) ? (object.items as Schema | undefined) : undefined);
     schema = resolve(root, raw);
     node = node && typeof node === 'object' ? (node as Record<string, unknown>)[key] : undefined;
   }
@@ -143,7 +176,7 @@ function describeObject(document: unknown, path: string, allowed: readonly strin
 /** Allowed property names of an object schema (after following references and discriminated unions). */
 function allowedProperties(root: Schema, schema: Schema | undefined, node: unknown): string[] {
   if (!schema) return [];
-  if (schema.properties) return Object.keys(schema.properties as object);
+  if (schema.properties) return Object.keys(schema.properties);
   const branches = (schema.oneOf ?? schema.anyOf) as unknown[] | undefined;
   if (branches && node && typeof node === 'object') {
     const type = (node as Record<string, unknown>).type;
@@ -157,19 +190,30 @@ function allowedProperties(root: Schema, schema: Schema | undefined, node: unkno
 function schemaOf(root: Schema, schema: Schema, node: unknown): Schema {
   if (schema.properties) return schema;
   const type = node && typeof node === 'object' ? (node as Record<string, unknown>).type : undefined;
-  return ((schema.oneOf ?? schema.anyOf ?? []) as unknown[]).map(b => resolve(root, b)).find(b => (b?.properties as Record<string, Schema> | undefined)?.type?.const === type) ?? schema;
+  return (
+    ((schema.oneOf ?? schema.anyOf ?? []) as unknown[])
+      .map(b => resolve(root, b))
+      .find(b => (b?.properties as Record<string, Schema> | undefined)?.type?.const === type) ?? schema
+  );
 }
 
 /** Values allowed for the discriminator `tag` in a oneOf, in schema order. */
 function tagValues(root: Schema, schema: Schema, tag: string): unknown[] {
-  return ((schema.oneOf ?? []) as unknown[]).map(b => (resolve(root, b)?.properties as Record<string, Schema> | undefined)?.[tag]?.const).filter(v => v !== undefined);
+  return ((schema.oneOf ?? []) as unknown[])
+    .map(b => (resolve(root, b)?.properties as Record<string, Schema> | undefined)?.[tag]?.const)
+    .filter(v => v !== undefined);
 }
 
 /**
  * A wrong discriminator value that is really the value of another property of
  * one of the alternatives, e.g. `"type": "alt"` for `{"type": "fragment", "operator": "alt"}`.
  */
-function valueOfAnotherProperty(root: Schema, schema: Schema, tag: string, value: unknown): { text: string; tagValue: unknown; property: string; value: unknown } | undefined {
+function valueOfAnotherProperty(
+  root: Schema,
+  schema: Schema,
+  tag: string,
+  value: unknown,
+): { text: string; tagValue: unknown; property: string; value: unknown } | undefined {
   for (const exact of [true, false]) {
     for (const b of (schema.oneOf ?? []) as unknown[]) {
       const branch = resolve(root, b);
@@ -178,15 +222,36 @@ function valueOfAnotherProperty(root: Schema, schema: Schema, tag: string, value
         if (name === tag) continue;
         const p = resolve(root, raw);
         const values = [...((p?.enum as unknown[] | undefined) ?? []), ...(p && 'const' in p ? [p.const] : [])];
-        const hit = exact ? (values.includes(value) ? value : undefined) : typeof value === 'string' ? suggest(value, values.filter((v): v is string => typeof v === 'string'), 'value') : undefined;
-        if (hit !== undefined) return { text: `use {"${tag}": ${JSON.stringify(properties[tag]?.const)}, "${name}": ${JSON.stringify(hit)}}`, tagValue: properties[tag]?.const, property: name, value: hit };
+        const hit = exact
+          ? values.includes(value)
+            ? value
+            : undefined
+          : typeof value === 'string'
+            ? suggest(
+                value,
+                values.filter((v): v is string => typeof v === 'string'),
+                'value',
+              )
+            : undefined;
+        if (hit !== undefined)
+          return {
+            text: `use {"${tag}": ${JSON.stringify(properties[tag]?.const)}, "${name}": ${JSON.stringify(hit)}}`,
+            tagValue: properties[tag]?.const,
+            property: name,
+            value: hit,
+          };
       }
     }
   }
   return undefined;
 }
 
-interface Issue { path: string; keyword: string; message: string; details?: Record<string, unknown> }
+interface Issue {
+  path: string;
+  keyword: string;
+  message: string;
+  details?: Record<string, unknown>;
+}
 
 /** One diagnostic per problem, merged where two Ajv errors describe one mistake. */
 function describeErrors(errors: ErrorObject[], root: Schema, document: unknown): Diagnostic[] {
@@ -221,20 +286,37 @@ function describeErrors(errors: ErrorObject[], root: Schema, document: unknown):
       const own = node && typeof node === 'object' ? (node as Record<string, unknown>)[name] : undefined;
       const byValue = [...absent, ...allowed.filter(a => !present.includes(a) && !absent.includes(a))].find(m => {
         const ms = resolve(root, (schemaOf(root, schema, node).properties as Record<string, unknown> | undefined)?.[m]);
-        return ms && ((ms.enum as unknown[] | undefined)?.includes(own) || ('const' in ms && ms.const === own));
+        return ms && ((ms.enum as unknown[] | undefined)?.includes(own) === true || ('const' in ms && ms.const === own));
       });
       const special = specialPropertyHint(name, allowed, node);
-      const guess = special ? undefined : byValue ?? suggest(name, absent) ?? suggest(name, allowed.filter(a => !present.includes(a)));
+      const guess = special
+        ? undefined
+        : (byValue ??
+          suggest(name, absent) ??
+          suggest(
+            name,
+            allowed.filter(a => !present.includes(a)),
+          ));
       // A rename is only offered (and applied when checking further) if the value fits the other property.
-      const targetType = guess === undefined ? undefined : resolve(root, (schemaOf(root, schema, node).properties as Record<string, unknown> | undefined)?.[guess])?.type;
+      const targetType =
+        guess === undefined ? undefined : resolve(root, (schemaOf(root, schema, node).properties as Record<string, unknown> | undefined)?.[guess])?.type;
       // Numbers fit number and integer properties (a fraction is reported after the rename).
-      const fits = targetType === undefined || jsonType(own) === targetType || ((targetType === 'integer' || targetType === 'number') && typeof own === 'number');
+      const fits =
+        targetType === undefined || jsonType(own) === targetType || ((targetType === 'integer' || targetType === 'number') && typeof own === 'number');
       const rename = fits ? guess : undefined;
       const required = rename !== undefined && absent.includes(rename);
       if (required) missing.get(path)!.names = missing.get(path)!.names.filter(m => m !== rename);
-      const hint = guess === undefined ? '' : !fits ? `; "${guess}" is similar but takes ${article(String(targetType))}` : required ? `; rename it to "${rename}"` : `; did you mean "${rename}"`;
+      const hint =
+        guess === undefined
+          ? ''
+          : fits
+            ? required
+              ? `; rename it to "${rename}"`
+              : `; did you mean "${rename}"`
+            : `; "${guess}" is similar but takes ${article(typeof targetType === 'string' ? targetType : JSON.stringify(targetType))}`;
       issues.push({
-        path: pointer(path, name), keyword: 'additionalProperties',
+        path: pointer(path, name),
+        keyword: 'additionalProperties',
         message: `Unknown property "${name}" in ${describeObject(document, path, allowed)}${hint}${special ? ` ${special}` : ''}. Allowed properties: ${allowed.join(', ')}`,
         details: { property: name, allowed, ...(rename ? { suggestion: rename } : {}) },
       });
@@ -244,7 +326,8 @@ function describeErrors(errors: ErrorObject[], root: Schema, document: unknown):
     for (const name of names) {
       const property = resolve(root, (schema.properties as Record<string, unknown> | undefined)?.[name]);
       issues.push({
-        path: pointer(path, name), keyword: 'required',
+        path: pointer(path, name),
+        keyword: 'required',
         message: `Missing required property "${name}" in ${describeObject(document, path, allowedProperties(root, schema, at(document, path)))}.${sentence(property?.description)}`,
         // Display text can be stood in for while the rest of the document is checked (parse.ts).
         details: { property: name, ...(property?.[TEXT_KEYWORD] ? { text: true } : {}) },
@@ -258,9 +341,11 @@ function describeErrors(errors: ErrorObject[], root: Schema, document: unknown):
     const path = e.instancePath;
     const value = at(document, path);
     switch (e.keyword) {
-      case 'additionalProperties': case 'required': break;
+      case 'additionalProperties':
+      case 'required':
+        break;
       case 'discriminator': {
-        const tag = String(p.tag ?? 'type');
+        const tag = typeof p.tag === 'string' ? p.tag : 'type';
         const allowed = tagValues(root, schema, tag);
         const tagPath = pointer(path, tag);
         const tagValue = p.tagValue;
@@ -273,72 +358,158 @@ function describeErrors(errors: ErrorObject[], root: Schema, document: unknown):
           const other = nearest ? undefined : exact;
           const hint = other ? `; ${other.text}` : nearest ? `; did you mean "${nearest}"` : '';
           const abstract = typeof tagValue === 'string' && /abstract/iu.test(tagValue) && nearest ? ` (set "abstract": true for an abstract ${nearest})` : '';
-          issues.push({ path: tagPath, keyword: 'discriminator',
+          issues.push({
+            path: tagPath,
+            keyword: 'discriminator',
             message: `${tagPath} is ${JSON.stringify(tagValue)}, which is not a known ${tag}${hint}${abstract}. Allowed values: ${quoted(allowed)}`,
-            details: { allowed, value: tagValue, ...(nearest ? { suggestion: nearest } : other ? { suggestion: other.tagValue, also: { [other.property]: other.value } } : {}) } });
+            details: {
+              allowed,
+              value: tagValue,
+              ...(nearest ? { suggestion: nearest } : other ? { suggestion: other.tagValue, also: { [other.property]: other.value } } : {}),
+            },
+          });
         } else {
-          issues.push({ path: tagPath, keyword: 'discriminator',
-            message: `${where(path)} needs a string property "${tag}"${tagValue !== undefined ? ` (it is ${typeName(tagValue)})` : ''}. Allowed values: ${quoted(allowed)}`,
-            details: { allowed } });
+          issues.push({
+            path: tagPath,
+            keyword: 'discriminator',
+            message: `${where(path)} needs a string property "${tag}"${tagValue === undefined ? '' : ` (it is ${typeName(tagValue)})`}. Allowed values: ${quoted(allowed)}`,
+            details: { allowed },
+          });
         }
         break;
       }
       case 'enum': {
-        const allowed = (p.allowedValues as unknown[]) ?? [];
+        const allowed = (p.allowedValues as unknown[] | undefined) ?? [];
         const nearest = typeof value === 'string' ? suggest(value, allowed.map(String), 'value') : undefined;
-        issues.push({ path, keyword: 'enum', message: `${where(path)} is ${typeName(value)}${nearest ? `; did you mean "${nearest}"` : ''}. Allowed values: ${quoted(allowed)}`, details: { allowed, ...(nearest ? { suggestion: nearest } : {}) } });
+        issues.push({
+          path,
+          keyword: 'enum',
+          message: `${where(path)} is ${typeName(value)}${nearest ? `; did you mean "${nearest}"` : ''}. Allowed values: ${quoted(allowed)}`,
+          details: { allowed, ...(nearest ? { suggestion: nearest } : {}) },
+        });
         break;
       }
       case 'const':
-        issues.push({ path, keyword: 'const', message: `${where(path)} must be ${JSON.stringify(p.allowedValue)}, not ${typeName(value)}`, details: { allowed: [p.allowedValue], suggestion: p.allowedValue } });
+        issues.push({
+          path,
+          keyword: 'const',
+          message: `${where(path)} must be ${JSON.stringify(p.allowedValue)}, not ${typeName(value)}`,
+          details: { allowed: [p.allowedValue], suggestion: p.allowedValue },
+        });
         break;
       case 'type': {
         const expected = String(p.type);
         let hint = '';
-        if (expected.includes('string') && (typeof value === 'number' || typeof value === 'boolean')) hint = `; write it as a string: ${JSON.stringify(String(value))}`;
+        if (expected.includes('string') && (typeof value === 'number' || typeof value === 'boolean'))
+          hint = `; write it as a string: ${JSON.stringify(String(value))}`;
         else if (expected === 'array' && value !== null && typeof value !== 'object') hint = `; wrap it in a list: [${JSON.stringify(value)}]`;
         else if (expected === 'object' && typeof value === 'string') {
           const required = (schema.required as string[] | undefined) ?? [];
           const attribute = /\/attributes\/\d+$/u.test(path) ? parseAttribute(value) : undefined;
-          hint = attribute ? `; write it as ${JSON.stringify(attribute)}` : `; write an object${required.length ? ` with ${quoted(required)}` : ''}, not a string`;
-          if (attribute) { issues.push({ path, keyword: 'type', message: `${where(path)} must be an object, but it is ${typeName(value)}${hint}.`, details: { expected, suggestion: attribute } }); break; }
+          hint = attribute
+            ? `; write it as ${JSON.stringify(attribute)}`
+            : `; write an object${required.length > 0 ? ` with ${quoted(required)}` : ''}, not a string`;
+          if (attribute) {
+            issues.push({
+              path,
+              keyword: 'type',
+              message: `${where(path)} must be an object, but it is ${typeName(value)}${hint}.`,
+              details: { expected, suggestion: attribute },
+            });
+            break;
+          }
         } else if (expected === 'integer' && typeof value === 'number') hint = '; use whole numbers';
-        else if (expected === 'string' && value !== null && typeof value === 'object' && !Array.isArray(value) && typeof (value as { id?: unknown }).id === 'string') {
+        else if (
+          expected === 'string' &&
+          value !== null &&
+          typeof value === 'object' &&
+          !Array.isArray(value) &&
+          typeof (value as { id?: unknown }).id === 'string'
+        ) {
           // An element nested where an ID list is expected (a package's members): say where the element goes.
           const id = (value as { id: string }).id;
-          issues.push({ path, keyword: 'type', message: `${where(path)} must be an ID string, but it is an object; declare that element in the top-level "elements" list (with any members of its own also listed by ID) and write only its ID here: ${JSON.stringify(id)}.`, details: { expected, id } });
+          issues.push({
+            path,
+            keyword: 'type',
+            message: `${where(path)} must be an ID string, but it is an object; declare that element in the top-level "elements" list (with any members of its own also listed by ID) and write only its ID here: ${JSON.stringify(id)}.`,
+            details: { expected, id },
+          });
           break;
         }
         const quote = expected.includes('string') && (typeof value === 'number' || typeof value === 'boolean');
-        issues.push({ path, keyword: 'type', message: `${where(path)} must be ${article(expected)}, but it is ${typeName(value)}${hint}.${sentence(ownDescription(root, document, path) ?? schema.description)}`, details: { expected, ...(quote ? { suggestion: String(value) } : {}) } });
+        issues.push({
+          path,
+          keyword: 'type',
+          message: `${where(path)} must be ${article(expected)}, but it is ${typeName(value)}${hint}.${sentence(ownDescription(root, document, path) ?? schema.description)}`,
+          details: { expected, ...(quote ? { suggestion: String(value) } : {}) },
+        });
         break;
       }
       case 'pattern': {
         const fixed = typeof value === 'string' ? fixPattern(String(p.pattern), value) : undefined;
-        issues.push({ path, keyword: 'pattern',
-          message: `${where(path)} ${typeName(value)} is not valid.${sentence(schema.description) || ' It must match the documented format.'}${fixed !== undefined ? ` For example: ${JSON.stringify(fixed)}.` : ''}`,
-          details: { ...(fixed !== undefined ? { suggestion: fixed } : {}) } });
+        issues.push({
+          path,
+          keyword: 'pattern',
+          message: `${where(path)} ${typeName(value)} is not valid.${sentence(schema.description) || ' It must match the documented format.'}${fixed === undefined ? '' : ` For example: ${JSON.stringify(fixed)}.`}`,
+          details: { ...(fixed === undefined ? {} : { suggestion: fixed }) },
+        });
         break;
       }
       case UNWRAPPED_KEYWORD:
         issues.push({ path, keyword: 'format', message: `${where(path)}: ${e.message}`, details: { suggestion: p.suggestion } });
         break;
-      case 'oneOf': case 'anyOf': {
-        const options = ((schema[e.keyword] ?? []) as unknown[]).map(o => resolve(root, o)).map(o => o?.description ?? (o && 'const' in o ? JSON.stringify(o.const) : o?.type)).filter(Boolean);
-        issues.push({ path, keyword: e.keyword, message: `${where(path)} ${typeName(value)} is not valid; it must be one of: ${options.join('; ')}.${sentence(schema.description)}` });
+      case 'oneOf':
+      case 'anyOf': {
+        const options = ((schema[e.keyword] ?? []) as unknown[])
+          .map(o => resolve(root, o))
+          .map(o => o?.description ?? (o && 'const' in o ? JSON.stringify(o.const) : o?.type))
+          .filter(Boolean);
+        issues.push({
+          path,
+          keyword: e.keyword,
+          message: `${where(path)} ${typeName(value)} is not valid; it must be one of: ${options.join('; ')}.${sentence(schema.description)}`,
+        });
         break;
       }
-      case 'minLength': case 'maxLength': case 'minItems': case 'maxItems': case 'minimum': case 'maximum': case 'exclusiveMinimum': case 'exclusiveMaximum': case 'minProperties': case 'maxProperties': {
-        const limit = p.limit;
-        const what = { minLength: `at least ${limit} characters long`, maxLength: `at most ${limit} characters long`, minItems: `a list of at least ${limit} item${limit === 1 ? '' : 's'}`, maxItems: `a list of at most ${limit} items`, minimum: `at least ${limit}`, maximum: `at most ${limit}`, exclusiveMinimum: `greater than ${limit}`, exclusiveMaximum: `less than ${limit}`, minProperties: `an object with at least ${limit} properties`, maxProperties: `an object with at most ${limit} properties` }[e.keyword];
+      case 'minLength':
+      case 'maxLength':
+      case 'minItems':
+      case 'maxItems':
+      case 'minimum':
+      case 'maximum':
+      case 'exclusiveMinimum':
+      case 'exclusiveMaximum':
+      case 'minProperties':
+      case 'maxProperties': {
+        const limit = Number(p.limit);
+        const what = {
+          minLength: `at least ${limit} characters long`,
+          maxLength: `at most ${limit} characters long`,
+          minItems: `a list of at least ${limit} item${limit === 1 ? '' : 's'}`,
+          maxItems: `a list of at most ${limit} items`,
+          minimum: `at least ${limit}`,
+          maximum: `at most ${limit}`,
+          exclusiveMinimum: `greater than ${limit}`,
+          exclusiveMaximum: `less than ${limit}`,
+          minProperties: `an object with at least ${limit} properties`,
+          maxProperties: `an object with at most ${limit} properties`,
+        }[e.keyword];
         issues.push({ path, keyword: e.keyword, message: `${where(path)} must be ${what}.${sentence(schema.description)}`, details: { limit } });
         break;
       }
       case 'uniqueItems':
-        issues.push({ path, keyword: 'uniqueItems', message: `${where(path)} lists item ${p.j} and item ${p.i} twice; each value may appear once` });
+        issues.push({
+          path,
+          keyword: 'uniqueItems',
+          message: `${where(path)} lists item ${Number(p.j)} and item ${Number(p.i)} twice; each value may appear once`,
+        });
         break;
       case 'dependencies':
-        issues.push({ path: pointer(path, String(p.missingProperty)), keyword: 'dependencies', message: `Missing property ${pointer(path, String(p.missingProperty))}, required when ${pointer(path, String(p.property))} is present` });
+        issues.push({
+          path: pointer(path, String(p.missingProperty)),
+          keyword: 'dependencies',
+          message: `Missing property ${pointer(path, String(p.missingProperty))}, required when ${pointer(path, String(p.property))} is present`,
+        });
         break;
       default:
         issues.push({ path, keyword: e.keyword, message: `${where(path)} ${e.message ?? 'is invalid'}.${sentence(schema.description)}` });
@@ -346,7 +517,8 @@ function describeErrors(errors: ErrorObject[], root: Schema, document: unknown):
   }
   // One diagnostic per problem.
   const seen = new Set<string>();
-  return issues.filter(i => !seen.has(`${i.path}\u0000${i.keyword}\u0000${i.message}`) && seen.add(`${i.path}\u0000${i.keyword}\u0000${i.message}`))
+  return issues
+    .filter(i => !seen.has(`${i.path}\u0000${i.keyword}\u0000${i.message}`) && seen.add(`${i.path}\u0000${i.keyword}\u0000${i.message}`))
     .map(i => ({ code: 'SCHEMA_INVALID', path: i.path, message: i.message, details: { rule: i.keyword, ...i.details } }));
 }
 
@@ -358,18 +530,38 @@ function parseAttribute(text: string): Record<string, string> | undefined {
   return { name: m[3]!, ...(m[4] ? { type: m[4].trim() } : {}), ...(visibility ? { visibility } : {}), ...(m[5] ? { defaultValue: m[5] } : {}) };
 }
 
-const article = (type: string): string => type.split(',').map(t => ({ object: 'an object', array: 'a list (array)', integer: 'a whole number', string: 'a string', number: 'a number', boolean: 'true or false', null: 'null' }[t] ?? t)).join(' or ');
+const article = (type: string): string =>
+  type
+    .split(',')
+    .map(
+      t =>
+        ({
+          object: 'an object',
+          array: 'a list (array)',
+          integer: 'a whole number',
+          string: 'a string',
+          number: 'a number',
+          boolean: 'true or false',
+          null: 'null',
+        })[t] ?? t,
+    )
+    .join(' or ');
 
 /** Extra advice for property names whose meaning differs here. */
 function specialPropertyHint(name: string, allowed: readonly string[], node: unknown): string | undefined {
   const n = name.toLowerCase();
   const type = node && typeof node === 'object' ? (node as Record<string, unknown>).type : undefined;
-  if (n === 'multiplicity' && allowed.includes('fromEnd')) return '(multiplicities belong to the ends: "fromEnd": {"multiplicity": "1"}, "toEnd": {"multiplicity": "0..*"})';
-  if (n === 'multiplicity' && allowed.includes('navigable')) return '(a link between instances has no multiplicity; multiplicities belong to the association in a class diagram)';
-  if (n === 'extends' && type === 'stereotype') return '(a stereotype extends a metaclass through a relationship: {"type": "extension", "from": "<stereotype id>", "to": "<metaclass id>"})';
-  if ((n === 'extends' || n === 'inherits' || n === 'parent') && !allowed.includes('generalization')) return '(model inheritance as a relationship: {"type": "generalization", "from": "<specific>", "to": "<general>"})';
+  if (n === 'multiplicity' && allowed.includes('fromEnd'))
+    return '(multiplicities belong to the ends: "fromEnd": {"multiplicity": "1"}, "toEnd": {"multiplicity": "0..*"})';
+  if (n === 'multiplicity' && allowed.includes('navigable'))
+    return '(a link between instances has no multiplicity; multiplicities belong to the association in a class diagram)';
+  if (n === 'extends' && type === 'stereotype')
+    return '(a stereotype extends a metaclass through a relationship: {"type": "extension", "from": "<stereotype id>", "to": "<metaclass id>"})';
+  if ((n === 'extends' || n === 'inherits' || n === 'parent') && !allowed.includes('generalization'))
+    return '(model inheritance as a relationship: {"type": "generalization", "from": "<specific>", "to": "<general>"})';
   if (n === 'stereotype' && allowed.includes('stereotypes')) return '(a list without guillemets: "stereotypes": ["entity"])';
-  if ((n === 'name' || n === 'label' || n === 'condition') && type === 'decision') return '(a decision node has no name: write the conditions as the guards of its outgoing flows)';
+  if ((n === 'name' || n === 'label' || n === 'condition') && type === 'decision')
+    return '(a decision node has no name: write the conditions as the guards of its outgoing flows)';
   if (n === 'usecases' && type === 'subject') return '(set "subject": "<this subject\'s id>" on each use case inside it instead)';
   return undefined;
 }
@@ -382,16 +574,21 @@ function sortByPath(diagnostics: Diagnostic[], document: unknown): Diagnostic[] 
     for (const raw of path.split('/').slice(1)) {
       const key = raw.replaceAll('~1', '/').replaceAll('~0', '~');
       if (Array.isArray(node)) out.push(Number(key));
-      else if (node && typeof node === 'object') { const keys = Object.keys(node); out.push(keys.includes(key) ? keys.indexOf(key) : keys.length); }
-      else out.push(0);
+      else if (node && typeof node === 'object') {
+        const keys = Object.keys(node);
+        out.push(keys.includes(key) ? keys.indexOf(key) : keys.length);
+      } else out.push(0);
       node = node && typeof node === 'object' ? (node as Record<string, unknown>)[key] : undefined;
     }
     return out;
   };
-  return diagnostics.map((d, i) => ({ d, i, r: rank(d.path) })).sort((a, b) => {
-    for (let j = 0; j < Math.min(a.r.length, b.r.length); j++) if (a.r[j] !== b.r[j]) return a.r[j]! - b.r[j]!;
-    return a.r.length - b.r.length || a.i - b.i;
-  }).map(x => x.d);
+  return diagnostics
+    .map((d, i) => ({ d, i, r: rank(d.path) }))
+    .sort((a, b) => {
+      for (let j = 0; j < Math.min(a.r.length, b.r.length); j++) if (a.r[j] !== b.r[j]) return a.r[j]! - b.r[j]!;
+      return a.r.length - b.r.length || a.i - b.i;
+    })
+    .map(x => x.d);
 }
 
 export interface KindSchemaSpec {

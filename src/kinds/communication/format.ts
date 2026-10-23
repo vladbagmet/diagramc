@@ -20,7 +20,10 @@ export function messageLabel(m: Message): string {
   return `${m.sequence}${recurrence}: ${call}${m.returnValue === undefined ? '' : `: ${m.returnValue}`}`;
 }
 
-export interface SequenceTerm { number: number; thread: string }
+export interface SequenceTerm {
+  number: number;
+  thread: string;
+}
 
 const TERM = /^([1-9][0-9]{0,5})([a-z]?)$/u;
 
@@ -37,7 +40,8 @@ export function parseSequence(text: string): SequenceTerm[] | undefined {
 
 /** Orders sequence numbers as UML reads them: 1 < 1.1 < 1.2 < 1.10 < 2 < 2a < 2b. */
 export function compareSequence(a: string, b: string): number {
-  const x = parseSequence(a) ?? [], y = parseSequence(b) ?? [];
+  const x = parseSequence(a) ?? [],
+    y = parseSequence(b) ?? [];
   for (let i = 0; i < Math.min(x.length, y.length); i++) {
     const d = x[i]!.number - y[i]!.number || x[i]!.thread.localeCompare(y[i]!.thread);
     if (d) return d;

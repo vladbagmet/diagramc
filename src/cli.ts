@@ -19,13 +19,20 @@ const SETUP_SCRIPT = fileURLToPath(new URL('scripts/setup-renderer.mjs', package
 const kindList = (): string => {
   const lines = [''];
   for (const { kind } of kinds) {
-    const last = lines.length - 1;
-    if (lines[last] && lines[last]!.length + kind.length > 74) { lines[last] += ','; lines.push(kind); }
-    else lines[last] += `${lines[last] ? ', ' : ''}${kind}`;
+    const last = lines.length - 1,
+      line = lines[last]!;
+    if (line && line.length + kind.length > 74) {
+      lines[last] = `${line},`;
+      lines.push(kind);
+    } else lines[last] = `${line}${line ? ', ' : ''}${kind}`;
   }
   return lines.join('\n  ');
 };
-const plantumlKinds = (): string => kinds.filter(k => k.backends[0]?.name === 'plantuml').map(k => k.kind).join(', ');
+const plantumlKinds = (): string =>
+  kinds
+    .filter(k => k.backends[0]?.name === 'plantuml')
+    .map(k => k.kind)
+    .join(', ');
 
 const renderer = (): string => `PlantUML kinds (${plantumlKinds()}, and class with --backend
 plantuml) need a local Java renderer, set up once with
@@ -163,12 +170,21 @@ function kindArgument(name: string): KindDefinition {
   const kind = findKind(name);
   if (kind) return kind;
   const nearest = suggestKind(name);
-  throw new UmlError('UNKNOWN_KIND', `Unknown diagram kind ${JSON.stringify(name)}${nearest ? `; did you mean "${nearest}"?` : ''} Kinds: ${kinds.map(k => k.kind).join(', ')}`, 2,
-    { kind: name, available: kinds.map(k => k.kind), ...(nearest ? { suggestion: nearest } : {}) });
+  throw new UmlError(
+    'UNKNOWN_KIND',
+    `Unknown diagram kind ${JSON.stringify(name)}${nearest ? `; did you mean "${nearest}"?` : ''} Kinds: ${kinds.map(k => k.kind).join(', ')}`,
+    2,
+    { kind: name, available: kinds.map(k => k.kind), ...(nearest ? { suggestion: nearest } : {}) },
+  );
 }
 
 async function render(args: string[]): Promise<void> {
-  let input: string | undefined, output: string | undefined, format: OutputFormat | undefined, backend: string | undefined, scale: number | undefined, strict = false;
+  let input: string | undefined,
+    output: string | undefined,
+    format: OutputFormat | undefined,
+    backend: string | undefined,
+    scale: number | undefined,
+    strict = false;
   for (let i = 0; i < args.length; i++) {
     const arg = args[i]!;
     const value = (): string => {
@@ -176,22 +192,43 @@ async function render(args: string[]): Promise<void> {
       if (next === undefined || (next.startsWith('-') && next !== '-')) throw usage(`Missing value for ${arg}`);
       return next;
     };
-    if (arg === '-o' || arg === '--output') { if (output !== undefined) throw usage('Duplicate -o'); output = value(); }
-    else if (arg === '--format') {
-      const f = value();
-      if (f !== 'svg' && f !== 'png') throw usage('--format must be svg or png');
-      format = f;
-    } else if (arg === '--backend') backend = value();
-    else if (arg === '--scale') {
-      scale = Number(value());
-      if (!Number.isFinite(scale) || scale < 1 || scale > 4) throw usage('--scale must be a number from 1 to 4');
-    } else if (arg === '--strict') strict = true;
-    else if (input === undefined && isInput(arg)) input = arg;
-    else throw usage(`Unexpected argument ${JSON.stringify(arg)}`);
+    switch (arg) {
+      case '-o':
+      case '--output': {
+        if (output !== undefined) throw usage('Duplicate -o');
+        output = value();
+        break;
+      }
+      case '--format': {
+        const f = value();
+        if (f !== 'svg' && f !== 'png') throw usage('--format must be svg or png');
+        format = f;
+
+        break;
+      }
+      case '--backend': {
+        backend = value();
+        break;
+      }
+      case '--scale': {
+        scale = Number(value());
+        if (!Number.isFinite(scale) || scale < 1 || scale > 4) throw usage('--scale must be a number from 1 to 4');
+
+        break;
+      }
+      case '--strict': {
+        strict = true;
+        break;
+      }
+      default:
+        if (input === undefined && isInput(arg)) input = arg;
+        else throw usage(`Unexpected argument ${JSON.stringify(arg)}`);
+    }
   }
   if (!input || !output) throw usage('Usage: uml render <model.json|-> -o <diagram.svg|diagram.png>');
   const extension = /\.(svg|png)$/iu.exec(output)?.[1]?.toLowerCase() as OutputFormat | undefined;
-  if (format && extension && format !== extension) throw usage(`--format ${format} does not match the .${extension} extension of ${JSON.stringify(output)}; use a .${format} file name or drop --format`);
+  if (format && extension && format !== extension)
+    throw usage(`--format ${format} does not match the .${extension} extension of ${JSON.stringify(output)}; use a .${format} file name or drop --format`);
   format ??= extension;
   if (!format) throw usage('Output must end in .svg or .png, or pass --format');
   if (format === 'svg' && scale !== undefined) throw usage('--scale only applies to PNG output');
@@ -199,19 +236,27 @@ async function render(args: string[]): Promise<void> {
   selectBackend(parsed, backend);
   // Never discover or launch a renderer until the entire input has been validated.
   const { data, warnings } = await renderChecked(parsed, format, { backend, ...(scale === undefined ? {} : { scale }) });
-  if (strict && warnings.length) {
-    throw new UmlError('LAYOUT_QUALITY', `The drawing fails ${warnings.length} layout check${warnings.length === 1 ? '' : 's'} (nothing was written): ${warnings.map(w => w.message).join(' ')}`, 5, { warnings });
+  if (strict && warnings.length > 0) {
+    throw new UmlError(
+      'LAYOUT_QUALITY',
+      `The drawing fails ${warnings.length} layout check${warnings.length === 1 ? '' : 's'} (nothing was written): ${warnings.map(w => w.message).join(' ')}`,
+      5,
+      { warnings },
+    );
   }
   await writeOutput(output, data);
-  if (warnings.length) process.stderr.write(JSON.stringify({ warnings }) + '\n');
+  if (warnings.length > 0) process.stderr.write(JSON.stringify({ warnings }) + '\n');
 }
 
 /** The minimal example model shipped for a kind (examples/<kind>/minimal.json). */
 async function example(name: string): Promise<string> {
   const kind = kindArgument(name);
   const file = fileURLToPath(new URL(`../examples/${kind.kind}/minimal.json`, import.meta.url));
-  try { return await readFile(file, 'utf8'); }
-  catch { throw new UmlError('INTERNAL_ERROR', `The example of ${kind.kind} is missing from this installation`, 3); }
+  try {
+    return await readFile(file, 'utf8');
+  } catch {
+    throw new UmlError('INTERNAL_ERROR', `The example of ${kind.kind} is missing from this installation`, 3);
+  }
 }
 
 async function main(): Promise<void> {
@@ -230,7 +275,7 @@ async function main(): Promise<void> {
     return;
   }
   if (command === '--version') {
-    if (rest.length) throw usage('--version takes no arguments');
+    if (rest.length > 0) throw usage('--version takes no arguments');
     process.stdout.write(`${VERSION}\n`);
     return;
   }
@@ -254,10 +299,20 @@ async function main(): Promise<void> {
       return;
     }
     case 'kinds': {
-      if (rest.length) throw usage('Usage: uml kinds');
-      process.stdout.write(JSON.stringify(kinds.map(k => ({
-        kind: k.kind, title: k.title, summary: k.summary, frameKeyword: k.frameKeyword, backends: k.backends.map(b => b.name),
-      })), null, 2) + '\n');
+      if (rest.length > 0) throw usage('Usage: uml kinds');
+      process.stdout.write(
+        JSON.stringify(
+          kinds.map(k => ({
+            kind: k.kind,
+            title: k.title,
+            summary: k.summary,
+            frameKeyword: k.frameKeyword,
+            backends: k.backends.map(b => b.name),
+          })),
+          null,
+          2,
+        ) + '\n',
+      );
       return;
     }
     default: {
@@ -267,9 +322,12 @@ async function main(): Promise<void> {
   }
 }
 
-main().catch((error: unknown) => {
+try {
+  await main();
+} catch (error: unknown) {
   const failure = error instanceof UmlError ? error : new UmlError('INTERNAL_ERROR', 'Unexpected internal failure', 3);
-  if (!(error instanceof UmlError) && process.env.UML_DEBUG) process.stderr.write(`${(error as Error)?.stack ?? String(error)}\n`);
+  if (!(error instanceof UmlError) && process.env.UML_DEBUG)
+    process.stderr.write(`${error instanceof Error ? (error.stack ?? error.message) : String(error)}\n`);
   process.stderr.write(JSON.stringify({ error: failure }) + '\n');
   process.exitCode = failure.exitCode;
-});
+}

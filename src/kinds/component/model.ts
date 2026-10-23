@@ -60,13 +60,34 @@ export interface Note {
 export type Nested = Component | ClassElement;
 export type Element = Component | ClassElement | Interface | Artifact | Note;
 
-interface Base { id?: string; from: string; to: string }
-export interface Assembly extends Base { type: 'assembly'; interface: string; name?: string }
-export interface Delegation extends Base { type: 'delegation'; name?: string }
-export interface Realization extends Base { type: 'realization' }
-export interface Usage extends Base { type: 'usage' }
-export interface Manifest extends Base { type: 'manifest' }
-export interface Dependency extends Base { type: 'dependency'; keyword?: string; name?: string }
+interface Base {
+  id?: string;
+  from: string;
+  to: string;
+}
+export interface Assembly extends Base {
+  type: 'assembly';
+  interface: string;
+  name?: string;
+}
+export interface Delegation extends Base {
+  type: 'delegation';
+  name?: string;
+}
+export interface Realization extends Base {
+  type: 'realization';
+}
+export interface Usage extends Base {
+  type: 'usage';
+}
+export interface Manifest extends Base {
+  type: 'manifest';
+}
+export interface Dependency extends Base {
+  type: 'dependency';
+  keyword?: string;
+  name?: string;
+}
 export type Relationship = Assembly | Delegation | Realization | Usage | Manifest | Dependency;
 
 export interface ComponentDiagram {
