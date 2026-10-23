@@ -9,6 +9,7 @@
   },
   "files": [
     "dist/",
+    "!dist/**/*.map",
     "schema/",
     "assets/fonts/",
     "scripts/setup-renderer.mjs",
@@ -24,6 +25,7 @@
     "prepack": "npm run build",
     "setup:renderer": "node scripts/setup-renderer.mjs",
     "test": "npm run build && node --test \"test/*.test.mjs\"",
+    "test:coverage": "npm run build && node --enable-source-maps --test --experimental-test-coverage \"--test-coverage-include=dist/**\" \"--test-coverage-include=src/**\" \"--test-coverage-exclude=src/types/**\" --test-coverage-lines=90 --test-coverage-branches=80 --test-coverage-functions=90 \"test/*.test.mjs\"",
     "test:integration": "npm run build && node --test \"test/integration/*.test.mjs\"",
     "gallery": "npm run build && node scripts/gallery.mjs",
     "render:example": "node dist/cli.js render examples/class/ordering.json -o artifacts/gallery/example.svg"
