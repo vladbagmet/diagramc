@@ -58,7 +58,9 @@ const PRESENTATION = /^(?:skinparam\b|hide\b|show\b|scale\b|left to right direct
 export function readPlantUml(text: string, problems: Problems): SourceLine[] {
   const raw = text.replace(/^﻿/u, '').split(/\r\n|\r|\n/u);
   const out: SourceLine[] = [];
-  let started = false, ended = false, comment = false, style = false;
+  let started = false, ended = false, comment = false;
+  /** The line that ends the presentation block being skipped (`</style>`, `endlegend`, ...). */
+  let skipUntil: RegExp | undefined;
   raw.forEach((line, index) => {
     const number = index + 1;
     let t = line.trim();
@@ -74,7 +76,7 @@ export function readPlantUml(text: string, problems: Problems): SourceLine[] {
       t = t.slice(close + 2).trim();
     }
     if (!t || t.startsWith("'")) return;
-    if (style) { if (t === '</style>') style = false; return; }
+    if (skipUntil) { if (skipUntil.test(t)) skipUntil = undefined; return; }
     if (!started) {
       if (/^@startuml\b/u.test(t)) { started = true; return; }
       problems.malformed({ number, text: t }, 'expected @startuml before the diagram');
@@ -82,8 +84,10 @@ export function readPlantUml(text: string, problems: Problems): SourceLine[] {
     }
     if (ended) { problems.unsupported({ number, text: t }, 'only the first diagram of a source is imported; remove everything after @enduml'); return; }
     if (/^@enduml\b/u.test(t)) { ended = true; return; }
-    if (t === '<style>') { style = true; return; }
-    if (PRESENTATION.test(t)) return;
+    if (t === '<style>') { skipUntil = /^<\/style>$/u; return; }
+    const block = /^(legend|header|footer)(?:\s+(?:left|right|center|top|bottom))*$/u.exec(t);
+    if (block) { skipUntil = new RegExp(`^end\\s?${block[1]}$`, 'u'); return; }
+    if (PRESENTATION.test(t)) { if (t.endsWith('{')) skipUntil = /^\}$/u; return; }
     if (/^!/u.test(t)) { problems.unsupported({ number, text: t }, `the preprocessor directive ${JSON.stringify(t.split(/\s/u)[0])} is not supported (no includes, variables or procedures); expand it first`); return; }
     out.push({ number, text: t });
   });
