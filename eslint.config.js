@@ -18,8 +18,9 @@ export default tseslint.config(
       'unicorn/switch-case-braces': 'off',
       // Small helpers stay next to their only caller; hoisting them out of the closure makes the code harder to follow.
       'unicorn/consistent-function-scoping': 'off',
-      // Conflicts with Prettier, which removes the parentheses this rule asks for.
+      // Conflict with Prettier, which removes the parentheses no-nested-ternary asks for and prints number literals in lower case.
       'unicorn/no-nested-ternary': 'off',
+      'unicorn/number-literal-case': 'off',
       // Passing Number, Boolean or a local predicate to map/filter is intended; every callee is known and takes extra arguments safely.
       'unicorn/no-array-callback-reference': 'off',
       // In-place sort and reverse act on arrays the code has just built; toSorted/toReversed would copy them for nothing.

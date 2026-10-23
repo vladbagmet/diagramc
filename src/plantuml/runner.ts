@@ -5,6 +5,9 @@ import { resolve } from 'node:path';
 import { UmlError } from '../core/errors.js';
 import { MAX_OUTPUT_BYTES } from '../core/limits.js';
 
+/** PlantUML's -charset takes a Java charset name. */
+const JAVA_CHARSET = 'UTF-8'; // eslint-disable-line unicorn/text-encoding-identifier-case -- Java's name for the charset
+
 export interface RendererOptions {
   java: string;
   jar: string;
@@ -43,8 +46,7 @@ export function renderSvg(source: string, options: RendererOptions): Promise<Buf
     for (const key of ['JAVA_TOOL_OPTIONS', '_JAVA_OPTIONS', 'JDK_JAVA_OPTIONS', 'CLASSPATH']) Reflect.deleteProperty(env, key);
     const child = spawn(options.java, [
       '-Xmx256m', '-Djava.awt.headless=true', '-DPLANTUML_SECURITY_PROFILE=SECURE',
-      // eslint-disable-next-line unicorn/text-encoding-identifier-case -- a Java charset name, passed to PlantUML as written.
-      '-jar', options.jar, '-charset', 'UTF-8', '-tsvg', '-pipe', '-nometadata', '-failfast2',
+      '-jar', options.jar, '-charset', JAVA_CHARSET, '-tsvg', '-pipe', '-nometadata', '-failfast2',
     ], { shell: false, env, stdio: ['pipe', 'pipe', 'pipe'] });
     const chunks: Buffer[] = [];
     let size = 0, stderrSize = 0, failure: UmlError | undefined;
