@@ -103,13 +103,12 @@ export function layoutFragment(metrics: FontMetrics, node: InlineInteraction): F
       need = label + LABEL_ROOM;
     if (have < need) push(hi, need - have);
   }
-  let contentRight = Math.max(rightEdge, centers[n - 1]! + heads[n - 1]!.boxWidth / 2);
+  const contentRight = Math.max(rightEdge, centers[n - 1]! + heads[n - 1]!.boxWidth / 2);
   let width = Math.max(contentRight + PAD, heading.width + 16);
   // Center narrow content under a wide heading.
   const extra = width - (contentRight + PAD);
   if (extra > 0) {
     for (let i = 0; i < n; i++) centers[i]! += extra / 2;
-    contentRight += extra / 2;
   }
   width = Math.ceil(width);
 

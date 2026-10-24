@@ -43,7 +43,6 @@ for (const [s, stage] of stages.entries()) {
     flow(lm, work);
     flow(work, ld);
     flow(ld, lm, 'retry');
-    prev = ld;
     const next = node(`s${s}-next`, 'action', { name: `Close ${stage.toLowerCase()}`, partition: p });
     flow(ld, next, 'ok');
     prev = next;
