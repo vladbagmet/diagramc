@@ -1027,7 +1027,7 @@ async function layoutIn(
         const s = symbolOf.get(endpoint);
         if (!s || s.kind === 'port' || pts.length < 2) return pts;
         const last = pts.at(-1)!;
-        let v = last[main];
+        let v: number;
         if (s.kind === 'ball') v = s.center[main] + (last[main] < s.center[main] ? -1 : 1) * theme.size.ball;
         else if (s.kind === 'socket') v = s.center[main] - s.u![main] * theme.size.socket;
         else v = s.center[main] + (p.id.endsWith('::required') ? -1 : 1) * theme.size.socket;
