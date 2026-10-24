@@ -65,13 +65,21 @@ npm run build              # dist/cli.js; run it as node dist/cli.js or npm exec
 npm test                   # unit tests, no Java needed
 ```
 
-As a package in another project (it is not published to a registry yet; build
-the tarball with `npm pack` in a checkout):
+From a release: every [GitHub Release](https://github.com/vladbagmet/uml_cli/releases)
+has the npm tarball and a `SHA256SUMS.txt` attached. The package is not on the
+npm registry; install the tarball into your project:
 
 ```sh
-npm install /path/to/agent-uml-cli-1.0.0.tgz
+version=1.1.0              # the release you want
+base=https://github.com/vladbagmet/uml_cli/releases/download/v$version
+curl -LO "$base/agent-uml-cli-$version.tgz" -LO "$base/SHA256SUMS.txt"
+shasum -a 256 -c SHA256SUMS.txt
+npm install "./agent-uml-cli-$version.tgz"
 npx uml --help             # or npm exec --offline -- uml --help
 ```
+
+A tarball you build yourself with `npm pack` in a checkout installs the same
+way. How releases are made: [docs/releasing.md](docs/releasing.md).
 
 ### PlantUML renderer (sequence, timing, activity)
 

@@ -121,6 +121,12 @@ Agent output that no person has reviewed is not accepted. Please keep commit
 messages and pull request descriptions free of tool-generated attribution lines
 and session links; describe the change itself instead.
 
+## Releases
+
+The maintainer cuts releases by pushing a version tag; a workflow builds the
+tarball and publishes the GitHub Release. The steps are in
+[docs/releasing.md](docs/releasing.md).
+
 ## Code of conduct and security
 
 Everyone taking part is expected to follow the [Code of Conduct](CODE_OF_CONDUCT.md).
