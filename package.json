@@ -1,20 +1,20 @@
 {
-  "name": "agent-uml-cli",
+  "name": "diagramc",
   "version": "1.0.0",
   "private": true,
-  "description": "Agent-first CLI: validated JSON UML models to SVG/PNG, offline",
+  "description": "Compile validated JSON models into clean UML diagrams. Built for AI agents, offline, with PlantUML and Mermaid export and import.",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/vladbagmet/uml_cli.git"
+    "url": "git+https://github.com/vladbagmet/diagramc.git"
   },
   "bugs": {
-    "url": "https://github.com/vladbagmet/uml_cli/issues"
+    "url": "https://github.com/vladbagmet/diagramc/issues"
   },
-  "homepage": "https://github.com/vladbagmet/uml_cli#readme",
+  "homepage": "https://github.com/vladbagmet/diagramc#readme",
   "type": "module",
   "bin": {
-    "uml": "dist/cli.js"
+    "diagramc": "dist/cli.js"
   },
   "files": [
     "dist/",
