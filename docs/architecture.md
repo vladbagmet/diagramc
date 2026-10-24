@@ -1,6 +1,6 @@
 # Architecture
 
-`uml` turns a JSON model of one UML 2.5.1 diagram into SVG or PNG, offline. It is
+`diagramc` turns a JSON model of one UML 2.5.1 diagram into SVG or PNG, offline. It is
 built for agents first: every input is validated against a JSON Schema and
 semantic rules before anything is drawn, every error is one JSON object with a
 code and a JSON Pointer, and every drawing is checked by geometry gates.
@@ -30,7 +30,7 @@ SVGs at 8 MiB (`src/core/limits.ts`).
 Every document is `{ "kind": "<kind>", "title"?: "...", ... }`. Each kind lives
 in `src/kinds/<kind>/` and exports a `KindDefinition` (`src/model/kind.ts`): its
 name, frame keyword, JSON Schema, semantic validator and one or more backends.
-`src/model/registry.ts` lists the 14 kinds in `uml kinds` order; adding a kind is
+`src/model/registry.ts` lists the 14 kinds in `diagramc kinds` order; adding a kind is
 one folder plus one registry line (see [kinds/README.md](kinds/README.md)).
 Envelope-less documents with a `classes` array are the original v1 format and
 are upgraded to class diagrams (`src/kinds/class/v1.ts`, `schema/model-v1.schema.json`).
@@ -54,7 +54,7 @@ generated from the same tokens (`src/plantuml/skin.ts`).
 |---|---|
 | `src/cli.ts` | Commands (`render`, `validate`, `export`, `import`, `example`, `schema`, `kinds`, `guide`, `mcp`), argument parsing, help, exit codes |
 | `src/commands.ts` | The operation behind each command, shared by the command line and the MCP server |
-| `src/mcp.ts` | `uml mcp`: the commands as MCP tools on stdio, a thin layer over `src/commands.ts` |
+| `src/mcp.ts` | `diagramc mcp`: the commands as MCP tools on stdio, a thin layer over `src/commands.ts` |
 | `src/formats/` | PlantUML and Mermaid export and import |
 | `src/render.ts` | Backend selection, rendering, layout warnings |
 | `src/core/` | Errors and diagnostics, I/O, limits, text rules, theme tokens |
@@ -64,7 +64,7 @@ generated from the same tokens (`src/plantuml/skin.ts`).
 | `src/plantuml/` | Display-text encoding, the sandboxed runner, skinparams, font embedding, SVG geometry fixes |
 | `src/qa/` | SVG inspection into a scene and the gates run on it, plus advice per problem |
 | `scripts/` | Renderer setup, gallery, build finishing, stress model generators, the skill reference generator |
-| `skills/uml/` | The usage skill for agents (`uml guide` prints it); `reference.md` is generated |
+| `skills/diagramc/` | The usage skill for agents (`diagramc guide` prints it); `reference.md` is generated |
 | `test/` | `node:test` suites; `test/integration/` needs the PlantUML runtime |
 
 ## Rendering details that matter
@@ -94,13 +94,13 @@ endpoints, shared line segments, end spacing, route length, arrowheads, message
 arrows, literal text, minimum font size, text fitting its box and ports, plus the
 PlantUML interaction gates `message-endpoints` and `lifeline-crossing`.
 `docs/kinds/README.md` describes them in detail. Tests run every gate on every example and
-fixture; `uml render` runs them on every drawing. The few known failures are
+fixture; `diagramc render` runs them on every drawing. The few known failures are
 listed in `test/known-gate-failures.mjs`, which may only shrink.
 
 ## Renderer runtime
 
 `scripts/setup-renderer.mjs` downloads PlantUML (MIT build) and an Eclipse
 Temurin JRE, both pinned by version and SHA-256, into `.tools/` and writes
-`.tools/renderer.json`. Nothing is installed globally. `UML_JAVA` and
+`.tools/renderer.json`. Nothing is installed globally. `DIAGRAMC_JAVA` and
 `PLANTUML_JAR` together override the local runtime. See
 [decision 0005](decisions/0005-plantuml-license-build.md) for the license build.

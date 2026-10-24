@@ -4,15 +4,15 @@ Status: accepted. Date: 2026-10-23.
 
 ## Context
 
-The JSON model is the tool's source format: agents write it, `uml validate`
-checks it, `uml render` draws it. People and agents also hold diagrams in other
+The JSON model is the tool's source format: agents write it, `diagramc validate`
+checks it, `diagramc render` draws it. People and agents also hold diagrams in other
 text formats, and want to put diagrams where those formats render. An export
 and import path was needed, and the question was which formats to support.
 
 ## Decision
 
 The JSON model stays the source format. Two text formats are added, through
-`uml export` and `uml import` (`src/formats/<format>/<kind>.ts`, one mapping
+`diagramc export` and `diagramc import` (`src/formats/<format>/<kind>.ts`, one mapping
 file per kind, mapping tables in [docs/formats.md](../formats.md)):
 
 - **PlantUML.** The most widely used text notation for UML. Every one of the
@@ -48,7 +48,7 @@ candidate on paper. It was not chosen:
   wiki or code host renders it. It would not serve the people this tool is for.
 
 If a modelling tool integration is needed later, XMI can be added as a third
-format behind the same `uml export`/`uml import` commands and registry, for
+format behind the same `diagramc export`/`diagramc import` commands and registry, for
 the dialect of that tool.
 
 ## Consequences

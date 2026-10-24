@@ -1,17 +1,17 @@
 # Exchange formats: PlantUML and Mermaid
 
-The JSON model stays the source format. `uml export` writes a model as
-PlantUML or Mermaid text, and `uml import` reads such text back into a model,
+The JSON model stays the source format. `diagramc export` writes a model as
+PlantUML or Mermaid text, and `diagramc import` reads such text back into a model,
 because those are the text formats people and agents already have, share and
 paste into READMEs, wikis and issues. Why these two and not XMI:
 [decision 0004](decisions/0004-exchange-formats.md).
 
 ```sh
-uml export model.json --to plantuml               # stdout
-uml export model.json --to mermaid -o diagram.mmd # format also inferred from .mmd/.puml
-uml import diagram.puml -o model.json             # --from inferred from the extension
-cat diagram.mmd | uml import - --from mermaid     # stdin needs --from
-uml import notes.puml --kind sequence             # when the text alone does not tell
+diagramc export model.json --to plantuml               # stdout
+diagramc export model.json --to mermaid -o diagram.mmd # format also inferred from .mmd/.puml
+diagramc import diagram.puml -o model.json             # --from inferred from the extension
+cat diagram.mmd | diagramc import - --from mermaid     # stdin needs --from
+diagramc import notes.puml --kind sequence             # when the text alone does not tell
 ```
 
 ## Support per kind
@@ -33,11 +33,11 @@ uml import notes.puml --kind sequence             # when the text alone does not
 | state machine | yes | yes (`stateDiagram-v2`) | yes | yes |
 | use case | yes | yes (`flowchart LR`) | yes | no |
 
-`uml kinds` lists the same in each kind's `exports` and `imports`.
+`diagramc kinds` lists the same in each kind's `exports` and `imports`.
 
 Mermaid has no diagram type for the other kinds, or none that draws their
 notation (a component diagram needs sockets, ports, assembly and delegation
-connectors, which no Mermaid diagram has), so `uml export --to mermaid` fails
+connectors, which no Mermaid diagram has), so `diagramc export --to mermaid` fails
 for them with `UNSUPPORTED_EXPORT` (exit 2); `details.formats` names the
 formats that work.
 
@@ -87,7 +87,7 @@ formats that work.
   arrows, participants and messages, `[*]` and `state`, use cases and actors,
   `start`/`:action;`/`if`); Mermaid from the header (`classDiagram`,
   `sequenceDiagram`, `stateDiagram-v2`). `--kind <kind>` overrides it.
-- The model then goes through the same validation as `uml validate`. A text
+- The model then goes through the same validation as `diagramc validate`. A text
   that reads but describes an invalid model (an interface specializing a
   class) fails with `IMPORT_INVALID`: the diagnostics point into the model,
   which the error carries in `details.model`.
@@ -375,16 +375,16 @@ Mermaid:
 
 Models export to the text formats people already share, and import back:
 
-    uml export model.json --to plantuml            # every kind
-    uml export model.json --to mermaid -o d.mmd    # class, sequence, state machine, activity, use case
-    uml import diagram.puml -o model.json          # class, sequence, state machine, use case, activity
-    cat diagram.mmd | uml import - --from mermaid  # class, sequence, state machine
+    diagramc export model.json --to plantuml            # every kind
+    diagramc export model.json --to mermaid -o d.mmd    # class, sequence, state machine, activity, use case
+    diagramc import diagram.puml -o model.json          # class, sequence, state machine, use case, activity
+    cat diagram.mmd | diagramc import - --from mermaid  # class, sequence, state machine
 
 The text is plain and readable (your IDs become the aliases) and renders
 natively on GitHub, GitLab and most wikis in the Mermaid case. Anything a
 format cannot express is reported as an `EXPORT_LOSSY` warning with its JSON
 path. Import reads the part of each syntax that maps onto the model and
 reports every other line, with its line number, instead of guessing; the
-result is validated like `uml validate`. Mapping tables and lossy cases:
+result is validated like `diagramc validate`. Mapping tables and lossy cases:
 [docs/formats.md](docs/formats.md).
 ```

@@ -1,19 +1,23 @@
-# Agent UML CLI
+# diagramc
 
-[![CI](https://github.com/vladbagmet/uml_cli/actions/workflows/ci.yml/badge.svg)](https://github.com/vladbagmet/uml_cli/actions/workflows/ci.yml)
+Diagrams as validated JSON, compiled to SVG or PNG.
+
+[![CI](https://github.com/vladbagmet/diagramc/actions/workflows/ci.yml/badge.svg)](https://github.com/vladbagmet/diagramc/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Node.js >= 22](https://img.shields.io/badge/node-%3E%3D22-brightgreen.svg)](package.json)
 
-`uml` turns a JSON model into a clean UML 2.5.1 diagram, as SVG or PNG. It draws
-all 14 diagram kinds, from class and sequence to timing and profile diagrams,
-and it is built for agents as users: every model is checked against a published
-JSON Schema, every error is one JSON object that lists every problem with a fix
-where one is clear, and every drawing is checked for layout defects before it is
-written. Models also export to PlantUML and Mermaid text and import back.
-Rendering is offline and needs no server, API key, browser, Graphviz or global
-installation.
+`diagramc` compiles a JSON model into a clean UML 2.5.1 diagram, as SVG or PNG.
+It draws all 14 UML diagram kinds, from class and sequence to timing and profile
+diagrams, and it is built for agents as users: every model is checked against a
+published JSON Schema, every error is one JSON object that lists every problem
+with a fix where one is clear, and every drawing is checked for layout defects
+before it is written. Models also export to PlantUML and Mermaid text and import
+back. Rendering is offline and needs no server, API key, browser, Graphviz or
+global installation. The first release covers the 14 UML diagram kinds; other
+diagram families, with Gantt charts planned first, will follow in the same model
+format.
 
-![Four diagrams drawn by uml: a class diagram, a sequence diagram, a state machine and a deployment diagram](docs/images/hero.png)
+![Four diagrams drawn by diagramc: a class diagram, a sequence diagram, a state machine and a deployment diagram](docs/images/hero.png)
 
 Version 1.0.0. Changes: [CHANGELOG.md](CHANGELOG.md).
 
@@ -22,15 +26,15 @@ Version 1.0.0. Changes: [CHANGELOG.md](CHANGELOG.md).
 You need Node.js 22 or later.
 
 ```sh
-git clone https://github.com/vladbagmet/uml_cli.git
-cd uml_cli
+git clone https://github.com/vladbagmet/diagramc.git
+cd diagramc
 npm ci && npm run build
-alias uml="node $PWD/dist/cli.js"
+alias diagramc="node $PWD/dist/cli.js"
 
-uml example class > model.json        # a minimal valid model to start from
-uml validate model.json               # {"valid":true,"kind":"class","version":2}
-uml render model.json -o diagram.svg  # or -o diagram.png
-uml render examples/class/ordering.json -o ordering.png
+diagramc example class > model.json        # a minimal valid model to start from
+diagramc validate model.json               # {"valid":true,"kind":"class","version":2}
+diagramc render model.json -o diagram.svg  # or -o diagram.png
+diagramc render examples/class/ordering.json -o ordering.png
 ```
 
 Eleven kinds work right away. Sequence, timing and activity diagrams need the
@@ -38,17 +42,18 @@ PlantUML renderer, which one command downloads ([below](#plantuml-renderer-seque
 
 ## For agents
 
-`uml` is built to be driven by coding agents. Give yours one of these:
+`diagramc` is built to be driven by coding agents. Give yours one of these:
 
-- **The skill.** Load [`skills/uml/`](skills/uml/SKILL.md) as an Agent Skill
+- **The skill.** Load [`skills/diagramc/`](skills/diagramc/SKILL.md) as an Agent Skill
   (Claude Code, Codex, Cursor and others read the format): a short playbook for
   discovery, the write, validate and render loop, errors and limits, with a
-  per-kind cheat sheet in [`reference.md`](skills/uml/reference.md).
-- **The binary alone.** `uml guide` prints the same playbook from the installed
-  package, and `uml --help` points to it in its first lines.
-- **MCP.** `uml mcp` is a stdio MCP server with the tools `uml_kinds`,
-  `uml_example`, `uml_schema`, `uml_validate`, `uml_render`, `uml_export` and
-  `uml_import`; [MCP server](#mcp-server) has the client configuration.
+  per-kind cheat sheet in [`reference.md`](skills/diagramc/reference.md).
+- **The binary alone.** `diagramc guide` prints the same playbook from the installed
+  package, and `diagramc --help` points to it in its first lines.
+- **MCP.** `diagramc mcp` is a stdio MCP server with the tools
+  `diagramc_kinds`, `diagramc_example`, `diagramc_schema`, `diagramc_validate`,
+  `diagramc_render`, `diagramc_export` and `diagramc_import`;
+  [MCP server](#mcp-server) has the client configuration.
 
 ## Gallery
 
@@ -75,21 +80,21 @@ From a source checkout:
 
 ```sh
 npm ci
-npm run build              # dist/cli.js; run it as node dist/cli.js or npm exec --offline -- uml
+npm run build              # dist/cli.js; run it as node dist/cli.js or npm exec --offline -- diagramc
 npm test                   # unit tests, no Java needed
 ```
 
-From a release: every [GitHub Release](https://github.com/vladbagmet/uml_cli/releases)
+From a release: every [GitHub Release](https://github.com/vladbagmet/diagramc/releases)
 has the npm tarball and a `SHA256SUMS.txt` attached. The package is not on the
 npm registry; install the tarball into your project:
 
 ```sh
 version=1.1.0              # the release you want
-base=https://github.com/vladbagmet/uml_cli/releases/download/v$version
-curl -LO "$base/agent-uml-cli-$version.tgz" -LO "$base/SHA256SUMS.txt"
+base=https://github.com/vladbagmet/diagramc/releases/download/v$version
+curl -LO "$base/diagramc-$version.tgz" -LO "$base/SHA256SUMS.txt"
 shasum -a 256 -c SHA256SUMS.txt
-npm install "./agent-uml-cli-$version.tgz"
-npx uml --help             # or npm exec --offline -- uml --help
+npm install "./diagramc-$version.tgz"
+npx diagramc --help        # or npm exec --offline -- diagramc --help
 ```
 
 A tarball you build yourself with `npm pack` in a checkout installs the same
@@ -103,8 +108,8 @@ pinned PlantUML running on a private Java runtime, which a setup script download
 once:
 
 ```sh
-npm run setup:renderer                                     # in a source checkout
-node node_modules/agent-uml-cli/scripts/setup-renderer.mjs # in a project that installed the package
+npm run setup:renderer                                # in a source checkout
+node node_modules/diagramc/scripts/setup-renderer.mjs # in a project that installed the package
 ```
 
 It downloads the MIT-licensed build of PlantUML 1.2025.10 and the Eclipse
@@ -113,11 +118,11 @@ official GitHub releases, checks each against a pinned SHA-256, and unpacks them
 into the package's own `.tools/` directory. It runs on macOS and Linux, arm64
 and x64 (Linux needs glibc and `tar`), changes nothing system-wide, and repairs
 an interrupted or broken install when run again. After that, rendering is
-offline. `uml --help` prints the exact setup command for the installed copy.
+offline. `diagramc --help` prints the exact setup command for the installed copy.
 The runtime lives inside the installed package, so after npm replaces the
 package (an upgrade, a clean install) run the setup again; `RENDERER_MISSING`
 says so. To use a separately managed, trusted Java and PlantUML jar instead, set
-both `UML_JAVA` and `PLANTUML_JAR`.
+both `DIAGRAMC_JAVA` and `PLANTUML_JAR`.
 
 ### Fonts
 
@@ -130,18 +135,18 @@ emoji) come from the viewer's fonts in SVG.
 ## Usage
 
 ```sh
-uml example class > model.json                # a minimal valid model to start from
-uml schema class                              # JSON Schema of a kind: every property, allowed values
-uml validate model.json                       # {"valid":true,"kind":"class","version":2}
-uml render model.json -o diagram.svg          # or .png (2x by default)
-cat model.json | uml render - -o diagram.png --scale 3
-uml render model.json -o diagram.svg --backend plantuml
-uml render model.json -o diagram.svg --strict # fail instead of warning on layout defects
-uml kinds                                     # the 14 kinds, their backends and formats, as JSON
-uml guide                                     # the usage playbook for agents (skills/uml/SKILL.md)
-uml guide reference                           # the per-kind cheat sheet
-uml mcp                                       # run as a stdio MCP server
-uml render --help                             # every command has its own help
+diagramc example class > model.json                # a minimal valid model to start from
+diagramc schema class                              # JSON Schema of a kind: every property, allowed values
+diagramc validate model.json                       # {"valid":true,"kind":"class","version":2}
+diagramc render model.json -o diagram.svg          # or .png (2x by default)
+cat model.json | diagramc render - -o diagram.png --scale 3
+diagramc render model.json -o diagram.svg --backend plantuml
+diagramc render model.json -o diagram.svg --strict # fail instead of warning on layout defects
+diagramc kinds                                     # the 14 kinds, their backends and formats, as JSON
+diagramc guide                                     # the usage playbook for agents (skills/diagramc/SKILL.md)
+diagramc guide reference                           # the per-kind cheat sheet
+diagramc mcp                                       # run as a stdio MCP server
+diagramc render --help                             # every command has its own help
 ```
 
 The output format follows the `-o` extension unless `--format svg|png` is given;
@@ -154,8 +159,8 @@ except `validate`, `example`, `kinds`, `schema`, `guide`, and `export` and
 
 ### Writing models
 
-Start from `uml example <kind>`, look properties up in `uml schema <kind>`, then
-run `uml validate`; when it fails, the error lists every problem with a
+Start from `diagramc example <kind>`, look properties up in `diagramc schema <kind>`, then
+run `diagramc validate`; when it fails, the error lists every problem with a
 corrected value where one is clear (see [Errors](#errors)). Every document is a
 JSON object with a `kind`, an optional `title` (drawn as the frame heading) and
 the kind's vocabulary. Rules shared by all kinds:
@@ -198,10 +203,10 @@ its rules and its known limitations.
 Models export to the text formats people already share, and import back:
 
 ```sh
-uml export model.json --to plantuml            # every kind
-uml export model.json --to mermaid -o d.mmd    # class, sequence, state machine, activity, use case
-uml import diagram.puml -o model.json          # class, sequence, state machine, use case, activity
-cat diagram.mmd | uml import - --from mermaid  # class, sequence, state machine
+diagramc export model.json --to plantuml            # every kind
+diagramc export model.json --to mermaid -o d.mmd    # class, sequence, state machine, activity, use case
+diagramc import diagram.puml -o model.json          # class, sequence, state machine, use case, activity
+cat diagram.mmd | diagramc import - --from mermaid  # class, sequence, state machine
 ```
 
 The text is plain and readable (your IDs become the aliases) and, in the Mermaid
@@ -210,27 +215,27 @@ cannot express is reported as an `EXPORT_LOSSY` warning with its JSON path; a
 kind Mermaid cannot draw fails with `UNSUPPORTED_EXPORT`, naming the formats
 that work. Import reads the part of each syntax that maps onto the model and
 reports every other line, with its line number, instead of guessing; the result
-is validated like `uml validate`. `uml kinds` lists what each kind exports to
+is validated like `diagramc validate`. `diagramc kinds` lists what each kind exports to
 and imports from. Mapping tables and lossy cases:
 [docs/formats.md](docs/formats.md).
 
 ### MCP server
 
-`uml mcp` serves the commands as Model Context Protocol tools on stdin and
+`diagramc mcp` serves the commands as Model Context Protocol tools on stdin and
 stdout until the client disconnects:
 
 | Tool | Same as | Returns |
 |---|---|---|
-| `uml_kinds` | `uml kinds` | the kinds as JSON |
-| `uml_example` | `uml example <kind>` | a minimal model |
-| `uml_schema` | `uml schema <kind>` | the kind's JSON Schema |
-| `uml_validate` | `uml validate` | `{"valid":true,...}` |
-| `uml_render` | `uml render` | SVG text, a PNG image, or `{"written",...}` with `output` |
-| `uml_export` | `uml export` | PlantUML or Mermaid text |
-| `uml_import` | `uml import` | the model JSON |
+| `diagramc_kinds` | `diagramc kinds` | the kinds as JSON |
+| `diagramc_example` | `diagramc example <kind>` | a minimal model |
+| `diagramc_schema` | `diagramc schema <kind>` | the kind's JSON Schema |
+| `diagramc_validate` | `diagramc validate` | `{"valid":true,...}` |
+| `diagramc_render` | `diagramc render` | SVG text, a PNG image, or `{"written",...}` with `output` |
+| `diagramc_export` | `diagramc export` | PlantUML or Mermaid text |
+| `diagramc_import` | `diagramc import` | the model JSON |
 
 A model is passed as `model` (a JSON object or its text) or `file` (a path,
-relative to the server's working directory); `uml_import` takes `text` or
+relative to the server's working directory); `diagramc_import` takes `text` or
 `file`. The other arguments are the command options without dashes (`output`,
 `format`, `scale`, `strict`, `backend`, `to`, `from`, `kind`). A failure is a
 tool error whose text is the same `{"error":{...}}` object the command prints,
@@ -240,14 +245,14 @@ item `{"warnings":[...]}`.
 Claude Code:
 
 ```sh
-claude mcp add uml -- uml mcp
+claude mcp add diagramc -- diagramc mcp
 ```
 
-Codex (`codex mcp add uml -- uml mcp`, or in `~/.codex/config.toml`):
+Codex (`codex mcp add diagramc -- diagramc mcp`, or in `~/.codex/config.toml`):
 
 ```toml
-[mcp_servers.uml]
-command = "uml"
+[mcp_servers.diagramc]
+command = "diagramc"
 args = ["mcp"]
 ```
 
@@ -255,11 +260,11 @@ Any client that reads the common JSON configuration (Cursor, Claude Desktop and
 others):
 
 ```json
-{ "mcpServers": { "uml": { "command": "uml", "args": ["mcp"] } } }
+{ "mcpServers": { "diagramc": { "command": "diagramc", "args": ["mcp"] } } }
 ```
 
-Without `uml` on the PATH, use `node` as the command and
-`["/path/to/uml_cli/dist/cli.js", "mcp"]` as the arguments.
+Without `diagramc` on the PATH, use `node` as the command and
+`["/path/to/diagramc/dist/cli.js", "mcp"]` as the arguments.
 
 ## Errors
 
@@ -322,7 +327,7 @@ check:
 helps, in terms of the model, or that the problem is a renderer defect the model
 cannot avoid. With `--strict` the same finding is an error instead: exit code 5,
 code `LAYOUT_QUALITY`, the warnings in `details.warnings`, and no output is
-written or changed. `uml export` reports constructs the target format cannot
+written or changed. `diagramc export` reports constructs the target format cannot
 express the same way, as `{"warnings":[{"code":"EXPORT_LOSSY","path","message"}]}`.
 Some dense layouts still produce warnings; the ones the test suite tolerates for
 now are listed with their review findings in `test/known-gate-failures.mjs`.

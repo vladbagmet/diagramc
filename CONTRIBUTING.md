@@ -14,8 +14,8 @@ You need Node.js 22 or later. Java is optional: only the PlantUML kinds
 copy.
 
 ```sh
-git clone https://github.com/vladbagmet/uml_cli.git
-cd uml_cli
+git clone https://github.com/vladbagmet/diagramc.git
+cd diagramc
 npm ci
 npm run build
 npm test                    # unit tests, no Java needed
@@ -45,7 +45,7 @@ Try the CLI from your checkout with `node dist/cli.js render examples/class/orde
 
 Open an issue with the bug template. The most useful thing you can attach is the
 model JSON that shows the problem and the SVG or PNG you got, plus the output of
-`uml --version`. Cut the model down as far as you can while the problem still
+`diagramc --version`. Cut the model down as far as you can while the problem still
 shows.
 
 ### Fix a layout defect

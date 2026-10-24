@@ -97,13 +97,13 @@ jobs:
           mkdir -p "$RUNNER_TEMP/smoke" && cd "$RUNNER_TEMP/smoke"
           npm init -y > /dev/null
           npm install --no-audit --no-fund "$TARBALL"
-          version=$(npx uml --version)
-          echo "uml --version: $version"
+          version=$(npx diagramc --version)
+          echo "diagramc --version: $version"
           if [ "$version" != "${GITHUB_REF_NAME#v}" ]; then
-            echo "uml --version printed $version, expected ${GITHUB_REF_NAME#v}"
+            echo "diagramc --version printed $version, expected ${GITHUB_REF_NAME#v}"
             exit 1
           fi
-          npx uml example class | npx uml validate -
+          npx diagramc example class | npx diagramc validate -
       - name: Write the SHA-256 sums
         env:
           NAME: ${{ steps.pack.outputs.name }}
@@ -118,6 +118,6 @@ jobs:
         run: |
           gh release create "$GITHUB_REF_NAME" \
             "$TARBALL" "$OUT/SHA256SUMS.txt" \
-            --title "uml ${GITHUB_REF_NAME#v}" \
+            --title "diagramc ${GITHUB_REF_NAME#v}" \
             --notes-file "$OUT/notes.md" \
             --verify-tag

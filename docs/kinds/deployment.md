@@ -1,6 +1,6 @@
 # Deployment diagram: notation checklist
 
-Backend: own engine. Frame keyword: `dep`. Schema: `uml schema deployment`.
+Backend: own engine. Frame keyword: `dep`. Schema: `diagramc schema deployment`.
 Code: `src/kinds/deployment/` on the shared structure layout in
 `src/kinds/structure/`. UML references are to UML 2.5.1 (formal/17-12-05).
 

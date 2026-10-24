@@ -1,7 +1,7 @@
 # Class diagram: notation checklist
 
 Backend: own engine (default); PlantUML fallback via `--backend plantuml`.
-Frame keyword: `class`. Schema: `uml schema class`. Code: `src/kinds/class/`.
+Frame keyword: `class`. Schema: `diagramc schema class`. Code: `src/kinds/class/`.
 UML references are to UML 2.5.1 (formal/17-12-05).
 
 Tests referenced below: `class` = `test/class.test.mjs`, `engine` =

@@ -46,11 +46,11 @@ Pushing a tag that starts with `v` starts the Release workflow:
 2. **Checks.** Type check, lint, format check and unit tests with coverage on
    Node 22, and the integration tests and gallery with the PlantUML renderer,
    as in CI.
-3. **Build.** `npm pack` builds `agent-uml-cli-<version>.tgz`. The tarball is
-   installed into an empty scratch project, where `npx uml --version` must print
-   the version and `npx uml example class | npx uml validate -` must pass.
+3. **Build.** `npm pack` builds `diagramc-<version>.tgz`. The tarball is
+   installed into an empty scratch project, where `npx diagramc --version` must print
+   the version and `npx diagramc example class | npx diagramc validate -` must pass.
 4. **Publish.** It writes `SHA256SUMS.txt` and creates the GitHub Release named
-   `uml <version>` with the tarball and the sums file attached. The release
+   `diagramc <version>` with the tarball and the sums file attached. The release
    notes are that version's section of `CHANGELOG.md`.
 
 If a step fails, no release is created. Fix the problem on `main`, then move
@@ -60,19 +60,19 @@ or release the next patch version.
 ## Installing a release
 
 Download the tarball and the sums file from the
-[Releases page](https://github.com/vladbagmet/uml_cli/releases), check the sum
+[Releases page](https://github.com/vladbagmet/diagramc/releases), check the sum
 and install the tarball into your project:
 
 ```sh
 version=1.1.0
-base=https://github.com/vladbagmet/uml_cli/releases/download/v$version
-curl -LO "$base/agent-uml-cli-$version.tgz" -LO "$base/SHA256SUMS.txt"
+base=https://github.com/vladbagmet/diagramc/releases/download/v$version
+curl -LO "$base/diagramc-$version.tgz" -LO "$base/SHA256SUMS.txt"
 shasum -a 256 -c SHA256SUMS.txt         # or: sha256sum -c SHA256SUMS.txt
-npm install "./agent-uml-cli-$version.tgz"
-npx uml --version
+npm install "./diagramc-$version.tgz"
+npx diagramc --version
 ```
 
-`npm install -g ./agent-uml-cli-$version.tgz` installs the `uml` command
+`npm install -g ./diagramc-$version.tgz` installs the `diagramc` command
 globally instead. For sequence, timing and activity diagrams, run the renderer
 setup once afterwards, as described in the README.
 

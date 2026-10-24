@@ -131,9 +131,9 @@ of their own, their `package.json` declares MPL-2.0. harfbuzzjs contains HarfBuz
 WebAssembly; HarfBuzz itself is under the "Old MIT" license
 (https://github.com/harfbuzz/harfbuzz/blob/main/COPYING).
 
-@modelcontextprotocol/sdk (with zod) runs the `uml mcp` server. It also depends
+@modelcontextprotocol/sdk (with zod) runs the `diagramc mcp` server. It also depends
 on HTTP server packages (express, hono and their dependencies) for transports
-this tool does not use; `uml mcp` only speaks over stdio and never opens a port.
+this tool does not use; `diagramc mcp` only speaks over stdio and never opens a port.
 They are listed because npm installs them.
 
 Development dependencies (`devDependencies` in `package.json`, such as

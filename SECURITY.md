@@ -5,15 +5,15 @@
 Please do not open a public issue, discussion or pull request for a security
 problem. Report it privately through GitHub's private vulnerability reporting:
 
-**[Report a vulnerability](https://github.com/vladbagmet/uml_cli/security/advisories/new)**
+**[Report a vulnerability](https://github.com/vladbagmet/diagramc/security/advisories/new)**
 (the same form is behind the "Report a vulnerability" button on the
-[Security tab](https://github.com/vladbagmet/uml_cli/security)). Only you and
+[Security tab](https://github.com/vladbagmet/diagramc/security)). Only you and
 the maintainer can see the report and the discussion that follows. You need a
 GitHub account; no e-mail address is involved.
 
 Please include:
 
-- the `uml --version` output, your Node.js version and your operating system;
+- the `diagramc --version` output, your Node.js version and your operating system;
 - the command you ran and the smallest model JSON (or other input) that shows
   the problem;
 - what happened and what you expected, for example the active SVG content that
@@ -32,7 +32,7 @@ Security fixes go into the latest release only.
 
 ## Scope
 
-`uml` reads untrusted model files and writes SVG or PNG, so these are in scope:
+`diagramc` reads untrusted model files and writes SVG or PNG, so these are in scope:
 
 - **Output safety.** Text from a model must appear literally in the drawing. Any
   input that produces active SVG content (scripts, event handlers, external
@@ -52,4 +52,4 @@ Security fixes go into the latest release only.
 
 Out of scope: vulnerabilities in Java, PlantUML or npm dependencies themselves
 (report those upstream; tell us if we should update a pin), and setups where
-`UML_JAVA` and `PLANTUML_JAR` point at binaries you chose to trust.
+`DIAGRAMC_JAVA` and `PLANTUML_JAR` point at binaries you chose to trust.

@@ -63,7 +63,7 @@ reported privately to the community leaders responsible for enforcement in
 either of these ways:
 
 * Open a private report at
-  [https://github.com/vladbagmet/uml_cli/security/advisories/new](https://github.com/vladbagmet/uml_cli/security/advisories/new)
+  [https://github.com/vladbagmet/diagramc/security/advisories/new](https://github.com/vladbagmet/diagramc/security/advisories/new)
   and start its title with "Code of conduct". Only you and the maintainer can
   see it.
 * Contact the maintainer directly through the GitHub profile

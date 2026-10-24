@@ -3,12 +3,12 @@
 The model format, kind by kind: what each kind draws, which way its
 relationships point, and a minimal model to start from. Each section links the
 kind's notation checklist, which lists every construct with its rules and
-limits. The quickest start is still `uml example <kind>`, then
-`uml schema <kind>` to look properties up and `uml validate` to check.
+limits. The quickest start is still `diagramc example <kind>`, then
+`diagramc schema <kind>` to look properties up and `diagramc validate` to check.
 
 Every document is a JSON object with a `kind`, an optional `title` (drawn as the
 UML frame heading, for example **class** Ordering) and the kind's vocabulary.
-`uml schema <kind>` prints the full contract with descriptions.
+`diagramc schema <kind>` prints the full contract with descriptions.
 
 ```json
 {

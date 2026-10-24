@@ -2,37 +2,47 @@
 
 ## Unreleased
 
-- Agent entry points. `skills/uml/SKILL.md` is a usage skill in the Agent
+- The project is renamed to diagramc, to leave room for diagram families beyond
+  UML. The npm package `agent-uml-cli` is now `diagramc`, the `uml` command is
+  now `diagramc`, the repository moves from `vladbagmet/uml_cli` to
+  `vladbagmet/diagramc`, and the `UML_JAVA` environment variable is now
+  `DIAGRAMC_JAVA` (`PLANTUML_JAR` is unchanged). The skill directory follows
+  the binary (`skills/diagramc/`), and so do the MCP server name and its tools
+  (`diagramc_kinds`, `diagramc_render` and so on). Release tarballs are named
+  `diagramc-<version>.tgz`. The model format, the diagram kinds and their
+  output are unchanged.
+- Agent entry points. `skills/diagramc/SKILL.md` is a usage skill in the Agent
   Skills format (discovery, the write, validate and render loop, reading errors
   and warnings, export and import, renderer setup, limits), with a per-kind
-  cheat sheet in `skills/uml/reference.md` generated from the kinds and
+  cheat sheet in `skills/diagramc/reference.md` generated from the kinds and
   schemas. Both ship in the package.
-- New command `uml guide [reference]` prints that skill (or the cheat sheet)
-  from the installed package; `uml --help` points to it in its first lines.
-- New command `uml mcp` runs a stdio MCP server with the tools `uml_kinds`,
-  `uml_example`, `uml_schema`, `uml_validate`, `uml_render`, `uml_export` and
-  `uml_import`. They call the same code as the commands and return what the
-  commands print; a failure is a tool error carrying the same `{"error":...}`
-  object, warnings a second item. `uml_render` returns SVG text or a PNG image,
-  or writes the file given as `output`. Client configuration for Claude Code,
-  Codex and JSON-configured clients is in the README.
+- New command `diagramc guide [reference]` prints that skill (or the cheat sheet)
+  from the installed package; `diagramc --help` points to it in its first lines.
+- New command `diagramc mcp` runs a stdio MCP server with the tools
+  `diagramc_kinds`, `diagramc_example`, `diagramc_schema`, `diagramc_validate`,
+  `diagramc_render`, `diagramc_export` and `diagramc_import`. They call the same
+  code as the commands and return what the commands print; a failure is a tool
+  error carrying the same `{"error":...}` object, warnings a second item.
+  `diagramc_render` returns SVG text or a PNG image, or writes the file given as
+  `output`. Client configuration for Claude Code, Codex and JSON-configured
+  clients is in the README.
 - New runtime dependencies for the MCP server: `@modelcontextprotocol/sdk`
   1.32.1 and `zod` 4.6.6 (both MIT). `fast-uri` moves to 3.1.9 for its
   security advisories.
-- New command `uml export <model.json|-> --to plantuml|mermaid [-o file]`:
+- New command `diagramc export <model.json|-> --to plantuml|mermaid [-o file]`:
   writes a model as readable PlantUML (all 14 kinds) or Mermaid (class,
   sequence, state machine, and activity and use case as flowcharts). Model IDs
   become the aliases; constructs a format cannot express are reported as
   `EXPORT_LOSSY` warnings with their JSON path. Kinds Mermaid cannot draw fail
   with `UNSUPPORTED_EXPORT`.
-- New command `uml import <file.puml|file.mmd|-> [--from plantuml|mermaid]
+- New command `diagramc import <file.puml|file.mmd|-> [--from plantuml|mermaid]
   [--kind <kind>] [-o model.json]`: reads PlantUML (class, sequence, state
   machine, use case, activity) or Mermaid (class, sequence, state machine)
   into a validated model. The format follows the file extension and the kind
   the content; every line that cannot be read is reported at once with its
   line number (`UNSUPPORTED_SYNTAX`, `MALFORMED_LINE`), and a model that reads
   but breaks a rule fails with `IMPORT_INVALID`.
-- `uml kinds` lists, per kind, the formats it `exports` to and `imports` from.
+- `diagramc kinds` lists, per kind, the formats it `exports` to and `imports` from.
 - Mapping tables, lossy cases and import rules: `docs/formats.md`; why
   PlantUML and Mermaid and not XMI: `docs/decisions/0004-exchange-formats.md`.
 - Deployment, component and composite structure layouts no longer let a line
@@ -73,16 +83,16 @@ SVG through PlantUML:
 ### Model format
 
 - Schema v2: every document names its `kind` and uses that kind's vocabulary
-  (`uml schema <kind>` prints it). v1 documents (`classes` and `relationships`,
+  (`diagramc schema <kind>` prints it). v1 documents (`classes` and `relationships`,
   no `kind`) keep working as class diagrams.
 
 ### Commands and output
 
 - PNG output (`-o diagram.png` or `--format png`, `--scale 1` to `4`, default 2)
   next to SVG.
-- New commands: `uml validate`, `uml example <kind>` (a minimal valid model to
-  start from), `uml schema <kind>` and `uml kinds`.
-- `uml <command> --help` describes one command.
+- New commands: `diagramc validate`, `diagramc example <kind>` (a minimal valid model to
+  start from), `diagramc schema <kind>` and `diagramc kinds`.
+- `diagramc <command> --help` describes one command.
 - Text is measured with HarfBuzz using the bundled Inter font, and every SVG embeds
   the subset of the font it uses, so drawings look the same on every machine.
 
@@ -103,7 +113,7 @@ SVG through PlantUML:
 
 ### Packaging
 
-- `uml --version` and the help come from `package.json`. The help and the
+- `diagramc --version` and the help come from `package.json`. The help and the
   `RENDERER_MISSING` error show the path of the renderer setup script of the
   installed package.
 - The package ships `THIRD_PARTY_NOTICES.md` (Inter under the OFL, the npm

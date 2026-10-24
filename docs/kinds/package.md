@@ -1,6 +1,6 @@
 # Package diagram: notation checklist
 
-Backend: own engine. Frame keyword: `package`. Schema: `uml schema package`. Code:
+Backend: own engine. Frame keyword: `package`. Schema: `diagramc schema package`. Code:
 `src/kinds/package/` (model mapping) on the shared pipeline `src/engine/diagram.ts`
 and the package shape in `src/engine/packages.ts`. UML references are to UML 2.5.1
 (formal/17-12-05).

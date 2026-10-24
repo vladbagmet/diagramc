@@ -1,6 +1,6 @@
 # Profile diagram: notation checklist
 
-Backend: own engine. Frame keyword: `profile`. Schema: `uml schema profile`. Code:
+Backend: own engine. Frame keyword: `profile`. Schema: `diagramc schema profile`. Code:
 `src/kinds/profile/` (model mapping) on the shared pipeline `src/engine/diagram.ts`.
 UML references are to UML 2.5.1 (formal/17-12-05), clause 12.3 (Profiles).
 

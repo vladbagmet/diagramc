@@ -1,26 +1,26 @@
 ---
-name: uml
-description: Draws UML 2.5.1 diagrams (class, sequence, state machine, activity, component, deployment, use case and every other kind) as SVG or PNG from a JSON model with the offline `uml` CLI or its MCP server, validates the model with JSON Pointer diagnostics, and converts to and from PlantUML and Mermaid. Use when asked to draw, render, check or convert a UML diagram, or to turn PlantUML or Mermaid text into a checked model.
+name: diagramc
+description: Draws UML 2.5.1 diagrams (class, sequence, state machine, activity, component, deployment, use case and every other kind) as SVG or PNG from a JSON model with the offline `diagramc` CLI or its MCP server, validates the model with JSON Pointer diagnostics, and converts to and from PlantUML and Mermaid. Use when asked to draw, render, check or convert a UML diagram, or to turn PlantUML or Mermaid text into a checked model.
 ---
 
-# uml: validated JSON models to UML diagrams
+# diagramc: validated JSON models to UML diagrams
 
-`uml` checks one JSON model of one UML diagram against its kind's schema and
-rules, draws it as SVG or PNG offline and checks the drawing for layout defects.
-Use it whenever a task needs a UML diagram file, a checked UML model, or
+`diagramc` checks one JSON model of one UML diagram against its kind's schema
+and rules, draws it as SVG or PNG offline and checks the drawing for layout
+defects. Use it whenever a task needs a UML diagram file, a checked UML model, or
 PlantUML or Mermaid text from a model or back; prefer it to hand-written SVG,
 PlantUML or Mermaid, which nothing validates.
 
-If `uml` is not on the PATH, try `npx uml`. `uml <command> --help` describes
-every option.
+If `diagramc` is not on the PATH, try `npx diagramc`. `diagramc <command> --help`
+describes every option.
 
 ## Discover before writing
 
 ```sh
-uml kinds                 # the 14 kinds: summary, backends, export and import formats (JSON)
-uml example sequence      # a minimal valid model of a kind: start from this
-uml schema state-machine  # the kind's JSON Schema: every property, allowed values
-uml guide reference       # the per-kind cheat sheet (also reference.md next to this file)
+diagramc kinds                 # the 14 kinds: summary, backends, export and import formats (JSON)
+diagramc example sequence      # a minimal valid model of a kind: start from this
+diagramc schema state-machine  # the kind's JSON Schema: every property, allowed values
+diagramc guide reference       # the per-kind cheat sheet (also reference.md next to this file)
 ```
 
 [reference.md](reference.md) lists, per kind, the top-level properties and the
@@ -29,10 +29,10 @@ uml guide reference       # the per-kind cheat sheet (also reference.md next to 
 ## The loop: write, validate, render
 
 ```sh
-uml example class > model.json        # 1. start from the example
-uml validate model.json               # 2. {"valid":true,"kind":"class","version":2}
-uml render model.json -o diagram.svg  # 3. draw; prints nothing on success
-cat model.json | uml validate -       # "-" reads the model from stdin
+diagramc example class > model.json        # 1. start from the example
+diagramc validate model.json               # 2. {"valid":true,"kind":"class","version":2}
+diagramc render model.json -o diagram.svg  # 3. draw; prints nothing on success
+cat model.json | diagramc validate -       # "-" reads the model from stdin
 ```
 
 Edit the model, then validate until it passes, then render. Model rules shared
@@ -93,10 +93,10 @@ and nothing is written.
 The `-o` extension picks the format; `--format svg|png` overrides it.
 
 ```sh
-uml render model.json -o diagram.svg --strict    # fail instead of warning
-uml render model.json -o diagram.png             # PNG at 2x pixel density
-uml render model.json -o diagram.png --scale 3   # --scale 1 to 4, PNG only
-uml render model.json -o diagram.svg --backend plantuml  # class only: draw with PlantUML
+diagramc render model.json -o diagram.svg --strict    # fail instead of warning
+diagramc render model.json -o diagram.png             # PNG at 2x pixel density
+diagramc render model.json -o diagram.png --scale 3   # --scale 1 to 4, PNG only
+diagramc render model.json -o diagram.svg --backend plantuml  # class only: draw with PlantUML
 ```
 
 SVG (font embedded) suits docs and the web and is text you can inspect; PNG
@@ -106,14 +106,14 @@ must exist; the file is replaced only after a successful render.
 ## Export and import
 
 ```sh
-uml export model.json --to plantuml               # every kind, to stdout
-uml export model.json --to mermaid -o diagram.mmd # class, sequence, activity, state-machine, use-case
-uml export model.json --to plantuml -o diagram.puml
-uml import diagram.puml -o imported.json          # format from the extension
-cat diagram.mmd | uml import - --from mermaid     # stdin needs --from
+diagramc export model.json --to plantuml               # every kind, to stdout
+diagramc export model.json --to mermaid -o diagram.mmd # class, sequence, activity, state-machine, use-case
+diagramc export model.json --to plantuml -o diagram.puml
+diagramc import diagram.puml -o imported.json          # format from the extension
+cat diagram.mmd | diagramc import - --from mermaid     # stdin needs --from
 ```
 
-`uml kinds` lists each kind's `exports` and `imports`. Export reports what the
+`diagramc kinds` lists each kind's `exports` and `imports`. Export reports what the
 format cannot express as `{"warnings":[{"code":"EXPORT_LOSSY","path","message"}]}`
 and still succeeds; a kind the format cannot draw fails with
 `UNSUPPORTED_EXPORT` and names the formats that work. Import reads only what
@@ -130,16 +130,17 @@ PlantUML on a private Java runtime. Without it, rendering them fails with exit
 example `node ".../scripts/setup-renderer.mjs"`. Run it once (about 60 MiB,
 SHA-256 pinned, installed inside the package, no system changes), or ask the
 user to, then render again. Validate, export and import work without it. Or
-set both `UML_JAVA` and `PLANTUML_JAR` to a trusted Java and jar.
+set both `DIAGRAMC_JAVA` and `PLANTUML_JAR` to a trusted Java and jar.
 
 ## As MCP tools
 
-`uml mcp` runs a stdio MCP server with the tools `uml_kinds`, `uml_example`,
-`uml_schema`, `uml_validate`, `uml_render`, `uml_export` and `uml_import`. They
-take a model as a JSON object, JSON text or a `file` path and return what the
-commands print; a failure is a tool error carrying the same `{"error":...}`
-object, and warnings come as a second item. `uml_render` returns SVG text or a
-PNG image, or writes `output` when it is given.
+`diagramc mcp` runs a stdio MCP server with the tools `diagramc_kinds`,
+`diagramc_example`, `diagramc_schema`, `diagramc_validate`, `diagramc_render`,
+`diagramc_export` and `diagramc_import`. They take a model as a JSON object,
+JSON text or a `file` path and return what the commands print; a failure is a
+tool error carrying the same `{"error":...}` object, and warnings come as a
+second item. `diagramc_render` returns SVG text or a PNG image, or writes
+`output` when it is given.
 
 ## Limits
 

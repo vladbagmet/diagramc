@@ -78,6 +78,6 @@ What the own engine needed, all generic and tested in `test/engine.test.mjs`:
 - Both kinds pass every gate on minimal, realistic, notation and stress examples
   and on all fixtures, render in well under the 2 s engine budget, need no Java and
   are byte-identical across runs.
-- No PlantUML backend is offered for these kinds (`uml kinds` lists only `engine`).
+- No PlantUML backend is offered for these kinds (`diagramc kinds` lists only `engine`).
 - Layout quality depends on ELK: orthogonal regions are stacked vertically, and
   transitions into nested states may detour around a composite's header.

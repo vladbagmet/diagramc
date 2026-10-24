@@ -1,6 +1,6 @@
 # Object diagram: notation checklist
 
-Backend: own engine. Frame keyword: `object`. Schema: `uml schema object`. Code:
+Backend: own engine. Frame keyword: `object`. Schema: `diagramc schema object`. Code:
 `src/kinds/object/` (model mapping) on the shared pipeline `src/engine/diagram.ts`.
 UML references are to UML 2.5.1 (formal/17-12-05).
 

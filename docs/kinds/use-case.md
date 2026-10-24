@@ -1,7 +1,7 @@
 # Use case diagram: notation checklist
 
 Backend: own engine (see [docs/decisions/0002-state-machine-and-use-case-backend.md](../decisions/0002-state-machine-and-use-case-backend.md)
-for why not PlantUML). Frame keyword: `uc`. Schema: `uml schema use-case`.
+for why not PlantUML). Frame keyword: `uc`. Schema: `diagramc schema use-case`.
 Code: `src/kinds/use-case/`. UML references are to UML 2.5.1 (formal/17-12-05).
 
 Tests referenced below: `uc` = `test/use-case.test.mjs`, `engine` =

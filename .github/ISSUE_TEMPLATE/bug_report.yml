@@ -42,7 +42,7 @@ body:
     id: command
     attributes:
       label: Command
-      placeholder: uml render model.json -o diagram.svg
+      placeholder: diagramc render model.json -o diagram.svg
     validations:
       required: true
   - type: textarea
@@ -63,9 +63,9 @@ body:
     id: environment
     attributes:
       label: Environment
-      description: Output of `uml --version`, `node --version`, and your operating system.
+      description: Output of `diagramc --version`, `node --version`, and your operating system.
       placeholder: |
-        uml 1.0.0
+        diagramc 1.0.0
         node v22.x
         macOS 15 arm64
     validations:

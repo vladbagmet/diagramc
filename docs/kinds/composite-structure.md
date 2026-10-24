@@ -1,7 +1,7 @@
 # Composite structure diagram: notation checklist
 
 Backend: own engine. Frame keyword: `class` (the frame names the structured
-classifier). Schema: `uml schema composite-structure`. Code:
+classifier). Schema: `diagramc schema composite-structure`. Code:
 `src/kinds/composite-structure/` on the shared structure layout in
 `src/kinds/structure/`. UML references are to UML 2.5.1 (formal/17-12-05).
 
