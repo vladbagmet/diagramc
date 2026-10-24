@@ -46,7 +46,7 @@ const associationEnds = {
   toEnd: ref('end', 'Properties of the end at `to`.'),
 };
 
-/** JSON Schema of a class diagram document (`uml schema class`). */
+/** JSON Schema of a class diagram document (`diagramc schema class`). */
 export const classSchema = kindSchema({
   kind: 'class',
   title: 'UML class diagram',

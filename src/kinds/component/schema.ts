@@ -29,7 +29,7 @@ function relationship(type: string, description: string, extra: Record<string, u
   };
 }
 
-/** JSON Schema of a component diagram document (`uml schema component`). */
+/** JSON Schema of a component diagram document (`diagramc schema component`). */
 export const componentSchema = kindSchema({
   kind: 'component',
   title: 'UML component diagram',

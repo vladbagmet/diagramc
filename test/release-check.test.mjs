@@ -15,7 +15,7 @@ const changelog = (unreleased = '') => `# Changelog
 ${unreleased}
 ## 1.1.0 (2026-11-02)
 
-- New command \`uml export\`.
+- New command \`diagramc export\`.
 
 ### Development
 
@@ -31,7 +31,7 @@ const ready = { version: '1.1.0', lockVersion: '1.1.0', tag: 'v1.1.0', changelog
 test('a tree with a matching tag, lock file and dated changelog section is ready', () => {
   const { problems, notes } = checkRelease(ready);
   assert.deepEqual(problems, []);
-  assert.equal(notes, '- New command `uml export`.\n\n### Development\n\n- Releases are built by GitHub Actions.');
+  assert.equal(notes, '- New command `diagramc export`.\n\n### Development\n\n- Releases are built by GitHub Actions.');
 });
 
 test('the tag is optional for a local check', () => {
@@ -97,7 +97,7 @@ test('the command writes the notes and exits 0 for a ready tree', async t => {
   const result = spawnSync(process.execPath, [script, '--tag', 'v1.1.0', '--notes', 'notes.md'], { cwd: directory, encoding: 'utf8' });
   assert.equal(result.status, 0, result.stderr);
   assert.match(result.stdout, /1\.1\.0 is ready to release as v1\.1\.0/);
-  assert.match(await readFile(join(directory, 'notes.md'), 'utf8'), /^- New command `uml export`\.\n[\s\S]*GitHub Actions\.\n$/);
+  assert.match(await readFile(join(directory, 'notes.md'), 'utf8'), /^- New command `diagramc export`\.\n[\s\S]*GitHub Actions\.\n$/);
 });
 
 test('the command lists every problem and exits 1', async t => {

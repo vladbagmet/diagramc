@@ -24,7 +24,7 @@ import {
 } from './commands.js';
 
 /**
- * `uml mcp`: the commands as Model Context Protocol tools on stdio. Every tool
+ * `diagramc mcp`: the commands as Model Context Protocol tools on stdio. Every tool
  * calls the same function as its command (src/commands.ts) and returns what the
  * command prints; a failure is a tool error whose text is the command's
  * {"error":{...}} object, so an agent reads the same diagnostics either way.

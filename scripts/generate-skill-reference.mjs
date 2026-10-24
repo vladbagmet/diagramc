@@ -1,6 +1,6 @@
-// Writes skills/uml/reference.md, the per-kind cheat sheet of the usage skill,
-// from the kind registry and the JSON Schemas (what `uml kinds` and
-// `uml schema <kind>` print), so it cannot drift from the code.
+// Writes skills/diagramc/reference.md, the per-kind cheat sheet of the usage skill,
+// from the kind registry and the JSON Schemas (what `diagramc kinds` and
+// `diagramc schema <kind>` print), so it cannot drift from the code.
 //   npm run build && node scripts/generate-skill-reference.mjs
 // test/skill.test.mjs fails when the committed file differs from this output.
 import { writeFileSync } from 'node:fs';
@@ -57,8 +57,8 @@ export function skillReference() {
     'One section per kind: what it draws, its backends (the first is the default),',
     'the text formats it exports to and imports from, its top-level properties',
     '(`*` marks required ones) and, for each list, the `type` values with the',
-    `properties each one requires. \`${BIN} schema <kind>\` has every property with its`,
-    `description; \`${BIN} example <kind>\` prints a minimal valid model.`,
+    `properties each one requires. \`${BIN} schema <kind>\` has every property`,
+    `with its description; \`${BIN} example <kind>\` prints a minimal valid model.`,
   ];
   for (const summary of kindSummaries()) {
     const schema = schemaOf(summary.kind);

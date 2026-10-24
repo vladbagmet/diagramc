@@ -30,7 +30,7 @@ function relationship(type: string, description: string, extra: Record<string, u
 
 const members = { type: 'array', maxItems: 100, items: ref('id'), description: 'IDs of the elements drawn nested inside. An element has at most one owner.' };
 
-/** JSON Schema of a profile diagram document (`uml schema profile`). */
+/** JSON Schema of a profile diagram document (`diagramc schema profile`). */
 export const profileSchema = kindSchema({
   kind: 'profile',
   title: 'UML profile diagram',

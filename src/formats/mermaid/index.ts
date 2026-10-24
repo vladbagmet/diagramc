@@ -6,7 +6,7 @@ import { mermaidStateMachine } from './state-machine.js';
 import { mermaidUseCase } from './use-case.js';
 
 /**
- * Mermaid mapping of the kinds Mermaid can express faithfully, in `uml kinds`
+ * Mermaid mapping of the kinds Mermaid can express faithfully, in `diagramc kinds`
  * order. Each kind's mapping lives in its own file. The other kinds have no
  * Mermaid diagram type that draws their notation (component: no sockets,
  * ports or assembly connectors; deployment, timing and the rest: no diagram

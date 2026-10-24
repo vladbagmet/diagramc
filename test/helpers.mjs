@@ -71,7 +71,7 @@ export async function assertCpuBudget(work, ms = 2000, label = 'stress render') 
   return { result, ms: cpuMs };
 }
 
-/** Whether the PlantUML runtime (npm run setup:renderer, or UML_JAVA and PLANTUML_JAR) is available. */
+/** Whether the PlantUML runtime (npm run setup:renderer, or DIAGRAMC_JAVA and PLANTUML_JAR) is available. */
 export const hasPlantUml = await rendererOptions().then(
   () => true,
   () => false,

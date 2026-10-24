@@ -6,7 +6,7 @@ function pseudostate(type: string, description: string) {
   return { type: 'object', additionalProperties: false, required: ['id', 'type'], description, properties: { id: ref('id'), type: { const: type } } };
 }
 
-/** JSON Schema of a state machine diagram document (`uml schema state-machine`). */
+/** JSON Schema of a state machine diagram document (`diagramc schema state-machine`). */
 export const stateMachineSchema = kindSchema({
   kind: 'state-machine',
   title: 'UML state machine diagram',

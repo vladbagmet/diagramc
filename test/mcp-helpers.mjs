@@ -4,7 +4,7 @@ import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 import { root } from './helpers.mjs';
 
 /**
- * Starts `uml mcp` as a child process and connects an MCP client to it over
+ * Starts `diagramc mcp` as a child process and connects an MCP client to it over
  * stdio, as an agent harness does. The server is closed when the test ends.
  */
 export async function mcpClient(t, env = {}) {

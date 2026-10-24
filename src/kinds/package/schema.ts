@@ -34,7 +34,7 @@ function relationship(type: string, description: string, extra: Record<string, u
   };
 }
 
-/** JSON Schema of a package diagram document (`uml schema package`). */
+/** JSON Schema of a package diagram document (`diagramc schema package`). */
 export const packageSchema = kindSchema({
   kind: 'package',
   title: 'UML package diagram',

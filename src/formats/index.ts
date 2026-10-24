@@ -1,4 +1,5 @@
 import { UmlError, failValidation, type Diagnostic } from '../core/errors.js';
+import { BIN } from '../core/package.js';
 import { parseDocument, type ParsedDocument } from '../model/parse.js';
 import { kinds } from '../model/registry.js';
 import { readMermaid } from './mermaid/text.js';
@@ -14,7 +15,7 @@ const registry: Record<FormatName, readonly KindFormat[]> = { plantuml: plantuml
 
 const formatTitle: Record<FormatName, string> = { plantuml: 'PlantUML', mermaid: 'Mermaid' };
 
-/** Formats a kind exports to and imports from, for `uml kinds`. */
+/** Formats a kind exports to and imports from, for `diagramc kinds`. */
 export function formatSupport(kind: string): { exports: FormatName[]; imports: FormatName[] } {
   return {
     exports: FORMATS.filter(f => registry[f].some(k => k.kind === kind)),
@@ -33,7 +34,7 @@ export function formatFromExtension(path: string): FormatName | undefined {
 export function parseFormat(value: string, option: string): FormatName {
   const name = value.toLowerCase();
   if (name === 'plantuml' || name === 'mermaid') return name;
-  throw new UmlError('USAGE', `${option} must be plantuml or mermaid, not ${JSON.stringify(value)}. See uml --help`);
+  throw new UmlError('USAGE', `${option} must be plantuml or mermaid, not ${JSON.stringify(value)}. See ${BIN} --help`);
 }
 
 /** A validated model as text in `format`, with a warning for every construct the format cannot carry. */
@@ -53,13 +54,13 @@ export function exportDocument(parsed: ParsedDocument, format: FormatName): { te
   return { text, warnings: losses.warnings };
 }
 
-/** Kinds `format` can import, in `uml kinds` order. */
+/** Kinds `format` can import, in `diagramc kinds` order. */
 const importable = (format: FormatName): KindFormat[] => registry[format].filter(k => k.import !== undefined);
 
 /**
  * Text in `format` -> a validated model document. Every unsupported or malformed
  * line is reported at once (UNSUPPORTED_SYNTAX, MALFORMED_LINE with the line
- * number); the resulting model then passes the same validation as `uml validate`.
+ * number); the resulting model then passes the same validation as `diagramc validate`.
  */
 export function importText(text: string, format: FormatName, kindName?: string): { model: Record<string, unknown>; parsed: ParsedDocument } {
   const problems = new Problems();

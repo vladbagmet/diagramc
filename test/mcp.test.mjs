@@ -7,7 +7,7 @@ import { kinds } from '../dist/model/registry.js';
 import { cli, fakeJava, fakeSvg, minimal, root, workspace } from './helpers.mjs';
 import { call, mcpClient } from './mcp-helpers.mjs';
 
-// `uml mcp` over stdio, driven by the MCP SDK client as a harness would drive
+// `diagramc mcp` over stdio, driven by the MCP SDK client as a harness would drive
 // it. Each tool must return what its command prints, and a failure must carry
 // the same {"error":...} object the command prints on stderr.
 
@@ -132,7 +132,7 @@ test('render: layout warnings come as a second item, --strict makes them the err
   const dir = await workspace(t);
   // A fake PlantUML that returns an empty drawing fails the literal-text layout check.
   const java = await fakeJava(dir, `process.stdin.resume(); process.stdin.on('end', () => process.stdout.write(${JSON.stringify(fakeSvg)}));`);
-  const client = await mcpClient(t, { UML_JAVA: java, PLANTUML_JAR: join(dir, 'fake.jar') });
+  const client = await mcpClient(t, { DIAGRAMC_JAVA: java, PLANTUML_JAR: join(dir, 'fake.jar') });
   let result = await call(client, tool('render'), { model: minimal, backend: 'plantuml' });
   assert.ok(!result.isError);
   assert.equal(result.content.length, 2);
@@ -147,7 +147,7 @@ test('render: layout warnings come as a second item, --strict makes them the err
   assert.equal(result.parsed[0].error.details.warnings[0].gate, 'literal-text');
   await assert.rejects(readFile(output), 'nothing is written under strict');
 
-  const missing = await mcpClient(t, { UML_JAVA: java, PLANTUML_JAR: '' });
+  const missing = await mcpClient(t, { DIAGRAMC_JAVA: java, PLANTUML_JAR: '' });
   result = await call(missing, tool('render'), { file: join(root, 'examples/sequence/minimal.json') });
   assert.equal(result.isError, true);
   assert.equal(result.parsed[0].error.code, 'RENDERER_MISSING');

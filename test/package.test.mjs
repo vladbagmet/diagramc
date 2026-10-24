@@ -25,7 +25,7 @@ test('the npm package ships the CLI, schemas, fonts, setup script and notices, a
   ]) {
     assert.ok(files.includes(required), `missing ${required}`);
   }
-  // `uml example <kind>` reads examples/<kind>/minimal.json from the installed package.
+  // `diagramc example <kind>` reads examples/<kind>/minimal.json from the installed package.
   const kinds = JSON.parse(spawnSync(process.execPath, ['dist/cli.js', 'kinds'], { cwd: root, encoding: 'utf8' }).stdout).map(k => k.kind);
   for (const kind of kinds) assert.ok(files.includes(`examples/${kind}/minimal.json`), `missing example of ${kind}`);
   const forbidden = files.filter(

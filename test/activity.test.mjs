@@ -287,7 +287,7 @@ test('activity: validation, structuring included, finishes before Java is ever s
   const dir = await workspace(t),
     marker = join(dir, 'spawned');
   const java = await fakeJava(dir, `require('node:fs').writeFileSync(${JSON.stringify(marker)}, 'spawned');`);
-  const env = { ...process.env, UML_JAVA: java, PLANTUML_JAR: 'unused' };
+  const env = { ...process.env, DIAGRAMC_JAVA: java, PLANTUML_JAR: 'unused' };
   const unstructured = (await fixtures('invalid.json')).find(c => c.expect.code === 'UNSTRUCTURED_FLOW').doc;
   const result = cli(['render', '-', '-o', join(dir, 'out.svg')], { input: JSON.stringify(unstructured), env });
   assert.equal(result.status, 2);

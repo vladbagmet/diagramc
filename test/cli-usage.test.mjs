@@ -10,13 +10,13 @@ function failure(args, options) {
 
 test('CLI usage errors name the right usage line and exit with status 2', () => {
   const cases = [
-    [['render', 'model.json'], /^Usage: uml render <model\.json\|-> -o/],
-    [['help', 'render', 'validate'], /^Usage: uml help \[command\]/],
+    [['render', 'model.json'], /^Usage: diagramc render <model\.json\|-> -o/],
+    [['help', 'render', 'validate'], /^Usage: diagramc help \[command\]/],
     [['--version', 'extra'], /^--version takes no arguments\./],
-    [['example'], /^Usage: uml example <kind>; kinds: class, /],
-    [['example', 'class', 'sequence'], /^Usage: uml example <kind>/],
-    [['rendr'], /^Unknown command "rendr"; did you mean "render"\? See uml --help$/],
-    [['frobnicate'], /^Unknown command "frobnicate"\. See uml --help$/],
+    [['example'], /^Usage: diagramc example <kind>; kinds: class, /],
+    [['example', 'class', 'sequence'], /^Usage: diagramc example <kind>/],
+    [['rendr'], /^Unknown command "rendr"; did you mean "render"\? See diagramc --help$/],
+    [['frobnicate'], /^Unknown command "frobnicate"\. See diagramc --help$/],
   ];
   for (const [args, message] of cases) {
     const { status, stdout, error } = failure(args);

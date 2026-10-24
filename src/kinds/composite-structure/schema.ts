@@ -2,7 +2,7 @@ import { kindSchema } from '../../model/schema.js';
 
 const ref = (name: string, description?: string) => ({ $ref: `#/definitions/${name}`, ...(description ? { description } : {}) });
 
-/** JSON Schema of a composite structure diagram document (`uml schema composite-structure`). */
+/** JSON Schema of a composite structure diagram document (`diagramc schema composite-structure`). */
 export const compositeStructureSchema = kindSchema({
   kind: 'composite-structure',
   title: 'UML composite structure diagram',

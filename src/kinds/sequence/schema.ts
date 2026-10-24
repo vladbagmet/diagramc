@@ -22,7 +22,7 @@ function item(type: string, description: string, required: string[], properties:
   return { type: 'object', additionalProperties: false, required: ['type', ...required], description, properties: { type: { const: type }, ...properties } };
 }
 
-/** JSON Schema of a sequence diagram document (`uml schema sequence`). */
+/** JSON Schema of a sequence diagram document (`diagramc schema sequence`). */
 export const sequenceSchema = kindSchema({
   kind: 'sequence',
   title: 'UML sequence diagram',

@@ -122,7 +122,7 @@ export async function setupRenderer({
   log = console.log,
 } = {}) {
   const runtime = runtimes[`${platform}-${arch}`];
-  if (!runtime) throw new Error('Automatic setup supports macOS/Linux on arm64/x64 only. Set UML_JAVA and PLANTUML_JAR manually.');
+  if (!runtime) throw new Error('Automatic setup supports macOS/Linux on arm64/x64 only. Set DIAGRAMC_JAVA and PLANTUML_JAR manually.');
   await mkdir(root, { recursive: true });
   const jar = 'plantuml-mit-1.2025.10.jar';
   await download(

@@ -14,7 +14,7 @@ import { plantumlActivity } from './activity.js';
 import { plantumlStateMachine } from './state-machine.js';
 import { plantumlUseCase } from './use-case.js';
 
-/** PlantUML mapping of every kind, in `uml kinds` order. Each kind's mapping lives in its own file. */
+/** PlantUML mapping of every kind, in `diagramc kinds` order. Each kind's mapping lives in its own file. */
 export const plantumlFormats: readonly KindFormat[] = [
   plantumlClass,
   plantumlObject,

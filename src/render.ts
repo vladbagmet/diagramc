@@ -55,7 +55,7 @@ export async function renderDocument(parsed: ParsedDocument, format: OutputForma
 /**
  * A QA gate (src/qa/gates.ts) that the rendered drawing does not pass: the
  * diagram is still written, but it has a layout defect (for example a label on a
- * line) that a reader may notice. `uml render --strict` turns these into an error.
+ * line) that a reader may notice. `diagramc render --strict` turns these into an error.
  */
 export interface LayoutWarning {
   code: 'LAYOUT_QUALITY';

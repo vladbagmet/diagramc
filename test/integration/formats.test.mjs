@@ -58,7 +58,7 @@ test('every example of every kind exports to PlantUML that PlantUML renders with
 });
 
 // An imported model is a normal model: it validates (importText already ran
-// uml validate's checks) and renders with its kind's backend.
+// diagramc validate's checks) and renders with its kind's backend.
 
 for (const [format, list] of Object.entries(ROUND_TRIP)) {
   test(`every ${format} round trip of the examples renders (${list.join(', ')})`, async () => {

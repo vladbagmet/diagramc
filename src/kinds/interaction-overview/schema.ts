@@ -6,7 +6,7 @@ function control(type: string, description: string) {
   return { type: 'object', additionalProperties: false, required: ['id', 'type'], description, properties: { id: ref('id'), type: { const: type } } };
 }
 
-/** JSON Schema of an interaction overview document (`uml schema interaction-overview`). */
+/** JSON Schema of an interaction overview document (`diagramc schema interaction-overview`). */
 export const interactionOverviewSchema = kindSchema({
   kind: 'interaction-overview',
   title: 'UML interaction overview diagram',

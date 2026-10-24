@@ -28,7 +28,7 @@ export interface PlantUmlBackend<M> {
   postProcess?(svg: string, model: M): string;
   /**
    * The QA gates this backend's drawings are held to, when not all of them (a
-   * best-effort fallback renderer). `uml render` warns only about these.
+   * best-effort fallback renderer). `diagramc render` warns only about these.
    */
   readonly gates?: readonly string[];
 }
@@ -56,7 +56,7 @@ export interface KindDefinition<M = any> {
   readonly kind: string;
   /** Human title, e.g. "Class diagram". */
   readonly title: string;
-  /** One sentence for `uml kinds`. */
+  /** One sentence for `diagramc kinds`. */
   readonly summary: string;
   /** Keyword in the UML diagram frame heading (UML 2.5.1 Annex A), e.g. "class" or "sd". */
   readonly frameKeyword: string;

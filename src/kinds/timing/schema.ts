@@ -10,7 +10,7 @@ const time = (description: string) => ({
   description: `${description} A whole number of \`timeUnit\`; for fractions use a finer unit (2.5 s is 2500 with "timeUnit": "ms").`,
 });
 
-/** JSON Schema of a timing diagram document (`uml schema timing`). */
+/** JSON Schema of a timing diagram document (`diagramc schema timing`). */
 export const timingSchema = kindSchema({
   kind: 'timing',
   title: 'UML timing diagram',

@@ -1,6 +1,6 @@
-import { readFileSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
+import { BIN, packageRoot } from './core/package.js';
 import { UmlError, type Diagnostic } from './core/errors.js';
 import { parseDocument, suggestKind, type ParsedDocument } from './model/parse.js';
 import { kinds, findKind } from './model/registry.js';
@@ -15,16 +15,8 @@ import { exportDocument, formatFromExtension, formatSupport, importText, parseFo
  * the same error objects.
  */
 
-/** The version and install location come from the package itself, so they never drift. */
-export const packageRoot = new URL('../', import.meta.url);
-const manifest = JSON.parse(readFileSync(new URL('package.json', packageRoot), 'utf8')) as { version: string; bin: Record<string, string> };
-export const VERSION = manifest.version;
-/**
- * The name of the binary (the first `bin` entry of package.json). The skill
- * directory, the MCP server name and the MCP tool-name prefix all follow it, so
- * renaming the binary in package.json renames them too.
- */
-export const BIN = Object.keys(manifest.bin)[0]!;
+/** The version, binary name and install location come from the package itself (src/core/package.ts). */
+export { BIN, VERSION, packageRoot } from './core/package.js';
 export const SETUP_SCRIPT = fileURLToPath(new URL('scripts/setup-renderer.mjs', packageRoot));
 /** The usage skill for agents, shipped in the package. */
 export const SKILL_FILE = fileURLToPath(new URL(`skills/${BIN}/SKILL.md`, packageRoot));
@@ -33,7 +25,7 @@ export const SKILL_REFERENCE_FILE = fileURLToPath(new URL(`skills/${BIN}/referen
 /** Every command of the command line, in help order. */
 export const COMMANDS = ['render', 'validate', 'export', 'import', 'example', 'schema', 'kinds', 'guide', 'mcp', 'help'] as const;
 
-/** The commands `uml mcp` (src/mcp.ts) offers as tools, each named `<binary>_<command>`. */
+/** The commands `diagramc mcp` (src/mcp.ts) offers as tools, each named `<binary>_<command>`. */
 export const MCP_COMMANDS = ['kinds', 'example', 'schema', 'validate', 'render', 'export', 'import'] as const;
 export type McpCommand = (typeof MCP_COMMANDS)[number];
 export const mcpToolName = (command: McpCommand): string => `${BIN}_${command}`;
@@ -62,7 +54,7 @@ export interface KindSummary {
   imports: FormatName[];
 }
 
-/** What `uml kinds` prints. */
+/** What `diagramc kinds` prints. */
 export function kindSummaries(): KindSummary[] {
   return kinds.map(k => ({
     kind: k.kind,
@@ -89,7 +81,7 @@ export function schemaOf(name: string): object {
   return kindArgument(name).schema;
 }
 
-/** What `uml validate` prints for a valid document. */
+/** What `diagramc validate` prints for a valid document. */
 export function validationResult(parsed: ParsedDocument): { valid: true; kind: string; version: number } {
   return { valid: true, kind: parsed.kind.kind, version: parsed.version };
 }
@@ -100,7 +92,7 @@ export const GUIDE_TOPICS = ['reference'] as const;
 /** The usage skill (without its YAML front matter), or its per-kind reference. */
 export async function guideText(topic?: string): Promise<string> {
   if (topic !== undefined && !(GUIDE_TOPICS as readonly string[]).includes(topic))
-    throw new UmlError('USAGE', `Unknown guide topic ${JSON.stringify(topic)}; topics: ${GUIDE_TOPICS.join(', ')}. See uml guide --help`);
+    throw new UmlError('USAGE', `Unknown guide topic ${JSON.stringify(topic)}; topics: ${GUIDE_TOPICS.join(', ')}. See ${BIN} guide --help`);
   const file = topic === 'reference' ? SKILL_REFERENCE_FILE : SKILL_FILE;
   let text: string;
   try {
@@ -186,5 +178,5 @@ export function importModel(text: string, format: FormatName, kind?: string): Re
 }
 
 export function usage(message: string): UmlError {
-  return new UmlError('USAGE', `${message}${message.endsWith('?') ? '' : '.'} See uml --help`);
+  return new UmlError('USAGE', `${message}${message.endsWith('?') ? '' : '.'} See ${BIN} --help`);
 }

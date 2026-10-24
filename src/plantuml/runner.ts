@@ -17,19 +17,19 @@ export interface RendererOptions {
   diagramType?: string;
 }
 
-/** Locates the pinned local Java and PlantUML jar, or trusted UML_JAVA/PLANTUML_JAR overrides. */
+/** Locates the pinned local Java and PlantUML jar, or trusted DIAGRAMC_JAVA/PLANTUML_JAR overrides. */
 export async function rendererOptions(tools = fileURLToPath(new URL('../../.tools/', import.meta.url))): Promise<RendererOptions> {
   const setup = fileURLToPath(new URL('../../scripts/setup-renderer.mjs', import.meta.url));
   const missing = () =>
     new UmlError(
       'RENDERER_MISSING',
-      `The PlantUML renderer is not set up. Run: node ${JSON.stringify(setup)} (npm run setup:renderer in a source checkout), or set both UML_JAVA and PLANTUML_JAR`,
+      `The PlantUML renderer is not set up. Run: node ${JSON.stringify(setup)} (npm run setup:renderer in a source checkout), or set both DIAGRAMC_JAVA and PLANTUML_JAR`,
       3,
-      { setup: `node ${JSON.stringify(setup)}`, env: ['UML_JAVA', 'PLANTUML_JAR'] },
+      { setup: `node ${JSON.stringify(setup)}`, env: ['DIAGRAMC_JAVA', 'PLANTUML_JAR'] },
     );
-  if (process.env.UML_JAVA || process.env.PLANTUML_JAR) {
-    if (!process.env.UML_JAVA || !process.env.PLANTUML_JAR) throw missing();
-    return { java: process.env.UML_JAVA, jar: process.env.PLANTUML_JAR };
+  if (process.env.DIAGRAMC_JAVA || process.env.PLANTUML_JAR) {
+    if (!process.env.DIAGRAMC_JAVA || !process.env.PLANTUML_JAR) throw missing();
+    return { java: process.env.DIAGRAMC_JAVA, jar: process.env.PLANTUML_JAR };
   }
   try {
     const local: unknown = JSON.parse(await readFile(resolve(tools, 'renderer.json'), 'utf8'));
@@ -113,7 +113,7 @@ export function renderSvg(source: string, options: RendererOptions): Promise<Buf
     });
     child.on('error', () => {
       cleanup();
-      reject(new UmlError('RENDER_START_FAILED', 'Could not start Java renderer; check UML_JAVA and local setup', 3));
+      reject(new UmlError('RENDER_START_FAILED', 'Could not start Java renderer; check DIAGRAMC_JAVA and local setup', 3));
     });
     child.on('close', (code, signal) => {
       cleanup();

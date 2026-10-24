@@ -25,7 +25,7 @@ import {
   usage,
   validationResult,
 } from './commands.js';
-import { MCP_TOOLS } from './commands.js';
+import { MCP_TOOLS, mcpToolName } from './commands.js';
 
 /** The kind names, wrapped to the help text's 80 columns. */
 const kindList = (): string => {
@@ -67,7 +67,7 @@ const plantumlKinds = (): string =>
 const renderer = (): string => `PlantUML kinds (${plantumlKinds()}, and class with --backend
 plantuml) need a local Java renderer, set up once with
   node ${SETUP_SCRIPT}
-(npm run setup:renderer in a source checkout), or set both UML_JAVA and
+(npm run setup:renderer in a source checkout), or set both DIAGRAMC_JAVA and
 PLANTUML_JAR to a trusted Java and PlantUML jar. The other kinds need nothing.`;
 
 const warningLine = '{"warnings":[{"code":"LAYOUT_QUALITY","gate","message","count","problems","advice"}]}';
@@ -81,25 +81,25 @@ Exit codes: 0 success (warnings possible), 2 invalid input or usage, 3 renderer,
 
 const backendOption = `  --backend <engine|plantuml>
                             Renderer, when a kind has several (only class has
-                            both); the default is the first one uml kinds lists.`;
+                            both); the default is the first one listed by
+                            ${BIN} kinds.`;
 
-const help = (): string => `uml ${VERSION} - validated JSON UML models to SVG or PNG, offline
+const help = (): string => `${BIN} ${VERSION} - validated JSON UML models to SVG or PNG, offline
 
-Agents: run \`${BIN} guide\` first for the playbook (discovery, the write, validate
-and render loop, errors), or attach \`${BIN} mcp\` as an MCP server.
+${wrap(`Agents: run \`${BIN} guide\` first for the playbook (discovery, the write, validate and render loop, errors), or attach \`${BIN} mcp\` as an MCP server.`, '')}
 
 Usage:
-  uml render <model.json|-> -o <diagram.svg|diagram.png> [options]
-  uml validate <model.json|->
-  uml export <model.json|-> --to <plantuml|mermaid> [-o <file>]
-  uml import <diagram.puml|diagram.mmd|-> [--from <plantuml|mermaid>] [-o <model.json>]
-  uml example <kind>
-  uml schema <kind>
-  uml kinds
+  ${BIN} render <model.json|-> -o <diagram.svg|diagram.png> [options]
+  ${BIN} validate <model.json|->
+  ${BIN} export <model.json|-> --to <plantuml|mermaid> [-o <file>]
+  ${BIN} import <diagram.puml|diagram.mmd|-> [--from <plantuml|mermaid>] [-o <model.json>]
+  ${BIN} example <kind>
+  ${BIN} schema <kind>
+  ${BIN} kinds
   ${BIN} guide [reference]
   ${BIN} mcp
-  uml <command> --help      Details of one command
-  uml --version
+  ${`${BIN} <command> --help`.padEnd(24)}  Details of one command
+  ${BIN} --version
 
 Commands:
   render     Validate, then draw the diagram and check its layout. Output format
@@ -112,8 +112,7 @@ Commands:
              descriptions and allowed values.
   kinds      Print the ${kinds.length} supported diagram kinds, their backends and
              the formats each exports to and imports from, as JSON.
-  guide      Print the usage guide for agents (the skill in skills/uml/), or
-             with "reference" the per-kind cheat sheet.
+  guide      ${wrap(`Print the usage guide for agents (the skill in skills/${BIN}/), or with "reference" the per-kind cheat sheet.`, ' '.repeat(13))}
   mcp        ${wrap(`Run an MCP server on stdin and stdout with the tools ${MCP_TOOLS.join(', ')}.`, ' '.repeat(13))}
 
 Render options:
@@ -127,8 +126,7 @@ ${backendOption}
 Kinds:
   ${kindList()}.
 
-Writing a model: start from \`uml example <kind>\` and look up properties with
-\`uml schema <kind>\`. Input is UTF-8 JSON, at most ${MAX_INPUT_BYTES / 1024} KiB:
+${wrap(`Writing a model: start from \`${BIN} example <kind>\` and look up properties with \`${BIN} schema <kind>\`. Input is UTF-8 JSON, at most ${MAX_INPUT_BYTES / 1024} KiB:`, '')}
 { "kind": "<kind>", "title"?: "...", ... }. Elements and relationships refer to
 each other by "id"; relationships go "from" one element "to" another (for a
 generalization, from the specific to the general element). Text is drawn
@@ -146,7 +144,7 @@ ${renderer()}
 `;
 
 const commandHelp: Record<string, () => string> = {
-  render: () => `Usage: uml render <model.json|-> -o <diagram.svg|diagram.png> [options]
+  render: () => `Usage: ${BIN} render <model.json|-> -o <diagram.svg|diagram.png> [options]
 
 Validates the model ("-" reads it from stdin), draws it with the kind's backend,
 runs the layout checks on the drawing and writes the output.
@@ -171,14 +169,14 @@ ${errorsAndExits}
 
 ${renderer()}
 `,
-  validate: () => `Usage: uml validate <model.json|->
+  validate: () => `Usage: ${BIN} validate <model.json|->
 
 Validates the model ("-" reads it from stdin) against its kind's schema and
 rules, without drawing it. On success prints one line on stdout, for example
 {"valid":true,"kind":"class","version":2} (version 1 for the v1 class format).
 ${errorsAndExits}
 `,
-  export: () => `Usage: uml export <model.json|-> --to <plantuml|mermaid> [-o <file>]
+  export: () => `Usage: ${BIN} export <model.json|-> --to <plantuml|mermaid> [-o <file>]
 
 Validates the model ("-" reads it from stdin) and writes it as PlantUML or
 Mermaid text, on stdout or to the -o file (replaced atomically). The text is
@@ -198,11 +196,9 @@ one JSON object on stderr,
 JSON Pointer of the construct. docs/formats.md has the full mapping.
 ${errorsAndExits}
 `,
-  import: () => `Usage: uml import <diagram.puml|diagram.mmd|-> [--from <plantuml|mermaid>] [-o <model.json>]
+  import: () => `Usage: ${BIN} import <diagram.puml|diagram.mmd|-> [--from <plantuml|mermaid>] [-o <model.json>]
 
-Reads PlantUML or Mermaid text ("-" reads stdin), converts it to a model and
-validates it like uml validate. Prints the model JSON on stdout, or writes it to
-the -o file (replaced atomically).
+${wrap(`Reads PlantUML or Mermaid text ("-" reads stdin), converts it to a model and validates it like ${BIN} validate. Prints the model JSON on stdout, or writes it to the -o file (replaced atomically).`, '')}
 
 Options:
   --from <plantuml|mermaid> Source format (default: from the file extension,
@@ -223,14 +219,14 @@ A model that reads but breaks a rule fails with IMPORT_INVALID; its
 diagnostics point into the model, which is in details.model.
 ${errorsAndExits}
 `,
-  example: () => `Usage: uml example <kind>
+  example: () => `Usage: ${BIN} example <kind>
 
 Prints a minimal valid model of the kind on stdout, a starting point to edit.
 Kinds:
   ${kindList()}.
 An unknown kind fails with UNKNOWN_KIND (exit 2) and the nearest kind.
 `,
-  schema: () => `Usage: uml schema <kind>
+  schema: () => `Usage: ${BIN} schema <kind>
 
 Prints the JSON Schema (draft-07) of the kind on stdout: every property with its
 description and allowed values. Properties the schema does not list are errors.
@@ -240,7 +236,7 @@ An unknown kind fails with UNKNOWN_KIND (exit 2) and the nearest kind.
 `,
   guide: () => `Usage: ${BIN} guide [reference]
 
-Prints the usage guide for agents on stdout: when to use uml, the discovery
+Prints the usage guide for agents on stdout: when to use ${BIN}, the discovery
 commands, the write, validate and render loop, how to read errors and warnings,
 export and import, the renderer setup and the limits. It is the Agent Skill
 shipped in the package, which harnesses that read skills can load directly:
@@ -252,24 +248,18 @@ top-level properties and the type values of its elements and relationships.
 
 Runs a Model Context Protocol server on stdin and stdout until stdin closes.
 ${wrap(`Tools: ${MCP_TOOLS.join(', ')}.`, '')}
-They take the same inputs as the commands (a model as a JSON object, JSON text
-or a file path) and return the same output. A failure is a tool error whose
-text is the same {"error":{...}} object the commands print; warnings come as a
-second text item, {"warnings":[...]}. uml_render returns the SVG text or the PNG
-image, or writes the file and returns {"written":...} when "output" is given.
+${wrap(`They take the same inputs as the commands (a model as a JSON object, JSON text or a file path) and return the same output. A failure is a tool error whose text is the same {"error":{...}} object the commands print; warnings come as a second text item, {"warnings":[...]}. ${mcpToolName('render')} returns the SVG text or the PNG image, or writes the file and returns {"written":...} when "output" is given.`, '')}
 
 Attach it to a harness, for example:
   claude mcp add ${BIN} -- ${BIN} mcp
   codex mcp add ${BIN} -- ${BIN} mcp
   {"mcpServers":{"${BIN}":{"command":"${BIN}","args":["mcp"]}}}
 `,
-  kinds: () => `Usage: uml kinds
+  kinds: () => `Usage: ${BIN} kinds
 
 Prints the ${kinds.length} supported diagram kinds as a JSON array on stdout, each
 {"kind","title","summary","frameKeyword","backends","exports","imports"}. The
-first backend is the default: "engine" is the built-in layout engine,
-"plantuml" the local PlantUML renderer (see uml --help). "exports" and
-"imports" list the text formats (plantuml, mermaid) of uml export and uml import.
+${wrap(`first backend is the default: "engine" is the built-in layout engine, "plantuml" the local PlantUML renderer (see ${BIN} --help). "exports" and "imports" list the text formats (plantuml, mermaid) of ${BIN} export and ${BIN} import.`, '')}
 `,
 };
 
@@ -322,7 +312,7 @@ async function render(args: string[]): Promise<void> {
         else throw usage(`Unexpected argument ${JSON.stringify(arg)}`);
     }
   }
-  if (!input || !output) throw usage('Usage: uml render <model.json|-> -o <diagram.svg|diagram.png>');
+  if (!input || !output) throw usage(`Usage: ${BIN} render <model.json|-> -o <diagram.svg|diagram.png>`);
   const resolved = renderFormat(output, format, scale);
   const { data, warnings } = await renderText(await readInput(input), { format: resolved, backend, scale, strict });
   await writeOutput(output, data);
@@ -354,7 +344,7 @@ function exchangeArgs(args: string[], named: readonly string[]): { input?: strin
 
 async function exportCommand(args: string[]): Promise<void> {
   const { input, output, values } = exchangeArgs(args, ['--to']);
-  if (!input) throw usage('Usage: uml export <model.json|-> --to <plantuml|mermaid> [-o <file>]');
+  if (!input) throw usage(`Usage: ${BIN} export <model.json|-> --to <plantuml|mermaid> [-o <file>]`);
   const format = exportFormat(values.get('--to'), output);
   const { text, warnings } = exportText(await readInput(input), format);
   if (output === undefined) process.stdout.write(text);
@@ -364,7 +354,7 @@ async function exportCommand(args: string[]): Promise<void> {
 
 async function importCommand(args: string[]): Promise<void> {
   const { input, output, values } = exchangeArgs(args, ['--from', '--kind']);
-  if (!input) throw usage('Usage: uml import <diagram.puml|diagram.mmd|-> [--from <plantuml|mermaid>] [-o <model.json>]');
+  if (!input) throw usage(`Usage: ${BIN} import <diagram.puml|diagram.mmd|-> [--from <plantuml|mermaid>] [-o <model.json>]`);
   const format = importFormat(values.get('--from'), input);
   const kind = values.get('--kind');
   if (kind !== undefined) kindArgument(kind);
@@ -381,9 +371,9 @@ async function main(): Promise<void> {
   const commands: readonly string[] = COMMANDS;
   const asksHelp = command === '--help' || command === '-h' || command === 'help';
   if (asksHelp || rest.includes('--help') || rest.includes('-h')) {
-    // `uml help render`, `uml --help render` and `uml render --help` show the render help.
+    // `diagramc help render`, `diagramc --help render` and `diagramc render --help` show the render help.
     const topic = asksHelp ? rest[0] : command;
-    if (asksHelp && rest.length > 1) throw usage('Usage: uml help [command]');
+    if (asksHelp && rest.length > 1) throw usage(`Usage: ${BIN} help [command]`);
     if (topic !== undefined && !commands.includes(topic)) throw usage(`Unknown command ${JSON.stringify(topic)}`);
     const specific = topic === undefined ? undefined : commandHelp[topic];
     process.stdout.write(specific ? specific() : help());
@@ -402,22 +392,22 @@ async function main(): Promise<void> {
     case 'import':
       return importCommand(rest);
     case 'validate': {
-      if (rest.length !== 1 || !isInput(rest[0])) throw usage('Usage: uml validate <model.json|->');
+      if (rest.length !== 1 || !isInput(rest[0])) throw usage(`Usage: ${BIN} validate <model.json|->`);
       process.stdout.write(JSON.stringify(validationResult(parseDocument(await readInput(rest[0])))) + '\n');
       return;
     }
     case 'example': {
-      if (rest.length !== 1) throw usage(`Usage: uml example <kind>; kinds: ${kinds.map(k => k.kind).join(', ')}`);
+      if (rest.length !== 1) throw usage(`Usage: ${BIN} example <kind>; kinds: ${kinds.map(k => k.kind).join(', ')}`);
       process.stdout.write(await exampleText(rest[0]!));
       return;
     }
     case 'schema': {
-      if (rest.length !== 1) throw usage('Usage: uml schema <kind>');
+      if (rest.length !== 1) throw usage(`Usage: ${BIN} schema <kind>`);
       process.stdout.write(JSON.stringify(schemaOf(rest[0]!), null, 2) + '\n');
       return;
     }
     case 'kinds': {
-      if (rest.length > 0) throw usage('Usage: uml kinds');
+      if (rest.length > 0) throw usage(`Usage: ${BIN} kinds`);
       process.stdout.write(JSON.stringify(kindSummaries(), null, 2) + '\n');
       return;
     }

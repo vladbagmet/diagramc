@@ -6,7 +6,7 @@ import { renderChecked } from '../../dist/render.js';
 import { cli, fakeJava, plantUmlTest as test, root, workspace } from '../helpers.mjs';
 import { judgementMessage } from '../known-gate-failures.mjs';
 
-// `uml render` runs the QA gates on every drawing: no example, regression or
+// `diagramc render` runs the QA gates on every drawing: no example, regression or
 // review model may produce a layout warning, so `--strict` passes on all of them.
 const jsonFiles = async dir =>
   (await readdir(join(root, dir)))
@@ -45,7 +45,7 @@ test('--strict through the CLI: exit 0 and no stderr for an example; exit 5 for 
     '</g></svg>';
   const env = {
     ...process.env,
-    UML_JAVA: await fakeJava(dir, `process.stdin.resume(); process.stdin.on('end', () => process.stdout.write(${JSON.stringify(overlap)}));`),
+    DIAGRAMC_JAVA: await fakeJava(dir, `process.stdin.resume(); process.stdin.on('end', () => process.stdout.write(${JSON.stringify(overlap)}));`),
     PLANTUML_JAR: 'unused',
   };
   const minimal = join(root, 'examples/activity/minimal.json');

@@ -3,7 +3,7 @@ import { kindSchema } from '../../model/schema.js';
 
 const ref = (name: string, description?: string) => ({ $ref: `#/definitions/${name}`, ...(description ? { description } : {}) });
 
-/** JSON Schema of an object diagram document (`uml schema object`). */
+/** JSON Schema of an object diagram document (`diagramc schema object`). */
 export const objectSchema = kindSchema({
   kind: 'object',
   title: 'UML object diagram',

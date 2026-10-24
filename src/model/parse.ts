@@ -1,5 +1,6 @@
 import { UmlError, failValidation, pointer, type Diagnostic } from '../core/errors.js';
 import { MAX_INPUT_BYTES } from '../core/limits.js';
+import { BIN } from '../core/package.js';
 import type { KindDefinition } from './kind.js';
 import { kinds, findKind } from './registry.js';
 import { validateSchema, type DocumentText } from './schema.js';
@@ -32,7 +33,7 @@ export function parseDocument(text: string): ParsedDocument {
   if (!text.trim())
     throw new UmlError(
       'INVALID_JSON',
-      'Input is empty; expected a JSON object such as {"kind": "class", "elements": [...]}. Run `uml example <kind>` for a complete minimal model',
+      `Input is empty; expected a JSON object such as {"kind": "class", "elements": [...]}. Run \`${BIN} example <kind>\` for a complete minimal model`,
     );
   const value = parseJson(text);
   if (typeof value !== 'object' || value === null || Array.isArray(value)) {
@@ -59,7 +60,7 @@ export function parseDocument(text: string): ParsedDocument {
       {
         code: 'UNKNOWN_KIND',
         path: '/kind',
-        message: `Unknown diagram kind ${JSON.stringify(name)}${nearest ? `; did you mean "${nearest}"?` : ''} Kinds: ${kinds.map(k => k.kind).join(', ')} (run \`uml kinds\`)`,
+        message: `Unknown diagram kind ${JSON.stringify(name)}${nearest ? `; did you mean "${nearest}"?` : ''} Kinds: ${kinds.map(k => k.kind).join(', ')} (run \`${BIN} kinds\`)`,
         details: { kind: name, available: kinds.map(k => k.kind), ...(nearest ? { suggestion: nearest } : {}) },
       },
     ]);

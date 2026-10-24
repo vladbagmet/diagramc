@@ -46,7 +46,7 @@ function relationship(type: string, description: string, extra: Record<string, u
   };
 }
 
-/** JSON Schema of a deployment diagram document (`uml schema deployment`). */
+/** JSON Schema of a deployment diagram document (`diagramc schema deployment`). */
 export const deploymentSchema = kindSchema({
   kind: 'deployment',
   title: 'UML deployment diagram',

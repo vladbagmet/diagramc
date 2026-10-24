@@ -20,7 +20,7 @@ const executable = {
   note: ref('longText', 'A comment drawn next to this node, attached to it.'),
 };
 
-/** JSON Schema of an activity diagram document (`uml schema activity`). */
+/** JSON Schema of an activity diagram document (`diagramc schema activity`). */
 export const activitySchema = kindSchema({
   kind: 'activity',
   title: 'UML activity diagram',

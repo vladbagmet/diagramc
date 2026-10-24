@@ -1,6 +1,7 @@
 import { Ajv, type ErrorObject, type ValidateFunction } from 'ajv';
 import { commonDefinitions, displayTextProblem, TEXT_KEYWORD, UNWRAPPED_KEYWORD, unwrappedProblem } from '../core/text.js';
 import { pointer, type Diagnostic } from '../core/errors.js';
+import { BIN } from '../core/package.js';
 import type { JsonSchema } from './kind.js';
 import { quoted, suggest } from './hints.js';
 import { fixPattern } from './patterns.js';
@@ -613,8 +614,8 @@ export function kindSchema(spec: KindSchemaSpec): JsonSchema {
     additionalProperties: false,
     required: ['kind', ...spec.required],
     properties: {
-      kind: { const: spec.kind, description: 'Diagram kind. Run `uml kinds` for the list.' },
-      version: { const: 2, description: 'Optional document format version; 2 is the current format (what `uml validate` reports).' },
+      kind: { const: spec.kind, description: `Diagram kind. Run \`${BIN} kinds\` for the list.` },
+      version: { const: 2, description: `Optional document format version; 2 is the current format (what \`${BIN} validate\` reports).` },
       title: { $ref: '#/definitions/name', description: 'Optional diagram name, drawn in the UML frame heading.' },
       ...spec.properties,
     },

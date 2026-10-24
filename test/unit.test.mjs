@@ -212,10 +212,10 @@ test('CLI help, version, usage and machine-readable read/parse/encoding failures
     ]) {
       const result = cli(args);
       assert.equal(result.status, 0, args.join(' '));
-      assert.match(result.stdout, new RegExp(String.raw`^Usage: uml ${command}\b`), args.join(' '));
+      assert.match(result.stdout, new RegExp(String.raw`^Usage: diagramc ${command}\b`), args.join(' '));
     }
   }
-  assert.match(cli(['help']).stdout, /uml render <model\.json\|->/);
+  assert.match(cli(['help']).stdout, /diagramc render <model\.json\|->/);
   assert.match(cli(['--help']).stdout, /specific to the general/);
   assert.match(cli(['--help']).stdout, /setup-renderer\.mjs/);
   for (const flag of ['--format', '--backend', '--scale', '--strict', '-o, --output']) assert.ok(cli(['render', '--help']).stdout.includes(flag), flag);
@@ -289,7 +289,7 @@ test('invalid input never spawns renderer or creates/replaces output', async t =
     out = join(dir, 'out.svg'),
     marker = join(dir, 'spawned');
   const java = await fakeJava(dir, `require('node:fs').writeFileSync(${JSON.stringify(marker)}, 'spawned');`);
-  const env = { ...process.env, UML_JAVA: java, PLANTUML_JAR: 'unused' };
+  const env = { ...process.env, DIAGRAMC_JAVA: java, PLANTUML_JAR: 'unused' };
   const invalid = JSON.stringify({ ...minimal, relationships: [{ type: 'inheritance', from: 'a', to: 'missing' }] });
   assert.equal(cli(['render', '-', '-o', out, ...plantuml], { input: invalid, env }).status, 2);
   await assert.rejects(access(out));
@@ -315,7 +315,7 @@ test('invalid input never spawns renderer or creates/replaces output', async t =
 });
 test('CLI renders SVG and PNG with the own engine without Java', async t => {
   const dir = await workspace(t);
-  const env = { ...process.env, UML_JAVA: join(dir, 'missing-java'), PLANTUML_JAR: 'unused' };
+  const env = { ...process.env, DIAGRAMC_JAVA: join(dir, 'missing-java'), PLANTUML_JAR: 'unused' };
   let result = cli(['render', '-', '-o', join(dir, 'a.svg')], { input: JSON.stringify(minimalV2), env });
   assert.equal(result.status, 0, result.stderr);
   assert.equal(result.stdout + result.stderr, '');
@@ -330,7 +330,7 @@ test('CLI runtime failures preserve output, success supports stdin and atomic re
   const dir = await workspace(t),
     out = join(dir, 'out.svg');
   await writeFile(out, 'original');
-  const env = { ...process.env, UML_JAVA: join(dir, 'missing'), PLANTUML_JAR: 'unused' };
+  const env = { ...process.env, DIAGRAMC_JAVA: join(dir, 'missing'), PLANTUML_JAR: 'unused' };
   let result = cli(['render', '-', '-o', out, ...plantuml], { input: JSON.stringify(minimal), env });
   assert.equal(result.status, 3);
   assert.equal(JSON.parse(result.stderr).error.code, 'RENDER_START_FAILED');
@@ -341,13 +341,13 @@ test('CLI runtime failures preserve output, success supports stdin and atomic re
     ['process.stderr.write("x".repeat(70000))', 'RENDER_OUTPUT_LIMIT'],
     ['process.stdout.write("x".repeat(8 * 1024 * 1024 + 1))', 'RENDER_OUTPUT_LIMIT'],
   ]) {
-    env.UML_JAVA = await fakeJava(dir, body);
+    env.DIAGRAMC_JAVA = await fakeJava(dir, body);
     result = cli(['render', '-', '-o', out, ...plantuml], { input: JSON.stringify(minimal), env });
     assert.equal(result.status, 3, result.stderr);
     assert.equal(JSON.parse(result.stderr).error.code, code);
     assert.equal(await readFile(out, 'utf8'), 'original');
   }
-  env.UML_JAVA = await fakeJava(dir, `process.stdin.resume(); process.stdin.on('end', () => process.stdout.write(${JSON.stringify(fakeSvg)}));`);
+  env.DIAGRAMC_JAVA = await fakeJava(dir, `process.stdin.resume(); process.stdin.on('end', () => process.stdout.write(${JSON.stringify(fakeSvg)}));`);
   // The fake renderer's empty drawing fails the literal-text gate: --strict refuses it and keeps the old output...
   result = cli(['render', '-', '-o', out, '--strict', ...plantuml], { input: JSON.stringify(minimal), env });
   assert.equal(result.status, 5, result.stderr);
@@ -384,8 +384,8 @@ test('CLI runtime failures preserve output, success supports stdin and atomic re
 
 test('missing or malformed manifests and partial overrides report RENDERER_MISSING', async t => {
   const dir = await workspace(t),
-    saved = { java: process.env.UML_JAVA, jar: process.env.PLANTUML_JAR };
-  delete process.env.UML_JAVA;
+    saved = { java: process.env.DIAGRAMC_JAVA, jar: process.env.PLANTUML_JAR };
+  delete process.env.DIAGRAMC_JAVA;
   delete process.env.PLANTUML_JAR;
   try {
     await assert.rejects(rendererOptions(dir), { code: 'RENDERER_MISSING' });
@@ -395,13 +395,13 @@ test('missing or malformed manifests and partial overrides report RENDERER_MISSI
     }
     await writeFile(join(dir, 'renderer.json'), JSON.stringify({ java: 'bin/java', jar: 'plantuml.jar' }));
     assert.deepEqual(await rendererOptions(dir), { java: join(dir, 'bin/java'), jar: join(dir, 'plantuml.jar') });
-    process.env.UML_JAVA = '/trusted/java';
+    process.env.DIAGRAMC_JAVA = '/trusted/java';
     await assert.rejects(rendererOptions(dir), { code: 'RENDERER_MISSING' });
     process.env.PLANTUML_JAR = '/trusted/tool.jar';
     assert.deepEqual(await rendererOptions(dir), { java: '/trusted/java', jar: '/trusted/tool.jar' });
   } finally {
     for (const [key, value] of [
-      ['UML_JAVA', saved.java],
+      ['DIAGRAMC_JAVA', saved.java],
       ['PLANTUML_JAR', saved.jar],
     ]) {
       if (value === undefined) delete process.env[key];
@@ -429,7 +429,7 @@ test('SIGINT and SIGTERM stop the renderer, return structured errors and preserv
     );
     const events = watch(dir);
     const child = spawn(process.execPath, [join(import.meta.dirname, '../dist/cli.js'), 'render', '-', '-o', out, ...plantuml], {
-      env: { ...process.env, UML_JAVA: java, PLANTUML_JAR: 'unused' },
+      env: { ...process.env, DIAGRAMC_JAVA: java, PLANTUML_JAR: 'unused' },
       stdio: ['pipe', 'pipe', 'pipe'],
     });
     t.after(() => {

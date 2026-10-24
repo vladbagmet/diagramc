@@ -290,7 +290,7 @@ test('a model that reads but breaks a rule fails with IMPORT_INVALID, pointing i
   assert.ok(error.diagnostics.every(d => d.path.startsWith('/')));
 });
 
-test('uml export and uml import on the command line', async t => {
+test('diagramc export and diagramc import on the command line', async t => {
   const dir = await workspace(t);
   // stdout, with the format named
   let r = cli(['export', join(root, 'examples/class/minimal.json'), '--to', 'plantuml']);
@@ -341,16 +341,16 @@ test('uml export and uml import on the command line', async t => {
   );
 });
 
-test('uml kinds lists the formats, and the help describes export and import', () => {
+test('diagramc kinds lists the formats, and the help describes export and import', () => {
   const listed = JSON.parse(cli(['kinds']).stdout);
   assert.deepEqual(listed.find(k => k.kind === 'class').exports, ['plantuml', 'mermaid']);
   assert.deepEqual(listed.find(k => k.kind === 'timing').imports, []);
   const help = cli(['--help']).stdout;
-  assert.match(help, /uml export <model\.json\|->/u);
-  assert.match(help, /uml import <diagram\.puml\|diagram\.mmd\|->/u);
+  assert.match(help, /diagramc export <model\.json\|->/u);
+  assert.match(help, /diagramc import <diagram\.puml\|diagram\.mmd\|->/u);
   for (const command of ['export', 'import']) {
     const r = cli([command, '--help']);
     assert.equal(r.status, 0);
-    assert.match(r.stdout, new RegExp(`^Usage: uml ${command} `, 'u'));
+    assert.match(r.stdout, new RegExp(`^Usage: diagramc ${command} `, 'u'));
   }
 });

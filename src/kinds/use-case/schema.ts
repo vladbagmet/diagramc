@@ -13,7 +13,7 @@ function relationship(type: string, description: string, extra: Record<string, u
   };
 }
 
-/** JSON Schema of a use case diagram document (`uml schema use-case`). */
+/** JSON Schema of a use case diagram document (`diagramc schema use-case`). */
 export const useCaseSchema = kindSchema({
   kind: 'use-case',
   title: 'UML use case diagram',

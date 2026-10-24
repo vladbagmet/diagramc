@@ -4,7 +4,7 @@ import { classifierKeyword, formatAttribute, formatOperation, isAbstractOperatio
 import { isNote, type ClassDiagram, type End } from './model.js';
 
 /**
- * PlantUML fallback for class diagrams (`uml render --backend plantuml`). The own
+ * PlantUML fallback for class diagrams (`diagramc render --backend plantuml`). The own
  * engine is the default and draws better: Smetana can place labels on nodes, so
  * this backend only guarantees the layout-independent QA gates. It is kept as the
  * reference example of a PlantUML kind and for comparison. Every display string is encoded
