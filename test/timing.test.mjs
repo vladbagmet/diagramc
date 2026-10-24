@@ -269,7 +269,10 @@ test('QA reader: the gates catch a message that misses the state lines and a lab
   assert.ok(!gate.ok, 'message-endpoints fails');
   // Put the "quiet" highlight label on a robust state line.
   const line = svg.match(/<line style="stroke:#334155;stroke-width:1.5;" x1="([\d.]+)" x2="([\d.]+)" y1="([\d.]+)" y2="\3"\/>/);
-  const onLine = svg.replace(/(<text[^>]* x=")[\d.]+(" y=")[\d.]+(">&#8203;quiet)/, `$1${Number(line[1]) + 2}$2${Number(line[3]) + 4}$3`);
+  const onLine = svg.replace(
+    /(<text[^>]* x=")[\d.]+(" y=")[\d.]+(">&#8203;quiet)/,
+    (_match, g1, g2, g3) => `${g1}${Number(line[1]) + 2}${g2}${Number(line[3]) + 4}${g3}`,
+  );
   const crossing = (await checkSvg(onLine)).gates.find(g => g.gate === 'label-edge-crossing');
   assert.ok(!crossing.ok, 'label-edge-crossing fails');
 });

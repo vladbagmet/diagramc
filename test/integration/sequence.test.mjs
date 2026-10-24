@@ -215,7 +215,7 @@ test('review fixes: identifiers wrap at word parts, untitled diagrams get a marg
 
 test('hostile, markup-like and Unicode text stays literal in every slot', async () => {
   const hostile = String.raw`" } !include https://evil.invalid <b>bold</b> [[https://evil.invalid]] **x** \n @enduml`;
-  const samples = [hostile, '  spaced  ', '<svg onload="alert(1)">', 'Unicode: 🚀 𠀀 \u{10FFFD} 漢字'];
+  const samples = [hostile, '  spaced  ', '<svg onload="alert(1)">', 'Unicode: 🚀 𠀀 \u{10FFFD} 漢字', "Dollar patterns: $& $' $` $$ $1"];
   for (const text of samples) {
     const doc = {
       kind: 'sequence',

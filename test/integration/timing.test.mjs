@@ -157,7 +157,7 @@ test('review fixtures: dense timing input is rejected precisely; readable inputs
 
 test('hostile, markup-like and Unicode text stays literal in every slot', async () => {
   const hostile = String.raw`" } !include https://evil.invalid <b>x</b> [[link]] **x** \n @enduml`;
-  for (const text of [hostile, '  spaced  ', '<svg onload="alert(1)">', 'Unicode: 🚀 𠀀 \u{10FFFD} 漢字']) {
+  for (const text of [hostile, '  spaced  ', '<svg onload="alert(1)">', 'Unicode: 🚀 𠀀 \u{10FFFD} 漢字', "Dollar patterns: $& $' $` $$ $1"]) {
     const doc = {
       kind: 'timing',
       title: text,

@@ -552,7 +552,7 @@ test('QA gates: shaped outlines, border nodes, edges ending on edges, labels ins
   const title = '<text x="30" y="175" font-size="13" data-uml-role="text" data-uml-owner="p">Container</text>';
   const inner = '<text x="60" y="240" font-size="12" data-uml-role="label" data-uml-owner="k">inside</text>';
   const onTitle = '<text x="40" y="176" font-size="12" data-uml-role="label" data-uml-owner="k">on title</text>';
-  const wrap = (body, t) => body.replace('</g>', `${t}</g>`);
+  const wrap = (body, t) => body.replace('</g>', () => `${t}</g>`);
   assert.deepEqual(failed(await checkSvg(doc(wrap(parent, title) + child + inner))), []);
   assert.deepEqual(failed(await checkSvg(doc(wrap(parent, title) + child + onTitle))), ['label-overlap']);
   // A line into a container must not run over the container's texts.

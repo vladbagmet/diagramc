@@ -50,7 +50,7 @@ export function fixActivitySvg(svg: string, model?: { title?: string }): string 
       y = Number(a.y),
       w = Number(a.width),
       h = Number(a.height);
-    const fixed = tag.replace(`stroke:${CALL_BEHAVIOR_MARK};`, `stroke:${theme.color.nodeStroke};`);
+    const fixed = tag.replace(`stroke:${CALL_BEHAVIOR_MARK};`, () => `stroke:${theme.color.nodeStroke};`);
     const r = theme.size.rake,
       right = x + w - 10,
       bottom = y + h - 8;
@@ -90,7 +90,7 @@ function mirrorAcceptEvents(svg: string): string {
     ]
       .map(([x, y]) => `${fmt(x!)},${fmt(y!)}`)
       .join(',');
-    return tag.replace(/ points="[^"]*"/u, ` points="${points}"`);
+    return tag.replace(/ points="[^"]*"/u, () => ` points="${points}"`);
   });
 }
 
@@ -158,7 +158,7 @@ function centerLaneTitles(svg: string, borders: readonly { x: number; y0: number
     const left = xs.findLast(x => x < middle),
       right = xs.find(x => x > middle);
     if (left === undefined || right === undefined || right - left < width) return tag;
-    return tag.replace(/ x="[^"]*"/u, ` x="${fmt((left + right) / 2 - width / 2)}"`);
+    return tag.replace(/ x="[^"]*"/u, () => ` x="${fmt((left + right) / 2 - width / 2)}"`);
   });
 }
 
@@ -247,17 +247,26 @@ function straightenBarBranches(svg: string): string {
         const edge = below ? bottom : top;
         edits.set(stub.tag, '');
         edits.set(jog.tag, '');
-        edits.set(leg.tag, leg.tag.replace(at(leg.p, corner) ? / y1="[^"]*"/u : / y2="[^"]*"/u, ` ${at(leg.p, corner) ? 'y1' : 'y2'}="${fmt(edge)}"`));
+        edits.set(
+          leg.tag,
+          leg.tag.replace(at(leg.p, corner) ? / y1="[^"]*"/u : / y2="[^"]*"/u, () => ` ${at(leg.p, corner) ? 'y1' : 'y2'}="${fmt(edge)}"`),
+        );
         // A join's arrowhead moves with the flow from the stub's start to the leg.
         const dx = corner.x - start.x;
         for (const [head] of svg.matchAll(/<polyline\b[^>]*>/gu)) {
           const n = (attrs(head).points ?? '').split(/[ ,]+/u).filter(Boolean).map(Number);
           if (n.length !== 6 || !at({ x: n[2]!, y: n[3]! }, start)) continue;
           const moved = [0, 2, 4].map(i => `${fmt(n[i]! + dx)},${fmt(n[i + 1]!)}`).join(' ');
-          edits.set(head, head.replace(/ points="[^"]*"/u, ` points="${moved}"`));
+          edits.set(
+            head,
+            head.replace(/ points="[^"]*"/u, () => ` points="${moved}"`),
+          );
         }
         bar = { ...bar, x: left, width: right - left };
-        edits.set(tag, tag.replace(/ x="[^"]*"/u, ` x="${fmt(bar.x)}"`).replace(/ width="[^"]*"/u, ` width="${fmt(bar.width)}"`));
+        edits.set(
+          tag,
+          tag.replace(/ x="[^"]*"/u, () => ` x="${fmt(bar.x)}"`).replace(/ width="[^"]*"/u, () => ` width="${fmt(bar.width)}"`),
+        );
       }
   }
   return edits.size > 0 ? svg.replaceAll(/<(?:line|rect|polyline)\b[^>]*>/gu, tag => edits.get(tag) ?? tag) : svg;
@@ -290,7 +299,7 @@ function separateBarFlows(svg: string): string {
   const edits = new Map<string, string>();
   const setX = (l: Line, end: Point, x: number): string => {
     const first = at(l.p, end);
-    return (edits.get(l.tag) ?? l.tag).replace(first ? / x1="[^"]*"/u : / x2="[^"]*"/u, ` ${first ? 'x1' : 'x2'}="${fmt(x)}"`);
+    return (edits.get(l.tag) ?? l.tag).replace(first ? / x1="[^"]*"/u : / x2="[^"]*"/u, () => ` ${first ? 'x1' : 'x2'}="${fmt(x)}"`);
   };
   for (const [tag] of svg.matchAll(/<rect\b[^>]*>/gu)) {
     const a = attrs(tag);
@@ -321,12 +330,18 @@ function separateBarFlows(svg: string): string {
     const nx = gaps.sort((p, q) => Math.abs(p - from.x) - Math.abs(q - from.x))[0];
     if (nx === undefined || Math.abs(nx - from.x) < 1) continue;
     const dx = nx - single.end.x;
-    edits.set(single.line.tag, single.line.tag.replace(/ x1="[^"]*"/u, ` x1="${fmt(nx)}"`).replace(/ x2="[^"]*"/u, ` x2="${fmt(nx)}"`));
+    edits.set(
+      single.line.tag,
+      single.line.tag.replace(/ x1="[^"]*"/u, () => ` x1="${fmt(nx)}"`).replace(/ x2="[^"]*"/u, () => ` x2="${fmt(nx)}"`),
+    );
     edits.set(jog.tag, setX(jog, corner, nx));
     for (const [head] of svg.matchAll(/<polyline\b[^>]*>/gu)) {
       const n = (attrs(head).points ?? '').split(/[ ,]+/u).filter(Boolean).map(Number);
       if (n.length !== 6 || !at({ x: n[2]!, y: n[3]! }, single.end)) continue;
-      edits.set(head, head.replace(/ points="[^"]*"/u, ` points="${[0, 2, 4].map(i => `${fmt(n[i]! + dx)},${fmt(n[i + 1]!)}`).join(' ')}"`));
+      edits.set(
+        head,
+        head.replace(/ points="[^"]*"/u, () => ` points="${[0, 2, 4].map(i => `${fmt(n[i]! + dx)},${fmt(n[i + 1]!)}`).join(' ')}"`),
+      );
     }
   }
   return edits.size > 0 ? svg.replaceAll(/<(?:line|polyline)\b[^>]*>/gu, tag => edits.get(tag) ?? tag) : svg;
@@ -381,7 +396,7 @@ function trimBars(svg: string): string {
     }
     left = Math.max(left, bar.x);
     right = Math.min(right, bar.x + bar.width);
-    return tag.replace(/ x="[^"]*"/u, ` x="${fmt(left)}"`).replace(/ width="[^"]*"/u, ` width="${fmt(right - left)}"`);
+    return tag.replace(/ x="[^"]*"/u, () => ` x="${fmt(left)}"`).replace(/ width="[^"]*"/u, () => ` width="${fmt(right - left)}"`);
   });
 }
 
@@ -410,7 +425,7 @@ function anchorNotes(svg: string): string {
     ];
     // Pointer on the left edge (note right of its node): x0 = x1 = x2 = x3 and the tip further left.
     if (!(x0 === x1 && x1 === x2 && x2 === x3 && tx < x0 && y0 < y1 && y1 < ty && ty < y2 && y2 < y3)) return tag;
-    const outline = tag.replace(/ d="[^"]*"/u, ` d="M${fmt(x0)},${fmt(y0)} L${fmt(x3)},${fmt(y3)} ${m[11]}"`);
+    const outline = tag.replace(/ d="[^"]*"/u, () => ` d="M${fmt(x0)},${fmt(y0)} L${fmt(x3)},${fmt(y3)} ${m[11]}"`);
     const anchor = `<line x1="${fmt(x0)}" y1="${fmt(ty)}" x2="${fmt(tx)}" y2="${fmt(ty)}" style="stroke:${theme.color.edge};stroke-width:${theme.stroke.edge};stroke-dasharray:${theme.stroke.dash.replace(' ', ',')};"/>`;
     return `${anchor}${outline}`;
   });
@@ -492,7 +507,9 @@ function moveCrossedLabels(svg: string, depth: number): string {
   const moved = new Map<string, string>();
   const place = (tag: string, from: Rect, to: Rect): string => {
     const a = attrs(tag);
-    return tag.replace(/ x="[^"]*"/u, ` x="${fmt(Number(a.x) + to.x - from.x)}"`).replace(/ y="[^"]*"/u, ` y="${fmt(Number(a.y) + to.y - from.y)}"`);
+    return tag
+      .replace(/ x="[^"]*"/u, () => ` x="${fmt(Number(a.x) + to.x - from.x)}"`)
+      .replace(/ y="[^"]*"/u, () => ` y="${fmt(Number(a.y) + to.y - from.y)}"`);
   };
   for (const t of texts) {
     // Guards crossed by a flow line, or touching a node (a bar right under them).
@@ -545,7 +562,10 @@ function moveCrossedLabels(svg: string, depth: number): string {
     const width = Math.ceil(t.rect.width + 10);
     const widened = insertColumn(svg, x0, width);
     const target = { ...t.rect, x: line.p.x + 5 };
-    return moveCrossedLabels(widened.replace(t.tag, place(t.tag, t.rect, target)), depth + 1);
+    return moveCrossedLabels(
+      widened.replace(t.tag, () => place(t.tag, t.rect, target)),
+      depth + 1,
+    );
   }
   return moved.size > 0 ? svg.replaceAll(/<text\b[^>]*>/gu, tag => moved.get(tag) ?? tag) : svg;
 }
@@ -612,7 +632,7 @@ function shiftBand(svg: string, x0: number, width: number, y0: number, y1: numbe
     if (!r || r.x + r.width <= x0 || (r.x < x0 && name !== 'line') || outline(tag) || !within(r) || tag === keep) return tag;
     let out = tag;
     const set = (key: string, value: number): void => {
-      out = out.replace(new RegExp(` ${key}="[^"]*"`, 'u'), ` ${key}="${fmt(value)}"`);
+      out = out.replace(new RegExp(` ${key}="[^"]*"`, 'u'), () => ` ${key}="${fmt(value)}"`);
     };
     if (name === 'rect' || name === 'text') set('x', shift(Number(a.x)));
     if (name === 'line') {
@@ -622,11 +642,15 @@ function shiftBand(svg: string, x0: number, width: number, y0: number, y1: numbe
     if (name === 'ellipse') set('cx', shift(Number(a.cx)));
     if ((name === 'polygon' || name === 'polyline') && a.points) {
       const n = a.points.split(/[ ,]+/u).filter(Boolean).map(Number);
-      const moved = [];
+      const moved: string[] = [];
       for (let i = 0; i + 1 < n.length; i += 2) moved.push(`${fmt(shift(n[i]!))},${fmt(n[i + 1]!)}`);
-      out = out.replace(/ points="[^"]*"/u, ` points="${moved.join(name === 'polygon' ? ',' : ' ')}"`);
+      const points = ` points="${moved.join(name === 'polygon' ? ',' : ' ')}"`;
+      out = out.replace(/ points="[^"]*"/u, () => points);
     }
-    if (name === 'path' && a.d) out = out.replace(/ d="[^"]*"/u, ` d="${shiftPath(a.d, shift)}"`);
+    if (name === 'path' && a.d) {
+      const d = ` d="${shiftPath(a.d, shift)}"`;
+      out = out.replace(/ d="[^"]*"/u, () => d);
+    }
     return out;
   });
 }
@@ -650,7 +674,7 @@ function insertColumn(svg: string, x0: number, width: number, heading = -Infinit
     const a = attrs(tag);
     let out = tag;
     const set = (key: string, value: number): void => {
-      out = out.replace(new RegExp(` ${key}="[^"]*"`, 'u'), ` ${key}="${fmt(value)}"`);
+      out = out.replace(new RegExp(` ${key}="[^"]*"`, 'u'), () => ` ${key}="${fmt(value)}"`);
     };
     if (name === 'rect' || name === 'text') {
       const x = Number(a.x);
@@ -664,11 +688,15 @@ function insertColumn(svg: string, x0: number, width: number, heading = -Infinit
     if (name === 'ellipse') set('cx', shift(Number(a.cx)));
     if ((name === 'polygon' || name === 'polyline') && a.points) {
       const n = a.points.split(/[ ,]+/u).filter(Boolean).map(Number);
-      const moved = [];
+      const moved: string[] = [];
       for (let i = 0; i + 1 < n.length; i += 2) moved.push(`${fmt(shift(n[i]!))},${fmt(n[i + 1]!)}`);
-      out = out.replace(/ points="[^"]*"/u, ` points="${moved.join(name === 'polygon' ? ',' : ' ')}"`);
+      const points = ` points="${moved.join(name === 'polygon' ? ',' : ' ')}"`;
+      out = out.replace(/ points="[^"]*"/u, () => points);
     }
-    if (name === 'path' && a.d) out = out.replace(/ d="[^"]*"/u, ` d="${shiftPath(a.d, shift)}"`);
+    if (name === 'path' && a.d) {
+      const d = ` d="${shiftPath(a.d, shift)}"`;
+      out = out.replace(/ d="[^"]*"/u, () => d);
+    }
     return out;
   });
 }

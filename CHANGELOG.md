@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+- Text containing `$&`, `$'`, `` $` ``, `$$` or `$1` now stays literal in
+  sequence and timing diagrams. Before, a participant name next to an actor head
+  or a duration constraint label with such a pattern was expanded as a
+  replacement pattern while the SVG was post-processed, which broke the SVG and
+  made `render` fail with `INTERNAL_ERROR`. Every string replacement on drawn
+  output now passes its value through a function, so no pattern is expanded.
+
 ## 1.1.0 (2026-10-24)
 
 - The project is renamed to diagramc, to leave room for diagram families beyond
