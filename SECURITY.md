@@ -2,14 +2,29 @@
 
 ## Reporting a vulnerability
 
-Please do not open a public issue for a security problem. Report it privately,
-either through GitHub's "Report a vulnerability" button on the
-[Security tab](https://github.com/vladbagmet/uml_cli/security) of this
-repository or by e-mail to [SECURITY CONTACT ADDRESS TO BE FILLED IN BY THE MAINTAINER].
+Please do not open a public issue, discussion or pull request for a security
+problem. Report it privately through GitHub's private vulnerability reporting:
 
-Include what you did, what happened, and the smallest model JSON or command that
-shows it. You should get an answer within a week. Once a fix is released, we are
-glad to credit you in the changelog if you want.
+**[Report a vulnerability](https://github.com/vladbagmet/uml_cli/security/advisories/new)**
+(the same form is behind the "Report a vulnerability" button on the
+[Security tab](https://github.com/vladbagmet/uml_cli/security)). Only you and
+the maintainer can see the report and the discussion that follows. You need a
+GitHub account; no e-mail address is involved.
+
+Please include:
+
+- the `uml --version` output, your Node.js version and your operating system;
+- the command you ran and the smallest model JSON (or other input) that shows
+  the problem;
+- what happened and what you expected, for example the active SVG content that
+  was written or the file that was read;
+- what an attacker gains, if you know it.
+
+What to expect: an acknowledgement within one week, and a first assessment
+(whether it is in scope and how severe it is) within two weeks. Updates are
+posted in the advisory. A fix is released as a new version as soon as it is
+ready, and the advisory is published after that. We are glad to credit you in
+the advisory and the changelog if you want.
 
 ## Supported versions
 

@@ -59,8 +59,19 @@ representative at an online or offline event.
 ## Enforcement
 
 Instances of abusive, harassing, or otherwise unacceptable behavior may be
-reported to the community leaders responsible for enforcement at
-[CONTACT ADDRESS TO BE FILLED IN BY THE MAINTAINER].
+reported privately to the community leaders responsible for enforcement in
+either of these ways:
+
+* Open a private report at
+  [https://github.com/vladbagmet/uml_cli/security/advisories/new](https://github.com/vladbagmet/uml_cli/security/advisories/new)
+  and start its title with "Code of conduct". Only you and the maintainer can
+  see it.
+* Contact the maintainer directly through the GitHub profile
+  [https://github.com/vladbagmet](https://github.com/vladbagmet).
+
+Please do not report conduct problems in a public issue. You can also use
+GitHub's "Report content" or "Block user" options on any comment.
+
 All complaints will be reviewed and investigated promptly and fairly.
 
 All community leaders are obligated to respect the privacy and security of the
