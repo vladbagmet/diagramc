@@ -216,11 +216,11 @@ function incomingSides(model: StateMachineDiagram, scene: StateScene, dir: 'DOWN
     if (e.type === 'state' || e.type === 'fork' || e.type === 'join' || e.type === 'note') continue;
     // A note's dashed line to a choice or junction counts as an incoming line (keyed `note->vertex`).
     const notes =
-      e.type !== 'choice' && e.type !== 'junction'
-        ? []
-        : scene.nodes.flatMap(m =>
+      e.type === 'choice' || e.type === 'junction'
+        ? scene.nodes.flatMap(m =>
             m.element.type === 'note' && (m.element.attachedTo ?? []).includes(e.id) ? [{ from: m.element.id, to: e.id, key: `${m.element.id}->${e.id}` }] : [],
-          );
+          )
+        : [];
     const ins = [...transitions.filter(t => t.to === e.id), ...notes],
       outs = transitions.filter(t => t.from === e.id);
     const canJoin = (e.type === 'choice' || e.type === 'junction') && ins.length + outs.length >= 3;
@@ -268,15 +268,14 @@ function incomingSides(model: StateMachineDiagram, scene: StateScene, dir: 'DOWN
           }
         };
         search(0, 0);
-        for (const [k, w] of wishes.entries())
-          result.push({ key: `${w.x.t.key}\u0000${w.x.end}`, side: best[k]!, dot: dotOf[k]!.get(best[k]!)!, end: w.x.end });
+        for (const [k, w] of wishes.entries()) result.push({ key: `${w.x.t.key}\0${w.x.end}`, side: best[k]!, dot: dotOf[k]!.get(best[k]!)!, end: w.x.end });
         return result;
       }
       for (const { x, ranked } of wishes) {
         const pick = ranked.find(r => !used.has(r.side)) ?? (joint ? ranked[0] : undefined);
         if (!pick) continue;
         used.add(pick.side);
-        result.push({ key: `${x.t.key}\u0000${x.end}`, side: pick.side, dot: pick.dot, end: x.end });
+        result.push({ key: `${x.t.key}\0${x.end}`, side: pick.side, dot: pick.dot, end: x.end });
       }
       return result;
     };
@@ -356,7 +355,7 @@ async function layoutOnce(
   const addPort = (node: string, side: Side, width?: number): string => {
     const id = `${node}::${side}`;
     const list = ports.get(node) ?? [];
-    if (!list.some(p => p.id === id)) list.push({ id, side, ...(width ? { width } : {}) });
+    if (list.every(p => p.id !== id)) list.push({ id, side, ...(width ? { width } : {}) });
     ports.set(node, list);
     return id;
   };
@@ -385,12 +384,12 @@ async function layoutOnce(
     const outs = outgoingOf.get(id) ?? [],
       ins = incomingOf.get(id) ?? [];
     for (const [index, t] of outs.entries()) {
-      const real = inSides.get(`${t.key}\u0000source`);
-      pseudoSides.set(`${t.key}\u0000source`, real === undefined ? outgoingSide(type, outs, index, ins) : S(real));
+      const real = inSides.get(`${t.key}\0source`);
+      pseudoSides.set(`${t.key}\0source`, real === undefined ? outgoingSide(type, outs, index, ins) : S(real));
     }
     for (const t of ins) {
-      const real = inSides.get(`${t.key}\u0000target`);
-      pseudoSides.set(`${t.key}\u0000target`, real === undefined ? 'NORTH' : S(real));
+      const real = inSides.get(`${t.key}\0target`);
+      pseudoSides.set(`${t.key}\0target`, real === undefined ? 'NORTH' : S(real));
     }
   }
   for (const t of transitions) {
@@ -400,7 +399,7 @@ async function layoutOnce(
       ['target', t.to],
     ] as const) {
       const type = typeOf(id);
-      const key = `${t.key}\u0000${end}`;
+      const key = `${t.key}\0${end}`;
       if (points.has(id)) continue;
       if (type === 'state' && owners.has(id)) {
         // A state with entry/exit points has fixed-side ports, so its other
@@ -422,7 +421,7 @@ async function layoutOnce(
   for (const { element } of vertices.values()) {
     if (!isNote(element)) continue;
     for (const target of element.attachedTo ?? []) {
-      const side = inSides.get(`${element.id}->${target}\u0000target`);
+      const side = inSides.get(`${element.id}->${target}\0target`);
       if (side !== undefined && vertices.has(target)) anchorPort.set(`${element.id}->${target}`, addPort(target, side));
     }
   }
@@ -439,7 +438,7 @@ async function layoutOnce(
       ['source', t.from],
       ['target', t.to],
     ] as const)
-      if (pointPort.has(id)) portOf.set(`${t.key}\u0000${end}`, pointPort.get(id)!);
+      if (pointPort.has(id)) portOf.set(`${t.key}\0${end}`, pointPort.get(id)!);
   }
 
   // Layout containers: the root, a composite state with one unnamed region, or a
@@ -552,7 +551,7 @@ async function layoutOnce(
     const labels: LayoutLabel[] = label
       ? [{ id: `${t.key}::label`, width: Math.max(...label.widths) + 4, height: label.lines.length * lineHeight, placement: 'center' }]
       : [];
-    edges.push({ id: t.key, source: portOf.get(`${t.key}\u0000source`) ?? t.from, target: portOf.get(`${t.key}\u0000target`) ?? t.to, labels });
+    edges.push({ id: t.key, source: portOf.get(`${t.key}\0source`) ?? t.from, target: portOf.get(`${t.key}\0target`) ?? t.to, labels });
   }
   // Regions one after the other: invisible edges order them along the layout direction.
   // Side by side: no edges, so they share a layer.
@@ -601,7 +600,7 @@ async function layoutOnce(
     const cells: { id: string; rect: Rect }[] = [];
     const drawn = { separators: [] as { x1: number; y1: number; x2: number; y2: number }[], regionNames: [] as { text: string; x: number; y: number }[] };
     const regions = e.regions ?? [];
-    if (!(regions.length > 1 || regions[0]?.name !== undefined)) return { cells, drawn };
+    if (regions.length <= 1 && regions[0]?.name === undefined) return { cells, drawn };
     const body = { x: bounds.x, y: bounds.y + headerHeight, width: bounds.width, height: bounds.height - headerHeight };
     const rects = regions.map((r, j) => ({ j, r, rect: rect(`${e.id}::region${j}`) }));
     const disjoint = (axis: 'x' | 'y') =>
@@ -619,7 +618,7 @@ async function layoutOnce(
     const sorted = [...rects].sort((a, b) => a.rect[axis] - b.rect[axis]);
     const cuts = sorted.slice(1).map((c, k) => {
       const prev = sorted[k]!.rect;
-      return sideBySide ? (prev.x + prev.width + c.rect.x) / 2 : (prev.y + prev.height + c.rect.y) / 2;
+      return (sideBySide ? prev.x + prev.width + c.rect.x : prev.y + prev.height + c.rect.y) / 2;
     });
     for (const [k, c] of sorted.entries()) {
       const lo = k === 0 ? (sideBySide ? body.x : body.y) : cuts[k - 1]!;
@@ -652,8 +651,8 @@ async function layoutOnce(
       const named = isState(ownerElement) && (ownerElement.regions ?? []).some(g => g.name !== undefined);
       // Below the name compartment and the region names in the top corners of the regions.
       const top = (headers.get(owner)?.height ?? 0) + (named ? regionNameHeight : 0);
-      let lo = vertical ? r.y + top + margin : r.x + margin,
-        hi = vertical ? r.y + r.height - margin : r.x + r.width - margin;
+      let lo = (vertical ? r.y + top : r.x) + margin,
+        hi = (vertical ? r.y + r.height : r.x + r.width) - margin;
       // Beside the region its inner lines lead to, so they do not cut through another region.
       if (isState(ownerElement) && ownerElement.regions) {
         const inner = new Set(transitions.flatMap(t => (t.from === id ? [t.to] : t.to === id ? [t.from] : [])));
@@ -675,9 +674,9 @@ async function layoutOnce(
           }
         }
       }
-      const list = bySide.get(`${owner}\u0000${side}`) ?? [];
+      const list = bySide.get(`${owner}\0${side}`) ?? [];
       list.push({ id, at, vertical, lo, hi });
-      bySide.set(`${owner}\u0000${side}`, list);
+      bySide.set(`${owner}\0${side}`, list);
     }
     for (const list of bySide.values()) {
       const axis = list[0]!.vertical ? ('y' as const) : ('x' as const);
@@ -765,7 +764,7 @@ async function layoutOnce(
     if (e.type !== 'note-anchor' || shapeOf(e.target) === 'rect' || points.has(e.target)) continue;
     const end = e.points.at(-1)!,
       prev = e.points.at(-2)!;
-    if (!sceneEdges.some(o => o !== e && o.type === 'transition' && [o.points[0]!, o.points.at(-1)!].some(p => Math.hypot(p.x - end.x, p.y - end.y) < 1)))
+    if (sceneEdges.every(o => !(o !== e && o.type === 'transition' && [o.points[0]!, o.points.at(-1)!].some(p => Math.hypot(p.x - end.x, p.y - end.y) < 1))))
       continue;
     const r = boundsOf(e.target),
       note = rect(e.source);
@@ -1085,7 +1084,7 @@ async function layoutOnce(
       if ([...through].some(id => !retry.changed.has(id))) continue;
       for (const o of sceneEdges) if (through.has(o.id)) o.points = clipEnds(o, retry.routes.get(o.id)!);
       const crossings = countCrossings(sceneEdges.filter(o => o.type === 'transition').map(o => o.points));
-      if (fitting() > before.fitting && crossings <= before.crossings && !sceneEdges.some(o => through.has(o.id) && isDetour(o.points))) {
+      if (fitting() > before.fitting && crossings <= before.crossings && sceneEdges.every(o => !(through.has(o.id) && isDetour(o.points)))) {
         for (const id of through) repaired.changed.add(id);
         break;
       }
@@ -1133,12 +1132,15 @@ async function layoutOnce(
       ...nodeIds.filter(id => !related.has(id) && !id.includes('::region')).map(id => repairNodes.find(n => n.id === id)!.rect),
       ...repairNodes.flatMap(n => n.texts ?? []),
     ];
-    const ends = sceneEdges.filter(o => o.id !== e.id).flatMap(o => [o.points[0]!, o.points.at(-1)!]);
+    const ends = sceneEdges.flatMap(o => (o.id === e.id ? [] : [o.points[0]!, o.points.at(-1)!]));
     for (const v of [Math.min(hi, Math.max(lo, mean)), (lo + hi) / 2, lo, hi]) {
       const p = { ...r[0]!, [axis]: v },
         q = { ...r[3]!, [axis]: v };
-      if (blockers.some(x => segmentIntersectsRect(p, q, inflate(x, -1)))) continue;
-      if (ends.some(o => Math.min(Math.hypot(o.x - p.x, o.y - p.y), Math.hypot(o.x - q.x, o.y - q.y)) < 2 * theme.size.arrow.halfWidth + 6)) continue;
+      if (
+        blockers.some(x => segmentIntersectsRect(p, q, inflate(x, -1))) ||
+        ends.some(o => Math.min(Math.hypot(o.x - p.x, o.y - p.y), Math.hypot(o.x - q.x, o.y - q.y)) < 2 * theme.size.arrow.halfWidth + 6)
+      )
+        continue;
       if (tryRoute(e, [p, q])) break;
     }
   }
@@ -1231,7 +1233,8 @@ async function layoutOnce(
         ...labels.map(l => l.rect),
         ...pointsOut.flatMap(p => (p.label ? [p.label.rect] : [])),
       ];
-      const free = (r: Rect) => !busy.some(b => overlapArea(inflate(r, 2), b) > 0) && !segments.some(([p, q]) => segmentIntersectsRect(p, q, inflate(r, 1)));
+      const free = (r: Rect) =>
+        busy.every(b => !(overlapArea(inflate(r, 2), b) > 0)) && segments.every(([p, q]) => !segmentIntersectsRect(p, q, inflate(r, 1)));
       label = { rect: candidates.find(free) ?? candidates[0]!, text: point.name };
     }
     pointsOut.push({ point, owner, bounds, ...(label ? { label } : {}) });
@@ -1499,7 +1502,7 @@ function alignBars(ctx: BarContext): void {
   for (const [id, { element }] of ctx.vertices) {
     if (element.type !== 'fork' && element.type !== 'join') continue;
     const fork = element.type === 'fork';
-    const branches = ctx.sceneEdges.filter(e => e.type === 'transition' && e.source !== e.target && (fork ? e.source === id : e.target === id));
+    const branches = ctx.sceneEdges.filter(e => e.type === 'transition' && e.source !== e.target && (fork ? e.source : e.target) === id);
     if (branches.length < 2) continue;
     const ends = branches.map(e => (fork ? e.target : e.source));
     if (new Set(ends).size !== ends.length) continue;
@@ -1559,13 +1562,18 @@ function alignBars(ctx: BarContext): void {
       const candidates: number[] = [mid];
       for (let d = 4; d <= r[FS] / 2 - inset + 0.01; d += 4) candidates.push(mid - d, mid + d);
       const found = candidates.find(f => {
-        if (f < r[F] + inset - 0.01 || f > r[F] + r[FS] - inset + 0.01) return false;
-        if (f < K[F] + header.height + 8) return false;
-        if (chosen.some(x => Math.abs(x - f) < theme.spacing.edgeEdge + 4)) return false;
+        if (
+          f < r[F] + inset - 0.01 ||
+          f > r[F] + r[FS] - inset + 0.01 ||
+          f < K[F] + header.height + 8 ||
+          chosen.some(x => Math.abs(x - f) < theme.spacing.edgeEdge + 4)
+        )
+          return false;
         const p = at(barFace, f),
           q = at(face, f);
-        if (blockers.some(b => segmentIntersectsRect(p, q, inflate(b, -1)))) return false;
-        return !occupied.some(e => Math.hypot(e.x - q.x, e.y - q.y) < 2 * theme.size.arrow.halfWidth + 6);
+        return blockers.some(b => segmentIntersectsRect(p, q, inflate(b, -1)))
+          ? false
+          : occupied.every(e => !(Math.hypot(e.x - q.x, e.y - q.y) < 2 * theme.size.arrow.halfWidth + 6));
       });
       if (found === undefined) return false;
       chosen.push(found);
@@ -1576,17 +1584,16 @@ function alignBars(ctx: BarContext): void {
       hi = Math.max(...positions) + margin;
     const grown: Rect = down ? { x: barC, y: lo, width: thickness, height: hi - lo } : { x: lo, y: barC, width: hi - lo, height: thickness };
     const related = new Set([id, ...barAncestors]);
-    if (ctx.repairNodes.some(n => !related.has(n.id) && !n.container && overlapArea(inflate(grown, 8), n.rect) > 0)) return false;
-    if (ctx.repairNodes.some(n => !related.has(n.id) && n.container && overlapArea(grown, n.rect) > 0)) return false;
-    // Inside the containers that hold the bar, clear of their texts.
     if (
+      ctx.repairNodes.some(n => !related.has(n.id) && overlapArea(n.container ? grown : inflate(grown, 8), n.rect) > 0) ||
+      // Inside the containers that hold the bar, clear of their texts.
       [...barAncestors].some(a => {
         const r = byId.get(a)?.rect;
         return r && overlapArea(grown, inflate(r, -8)) < grown.width * grown.height - 0.01;
-      })
+      }) ||
+      texts.some(t => overlapArea(inflate(grown, 6), t) > 0)
     )
       return false;
-    if (texts.some(t => overlapArea(inflate(grown, 6), t) > 0)) return false;
     const before = { routes: ctx.sceneEdges.map(e => e.points), crossings: countCrossings(transitionLines()) };
     ctx.setRect(id, grown);
     for (const [k, e] of branches.entries()) {
@@ -1654,12 +1661,10 @@ function alignBars(ctx: BarContext): void {
       const candidates: number[] = [mid];
       for (let d = 4; d <= r[CS] / 2 - inset + 0.01; d += 4) candidates.push(mid - d, mid + d);
       const found = candidates.find(c => {
-        if (c < r[C] + inset - 0.01 || c > r[C] + r[CS] - inset + 0.01) return false;
-        if (chosen.some(x => Math.abs(x - c) < theme.spacing.edgeEdge + 4)) return false;
+        if (c < r[C] + inset - 0.01 || c > r[C] + r[CS] - inset + 0.01 || chosen.some(x => Math.abs(x - c) < theme.spacing.edgeEdge + 4)) return false;
         const p = at(c, barFace),
           q = at(c, faceOf(r));
-        if (blockers.some(b => segmentIntersectsRect(p, q, inflate(b, -1)))) return false;
-        return !occupied.some(e => Math.hypot(e.p.x - q.x, e.p.y - q.y) < e.gap);
+        return blockers.some(b => segmentIntersectsRect(p, q, inflate(b, -1))) ? false : occupied.every(e => !(Math.hypot(e.p.x - q.x, e.p.y - q.y) < e.gap));
       });
       if (found === undefined) return false;
       chosen.push(found);
@@ -1671,8 +1676,7 @@ function alignBars(ctx: BarContext): void {
     const hi = Math.max(...positions.map(c => c + margin));
     const grown: Rect = { ...bar, [F]: place, [C]: lo, [CS]: hi - lo };
     const related = new Set([id, ...barAncestors]);
-    if (ctx.repairNodes.some(n => !related.has(n.id) && !n.container && overlapArea(inflate(grown, 8), n.rect) > 0)) return false;
-    if (ctx.repairNodes.some(n => !related.has(n.id) && n.container && overlapArea(grown, n.rect) > 0)) return false;
+    if (ctx.repairNodes.some(n => !related.has(n.id) && overlapArea(n.container ? grown : inflate(grown, 8), n.rect) > 0)) return false;
     // Apply, then reroute the lines that now cross the bar or a branch.
     const before = { routes: ctx.sceneEdges.map(e => e.points), crossings: countCrossings(transitionLines()) };
     ctx.setRect(id, grown);
@@ -1688,7 +1692,7 @@ function alignBars(ctx: BarContext): void {
     // they reach its back face head-on within its extent; failing both, rerouted.
     const leaves = ctx.repairNodes.filter(n => !n.container && n.id !== id);
     const clear = (route: Point[], e: StateScene['edges'][number]): boolean =>
-      !route.slice(1).some((q, k) => leaves.some(n => n.id !== e.source && n.id !== e.target && segmentIntersectsRect(route[k]!, q, inflate(n.rect, -1))));
+      route.slice(1).every((q, k) => leaves.every(n => !(n.id !== e.source && n.id !== e.target && segmentIntersectsRect(route[k]!, q, inflate(n.rect, -1)))));
     for (const e of feeds) {
       // Straight from the vertex on the other side when it faces the bar.
       const other = e.target === id ? e.source : e.target,

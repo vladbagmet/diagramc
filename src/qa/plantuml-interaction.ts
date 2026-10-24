@@ -278,7 +278,7 @@ export function readSequence(root: XmlElement, scene: Scene): void {
       if (texts.length > 0) out.push(merge(texts, { role: 'text', node: lastTarget }));
       continue;
     }
-    if (lastTarget && ((e.tag === 'text' && num(e.attrs['font-size']) === font.size.name) || isHeadIcon(e)) && !scene.nodes.some(n => n.id === lastTarget)) {
+    if (lastTarget && ((e.tag === 'text' && num(e.attrs['font-size']) === font.size.name) || isHeadIcon(e)) && scene.nodes.every(n => n.id !== lastTarget)) {
       // A created lifeline drawn as an icon: its text and icon shapes follow the create message.
       const group: XmlElement[] = [e];
       while (items[i + 1] && ((items[i + 1]!.tag === 'text' && num(items[i + 1]!.attrs['font-size']) === font.size.name) || isHeadIcon(items[i + 1]!)))
@@ -348,7 +348,6 @@ export function readSequence(root: XmlElement, scene: Scene): void {
       const [a, b] = lineEnds(e);
       scene.markers.push({ marker: 'cross', end: 'target', tip: { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }, direction: { x: 0, y: 1 } });
       i++;
-      continue;
     }
   }
 
@@ -357,8 +356,7 @@ export function readSequence(root: XmlElement, scene: Scene): void {
   if (frame) scene.frameHeading = frame;
   for (const [element, text] of textOf) {
     if (used.has(element)) continue;
-    if (frame && contains(frame, text.bounds, 2)) out.push({ ...text, role: 'frame-label' });
-    else out.push({ ...text, role: 'label', owner: 'fragment' });
+    out.push(frame && contains(frame, text.bounds, 2) ? { ...text, role: 'frame-label' } : { ...text, role: 'label', owner: 'fragment' });
   }
 
   // Attach lifelines and bars to heads by x position.
@@ -423,16 +421,16 @@ export function interactionGates(scene: Scene): GateResult[] {
       )
         return true;
       const line = interaction.lifelines.find(l => l.id === id);
-      if (!line) return false;
-      if (p.y < line.top - tolerance || p.y > line.bottom + tolerance) return false;
-      if (Math.abs(p.x - line.x) <= tolerance) return true;
-      return interaction.bars.some(
-        b =>
-          b.lifeline === id &&
-          p.y >= b.y - tolerance &&
-          p.y <= b.y + b.height + tolerance &&
-          (Math.abs(p.x - b.x) <= tolerance || Math.abs(p.x - b.x - b.width) <= tolerance),
-      );
+      if (!line || p.y < line.top - tolerance || p.y > line.bottom + tolerance) return false;
+      return Math.abs(p.x - line.x) <= tolerance
+        ? true
+        : interaction.bars.some(
+            b =>
+              b.lifeline === id &&
+              p.y >= b.y - tolerance &&
+              p.y <= b.y + b.height + tolerance &&
+              (Math.abs(p.x - b.x) <= tolerance || Math.abs(p.x - b.x - b.width) <= tolerance),
+          );
     };
     for (const m of interaction.messages) {
       if (m.points.length < 2) {
@@ -463,10 +461,10 @@ export function interactionGates(scene: Scene): GateResult[] {
       checkHead(m, failures, at);
     }
   }
-  const results: GateResult[] = [{ gate: 'message-endpoints', ok: failures.length === 0, failures }];
-  if (interaction.diagram === 'sequence') results.push(lifelineCrossing(scene, interaction));
-  else results.push(timingLines(scene, interaction));
-  return results;
+  return [
+    { gate: 'message-endpoints', ok: failures.length === 0, failures },
+    interaction.diagram === 'sequence' ? lifelineCrossing(scene, interaction) : timingLines(scene, interaction),
+  ];
 }
 
 /** Length over which two segments run on top of each other (0 unless collinear within 1.5 px). */

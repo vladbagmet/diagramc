@@ -79,8 +79,7 @@ function severity(problem: string | undefined): number {
   if (problem === 'crosses') return 5;
   if (problem === 'detour') return 4;
   if (problem.startsWith('short')) return 3;
-  if (problem.startsWith('crowded')) return 2;
-  return 1;
+  return problem.startsWith('crowded') ? 2 : 1;
 }
 
 export interface RepairOptions {
@@ -264,7 +263,7 @@ export function repairRoutes(
           vertical = Math.abs(q.x - p.x) < Math.abs(q.y - p.y);
         const along = (vertical ? size.height : size.width) + pad,
           across = (vertical ? size.width : size.height) + pad;
-        const dir = vertical ? Math.sign(q.y - p.y) : Math.sign(q.x - p.x);
+        const dir = Math.sign(vertical ? q.y - p.y : q.x - p.x);
         out.push(
           vertical
             ? { x: p.x - across, y: dir > 0 ? p.y : p.y - along, width: 2 * across, height: along }
@@ -286,8 +285,8 @@ export function repairRoutes(
     const s = byId.get(e.source)!,
       t = byId.get(e.target)!;
     const ends = endsOf(e.id);
-    const occupied = (node: string) => ends.filter(o => o.node === node && !(e.group !== undefined && o.edge.group === e.group)).map(o => o.p);
-    const lines = [...edges.filter(o => o.id !== e.id && !(e.group !== undefined && o.group === e.group)).map(o => routes.get(o.id)!), ...borders];
+    const occupied = (node: string) => ends.filter(o => o.node === node && (e.group === undefined || o.edge.group !== e.group)).map(o => o.p);
+    const lines = [...edges.filter(o => o.id !== e.id && (e.group === undefined || o.group !== e.group)).map(o => routes.get(o.id)!), ...borders];
     const fixed = (end: Point, next: Point) => ({
       fixed: { point: end, out: { x: Math.sign(Math.round(next.x - end.x)), y: Math.sign(Math.round(next.y - end.y)) } },
     });
@@ -356,8 +355,7 @@ export function repairRoutes(
       const length = routeLength(route);
       if (length <= SHORTEN_FACTOR * rectGap(s.rect, t.rect) + SHORTEN_SLACK) continue;
       const next = reroute(e);
-      if (!next || problem(e, next) || routeLength(next) > 0.75 * length) continue;
-      if (crossingsWith(next, e.id) > crossingsWith(route, e.id)) continue;
+      if (!next || problem(e, next) || routeLength(next) > 0.75 * length || crossingsWith(next, e.id) > crossingsWith(route, e.id)) continue;
       routes.set(e.id, next);
       changed.add(e.id);
     }
@@ -383,7 +381,7 @@ export function repairRoutes(
         // End segments keep room for their marker and a bend.
         const room = (end: Point, next: Point, marker: Marker) => Math.abs(end[axis] - next[axis]) - markerLength(marker) - theme.spacing.bendRadius - 6;
         const reach = Math.min(
-          k - 1 === 0 ? room(p, a, e.sourceMarker) : Math.abs(p[axis] - a[axis]),
+          k === 1 ? room(p, a, e.sourceMarker) : Math.abs(p[axis] - a[axis]),
           k + 2 === route.length - 1 ? room(q, b, e.targetMarker) : Math.abs(q[axis] - b[axis]),
         );
         for (let d = Math.floor(reach / 4) * 4; d >= 4; d -= 4) {
@@ -401,7 +399,7 @@ export function repairRoutes(
                 .slice(1)
                 .some((c, i) => {
                   const c0 = routes.get(o.id)![i]!;
-                  const parallel = horizontal ? Math.abs(c0.y - c.y) < 0.5 : Math.abs(c0.x - c.x) < 0.5;
+                  const parallel = Math.abs(horizontal ? c0.y - c.y : c0.x - c.x) < 0.5;
                   if (!parallel) return false;
                   const lo = Math.max(
                     Math.min(moved[0][horizontal ? 'x' : 'y'], moved[1][horizontal ? 'x' : 'y']),
@@ -411,7 +409,7 @@ export function repairRoutes(
                     Math.max(moved[0][horizontal ? 'x' : 'y'], moved[1][horizontal ? 'x' : 'y']),
                     Math.max(c0[horizontal ? 'x' : 'y'], c[horizontal ? 'x' : 'y']),
                   );
-                  return hi - lo > 0 && Math.abs(c0[axis] - moved[0][axis]) < baseSpacing;
+                  return hi > lo && Math.abs(c0[axis] - moved[0][axis]) < baseSpacing;
                 }),
           );
           if (tooNear) continue;

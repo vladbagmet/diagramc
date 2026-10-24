@@ -83,8 +83,7 @@ export function collinearOverlap(a: Point, b: Point, c: Point, d: Point): boolea
   const overlap = (p0: number, p1: number, q0: number, q1: number) =>
     Math.min(Math.max(p0, p1), Math.max(q0, q1)) - Math.max(Math.min(p0, p1), Math.min(q0, q1)) > 0.5;
   if (horizontal(a, b) && horizontal(c, d) && Math.abs(a.y - c.y) < 0.5) return overlap(a.x, b.x, c.x, d.x);
-  if (vertical(a, b) && vertical(c, d) && Math.abs(a.x - c.x) < 0.5) return overlap(a.y, b.y, c.y, d.y);
-  return false;
+  return vertical(a, b) && vertical(c, d) && Math.abs(a.x - c.x) < 0.5 ? overlap(a.y, b.y, c.y, d.y) : false;
 }
 
 const segmentsOf = (points: readonly Point[]): [Point, Point][] => points.slice(1).map((q, k) => [points[k]!, q]);

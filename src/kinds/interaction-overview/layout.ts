@@ -186,26 +186,20 @@ export async function layoutInteractionOverview(model: InteractionOverviewDiagra
       ];
     }
     const at = (v: Vertex): Point =>
-      v === 'NORTH'
-        ? { x: m.width / 2, y: 0 }
-        : v === 'SOUTH'
-          ? { x: m.width / 2, y: m.height }
-          : v === 'WEST'
-            ? { x: 0, y: m.height / 2 }
-            : { x: m.width, y: m.height / 2 };
+      v === 'NORTH' ? { x: m.width / 2, y: 0 } : v === 'SOUTH' ? { x: m.width / 2, y: m.height } : { x: v === 'WEST' ? 0 : m.width, y: m.height / 2 };
     switch (n.type) {
       case 'initial':
         return [{ id: `${n.id}::SOUTH`, side: 'SOUTH', position: at('SOUTH') }];
       case 'final':
       case 'flow-final': {
         // Several flows into a final node arrive at different vertices (see assign), never on one shared segment.
-        const used = vertices ? [...new Set([...vertices.entries()].filter(([key]) => key.startsWith(`${n.id}\u0000`)).map(([, v]) => v))] : [];
+        const used = vertices ? [...new Set([...vertices].filter(([key]) => key.startsWith(`${n.id}\0`)).map(([, v]) => v))] : [];
         return (used.length > 0 ? used : ['NORTH' as const]).map(v => ({ id: `${n.id}::${v}`, side: v, position: at(v) }));
       }
       case 'decision':
       case 'merge':
         if (!vertices) return [];
-        return [...new Set([...vertices.entries()].filter(([key]) => key.startsWith(`${n.id}\u0000`)).map(([, v]) => v))].map(v => ({
+        return [...new Set([...vertices].filter(([key]) => key.startsWith(`${n.id}\0`)).map(([, v]) => v))].map(v => ({
           id: `${n.id}::${v}`,
           side: v,
           position: at(v),
@@ -234,13 +228,13 @@ export async function layoutInteractionOverview(model: InteractionOverviewDiagra
           return `${id}::SOUTH`;
         case 'final':
         case 'flow-final':
-          return `${id}::${vertices?.get(`${id}\u0000${f.id}`) ?? 'NORTH'}`;
+          return `${id}::${vertices?.get(`${id}\0${f.id}`) ?? 'NORTH'}`;
         case 'fork':
         case 'join':
           return `${f.id}::${which === 'from' ? 'out' : 'in'}`;
         case 'decision':
         case 'merge': {
-          const v = vertices?.get(`${id}\u0000${f.id}`);
+          const v = vertices?.get(`${id}\0${f.id}`);
           return v ? `${id}::${v}` : id;
         }
         default: {
@@ -300,14 +294,14 @@ export async function layoutInteractionOverview(model: InteractionOverviewDiagra
       const c = center(n.id);
       const fanIn = n.type === 'merge' || final;
       const many = (fanIn ? ins(n.id) : outs(n.id)).map(f => ({ f, p: center(fanIn ? f.from : f.to) }));
-      for (const f of fanIn ? outs(n.id) : ins(n.id)) vertices.set(`${n.id}\u0000${f.id}`, fanIn ? 'SOUTH' : 'NORTH');
+      for (const f of fanIn ? outs(n.id) : ins(n.id)) vertices.set(`${n.id}\0${f.id}`, fanIn ? 'SOUTH' : 'NORTH');
       // Loops (back flows) run on the east side, leaving the decision and entering
       // the merge there, so they never cross the main flow. Other branches,
       // ordered left to right, get distinct vertices where possible, so every
       // guard sits on its own line: one goes straight (down from a decision, up
       // into a merge), the leftmost west, the rightmost east.
       const straight: Vertex = fanIn ? 'NORTH' : 'SOUTH';
-      const set = (f: { id: string }, v: Vertex) => vertices.set(`${n.id}\u0000${f.id}`, v);
+      const set = (f: { id: string }, v: Vertex) => vertices.set(`${n.id}\0${f.id}`, v);
       const loops = many.filter(({ f }) => back.has(f.id));
       for (const { f } of loops) set(f, 'EAST');
       const available: Vertex[] = loops.length > 0 ? ['WEST', straight] : ['WEST', straight, 'EAST'];
@@ -452,7 +446,7 @@ export async function layoutInteractionOverview(model: InteractionOverviewDiagra
     const groups = new Map<Vertex, typeof flows>();
     for (const f of outs(n.id)) {
       if (back.has(f.id)) continue;
-      const v = vertices.get(`${n.id}\u0000${f.id}`);
+      const v = vertices.get(`${n.id}\0${f.id}`);
       if (v) groups.set(v, [...(groups.get(v) ?? []), f]);
     }
     for (const [v, group] of groups) {
@@ -530,8 +524,8 @@ export async function layoutInteractionOverview(model: InteractionOverviewDiagra
           // Its guard goes below its line when the side vertex above it has a line of its own.
           const sideVertex: Vertex = sideways.x < 0 ? 'WEST' : sideways.x > 0 ? 'EAST' : sideways.y < 0 ? 'NORTH' : 'SOUTH';
           const below =
-            outs(n.id).some(o => o.id !== f.id && vertices.get(`${n.id}\u0000${o.id}`) === sideVertex) ||
-            ins(n.id).some(o => vertices.get(`${n.id}\u0000${o.id}`) === sideVertex);
+            outs(n.id).some(o => o.id !== f.id && vertices.get(`${n.id}\0${o.id}`) === sideVertex) ||
+            ins(n.id).some(o => vertices.get(`${n.id}\0${o.id}`) === sideVertex);
           if (own === 0) sidewaysStart.set(f.id, { at: V, d: sideways, below, corner, down: d });
           else starts.set(f.id, corner);
         } else {
@@ -581,7 +575,7 @@ export async function layoutInteractionOverview(model: InteractionOverviewDiagra
       guards.set(id, { owner: f.id, text });
       continue;
     }
-    const vertex = vertices.get(`${f.from}\u0000${f.id}`);
+    const vertex = vertices.get(`${f.from}\0${f.id}`);
     const candidates = vertex ? beside(route[0]!, vectorOf(vertex), width, 4) : undefined;
     const suggested = result.edges.get(f.id)!.labels.get(id);
     requests.push({

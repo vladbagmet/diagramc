@@ -292,8 +292,7 @@ export async function layoutStructure(graph: StructGraph, metrics: FontMetrics):
     const detour = scene.edges.reduce((sum, e) => {
       const a = bounds.get(e.source),
         b = bounds.get(e.target);
-      if (!a || !b || contains(a, b) || contains(b, a)) return sum;
-      return sum + Math.max(0, routesLength([e.points]) - 1.5 * rectGap(a, b) - 100);
+      return !a || !b || contains(a, b) || contains(b, a) ? sum : sum + Math.max(0, routesLength([e.points]) - 1.5 * rectGap(a, b) - 100);
     }, 0);
     // A label across a node's border (a line left out of ELK has no room kept for it) costs like several crossings.
     const crossed = scene.labels.reduce(
@@ -520,8 +519,7 @@ async function layoutIn(
     return { width, height, cx: width / 2, cy: lh + LABEL_GAP + s.size.height / 2 };
   };
   /** Extent of a symbol's box along its owner's side. */
-  const symbolExtent = (name: string): number =>
-    down ? labelWidth(name) + LABEL_GAP + 2 + 2 * theme.size.socket + 10 : lh + LABEL_GAP + 2 * theme.size.socket + 10;
+  const symbolExtent = (name: string): number => (down ? labelWidth(name) + LABEL_GAP + 2 : lh + LABEL_GAP) + 2 * theme.size.socket + 10;
 
   // Stub stems and assembly halves as edge plans (semantic direction: owner -> symbol, requirer/provider -> joint).
   for (const s of symbolPlans) {
@@ -591,15 +589,20 @@ async function layoutIn(
         ellipsePorts.add(id);
         anchors.set(endpoint, [...(anchors.get(endpoint) ?? []), { id, side: S(side), width: 0 }]);
       }
-      endPorts.set(`${p.id}\u0000${end}`, id);
+      endPorts.set(`${p.id}\0${end}`, id);
     }
   }
   for (const p of plans) {
-    if (p.symbol !== undefined || p.type === 'note-anchor') continue;
-    if (inside(ownerNode(p.source), ownerNode(p.target)) || inside(ownerNode(p.target), ownerNode(p.source))) continue;
+    if (
+      p.symbol !== undefined ||
+      p.type === 'note-anchor' ||
+      inside(ownerNode(p.source), ownerNode(p.target)) ||
+      inside(ownerNode(p.target), ownerNode(p.source))
+    )
+      continue;
     for (const end of ['source', 'target'] as const) {
       const endpoint = end === 'source' ? p.source : p.target;
-      if (portOwner.has(endpoint) || info.get(endpoint)?.isolatedRoot !== undefined || endPorts.has(`${p.id}\u0000${end}`)) continue;
+      if (portOwner.has(endpoint) || info.get(endpoint)?.isolatedRoot !== undefined || endPorts.has(`${p.id}\0${end}`)) continue;
       // Top to bottom, ELK 0.11 fails on fixed-side ports of a container with lines
       // crossing its border (TypeError in the hierarchical port placement): such ends
       // attach to the container itself, whose port spacing keeps them apart.
@@ -609,9 +612,9 @@ async function layoutIn(
       if (marker.length === 0 && !labelled) continue;
       const id = `${p.id}::${end}-end`;
       const across = down ? Math.max(0, ...p.ends.filter(e => e.end === end).map(e => e.width)) : lh;
-      const width = labelled ? 2 * (across + Math.max(marker.half, 4) + 2) : 2 * (marker.half + 5);
+      const width = 2 * (labelled ? across + Math.max(marker.half, 4) + 2 : marker.half + 5);
       anchors.set(endpoint, [...(anchors.get(endpoint) ?? []), { id, side: S(end === 'source' ? 'EAST' : 'WEST'), width }]);
-      endPorts.set(`${p.id}\u0000${end}`, id);
+      endPorts.set(`${p.id}\0${end}`, id);
     }
   }
   for (const a of graph.assemblies) {
@@ -635,7 +638,7 @@ async function layoutIn(
   // stem, and the symbols in front of it (so stems can stay straight).
   const portExtent = (portId: string): number => {
     const label = portLabel.get(portId);
-    const base = label ? portSize + 2 * ((down ? labelWidth(label) : lh) + LABEL_GAP) : portSize + 12;
+    const base = portSize + (label ? 2 * ((down ? labelWidth(label) : lh) + LABEL_GAP) : 12);
     const names = [
       ...symbolPlans.filter(s => s.kind !== 'joint' && stubOwner.get(s.id)!.owner === portId).map(s => s.name),
       ...graph.assemblies.filter(a => a.requirer === portId || a.provider === portId).map(a => a.name),
@@ -660,15 +663,13 @@ async function layoutIn(
     const symbolIds = new Set(levelSymbols.map(s => s.id));
     // Endpoints inside an isolated sub-layout are drawn there; from outside they attach to its ellipse.
     const lift = (endpoint: string): string => {
-      if (memberOf(endpoint) === rootContainer) return endpoint;
-      return [...ancestors(ownerNode(endpoint))].findLast(id => isolated(info.get(id)!.node)) ?? endpoint;
+      return memberOf(endpoint) === rootContainer ? endpoint : ([...ancestors(ownerNode(endpoint))].findLast(id => isolated(info.get(id)!.node)) ?? endpoint);
     };
     const levelPlans = plans.filter(p => {
       if (p.symbol !== undefined) return symbolIds.has(p.symbol);
       const a = memberOf(p.source),
         b = memberOf(p.target);
-      if (a === rootContainer && b === rootContainer) return true;
-      return rootContainer === undefined && a !== b && lift(p.source) !== lift(p.target);
+      return a === rootContainer && b === rootContainer ? true : rootContainer === undefined && a !== b && lift(p.source) !== lift(p.target);
     });
 
     // Sub-layouts first.
@@ -764,9 +765,11 @@ async function layoutIn(
               { id: `${s.id}::in`, side: S('WEST'), position: point('WEST') },
               { id: `${s.id}::out`, side: S('EAST'), position: point('EAST') },
             ]
-          : s.side === 'WEST'
-            ? [{ id: `${s.id}::port`, side: S('EAST'), position: point('EAST') }]
-            : [{ id: `${s.id}::port`, side: S('WEST'), position: point('WEST') }];
+          : [
+              s.side === 'WEST'
+                ? { id: `${s.id}::port`, side: S('EAST'), position: point('EAST') }
+                : { id: `${s.id}::port`, side: S('WEST'), position: point('WEST') },
+            ];
       return { id: s.id, width, height, ports };
     };
 
@@ -808,7 +811,7 @@ async function layoutIn(
         labels.push({ id: `${p.id}::end${k}`, width: e.width + 4, height: lh, placement: e.end === 'source' ? 'tail' : 'head' });
       // Notes follow what they annotate, so they never push a connector chain apart.
       if (p.type === 'note-anchor') {
-        elkEdges.push({ id: p.id, source: target === p.target ? (endPorts.get(`${p.id}\u0000target`) ?? target) : target, target: source });
+        elkEdges.push({ id: p.id, source: target === p.target ? (endPorts.get(`${p.id}\0target`) ?? target) : target, target: source });
         reversed.add(p.id);
         continue;
       }
@@ -818,8 +821,8 @@ async function layoutIn(
       elkEdges.push({
         id: p.id,
         labels,
-        source: lifted ? source : (endPorts.get(`${p.id}\u0000source`) ?? source),
-        target: lifted ? target : (endPorts.get(`${p.id}\u0000target`) ?? target),
+        source: lifted ? source : (endPorts.get(`${p.id}\0source`) ?? source),
+        target: lifted ? target : (endPorts.get(`${p.id}\0target`) ?? target),
       });
     }
 
@@ -964,7 +967,7 @@ async function layoutIn(
         r = result.nodes.get(owner);
       if (!c || !r || connected.has(portId)) continue;
       const d = [Math.abs(c.x - r.x - r.width), Math.abs(c.y - r.y - r.height), Math.abs(c.x - r.x), Math.abs(c.y - r.y)];
-      const key = `${owner}\u0000${d.indexOf(Math.min(...d))}`;
+      const key = `${owner}\0${d.indexOf(Math.min(...d))}`;
       groups.set(key, [...(groups.get(key) ?? []), portId]);
     }
     for (const ids of groups.values()) {
@@ -1055,9 +1058,12 @@ async function layoutIn(
       Math.abs(r[2]![cross] - r[3]![cross]) < 0.01;
     const leafRects = [...rects].filter(([id]) => !info.get(id)!.node.children?.length).map(([id, r]) => ({ id, r }));
     const free = (box: Rect, ignore: ReadonlySet<string>, ignoreRoutes: ReadonlySet<string>): boolean => {
-      if (leafRects.some(({ id, r }) => !ignore.has(id) && overlaps(inflate(box, 2), r))) return false;
-      if (symbols.some(s => !ignore.has(s.id) && overlaps(inflate(box, 2), s.bounds))) return false;
-      if (fixedLabels.some(l => !ignore.has(l.owner) && overlaps(inflate(box, 2), l.rect))) return false;
+      if (
+        leafRects.some(({ id, r }) => !ignore.has(id) && overlaps(inflate(box, 2), r)) ||
+        symbols.some(s => !ignore.has(s.id) && overlaps(inflate(box, 2), s.bounds)) ||
+        fixedLabels.some(l => !ignore.has(l.owner) && overlaps(inflate(box, 2), l.rect))
+      )
+        return false;
       for (const [id, route] of routes) {
         if (ignoreRoutes.has(id)) continue;
         for (let k = 1; k < route.length; k++) if (segmentIntersectsRect(route[k - 1]!, route[k]!, inflate(box, 2))) return false;
@@ -1100,7 +1106,7 @@ async function layoutIn(
           if (!free(union([moved.bounds, moved.label]), ends, own)) return false;
         }
         const next = lines.map((r, k) => (straighten[k] ? [at(r![0]![main], y), at(r!.at(-1)![main], y)] : r!));
-        if (!next.every((r, k) => !straighten[k] || free(segmentBox(r[0]!, r[1]!), ends, own))) return false;
+        if (next.some((r, k) => !(!straighten[k] || free(segmentBox(r[0]!, r[1]!), ends, own)))) return false;
         symbol.bounds = moved.bounds;
         symbol.center = at(symbol.center[main], y);
         label.rect = moved.label;
@@ -1110,7 +1116,7 @@ async function layoutIn(
       // Lines from UML ports fix the height; anchors (no port square) slide along their node's side.
       const fixed = planIds.flatMap((id, k) => (anchorOf.has(id) ? [] : [lines[k]![0]![cross]]));
       const all = planIds.map(() => true);
-      if (!fixed.some(y => Math.abs(y - fixed[0]!) > 0.01) && attempt(fixed[0] ?? symbol.center[cross], all)) continue;
+      if (fixed.every(y => !(Math.abs(y - fixed[0]!) > 0.01)) && attempt(fixed[0] ?? symbol.center[cross], all)) continue;
       // Otherwise keep the symbol and straighten the anchored lines only.
       attempt(
         symbol.center[cross],
@@ -1554,9 +1560,13 @@ async function layoutIn(
       if (!r) continue;
       const ends = [p.source, p.target, ownerNode(p.source), ownerNode(p.target)];
       const related = new Set([...ends, ...ancestors(ownerNode(p.source)), ...ancestors(ownerNode(p.target))]);
-      if (outlines.some(o => !related.has(o.id) && r.slice(1).some((q, k) => along(r[k]!, q, o.rect)))) hugging.add(p.id);
       // And detours: longer than the route limit between its ends, or wrapping around (gate route-length).
-      else if (routesLength([r]) > routeLimit(r[0]!, r.at(-1)!) + 0.5 || wrapsAround(r)) hugging.add(p.id);
+      if (
+        outlines.some(o => !related.has(o.id) && r.slice(1).some((q, k) => along(r[k]!, q, o.rect))) ||
+        routesLength([r]) > routeLimit(r[0]!, r.at(-1)!) + 0.5 ||
+        wrapsAround(r)
+      )
+        hugging.add(p.id);
     }
     if (hugging.size === 0) return;
     const fixed = (id: string): boolean => symbolIds.has(id) || info.get(id)?.node.shape === 'ellipse';
@@ -1608,7 +1618,7 @@ async function layoutIn(
       const related = new Set([...ancestors(ownerNode(p.source)), ...ancestors(ownerNode(p.target)), p.source, p.target]);
       const obstacles: Rect[] = [
         ...[...rects]
-          .filter(([k]) => !related.has(k) && !ancestors(k).some(x => x === ownerNode(p.source) || x === ownerNode(p.target)))
+          .filter(([k]) => !related.has(k) && ancestors(k).every(x => !(x === ownerNode(p.source) || x === ownerNode(p.target))))
           .map(([, rect]) => rect),
         ...symbols.filter(x => x.id !== p.source && x.id !== p.target && x.kind !== 'port').map(x => x.bounds),
         ...repairNodes.filter(n => n.id !== p.source && n.id !== p.target).flatMap(n => n.texts ?? []),
@@ -1634,12 +1644,11 @@ async function layoutIn(
         const ends = [r[0]!, r.at(-1)!];
         const lanes = others
           .flatMap(o => o.slice(1).map((q, k) => [o[k]!, q] as const))
-          .filter(([a, b]) => !ends.some(e => distanceToSegment(e, a, b) < 20))
+          .filter(([a, b]) => ends.every(e => !(distanceToSegment(e, a, b) < 20)))
           .map(([a, b]) => inflate({ x: Math.min(a.x, b.x), y: Math.min(a.y, b.y), width: Math.abs(a.x - b.x), height: Math.abs(a.y - b.y) }, 1));
         next = routeOrthogonal({ source, target, obstacles: [...obstacles, ...lanes], lines: others, area, margin: 7 });
       }
-      if (!next || isDetour(next) || others.some(o => runsWith(next, o))) return undefined;
-      return simplify(next);
+      return !next || isDetour(next) || others.some(o => runsWith(next, o)) ? undefined : simplify(next);
     };
     const settle = (id: string, route: Point[]): void => {
       routes.set(id, route);
@@ -1700,7 +1709,7 @@ async function layoutIn(
               })),
             { keep: new Set(plans.filter(q => q.id !== o.id).map(q => q.id)), force: new Set([o.id]), shorten: false },
           ).routes.get(o.id)!;
-          if (!isDetour(moved) && !plans.some(q => q.id !== o.id && routes.has(q.id) && runsWith(moved, routes.get(q.id)!))) theirs = moved;
+          if (!isDetour(moved) && plans.every(q => !(q.id !== o.id && routes.has(q.id) && runsWith(moved, routes.get(q.id)!)))) theirs = moved;
         }
         if (theirs && !runsWith(theirs, mine)) {
           settle(id, mine);
@@ -1748,7 +1757,7 @@ async function layoutIn(
     const forced = new Map<string, { point: Point; out: Point }>();
     const ends = (p: EdgePlan, which: 'source' | 'target', route: readonly Point[]) => {
       const id = which === 'source' ? p.source : p.target;
-      const chosen = forced.get(`${p.id}\u0000${id}`);
+      const chosen = forced.get(`${p.id}\0${id}`);
       if (chosen)
         return [
           { rect: rectOf(id)!, stub: markerExtent(which === 'source' ? p.sourceMarker : p.targetMarker).length + theme.spacing.bendRadius + 6, fixed: chosen },
@@ -1775,17 +1784,18 @@ async function layoutIn(
             point: { x: c.x + across.x * sign * half + out.x * (half - 1), y: c.y + across.y * sign * half + out.y * (half - 1) },
             out: { x: across.x * sign, y: across.y * sign },
           });
-        return slots.filter((slot, k) => k === 0 || !taken.some(q => distance(q, slot.point) < 3)).map(slot => ({ rect, stub, fixed: slot }));
+        return slots.filter((slot, k) => k === 0 || taken.every(q => !(distance(q, slot.point) < 3))).map(slot => ({ rect, stub, fixed: slot }));
       }
-      if (symbolIds.has(id) || info.get(id)?.node.shape === 'ellipse') return [{ rect, stub, fixed: { point: at, out } }];
-      return [{ rect, stub, occupied: taken, spacing: theme.spacing.endEnd }];
+      return symbolIds.has(id) || info.get(id)?.node.shape === 'ellipse'
+        ? [{ rect, stub, fixed: { point: at, out } }]
+        : [{ rect, stub, occupied: taken, spacing: theme.spacing.endEnd }];
     };
     const reroute = (move: EdgePlan, ignore: ReadonlySet<string> = new Set()): boolean => {
       const route = routes.get(move.id)!;
       const related = new Set([...ancestors(ownerNode(move.source)), ...ancestors(ownerNode(move.target)), move.source, move.target]);
       const base: Rect[] = [
         ...[...rects]
-          .filter(([id]) => !related.has(id) && !ancestors(id).some(x => x === ownerNode(move.source) || x === ownerNode(move.target)))
+          .filter(([id]) => !related.has(id) && ancestors(id).every(x => !(x === ownerNode(move.source) || x === ownerNode(move.target))))
           .map(([, r]) => r),
         ...symbols.filter(x => x.id !== move.source && x.id !== move.target && x.kind !== 'port').map(x => x.bounds),
         ...repairNodes.filter(n => n.id !== move.source && n.id !== move.target).flatMap(n => n.texts ?? []),
@@ -1841,8 +1851,8 @@ async function layoutIn(
         port = symbols.find(x => x.id === portId);
       if (!owner || !port) continue;
       const outward = live.filter(p => (p.source === portId || p.target === portId) && !inside(ownerNode(p.source === portId ? p.target : p.source), ownerId));
-      if (outward.length < 2 || outward.length > 3) continue;
-      if (!outward.some((p, i) => outward.slice(i + 1).some(q => conflict(routes.get(p.id)!, routes.get(q.id)!)))) continue;
+      if (outward.length < 2 || outward.length > 3 || outward.every((p, i) => outward.slice(i + 1).every(q => !conflict(routes.get(p.id)!, routes.get(q.id)!))))
+        continue;
       const c = port.center,
         half = portSize / 2;
       const d = [Math.abs(c.x - owner.x - owner.width), Math.abs(c.y - owner.y - owner.height), Math.abs(c.x - owner.x), Math.abs(c.y - owner.y)];
@@ -1882,7 +1892,7 @@ async function layoutIn(
                 ? [side(-1), face]
                 : [face, side(1)];
       const before = new Map(sorted.map(p => [p.id, routes.get(p.id)!]));
-      for (const [k, p] of sorted.entries()) forced.set(`${p.id}\u0000${portId}`, slots[k]!);
+      for (const [k, p] of sorted.entries()) forced.set(`${p.id}\0${portId}`, slots[k]!);
       // Routed one after the other; if any fails, the port keeps its lines as they were.
       const pending = new Set(sorted.map(p => p.id));
       if (
@@ -1892,7 +1902,7 @@ async function layoutIn(
         })
       ) {
         for (const [id, r] of before) routes.set(id, r);
-        for (const p of sorted) forced.delete(`${p.id}\u0000${portId}`);
+        for (const p of sorted) forced.delete(`${p.id}\0${portId}`);
       }
     }
     for (let round = 0; round < 3; round++) {
@@ -1901,9 +1911,8 @@ async function layoutIn(
         for (const o of live.slice(i + 1)) {
           const rp = routes.get(p.id)!,
             ro = routes.get(o.id)!;
-          if (!conflict(rp, ro)) continue;
           // A port with more lines than faces keeps its trunk (see Known limitations).
-          if ([p.source, p.target].some(id => crowdedPorts.has(id) && (o.source === id || o.target === id))) continue;
+          if (!conflict(rp, ro) || [p.source, p.target].some(id => crowdedPorts.has(id) && (o.source === id || o.target === id))) continue;
           // Move the line that is not a lollipop's or socket's stem (those stay straight); failing that, the other one.
           const order = o.type.endsWith('-stem') ? [p] : p.type.endsWith('-stem') ? [o] : [o, p];
           const done = order.some(move => reroute(move));
@@ -1930,8 +1939,8 @@ async function layoutIn(
         !n.ports?.length &&
         !n.stubs?.length &&
         n.shape !== 'ellipse' &&
-        !graph.assemblies.some(a => a.requirer === id || a.provider === id) &&
-        !symbols.some(s => s.parent === id)
+        graph.assemblies.every(a => !(a.requirer === id || a.provider === id)) &&
+        symbols.every(s => s.parent !== id)
       );
     };
     const linesOf = (id: string): EdgePlan[] =>
@@ -1943,11 +1952,10 @@ async function layoutIn(
         if (a === b || trials >= 3 || info.get(a)!.parent !== info.get(b)!.parent) continue;
         const ra = rects.get(a)!,
           rb = rects.get(b)!;
-        if (ra.y + ra.height > rb.y) continue;
-        if (Math.min(ra.x + ra.width, rb.x + rb.width) - Math.max(ra.x, rb.x) < 0.5 * Math.min(ra.width, rb.width)) continue;
+        if (ra.y + ra.height > rb.y || Math.min(ra.x + ra.width, rb.x + rb.width) - Math.max(ra.x, rb.x) < 0.5 * Math.min(ra.width, rb.width)) continue;
         const la = linesOf(a).filter(p => ownerNode(p.source) !== b && ownerNode(p.target) !== b),
           lb = linesOf(b).filter(p => ownerNode(p.source) !== a && ownerNode(p.target) !== a);
-        if (!la.some(p => lb.some(q => p.id !== q.id && countCrossings([routes.get(p.id)!, routes.get(q.id)!]) > 0))) continue;
+        if (la.every(p => lb.every(q => p.id === q.id || !(countCrossings([routes.get(p.id)!, routes.get(q.id)!]) > 0)))) continue;
         const gap = rb.y - ra.y - ra.height;
         const nb = { ...rb, y: ra.y },
           na = { ...ra, y: ra.y + rb.height + gap };
@@ -2092,7 +2100,7 @@ async function layoutIn(
         const related = new Set([...ancestors(id), ...ancestors(ownerNode(l.other)), l.other, ownerNode(l.other), id]);
         const obstacles = [
           // Every node that holds neither end (containers too), and other ellipses.
-          ...[...rects].filter(([k]) => !related.has(k) && !ancestors(k).some(x => x === id || x === ownerNode(l.other))).map(([, r]) => r),
+          ...[...rects].filter(([k]) => !related.has(k) && ancestors(k).every(x => !(x === id || x === ownerNode(l.other)))).map(([, r]) => r),
           ...symbols.filter(x => x.id !== l.other).map(x => x.bounds),
           ...headerBands.filter(h => !contains(h, l.r)),
           ...fixedLabels.filter(f => f.owner !== l.other).map(f => f.rect),
@@ -2255,7 +2263,7 @@ async function layoutIn(
               if (!parallel) return false;
               const [s0, s1] = horizontal ? [Math.min(a.x, q.x), Math.max(a.x, q.x)] : [Math.min(a.y, q.y), Math.max(a.y, q.y)];
               const [t0, t1] = horizontal ? [box.x, box.x + box.width] : [box.y, box.y + box.height];
-              return Math.min(s1, t1) - Math.max(s0, t0) > 0;
+              return Math.min(s1, t1) > Math.max(s0, t0);
             }),
           ) ||
           others.some(({ o, route }) =>

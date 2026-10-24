@@ -6,10 +6,18 @@ import { writeFile } from 'node:fs/promises';
 
 const nodes = [{ id: 'start', type: 'initial' }];
 const flows = [];
-const flow = (from, to, guard) => flows.push(guard === undefined ? { from, to } : { from, to, guard });
-const use = (id, name, args) => nodes.push(args ? { id, type: 'interaction-use', name, arguments: args } : { id, type: 'interaction-use', name });
-const inline = (id, name, lifelines, messages) => nodes.push({ id, type: 'interaction', name, lifelines, messages });
-const node = (id, type) => nodes.push({ id, type });
+const flow = (from, to, guard) => {
+  flows.push(guard === undefined ? { from, to } : { from, to, guard });
+};
+const use = (id, name, args) => {
+  nodes.push(args ? { id, type: 'interaction-use', name, arguments: args } : { id, type: 'interaction-use', name });
+};
+const inline = (id, name, lifelines, messages) => {
+  nodes.push({ id, type: 'interaction', name, lifelines, messages });
+};
+const node = (id, type) => {
+  nodes.push({ id, type });
+};
 
 let previous = 'start';
 const stages = ['Register', 'VerifyEmail', 'CollectProfile', 'CheckIdentity', 'ChoosePlan', 'TakePayment', 'ProvisionAccount', 'Welcome'];
@@ -50,8 +58,7 @@ for (const [i, stage] of stages.entries()) {
     const abandon = `${id}-stop`;
     node(abandon, 'flow-final');
     flow(reject, abandon);
-  }
-  if (i === 5) {
+  } else if (i === 5) {
     const fork = 'parallel',
       join = 'parallel-done';
     node(fork, 'fork');

@@ -5,8 +5,7 @@ import type { ComponentDiagram, Element, Interface, Nested, Port } from './model
 /** Port label: `name`, `name : Type` or `: Type`. */
 export function portLabel(port: { name?: string; type?: string }): string | undefined {
   if (port.name !== undefined && port.type !== undefined) return `${port.name} : ${port.type}`;
-  if (port.type !== undefined) return `: ${port.type}`;
-  return port.name;
+  return port.type === undefined ? port.name : `: ${port.type}`;
 }
 
 /** Maps a validated component diagram to the shared structure graph. */
@@ -20,14 +19,14 @@ export function componentGraph(model: ComponentDiagram): StructGraph {
   const joined = new Set<string>();
   for (const r of relationships) {
     if (r.type !== 'assembly') continue;
-    joined.add(`${r.from}\u0000requires\u0000${r.interface}`);
-    joined.add(`${r.to}\u0000provides\u0000${r.interface}`);
+    joined.add(`${r.from}\0requires\0${r.interface}`);
+    joined.add(`${r.to}\0provides\0${r.interface}`);
   }
   // A «use» or realization line to the interface's box already shows the dependency:
   // no second, unconnected socket or lollipop for the same interface on that element.
   for (const r of relationships) {
-    if (r.type === 'usage' && interfaces.has(r.to)) joined.add(`${r.from}\u0000requires\u0000${r.to}`);
-    if (r.type === 'realization' && interfaces.has(r.to)) joined.add(`${r.from}\u0000provides\u0000${r.to}`);
+    if (r.type === 'usage' && interfaces.has(r.to)) joined.add(`${r.from}\0requires\0${r.to}`);
+    if (r.type === 'realization' && interfaces.has(r.to)) joined.add(`${r.from}\0provides\0${r.to}`);
   }
   // A delegation passes an interface through: draw it once, at the outer end.
   const parentOf = new Map<string, string>(),
@@ -52,14 +51,14 @@ export function componentGraph(model: ComponentDiagram): StructGraph {
     const inner = parentOf.get(owner(r.to)) === owner(r.from) ? r.to : r.from;
     const outer = inner === r.to ? r.from : r.to;
     for (const which of ['provides', 'requires'] as const) {
-      for (const id of values.get(inner)?.[which] ?? []) if (values.get(outer)?.[which]?.includes(id)) joined.add(`${inner}\u0000${which}\u0000${id}`);
+      for (const id of values.get(inner)?.[which] ?? []) if (values.get(outer)?.[which]?.includes(id)) joined.add(`${inner}\0${which}\0${id}`);
     }
   }
   const stubs = (owner: string, value: { provides?: string[]; requires?: string[] }): StructStub[] => {
     const out: StructStub[] = [];
     for (const which of ['provides', 'requires'] as const) {
       for (const id of value[which] ?? []) {
-        if (joined.has(`${owner}\u0000${which}\u0000${id}`)) continue;
+        if (joined.has(`${owner}\0${which}\0${id}`)) continue;
         out.push({ id: `${owner}::${which}::${id}`, kind: which === 'provides' ? 'provided' : 'required', name: name(id) });
       }
     }
@@ -88,7 +87,7 @@ export function componentGraph(model: ComponentDiagram): StructGraph {
     if (portOf.has(id)) continue;
     const own = [...portOf].filter(([, owner]) => owner === id).map(([port]) => values.get(port));
     for (const which of ['provides', 'requires'] as const) {
-      for (const i of v[which] ?? []) if (own.some(p => p?.[which]?.includes(i))) joined.add(`${id}\u0000${which}\u0000${i}`);
+      for (const i of v[which] ?? []) if (own.some(p => p?.[which]?.includes(i))) joined.add(`${id}\0${which}\0${i}`);
     }
   }
   // Lollipops and sockets nothing joins, by interface.
@@ -96,7 +95,7 @@ export function componentGraph(model: ComponentDiagram): StructGraph {
   for (const [owner, v] of values) {
     for (const which of ['provides', 'requires'] as const) {
       for (const i of v[which] ?? []) {
-        if (joined.has(`${owner}\u0000${which}\u0000${i}`)) continue;
+        if (joined.has(`${owner}\0${which}\0${i}`)) continue;
         loose.set(i, [...(loose.get(i) ?? []), { owner, which }]);
       }
     }
@@ -109,7 +108,7 @@ export function componentGraph(model: ComponentDiagram): StructGraph {
   const derived: StructEdge[] = [];
   for (const i of boxed) {
     for (const { owner, which } of loose.get(i) ?? []) {
-      joined.add(`${owner}\u0000${which}\u0000${i}`);
+      joined.add(`${owner}\0${which}\0${i}`);
       const type = which === 'provides' ? 'realization' : 'usage';
       const element = portOf.get(owner) ?? owner;
       if (relationships.some(r => r.type === type && r.to === i && (r.from === owner || r.from === element))) continue;

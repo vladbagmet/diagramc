@@ -59,7 +59,7 @@ export function placeNotes(
     for (const line of lines)
       if (line.source !== note.id && line.target !== note.id) for (const [k, q] of line.points.slice(1).entries()) segments.push([line.points[k]!, q]);
     const own = new Set([note.id, ...ancestors(note.id)]);
-    const placedRects = [...moved.entries()].filter(([id]) => id !== note.id).map(([, r]) => r);
+    const placedRects = [...moved].filter(([id]) => id !== note.id).map(([, r]) => r);
     const others = nodes.filter(n => !own.has(n.id));
     const anchorsCost = (r: Rect): number => {
       const c = center(r);

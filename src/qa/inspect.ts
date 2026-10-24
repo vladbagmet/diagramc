@@ -275,8 +275,7 @@ function badBreaks(
       if (at < head.length && at + p.length > head.length) piece = p;
       at += p.length;
     }
-    if (proper) continue;
-    if (metrics.measure(piece, style) > theme.size.maxTokenWidth) continue;
+    if (proper || metrics.measure(piece, style) > theme.size.maxTokenWidth) continue;
     out.push(`"${head}|${tail}" breaks a word`);
   }
   return out;
@@ -313,7 +312,7 @@ function readText(element: XmlElement, ancestors: XmlElement[], metrics: FontMet
   // PlantUML: texts inside an entity belong to it, texts inside a link are labels.
   const plantRole = renderer === 'plantuml' ? (owner ? 'text' : ancestors.some(a => a.attrs.class === 'link') ? 'label' : undefined) : undefined;
   return {
-    content: renderer === 'plantuml' ? content.replaceAll(/^\u200B|\u200B$/gu, '') : content,
+    content: renderer === 'plantuml' ? content.replaceAll(/^\u{200B}|\u{200B}$/gu, '') : content,
     size,
     bold,
     italic,
@@ -415,24 +414,33 @@ function readPlantUml(root: XmlElement, scene: Scene): void {
       for (const { element: child } of walk(element)) {
         if (child.tag === 'rect')
           shapes.push({ x: Number(child.attrs.x), y: Number(child.attrs.y), width: Number(child.attrs.width), height: Number(child.attrs.height) });
-        if (child.tag === 'path' || child.tag === 'polygon')
+        else if (child.tag === 'path' || child.tag === 'polygon')
           shapes.push(union((child.attrs.d ? pathPoints(child.attrs.d) : pointList(child.attrs.points)).map(p => ({ ...p, width: 0, height: 0 }))));
       }
       if (shapes.length > 0) scene.nodes.push({ id: a['data-entity'] ?? a.id ?? '', type: 'entity', bounds: union(shapes) });
     }
-    if (element.tag === 'rect') scene.extents.push({ x: Number(a.x ?? 0), y: Number(a.y ?? 0), width: Number(a.width ?? 0), height: Number(a.height ?? 0) });
-    if (element.tag === 'line')
-      scene.extents.push(
-        union([
-          { x: Number(a.x1), y: Number(a.y1), width: 0, height: 0 },
-          { x: Number(a.x2), y: Number(a.y2), width: 0, height: 0 },
-        ]),
-      );
-    if (element.tag === 'polygon' || element.tag === 'polyline' || element.tag === 'path') {
-      const pts = a.d ? pathPoints(a.d) : pointList(a.points);
-      if (pts.length > 0) scene.extents.push(union(pts.map(p => ({ ...p, width: 0, height: 0 }))));
+    switch (element.tag) {
+      case 'rect':
+        scene.extents.push({ x: Number(a.x ?? 0), y: Number(a.y ?? 0), width: Number(a.width ?? 0), height: Number(a.height ?? 0) });
+        break;
+      case 'line':
+        scene.extents.push(
+          union([
+            { x: Number(a.x1), y: Number(a.y1), width: 0, height: 0 },
+            { x: Number(a.x2), y: Number(a.y2), width: 0, height: 0 },
+          ]),
+        );
+        break;
+      case 'polygon':
+      case 'polyline':
+      case 'path': {
+        const pts = a.d ? pathPoints(a.d) : pointList(a.points);
+        if (pts.length > 0) scene.extents.push(union(pts.map(p => ({ ...p, width: 0, height: 0 }))));
+        break;
+      }
+      case 'ellipse':
+        scene.extents.push({ x: Number(a.cx) - Number(a.rx), y: Number(a.cy) - Number(a.ry), width: 2 * Number(a.rx), height: 2 * Number(a.ry) });
+        break;
     }
-    if (element.tag === 'ellipse')
-      scene.extents.push({ x: Number(a.cx) - Number(a.rx), y: Number(a.cy) - Number(a.ry), width: 2 * Number(a.rx), height: 2 * Number(a.ry) });
   }
 }

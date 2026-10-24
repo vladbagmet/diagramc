@@ -60,7 +60,7 @@ export function validateClassDiagram(model: ClassDiagram): Diagnostic[] {
     if (isNote(from) || isNote(to)) continue;
 
     if (r.type === 'generalization' || r.type === 'realization' || r.type === 'containment') {
-      const key = `${r.type}\u0000${r.from}\u0000${r.to}`;
+      const key = `${r.type}\0${r.from}\0${r.to}`;
       const first = seenPairs.get(key);
       if (first === undefined) {
         seenPairs.set(key, at);
@@ -126,13 +126,15 @@ export function validateClassDiagram(model: ClassDiagram): Diagnostic[] {
       case 'containment': {
         containments.push({ from: r.from, to: r.to, path: at });
         const owner = owners.get(r.to);
-        if (owner !== undefined && owner !== r.from)
+        if (owner === undefined || owner === r.from) {
+          owners.set(r.to, r.from);
+        } else {
           diagnostics.push({
             code: 'MULTIPLE_OWNERS',
             path: pointer(at, 'to'),
             message: `"${r.to}" is already nested in "${owner}"; a classifier has at most one owner`,
           });
-        else owners.set(r.to, r.from);
+        }
         break;
       }
       default:

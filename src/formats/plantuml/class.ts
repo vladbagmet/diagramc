@@ -35,8 +35,7 @@ export function exportClass(model: ClassDiagram, losses: Losses): string {
     const typeStereotype = TYPE_STEREOTYPE[e.type];
     const head = `${keyword} ${e.name === alias ? alias : `${quoted(e.name)} as ${alias}`}${stereotypeText([...(typeStereotype ? [typeStereotype] : []), ...(e.stereotypes ?? [])])}`;
     if (e.type === 'interface' && e.abstract) losses.add(`/elements/${i}/abstract`, 'An interface marked abstract is exported as a plain interface');
-    const body: string[] = [];
-    for (const literal of e.literals ?? []) body.push(literalText(literal, codec));
+    const body: string[] = Array.from(e.literals ?? [], literal => literalText(literal, codec));
     // In an enumeration, a bare attribute would read back as a literal: {field} marks it.
     for (const a of e.attributes ?? [])
       body.push(
@@ -320,8 +319,7 @@ export function importClass(lines: readonly SourceLine[], problems: Problems): R
     };
     const withNav = (end: End | undefined, head: string): End | undefined => {
       if (head === '>' || head === '<') return { ...end, navigable: true };
-      if (head === 'x') return { ...end, navigable: false };
-      return end;
+      return head === 'x' ? { ...end, navigable: false } : end;
     };
     const navHead = (h: string): boolean => h === '' || h === '>' || h === '<' || h === 'x';
     if (dashed) {

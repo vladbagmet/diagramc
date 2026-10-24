@@ -91,8 +91,9 @@ export function segmentDistance(a: Point, b: Point, c: Point, d: Point): number 
     d2 = cross(c, d, b),
     d3 = cross(a, b, c),
     d4 = cross(a, b, d);
-  if (((d1 > 0 && d2 < 0) || (d1 < 0 && d2 > 0)) && ((d3 > 0 && d4 < 0) || (d3 < 0 && d4 > 0))) return 0;
-  return Math.min(distanceToSegment(a, c, d), distanceToSegment(b, c, d), distanceToSegment(c, a, b), distanceToSegment(d, a, b));
+  return ((d1 > 0 && d2 < 0) || (d1 < 0 && d2 > 0)) && ((d3 > 0 && d4 < 0) || (d3 < 0 && d4 > 0))
+    ? 0
+    : Math.min(distanceToSegment(a, c, d), distanceToSegment(b, c, d), distanceToSegment(c, a, b), distanceToSegment(d, a, b));
 }
 
 export function distance(a: Point, b: Point): number {
@@ -115,8 +116,7 @@ export function distanceToRect(p: Point, r: Rect): number {
 /** Distance from point p to the border of rectangle r. */
 export function distanceToBorder(p: Point, r: Rect): number {
   const outside = distanceToRect(p, r);
-  if (outside > 0) return outside;
-  return Math.min(p.x - r.x, right(r) - p.x, p.y - r.y, bottom(r) - p.y);
+  return outside > 0 ? outside : Math.min(p.x - r.x, right(r) - p.x, p.y - r.y, bottom(r) - p.y);
 }
 
 /** Distance from point p to the ellipse inscribed in rectangle r (radial approximation, exact on the axes). */
@@ -127,8 +127,7 @@ export function distanceToEllipse(p: Point, r: Rect): number {
   const dx = p.x - c.x,
     dy = p.y - c.y;
   const t = Math.hypot(dx / a, dy / b);
-  if (t === 0) return Math.min(a, b);
-  return Math.hypot(dx - dx / t, dy - dy / t);
+  return t === 0 ? Math.min(a, b) : Math.hypot(dx - dx / t, dy - dy / t);
 }
 
 /** Removes consecutive duplicates and collinear interior points of a polyline. */
@@ -172,7 +171,7 @@ export function straightenJogs(route: readonly Point[], ends: { source: Rect; ta
     if (i + 2 < pts.length - 1 || within(ends.target, movedNext, horizontal)) {
       pts[i + 2] = movedNext;
       pts[i + 1] = { ...a };
-    } else if (i - 1 > 0 || within(ends.source, movedPrev, horizontal)) {
+    } else if (i > 1 || within(ends.source, movedPrev, horizontal)) {
       pts[i - 1] = movedPrev;
       pts[i] = { ...b };
     } else continue;

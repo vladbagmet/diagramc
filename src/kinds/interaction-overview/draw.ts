@@ -193,7 +193,7 @@ function drawNode(canvas: Canvas, entry: OverviewSceneNode): string {
           }),
         );
         // The label covers the dashed lifelines it crosses (a halo alone leaves them showing between the letters).
-        for (const [k, _] of arrow.rows.entries())
+        for (const k of arrow.rows.keys())
           parts.push(
             el('rect', {
               x: ox + arrow.labelX[k]! - 2,

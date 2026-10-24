@@ -3,9 +3,15 @@
 //   node scripts/generate-use-case-stress.mjs > examples/use-case/stress.json
 const elements = [],
   relationships = [];
-const actor = (id, name, extra = {}) => elements.push({ id, type: 'actor', name, ...extra });
-const uc = (id, name, subject, extra = {}) => elements.push({ id, type: 'useCase', name, subject, ...extra });
-const rel = (type, from, to, extra = {}) => relationships.push({ type, from, to, ...extra });
+const actor = (id, name, extra = {}) => {
+  elements.push({ id, type: 'actor', name, ...extra });
+};
+const uc = (id, name, subject, extra = {}) => {
+  elements.push({ id, type: 'useCase', name, subject, ...extra });
+};
+const rel = (type, from, to, extra = {}) => {
+  relationships.push({ type, from, to, ...extra });
+};
 
 elements.push(
   { id: 'clinic', type: 'subject', name: 'Clinical system' },

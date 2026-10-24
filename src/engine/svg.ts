@@ -57,7 +57,7 @@ export function escapeAttribute(text: string): string {
 
 /** Formats a coordinate: two decimals at most, no trailing zeros, never "-0". */
 export function num(n: number): string {
-  if (!Number.isFinite(n)) throw new Error(`Non-finite coordinate ${n}`);
+  if (!Number.isFinite(n)) throw new TypeError(`Non-finite coordinate ${n}`);
   return String(round2(n));
 }
 export function pointsAttr(points: readonly Point[]): string {

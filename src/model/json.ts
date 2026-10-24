@@ -174,6 +174,5 @@ function hintAt(text: string, position: number): string | undefined {
   if (/[A-Za-z_$]/u.test(at) && (previous === '{' || previous === ',')) return 'Put property names in double quotes, for example {"kind": "class"}';
   if (at === '"' && (previous === '"' || previous === '}' || previous === ']' || /[\d]/u.test(previous) || previous === 'e' || previous === 'l'))
     return 'A comma is missing between two values or properties';
-  if (position >= text.trimEnd().length) return 'The document ends early: a closing bracket, brace or quote is missing';
-  return undefined;
+  return position >= text.trimEnd().length ? 'The document ends early: a closing bracket, brace or quote is missing' : undefined;
 }

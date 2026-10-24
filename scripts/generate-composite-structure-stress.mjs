@@ -4,7 +4,9 @@
 const joints = ['shoulder', 'elbow', 'wrist'];
 const parts = [],
   relationships = [];
-const connect = (from, to, extra = {}) => relationships.push({ type: 'connector', from, to, ...extra });
+const connect = (from, to, extra = {}) => {
+  relationships.push({ type: 'connector', from, to, ...extra });
+};
 
 parts.push(
   {

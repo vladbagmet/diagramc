@@ -39,7 +39,7 @@ for (const kind of kinds) {
   await mkdir(dir, { recursive: true });
   const cards = [];
   for (const file of files) {
-    const name = (file.includes(`${join('examples', 'v1')}`) ? 'v1-' : '') + basename(file, '.json');
+    const name = (file.includes(join('examples', 'v1')) ? 'v1-' : '') + basename(file, '.json');
     const text = await readFile(file, 'utf8');
     const { svg, report, ms } = await renderAndCheck(text);
     await writeFile(join(dir, `${name}.svg`), svg);

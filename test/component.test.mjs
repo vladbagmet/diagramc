@@ -143,7 +143,7 @@ test('component: an interface only used as lollipop or socket is not drawn as a 
   assert.ok(!node(s, 'iOrders') && !node(s, 'iPayment'), 'IOrders and IPayment only as symbols');
   assert.ok(node(s, 'iStore'), 'IOrderStore is realized and used: drawn as a box');
   // A delegated interface is drawn once, at the outer port.
-  assert.ok(!s.nodes.some(n => n.id === 'mIn::provides::iOrders'));
+  assert.ok(s.nodes.every(n => n.id !== 'mIn::provides::iOrders'));
 });
 
 test('component: hostile and markup-like text stays literal in every slot', async () => {
@@ -198,10 +198,16 @@ test('layout: assembly connectors between neighbours are straight (B-19)', async
 test('notation: an interface drawn as a box with a «use» or realization line gets no second socket or lollipop (B-18)', async () => {
   const { scene: s } = await scene(await readFile(join(root, 'test/fixtures/regression/component-c1-ridesharing.json'), 'utf8'));
   const stubs = s.nodes.filter(n => n.type === 'required-interface' || n.type === 'provided-interface').map(n => n.id);
-  assert.ok(!stubs.some(id => /location/i.test(id)), `no dangling ILocation socket: ${stubs}`);
+  assert.ok(
+    stubs.every(id => !/location/i.test(id)),
+    `no dangling ILocation socket: ${stubs}`,
+  );
   const { scene: w } = await scene(await example('webshop.json'));
   const balls = w.nodes.filter(n => n.type === 'provided-interface').map(n => n.id);
-  assert.ok(!balls.some(id => /orderstore/i.test(id)), `no IOrderStore lollipop next to the realization: ${balls}`);
+  assert.ok(
+    balls.every(id => !/orderstore/i.test(id)),
+    `no IOrderStore lollipop next to the realization: ${balls}`,
+  );
 });
 
 test('layout: a medium model that runs far left to right is laid out top to bottom when that reads better (B-14)', async () => {

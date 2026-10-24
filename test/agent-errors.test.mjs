@@ -445,7 +445,10 @@ test('an element nested where an ID list is expected says where it goes (F-A-14)
   const d = error.diagnostics.find(x => x.path === '/elements/0/members/0');
   assert.match(d.message, /must be an ID string, but it is an object; declare that element in the top-level "elements" list/);
   assert.match(d.message, /write only its ID here: "q"/);
-  assert.ok(!error.diagnostics.some(x => x.details?.afterFixes), 'no confusing follow-up about a name');
+  assert.ok(
+    error.diagnostics.every(x => !x.details?.afterFixes),
+    'no confusing follow-up about a name',
+  );
 });
 
 test('CLI errors for agents: JSON position, kind and command suggestions, file reasons', () => {

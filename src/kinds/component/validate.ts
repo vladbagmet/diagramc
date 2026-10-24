@@ -14,7 +14,7 @@ export function buildComponentTree(model: ComponentDiagram): { tree: Tree; notes
   const visit = (element: Element | Nested, path: string, parent: string | undefined): void => {
     tree.add({ id: element.id, path, type: element.type, parent, value: element as unknown as Record<string, unknown> });
     if (element.type === 'note') notes.push({ note: element, path });
-    if (element.type === 'component' || element.type === 'class') {
+    else if (element.type === 'component' || element.type === 'class') {
       for (const [k, port] of (element.ports ?? []).entries())
         tree.add({ id: port.id, path: pointer(path, 'ports', k), type: 'port', parent: element.id, value: port as unknown as Record<string, unknown> });
     }

@@ -271,7 +271,7 @@ export function importClass(lines: readonly SourceLine[], problems: Problems): R
     t = t.replaceAll(/~([^~]*)~/gu, '<$1>');
     t = t.replace(/\)\s+([^\s:{][^{]*?)\s*$/u, ') : $1');
     const typeFirst = /^([-+#~]?)([^\s:()[\]={}]+)\s+([^\s:()[\]={}]+)$/u.exec(t);
-    if (typeFirst && !(element.type === 'enumeration' && !typeFirst[1])) t = `${typeFirst[1]}${typeFirst[3]} : ${typeFirst[2]}`;
+    if (typeFirst && (element.type !== 'enumeration' || typeFirst[1])) t = `${typeFirst[1]}${typeFirst[3]} : ${typeFirst[2]}`;
     if (element.type === 'enumeration' && !suffix && !t.includes('(') && !visibilityOf(t) && !t.includes(':')) {
       (element.literals ??= []).push(decode(t));
       return;
@@ -283,7 +283,7 @@ export function importClass(lines: readonly SourceLine[], problems: Problems): R
         return;
       }
       if (suffix === '*') operation.abstract = true;
-      if (suffix === '$') operation.static = true;
+      else if (suffix === '$') operation.static = true;
       (element.operations ??= []).push(operation);
       return;
     }

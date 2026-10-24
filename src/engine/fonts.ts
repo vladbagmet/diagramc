@@ -83,7 +83,7 @@ export function loadFonts(): Promise<FontMetrics> {
     const regular = faces.regular;
     return {
       measure(text, style) {
-        const key = `${styleKey(style)}\u0000${text}`;
+        const key = `${styleKey(style)}\0${text}`;
         let em = cache.get(key);
         if (em === undefined) {
           const face = faces[styleKey(style)];
@@ -125,7 +125,7 @@ export function loadFonts(): Promise<FontMetrics> {
 }
 
 const DEFAULT_IGNORABLE = /^\p{Default_Ignorable_Code_Point}$/u;
-const WIDE = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}\p{Script=Bopomofo}\u3000-〿！-｠￠-￦]/u;
+const WIDE = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}\p{Script=Bopomofo}\u{3000}-〿！-｠￠-￦]/u;
 const EMOJI = /\p{Extended_Pictographic}|\p{Regional_Indicator}/u;
 
 /**
@@ -135,8 +135,7 @@ const EMOJI = /\p{Extended_Pictographic}|\p{Regional_Indicator}/u;
  */
 function fallbackWidth(grapheme: string): number {
   if (EMOJI.test(grapheme)) return 1.3;
-  if (WIDE.test(grapheme)) return 1.02;
-  return 0.7;
+  return WIDE.test(grapheme) ? 1.02 : 0.7;
 }
 
 /**

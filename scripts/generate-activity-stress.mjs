@@ -7,7 +7,9 @@ const node = (id, type, extra = {}) => {
   nodes.push({ id, type, ...extra });
   return id;
 };
-const flow = (from, to, guard) => edges.push({ type: 'control', from, to, ...(guard ? { guard } : {}) });
+const flow = (from, to, guard) => {
+  edges.push({ type: 'control', from, to, ...(guard ? { guard } : {}) });
+};
 let prev = node('start', 'initial', { partition: 'intake' });
 const stages = ['Receive', 'Classify', 'Enrich', 'Assemble', 'Verify', 'Dispatch'];
 for (const [s, stage] of stages.entries()) {

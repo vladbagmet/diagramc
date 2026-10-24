@@ -33,8 +33,14 @@ test('layout: component and deployment drawings stay within 2.5:1 when a layout 
 function headerBands(s) {
   const bands = [];
   for (const n of s.nodes) {
-    if (!s.nodes.some(m => m.parent === n.id && m.type !== 'port')) continue;
-    if (n.shape === 'ellipse' || n.type === 'node' || n.type === 'device' || n.type === 'executionEnvironment') continue;
+    if (
+      s.nodes.every(m => m.parent !== n.id || m.type === 'port') ||
+      n.shape === 'ellipse' ||
+      n.type === 'node' ||
+      n.type === 'device' ||
+      n.type === 'executionEnvironment'
+    )
+      continue;
     const texts = s.texts.filter(t => t.owner === n.id).flatMap(t => t.lines);
     if (texts.length === 0) continue;
     const bottom = Math.max(...texts.map(r => r.y + r.height));
@@ -134,8 +140,14 @@ test('layout: no line crosses another next to a port, and none runs along a box 
     for (const e of s.edges) {
       const related = new Set([e.source, e.target, ...ancestors(e.source), ...ancestors(e.target)]);
       for (const n of s.nodes) {
-        if (related.has(n.id) || n.type === 'port' || s.nodes.some(m => m.parent === n.id && m.type !== 'port')) continue;
-        if (ancestors(n.id).has(e.source) || ancestors(n.id).has(e.target)) continue;
+        if (
+          related.has(n.id) ||
+          n.type === 'port' ||
+          s.nodes.some(m => m.parent === n.id && m.type !== 'port') ||
+          ancestors(n.id).has(e.source) ||
+          ancestors(n.id).has(e.target)
+        )
+          continue;
         for (const [a, b] of segments(e.points)) assert.ok(!segmentIntersectsRect(a, b, inflate(n.bounds, 4)), `${e.id} runs along or through ${n.id}`);
       }
     }

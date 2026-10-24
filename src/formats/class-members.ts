@@ -120,8 +120,9 @@ export function parseEnd(text: string | undefined, codec: Codec): { role?: strin
   if (!t) return undefined;
   if (MULTIPLICITY.test(t)) return { multiplicity: t };
   const space = t.lastIndexOf(' ');
-  if (space > 0 && MULTIPLICITY.test(t.slice(space + 1))) return { role: codec.decode(t.slice(0, space).trim()), multiplicity: t.slice(space + 1) };
-  return { role: codec.decode(t) };
+  return space > 0 && MULTIPLICITY.test(t.slice(space + 1))
+    ? { role: codec.decode(t.slice(0, space).trim()), multiplicity: t.slice(space + 1) }
+    : { role: codec.decode(t) };
 }
 
 /** End label text `role multiplicity`; a role that would read as ending in a multiplicity has its last character encoded. */

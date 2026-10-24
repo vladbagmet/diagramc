@@ -7,7 +7,7 @@
 
 const NUM = String.raw`-?[\d.]+`;
 const round = (n: number): string => String(Math.round(n * 1000) / 1000);
-const num = (tag: string, name: string): number => Number(new RegExp(String.raw`\s${name}="(${NUM})"`, 'u').exec(tag)?.[1] ?? Number.NaN);
+const num = (tag: string, name: string): number => Number(new RegExp(String.raw`\s${name}="(${NUM})"`, 'u').exec(tag)?.[1] ?? NaN);
 const setAttr = (tag: string, name: string, value: number): string =>
   tag.replace(new RegExp(String.raw`(\s${name}=")${NUM}(")`, 'u'), (_match: string, g1: string, g2: string) => `${g1}${round(value)}${g2}`);
 
@@ -26,8 +26,12 @@ export function mapCoordinates(svg: string, map: Mapping): string {
     fy = map.y ?? ((v: number) => v);
   return svg.replaceAll(/<(line|rect|polygon|polyline|path|text|ellipse)\b[^>]*>/gu, (tag, name: string) => {
     switch (name) {
-      case 'line':
-        return setAttr(setAttr(setAttr(setAttr(tag, 'x1', fx(num(tag, 'x1'))), 'x2', fx(num(tag, 'x2'))), 'y1', fy(num(tag, 'y1'))), 'y2', fy(num(tag, 'y2')));
+      case 'line': {
+        let out = setAttr(tag, 'x1', fx(num(tag, 'x1')));
+        out = setAttr(out, 'x2', fx(num(tag, 'x2')));
+        out = setAttr(out, 'y1', fy(num(tag, 'y1')));
+        return setAttr(out, 'y2', fy(num(tag, 'y2')));
+      }
       case 'rect': {
         const x = num(tag, 'x'),
           y = num(tag, 'y'),

@@ -82,7 +82,7 @@ export function validateTimingDiagram(model: TimingDiagram): Diagnostic[] {
   for (const [i, c] of (model.timeConstraints ?? []).entries()) {
     const at = pointer('', 'timeConstraints', i);
     const l = during(c.lifeline, pointer(at, 'lifeline'), c.at, pointer(at, 'at'));
-    if (l && !l.changes.some(ch => ch.at === c.at))
+    if (l?.changes.every(ch => ch.at !== c.at))
       add('UNKNOWN_EVENT', pointer(at, 'at'), `Lifeline "${c.lifeline}" has no state change at ${c.at}`, { times: l.changes.map(ch => ch.at) });
     if (c.to <= c.from) add('INVALID_TIME_INTERVAL', pointer(at, 'to'), `The time window must end after it starts (${c.from}..${c.to})`);
   }

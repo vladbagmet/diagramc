@@ -76,7 +76,7 @@ test('setup repairs interrupted extraction, is idempotent and recovers a broken 
   assert.equal(state.extractions, 2);
   assert.equal(await readFile(join(root, manifest.java), 'utf8'), 'valid');
   assert.equal(await readFile(join(root, '.runtime-stage-interrupted', 'keep'), 'utf8'), 'old interrupted stage');
-  assert.ok(!(await readdir(root)).some(name => name.startsWith('.runtime-backup-') || name.endsWith('.tmp')));
+  assert.ok((await readdir(root)).every(name => !(name.startsWith('.runtime-backup-') || name.endsWith('.tmp'))));
 });
 
 test('failed, partial and wrong-version extractions do not replace the existing installation or manifest', async t => {
@@ -91,7 +91,7 @@ test('failed, partial and wrong-version extractions do not replace the existing 
     assert.equal(await readFile(join(root, 'renderer.json'), 'utf8'), manifest);
     assert.equal(await readFile(join(root, JSON.parse(manifest).java), 'utf8'), 'valid');
     assert.equal(await readFile(join(root, 'runtime', '.complete.json'), 'utf8'), 'incomplete');
-    assert.ok(!(await readdir(root)).some(name => name.startsWith('.runtime-stage-')));
+    assert.ok((await readdir(root)).every(name => !name.startsWith('.runtime-stage-')));
   }
 });
 

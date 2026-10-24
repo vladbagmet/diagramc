@@ -160,7 +160,9 @@ export function runGates(scene: Scene, expectedTexts: readonly string[] = []): Q
       return;
     }
     const failures: string[] = [];
-    check(m => failures.push(m));
+    check(m => {
+      failures.push(m);
+    });
     gates.push({ gate: name, ok: failures.length === 0, failures });
   };
   const labels = scene.texts.filter(t => t.role === 'label');
@@ -183,10 +185,9 @@ export function runGates(scene: Scene, expectedTexts: readonly string[] = []): Q
       for (let j = i + 1; j < scene.nodes.length; j++) {
         const a = scene.nodes[i]!,
           b = scene.nodes[j]!;
-        if (overlapArea(a.bounds, b.bounds) <= 0.5) continue;
-        if (contains(a.bounds, b.bounds) || contains(b.bounds, a.bounds)) continue;
         // A port, or an entry/exit point, straddles the border of the node it belongs to.
-        if (a.parent === b.id || b.parent === a.id) continue;
+        if (overlapArea(a.bounds, b.bounds) <= 0.5 || contains(a.bounds, b.bounds) || contains(b.bounds, a.bounds) || a.parent === b.id || b.parent === a.id)
+          continue;
         fail(`nodes ${a.id} ${fmt(a.bounds)} and ${b.id} ${fmt(b.bounds)} overlap`);
       }
   });
@@ -201,7 +202,7 @@ export function runGates(scene: Scene, expectedTexts: readonly string[] = []): Q
   /** Containers around an edge end or a symbol: a port counts from its owner's containers, not the owner itself. */
   const endAncestors = (id: string): Set<string> => {
     const node = nodeById.get(id);
-    return node?.type === 'port' && node.parent ? ancestors(node.parent) : ancestors(id);
+    return ancestors(node?.type === 'port' && node.parent ? node.parent : id);
   };
 
   gate('label-overlap', fail => {
@@ -272,18 +273,18 @@ export function runGates(scene: Scene, expectedTexts: readonly string[] = []): Q
       // An end label must sit near its own end and nearer to it than to any other
       // edge end, otherwise a reader could attach it to the wrong line.
       // Only ends that carry labels themselves can be mistaken for the label's end.
-      const labelled = new Set(labels.filter(l => l.end).map(l => `${l.owner}\u0000${l.end}`));
+      const labelled = new Set(labels.filter(l => l.end).map(l => `${l.owner}\0${l.end}`));
       const ends = scene.edges
         .flatMap(e => [
           { edge: e.id, end: 'source', p: e.points[0]! },
           { edge: e.id, end: 'target', p: e.points.at(-1)! },
         ])
-        .filter(o => labelled.has(`${o.edge}\u0000${o.end}`));
+        .filter(o => labelled.has(`${o.edge}\0${o.end}`));
       for (const label of labels) {
         if (!label.anchor || !label.end) continue;
         const near = distanceToRect(label.anchor, label.bounds);
         if (near > 48) fail(`end label ${snippet(label.content)} is ${near.toFixed(1)}px from its ${label.end} end`);
-        if (!scene.edges.some(e => e.id === label.owner)) {
+        if (scene.edges.every(e => e.id !== label.owner)) {
           fail(`end label ${snippet(label.content)} has no edge ${label.owner}`);
           continue;
         }
@@ -305,7 +306,7 @@ export function runGates(scene: Scene, expectedTexts: readonly string[] = []): Q
             ...other.points
               .slice(1)
               .map((q, k) => [other.points[k]!, q] as const)
-              .filter(([a, b]) => !ownSegments.some(([c, e]) => collinearOverlap(a, b, c, e)))
+              .filter(([a, b]) => ownSegments.every(([c, e]) => !collinearOverlap(a, b, c, e)))
               .map(([a, b]) => rectSegmentDistance(label.bounds, a, b)),
           );
           if (d < Math.max(line + 3, LABEL_RIVAL_FACTOR * line)) {
@@ -338,7 +339,7 @@ export function runGates(scene: Scene, expectedTexts: readonly string[] = []): Q
           const d = Math.min(
             Infinity,
             ...segmentsOf(other)
-              .filter(([a, b]) => !ownSegments.some(([c, e]) => collinearOverlap(a, b, c, e)))
+              .filter(([a, b]) => ownSegments.every(([c, e]) => !collinearOverlap(a, b, c, e)))
               .map(([a, b]) => rectSegmentDistance(box, a, b)),
           );
           if (d < Math.max(near + 3, LABEL_RIVAL_FACTOR * near)) {
@@ -605,7 +606,7 @@ export function runGates(scene: Scene, expectedTexts: readonly string[] = []): Q
       }
       for (const m of scene.markers) {
         if (scene.arrows.some(a => distance(a.to, m.tip) <= 0.5)) continue;
-        if (!scene.edges.some(e => distance(e.points[0]!, m.tip) <= 0.5 || distance(e.points.at(-1)!, m.tip) <= 0.5))
+        if (scene.edges.every(e => !(distance(e.points[0]!, m.tip) <= 0.5 || distance(e.points.at(-1)!, m.tip) <= 0.5)))
           fail(`${m.marker} at (${m.tip.x}, ${m.tip.y}) is not at an edge end`);
       }
     },
@@ -681,7 +682,7 @@ export function runGates(scene: Scene, expectedTexts: readonly string[] = []): Q
 
   gate('literal-text', fail => {
     const contents = scene.texts.map(t => t.content);
-    for (const text of new Set(expectedTexts)) if (!contents.some(c => c.includes(text))) fail(`input text ${snippet(text)} is not drawn literally`);
+    for (const text of new Set(expectedTexts)) if (contents.every(c => !c.includes(text))) fail(`input text ${snippet(text)} is not drawn literally`);
   });
 
   gate('min-font-size', fail => {
@@ -827,8 +828,13 @@ export function formatReport(report: QaReport): string {
  * fanning out at a small angle lie close together near their common point.
  */
 export function nearRun(a: Point, b: Point, c: Point, d: Point, tol: number, fan?: Point): number {
-  if (Math.min(a.x, b.x) - tol > Math.max(c.x, d.x) || Math.min(c.x, d.x) - tol > Math.max(a.x, b.x)) return 0;
-  if (Math.min(a.y, b.y) - tol > Math.max(c.y, d.y) || Math.min(c.y, d.y) - tol > Math.max(a.y, b.y)) return 0;
+  if (
+    Math.min(a.x, b.x) - tol > Math.max(c.x, d.x) ||
+    Math.min(c.x, d.x) - tol > Math.max(a.x, b.x) ||
+    Math.min(a.y, b.y) - tol > Math.max(c.y, d.y) ||
+    Math.min(c.y, d.y) - tol > Math.max(a.y, b.y)
+  )
+    return 0;
   const length = distance(c, d);
   if (length < 1) return 0;
   const steps = Math.ceil(length / 2);

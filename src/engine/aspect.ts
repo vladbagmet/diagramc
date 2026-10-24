@@ -40,8 +40,7 @@ export function aspectPenalty(width: number, height: number): number {
   if (width <= 0 || height <= 0) return 0;
   const r = width / height;
   if (r < ASPECT_BAND.min) return Math.log(ASPECT_BAND.min / r);
-  if (r > ASPECT_BAND.max) return Math.log(r / ASPECT_BAND.max);
-  return 0;
+  return r > ASPECT_BAND.max ? Math.log(r / ASPECT_BAND.max) : 0;
 }
 
 /** Lower is better. See the module comment for the terms. */
@@ -132,8 +131,8 @@ export function countCrossings(routes: readonly (readonly Point[])[]): number {
     const [a, b, ra] = segments[i]!;
     for (let j = i + 1; j < segments.length; j++) {
       const [c, d, rb] = segments[j]!;
-      if (ra === rb) continue;
       if (
+        ra === rb ||
         Math.max(a.x, b.x) < Math.min(c.x, d.x) ||
         Math.max(c.x, d.x) < Math.min(a.x, b.x) ||
         Math.max(a.y, b.y) < Math.min(c.y, d.y) ||
@@ -216,8 +215,9 @@ export function betterLayout<T>(candidates: readonly { result: T; penalty: numbe
     within: maxAspect === undefined || elongation(measure(c.result)) <= maxAspect,
   }));
   const best = scored.reduce((a, b) => (b.score < a.score - 1e-6 ? b : a));
-  if (best.within) return best.result;
-  return scored.filter(c => c.within && c.score <= best.score * MAX_ASPECT_TOLERANCE).sort((a, b) => a.score - b.score)[0]?.result ?? best.result;
+  return best.within
+    ? best.result
+    : (scored.filter(c => c.within && c.score <= best.score * MAX_ASPECT_TOLERANCE).sort((a, b) => a.score - b.score)[0]?.result ?? best.result);
 }
 
 /** See ChooseOptions.maxAspect. */

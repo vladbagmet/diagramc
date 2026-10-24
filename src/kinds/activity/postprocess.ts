@@ -37,7 +37,7 @@ export function fixActivitySvg(svg: string, model?: { title?: string }): string 
     if (n.length !== 8 || n.some(v => !Number.isFinite(v))) return tag;
     const tip = { x: n[2]!, y: n[3]! },
       notch = { x: n[6]!, y: n[7]! };
-    if (!ends.some(([x, y]) => Math.abs(x - tip.x) < 0.6 && Math.abs(y - tip.y) < 0.6)) return '';
+    if (ends.every(([x, y]) => !(Math.abs(x - tip.x) < 0.6 && Math.abs(y - tip.y) < 0.6))) return '';
     const d = Math.hypot(tip.x - notch.x, tip.y - notch.y) || 1;
     const u = { x: (tip.x - notch.x) / d, y: (tip.y - notch.y) / d };
     const at = (side: number) => `${fmt(tip.x - u.x * length - u.y * halfWidth * side)},${fmt(tip.y - u.y * length + u.x * halfWidth * side)}`;
@@ -61,7 +61,16 @@ export function fixActivitySvg(svg: string, model?: { title?: string }): string 
     const d = `M${fmt(cx)},${fmt(top)} V${fmt(bottom)} M${fmt(left)},${fmt(bottom)} V${fmt(bar)} H${fmt(right)} V${fmt(bottom)}`;
     return `${fixed}<path d="${d}" fill="none" style="stroke:${theme.color.nodeStroke};stroke-width:${theme.stroke.node};"/>`;
   });
-  const fixed = padLanes(moveCrossedLabels(anchorNotes(trimBars(separateBarFlows(straightenBarBranches(mirrorAcceptEvents(svg))))), 0));
+  const steps: ((svg: string) => string)[] = [
+    mirrorAcceptEvents,
+    straightenBarBranches,
+    separateBarFlows,
+    trimBars,
+    anchorNotes,
+    s => moveCrossedLabels(s, 0),
+    padLanes,
+  ];
+  const fixed = steps.reduce((s, step) => step(s), svg);
   // Without a title there is no frame: give the drawing the own engine's canvas margin.
   return model && model.title === undefined ? padCanvas(fixed, theme.spacing.canvas) : fixed;
 }
@@ -157,8 +166,9 @@ function centerLaneTitles(svg: string, borders: readonly { x: number; y0: number
       middle = Number(a.x) + width / 2;
     const left = xs.findLast(x => x < middle),
       right = xs.find(x => x > middle);
-    if (left === undefined || right === undefined || right - left < width) return tag;
-    return tag.replace(/ x="[^"]*"/u, () => ` x="${fmt((left + right) / 2 - width / 2)}"`);
+    return left === undefined || right === undefined || right - left < width
+      ? tag
+      : tag.replace(/ x="[^"]*"/u, () => ` x="${fmt((left + right) / 2 - width / 2)}"`);
   });
 }
 
@@ -242,8 +252,11 @@ function straightenBarBranches(svg: string): string {
         const grown = { x: left, y: bar.y - 1, width: right - left, height: bar.height + 2 };
         // Nothing but this bar and the flows ending on it may lie where the bar grows.
         const ends = (l: Line): boolean => [l.p, l.q].some(p => (Math.abs(p.y - top) < 0.5 || Math.abs(p.y - bottom) < 0.5) && p.x >= left && p.x <= right);
-        if (shapes.some(s => s.tag !== tag && overlapArea(s.r, grown) > 0)) continue;
-        if (lines.some(l => l !== stub && l !== jog && l !== leg && !ends(l) && segmentIntersectsRect(l.p, l.q, grown))) continue;
+        if (
+          shapes.some(s => s.tag !== tag && overlapArea(s.r, grown) > 0) ||
+          lines.some(l => l !== stub && l !== jog && l !== leg && !ends(l) && segmentIntersectsRect(l.p, l.q, grown))
+        )
+          continue;
         const edge = below ? bottom : top;
         edits.set(stub.tag, '');
         edits.set(jog.tag, '');
@@ -316,7 +329,7 @@ function separateBarFlows(svg: string): string {
       top.length === 1 && bottom.length > 1 ? [top[0]!, bottom] : bottom.length === 1 && top.length > 1 ? [bottom[0]!, top] : [undefined, []];
     if (!single || Math.abs(single.line.p.x - single.line.q.x) > 0.01) continue;
     const xs = branches.map(b => b.end.x).sort((p, q) => p - q);
-    if (!xs.some(x => Math.abs(x - single.end.x) < BAR_FLOW_GAP)) continue;
+    if (xs.every(x => !(Math.abs(x - single.end.x) < BAR_FLOW_GAP))) continue;
     const corner = at(single.line.p, single.end) ? single.line.q : single.line.p;
     const jogs = lines.filter(l => l !== single.line && (at(l.p, corner) || at(l.q, corner)));
     if (jogs.length !== 1 || Math.abs(jogs[0]!.p.y - jogs[0]!.q.y) > 0.01) continue;
@@ -501,9 +514,9 @@ function moveCrossedLabels(svg: string, depth: number): string {
   const free = (r: Rect, self: Rect): boolean =>
     inView(r) &&
     !crossing(r) &&
-    !obstacles.some(o => overlapArea(inflate(r, diamonds.has(o) ? 1 : 2), o) > 0) &&
-    !arms.some(([p, q]) => segmentIntersectsRect(p, q, r)) &&
-    !texts.some(t => t.rect !== self && overlapArea(inflate(r, 2), t.rect) > 0);
+    obstacles.every(o => !(overlapArea(inflate(r, diamonds.has(o) ? 1 : 2), o) > 0)) &&
+    arms.every(([p, q]) => !segmentIntersectsRect(p, q, r)) &&
+    texts.every(t => t.rect === self || !(overlapArea(inflate(r, 2), t.rect) > 0));
   const moved = new Map<string, string>();
   const place = (tag: string, from: Rect, to: Rect): string => {
     const a = attrs(tag);
@@ -532,7 +545,7 @@ function moveCrossedLabels(svg: string, depth: number): string {
         width = Math.ceil(t.rect.x + t.rect.width + 6 - cut.p.x);
       const banded = shiftBand(svg, x0, width, Math.min(cut.p.y, cut.q.y), Math.max(cut.p.y, cut.q.y), t.tag);
       const clear = (x: number): boolean =>
-        !obstacles.some(o => o.x < x && o.x + o.width > x && !bars.has(o)) && !texts.some(o => o !== t && o.rect.x < x && o.rect.x + o.rect.width > x);
+        obstacles.every(o => !(o.x < x && o.x + o.width > x) || bars.has(o)) && texts.every(o => !(o !== t && o.rect.x < x && o.rect.x + o.rect.width > x));
       // Within the loop's band; if a swimlane border is in the way, widen that swimlane
       // first; else a full-height column, when nothing but bars and lines spans it.
       const widened =
@@ -634,22 +647,34 @@ function shiftBand(svg: string, x0: number, width: number, y0: number, y1: numbe
     const set = (key: string, value: number): void => {
       out = out.replace(new RegExp(` ${key}="[^"]*"`, 'u'), () => ` ${key}="${fmt(value)}"`);
     };
-    if (name === 'rect' || name === 'text') set('x', shift(Number(a.x)));
-    if (name === 'line') {
-      set('x1', shift(Number(a.x1)));
-      set('x2', shift(Number(a.x2)));
-    }
-    if (name === 'ellipse') set('cx', shift(Number(a.cx)));
-    if ((name === 'polygon' || name === 'polyline') && a.points) {
-      const n = a.points.split(/[ ,]+/u).filter(Boolean).map(Number);
-      const moved: string[] = [];
-      for (let i = 0; i + 1 < n.length; i += 2) moved.push(`${fmt(shift(n[i]!))},${fmt(n[i + 1]!)}`);
-      const points = ` points="${moved.join(name === 'polygon' ? ',' : ' ')}"`;
-      out = out.replace(/ points="[^"]*"/u, () => points);
-    }
-    if (name === 'path' && a.d) {
-      const d = ` d="${shiftPath(a.d, shift)}"`;
-      out = out.replace(/ d="[^"]*"/u, () => d);
+    switch (name) {
+      case 'rect':
+      case 'text':
+        set('x', shift(Number(a.x)));
+        break;
+      case 'line':
+        set('x1', shift(Number(a.x1)));
+        set('x2', shift(Number(a.x2)));
+        break;
+      case 'ellipse':
+        set('cx', shift(Number(a.cx)));
+        break;
+      case 'polygon':
+      case 'polyline': {
+        if (!a.points) break;
+        const n = a.points.split(/[ ,]+/u).filter(Boolean).map(Number);
+        const moved: string[] = [];
+        for (let i = 0; i + 1 < n.length; i += 2) moved.push(`${fmt(shift(n[i]!))},${fmt(n[i + 1]!)}`);
+        const points = ` points="${moved.join(name === 'polygon' ? ',' : ' ')}"`;
+        out = out.replace(/ points="[^"]*"/u, () => points);
+        break;
+      }
+      case 'path': {
+        if (!a.d) break;
+        const d = ` d="${shiftPath(a.d, shift)}"`;
+        out = out.replace(/ d="[^"]*"/u, () => d);
+        break;
+      }
     }
     return out;
   });
@@ -676,26 +701,37 @@ function insertColumn(svg: string, x0: number, width: number, heading = -Infinit
     const set = (key: string, value: number): void => {
       out = out.replace(new RegExp(` ${key}="[^"]*"`, 'u'), () => ` ${key}="${fmt(value)}"`);
     };
-    if (name === 'rect' || name === 'text') {
-      const x = Number(a.x);
-      if (name === 'rect' && x < x0 && x + Number(a.width) > x0) set('width', Number(a.width) + width);
-      else set('x', shift(x));
-    }
-    if (name === 'line') {
-      set('x1', shift(Number(a.x1)));
-      set('x2', shift(Number(a.x2)));
-    }
-    if (name === 'ellipse') set('cx', shift(Number(a.cx)));
-    if ((name === 'polygon' || name === 'polyline') && a.points) {
-      const n = a.points.split(/[ ,]+/u).filter(Boolean).map(Number);
-      const moved: string[] = [];
-      for (let i = 0; i + 1 < n.length; i += 2) moved.push(`${fmt(shift(n[i]!))},${fmt(n[i + 1]!)}`);
-      const points = ` points="${moved.join(name === 'polygon' ? ',' : ' ')}"`;
-      out = out.replace(/ points="[^"]*"/u, () => points);
-    }
-    if (name === 'path' && a.d) {
-      const d = ` d="${shiftPath(a.d, shift)}"`;
-      out = out.replace(/ d="[^"]*"/u, () => d);
+    switch (name) {
+      case 'rect':
+      case 'text': {
+        const x = Number(a.x);
+        if (name === 'rect' && x < x0 && x + Number(a.width) > x0) set('width', Number(a.width) + width);
+        else set('x', shift(x));
+        break;
+      }
+      case 'line':
+        set('x1', shift(Number(a.x1)));
+        set('x2', shift(Number(a.x2)));
+        break;
+      case 'ellipse':
+        set('cx', shift(Number(a.cx)));
+        break;
+      case 'polygon':
+      case 'polyline': {
+        if (!a.points) break;
+        const n = a.points.split(/[ ,]+/u).filter(Boolean).map(Number);
+        const moved: string[] = [];
+        for (let i = 0; i + 1 < n.length; i += 2) moved.push(`${fmt(shift(n[i]!))},${fmt(n[i + 1]!)}`);
+        const points = ` points="${moved.join(name === 'polygon' ? ',' : ' ')}"`;
+        out = out.replace(/ points="[^"]*"/u, () => points);
+        break;
+      }
+      case 'path': {
+        if (!a.d) break;
+        const d = ` d="${shiftPath(a.d, shift)}"`;
+        out = out.replace(/ d="[^"]*"/u, () => d);
+        break;
+      }
     }
     return out;
   });

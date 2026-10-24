@@ -78,8 +78,7 @@ export function exportSequence(model: SequenceDiagram, losses: Losses): string {
             lines.push(`${pad}create ${declare(l)}`);
             created.delete(l.id);
           } else losses.add(path, 'A second create message to one lifeline is written as a reply-style message');
-        }
-        if (item.sort === 'delete') lines.push(`${pad}destroy ${a(item.to)}`);
+        } else if (item.sort === 'delete') lines.push(`${pad}destroy ${a(item.to)}`);
         const arrow = item.sort === 'create' ? '-->>' : item.sort === 'delete' ? '->>' : ARROW[item.sort];
         // Mermaid takes one activation mark per message: activating the receiver wins, deactivating the sender follows.
         const mark = item.activate ? '+' : item.deactivate ? '-' : '';

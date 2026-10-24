@@ -9,7 +9,9 @@ const services = [
 ];
 const elements = [],
   relationships = [];
-const path = (from, to, protocol, extra = {}) => relationships.push({ type: 'communicationPath', from, to, protocol, ...extra });
+const path = (from, to, protocol, extra = {}) => {
+  relationships.push({ type: 'communicationPath', from, to, protocol, ...extra });
+};
 
 elements.push(
   { id: 'browser', type: 'device', name: 'Browser', stereotypes: ['client'] },

@@ -105,14 +105,16 @@ export function validateProfileDiagram(model: ProfileDiagram): Diagnostic[] {
       });
       continue;
     }
-    const key = `${r.type}\u0000${r.from}\u0000${r.to}`;
+    const key = `${r.type}\0${r.from}\0${r.to}`;
     const first = seen.get(key);
     if (first !== undefined) {
       diagnostics.push({ code: 'DUPLICATE_RELATIONSHIP', path: at, message: `Duplicate ${r.type} from "${r.from}" to "${r.to}" (first at ${first})` });
       continue;
     }
     seen.set(key, at);
-    const fail = (code: string, end: 'from' | 'to', message: string) => diagnostics.push({ code, path: pointer(at, end), message });
+    const fail = (code: string, end: 'from' | 'to', message: string) => {
+      diagnostics.push({ code, path: pointer(at, end), message });
+    };
     switch (r.type) {
       case 'extension':
         if (from.type !== 'stereotype') fail('INVALID_EXTENSION', 'from', `An extension goes from a stereotype to a metaclass; "${r.from}" is a ${from.type}`);
@@ -135,9 +137,11 @@ export function validateProfileDiagram(model: ProfileDiagram): Diagnostic[] {
         break;
       case 'reference':
         if (from.type !== 'profile') fail('INVALID_REFERENCE', 'from', `A metaclass reference goes from a profile; "${r.from}" is a ${from.type}`);
-        else if (to.type !== 'metaclass' && to.type !== 'package')
+        else if (to.type === 'metaclass' || to.type === 'package') {
+          checked.push({ index: i, from: r.from, to: r.to });
+        } else {
           fail('INVALID_REFERENCE', 'to', `A profile references a metaclass or a metamodel package; "${r.to}" is a ${to.type}`);
-        else checked.push({ index: i, from: r.from, to: r.to });
+        }
         break;
     }
   }
@@ -160,7 +164,7 @@ export function validateProfileDiagram(model: ProfileDiagram): Diagnostic[] {
     }
   }
   const owner = checkOwnership(ownership, diagnostics);
-  if (!diagnostics.some(d => d.code === 'CONTAINMENT_CYCLE')) {
+  if (diagnostics.every(d => d.code !== 'CONTAINMENT_CYCLE')) {
     for (const { index, from, to, applied } of checked) {
       if (!nestedIn(from, to, owner)) continue;
       // UML 2.5.1 (12.3.3) lets a package apply a profile it owns, but the arrow from a package to a

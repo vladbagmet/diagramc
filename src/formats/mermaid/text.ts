@@ -10,7 +10,7 @@ import type { Problems, SourceLine } from '../types.js';
 
 /** Characters encoded everywhere: the entity escape itself, HTML, quotes, statement separators and controls. */
 // eslint-disable-next-line no-control-regex -- control characters are exactly what must be escaped.
-const ALWAYS = /[#<>"&;`\\\u0000-\u001F\u007F-\u009F]/u;
+const ALWAYS = /[#<>"&;`\\\u{0}-\u{1F}\u{7F}-\u{9F}]/u;
 
 export const entity = (c: string): string => [...c].map(u => `#${u.codePointAt(0)!};`).join('');
 
@@ -26,7 +26,7 @@ export function encode(text: string, special = ''): string {
     .join('');
 }
 
-const NAMED: Record<string, string> = { quot: '"', amp: '&', lt: '<', gt: '>', nbsp: ' ', apos: "'" };
+const NAMED: Record<string, string> = { quot: '"', amp: '&', lt: '<', gt: '>', nbsp: '\u{A0}', apos: "'" };
 
 /** Decodes `#123;` and the common named entity codes (`#quot;`). */
 export function decode(text: string): string {
@@ -52,7 +52,7 @@ export function titleOf(line: SourceLine): string | undefined {
  * presentation and skipped). The first line returned is the diagram header.
  */
 export function readMermaid(text: string, problems: Problems): SourceLine[] {
-  const raw = text.replace(/^\uFEFF/u, '').split(/\r\n|\r|\n/u);
+  const raw = text.replace(/^\u{FEFF}/u, '').split(/\r\n|\r|\n/u);
   const out: SourceLine[] = [];
   let front = 'none' as 'none' | 'open' | 'done';
   for (const [index, line] of raw.entries()) {

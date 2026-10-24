@@ -191,8 +191,7 @@ function straightenJog(route: Point[], node: Rect, max = JOG, avoid: readonly Po
   if (vertical && (start.x < node.x + margin || start.x > node.x + node.width - margin)) return route;
   if (horizontal && (start.y < node.y + margin || start.y > node.y + node.height - margin)) return route;
   // Never slide onto the room of another line's end.
-  if (avoid.some(p => distance(p, start) < gap)) return route;
-  return simplify([start, ...route.slice(2)]);
+  return avoid.some(p => distance(p, start) < gap) ? route : simplify([start, ...route.slice(2)]);
 }
 
 /**
@@ -330,11 +329,11 @@ export async function layoutDiagram(spec: DiagramSpec, metrics: FontMetrics): Pr
       const e = p.spec;
       if (e.source === e.target || e.tree || e.reversed || p.ends.length > 0 || chain(e.source).includes(e.target) || chain(e.target).includes(e.source))
         continue;
-      const key = [e.source, e.target].sort().join('\u0000');
+      const key = [e.source, e.target].sort().join('\0');
       groups.set(key, [...(groups.get(key) ?? []), p]);
     }
     for (const members of groups.values()) {
-      if (members.length < 2 || !members.some(p => p.center)) continue;
+      if (members.length < 2 || members.every(p => !p.center)) continue;
       const { source, target } = members[0]!.spec;
       const targetChain = new Set(chain(target));
       const bundle: Bundle = {
@@ -416,7 +415,7 @@ export async function layoutDiagram(spec: DiagramSpec, metrics: FontMetrics): Pr
             side: end === 'source' ? side.out : side.in,
             width: Math.max(2 * markerExtent(marker).half + 2, bundlePitch(member.bundle.info, dir === 'DOWN' || dir === 'UP') - BUNDLE_PORT_GAP),
           });
-          endPort.set(`${e.id}\u0000${end}`, id);
+          endPort.set(`${e.id}\0${end}`, id);
         }
         continue;
       }
@@ -443,7 +442,7 @@ export async function layoutDiagram(spec: DiagramSpec, metrics: FontMetrics): Pr
         const half = Math.max(labels.length > 0 ? across + marker.half + 8 : 0, marker.half + 5);
         const leaving = (end === 'source') !== backward(e);
         addPort(end === 'source' ? e.source : e.target, { id, side: leaving ? side.out : side.in, width: 2 * half });
-        endPort.set(`${e.id}\u0000${end}`, id);
+        endPort.set(`${e.id}\0${end}`, id);
       }
     }
     // ELK ignores minimum sizes of compound nodes: a container narrower than its
@@ -511,7 +510,7 @@ export async function layoutDiagram(spec: DiagramSpec, metrics: FontMetrics): Pr
           return [
             {
               id: `${e.id}::in`,
-              source: endPort.get(`${e.id}\u0000source`) ?? bundle.source,
+              source: endPort.get(`${e.id}\0source`) ?? bundle.source,
               target: `${bundle.id}::in${index}`,
               directionPriority: 1,
               straightness: 10,
@@ -519,7 +518,7 @@ export async function layoutDiagram(spec: DiagramSpec, metrics: FontMetrics): Pr
             {
               id: `${e.id}::out`,
               source: `${bundle.id}::out${index}`,
-              target: endPort.get(`${e.id}\u0000target`) ?? bundle.target,
+              target: endPort.get(`${e.id}\0target`) ?? bundle.target,
               directionPriority: 1,
               straightness: 10,
             },
@@ -535,8 +534,8 @@ export async function layoutDiagram(spec: DiagramSpec, metrics: FontMetrics): Pr
             height: lineHeight,
             placement: (l.end === 'source') === (!!e.tree || backward(e)) ? 'head' : 'tail',
           });
-        const sourcePort = endPort.get(`${e.id}\u0000source`) ?? e.source,
-          targetPort = endPort.get(`${e.id}\u0000target`) ?? e.target;
+        const sourcePort = endPort.get(`${e.id}\0source`) ?? e.source,
+          targetPort = endPort.get(`${e.id}\0target`) ?? e.target;
         return [
           {
             id: e.id,
@@ -683,7 +682,7 @@ export async function layoutDiagram(spec: DiagramSpec, metrics: FontMetrics): Pr
       const others = (node: string): Point[] => {
         const r = rects.get(node)!;
         return [...result.edges]
-          .filter(([id]) => !bundle.members.some(m => id.startsWith(`${m.spec.id}::`)))
+          .filter(([id]) => bundle.members.every(m => !id.startsWith(`${m.spec.id}::`)))
           .flatMap(([, x]) => [x.points[0], x.points.at(-1)])
           .filter(
             (q): q is Point =>
@@ -765,7 +764,7 @@ export async function layoutDiagram(spec: DiagramSpec, metrics: FontMetrics): Pr
     for (const [k, loop] of loops.entries())
       repairNodes.push({ id: `${id}::self-loop-${k}`, rect: union(loop.map(p => ({ ...p, width: 0, height: 0 }))), parent: all.get(id)!.parent });
   }
-  const labelObstacles = [...all.keys()].flatMap(id => (all.get(id)!.spec.children?.length ? [tabs.get(id)!] : [rects.get(id)!]));
+  const labelObstacles = [...all.keys()].flatMap(id => [all.get(id)!.spec.children?.length ? tabs.get(id)! : rects.get(id)!]);
   const containerBorders: [Point, Point][] = [];
   for (const id of all.keys()) {
     if (!all.get(id)!.spec.children?.length) continue;
@@ -846,7 +845,7 @@ export async function layoutDiagram(spec: DiagramSpec, metrics: FontMetrics): Pr
     const sceneEdges: SceneEdge[] = plans.map(p => {
       const points = routes.get(p.spec.id)!;
       const tip = points.at(-1)!;
-      const key = `${p.spec.type}\u0000${p.spec.targetMarker}@${tip.x},${tip.y}`;
+      const key = `${p.spec.type}\0${p.spec.targetMarker}@${tip.x},${tip.y}`;
       const drawTargetMarker = !p.spec.tree || !drawnTips.has(key);
       drawnTips.add(key);
       return { spec: p.spec, points, drawTargetMarker };

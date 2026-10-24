@@ -37,7 +37,7 @@ export function liftConstraints(svg: string): string {
     const ys = tips.flatMap(t => t.filter((_, i) => i % 2));
     if (
       ys.some(v => Math.abs(v - Number(y)) > 6) ||
-      !tips.every(t => t.some((v, i) => i % 2 === 0 && (Math.abs(v - Number(x1)) < 0.01 || Math.abs(v - Number(x2)) < 0.01)))
+      tips.some(t => t.every((v, i) => !(i % 2 === 0 && (Math.abs(v - Number(x1)) < 0.01 || Math.abs(v - Number(x2)) < 0.01))))
     )
       return match;
     const line = match
@@ -219,7 +219,7 @@ interface Box {
   width: number;
   height: number;
 }
-const attr = (tag: string, name: string): number => Number(new RegExp(String.raw`\s${name}="(-?[\d.]+)"`, 'u').exec(tag)?.[1] ?? Number.NaN);
+const attr = (tag: string, name: string): number => Number(new RegExp(String.raw`\s${name}="(-?[\d.]+)"`, 'u').exec(tag)?.[1] ?? NaN);
 const textBox = (tag: string): Box => {
   const size = attr(tag, 'font-size');
   return { x: attr(tag, 'x'), y: attr(tag, 'y') - size * 0.95, width: attr(tag, 'textLength'), height: size * 1.2 };
@@ -289,9 +289,9 @@ export function placeMessageLabels(svg: string): string {
     const free = (b: Box): boolean =>
       b.x + b.width <= right &&
       b.x >= left &&
-      !segments.some(s => !(s.a.x === own_.a.x && s.a.y === own_.a.y && s.b.x === own_.b.x && s.b.y === own_.b.y) && segmentIntersectsRect(s.a, s.b, b)) &&
+      segments.every(s => (s.a.x === own_.a.x && s.a.y === own_.a.y && s.b.x === own_.b.x && s.b.y === own_.b.y) || !segmentIntersectsRect(s.a, s.b, b)) &&
       !segmentIntersectsRect(own_.a, own_.b, b) &&
-      !boxes.some(o => overlapArea(o, b) > 0);
+      boxes.every(o => !(overlapArea(o, b) > 0));
     // Right of the point, the line runs up for a rising arrow: the label goes below; left of it, above (and vice versa).
     const at = (t: number, side: 'right' | 'left'): Box => {
       const p = { x: leftEnd.x + (rightEnd.x - leftEnd.x) * t, y: leftEnd.y + (rightEnd.y - leftEnd.y) * t };

@@ -29,7 +29,8 @@ export function estimateWidth(text: string, size = 13): number {
   for (const c of text) {
     const code = c.codePointAt(0)!;
     if (code >= 0x20 && code <= 0x7e) em += ASCII_ADVANCE[code - 0x20]! / 1000;
-    else if (/[\u1100-\u11FF\u2E80-\uA4CF\uAC00-\uD7AF\uF900-\uFAFF\uFE30-\uFE4F\uFF00-\uFFEF]|\p{Extended_Pictographic}/u.test(c)) em += 1.05;
+    else if (/[\u{1100}-\u{11FF}\u{2E80}-\u{A4CF}\u{AC00}-\u{D7AF}\u{F900}-\u{FAFF}\u{FE30}-\u{FE4F}\u{FF00}-\u{FFEF}]|\p{Extended_Pictographic}/u.test(c))
+      em += 1.05;
     else em += 0.8;
   }
   return Math.ceil(em * size);

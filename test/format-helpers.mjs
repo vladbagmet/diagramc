@@ -48,8 +48,7 @@ export function aliasIds(model, format) {
   const rename = (node, key) => {
     if (Array.isArray(node)) return node.map(n => rename(n, key));
     if (typeof node === 'string') return REFERENCE_KEYS.has(key) && map.has(node) ? map.get(node) : node;
-    if (!node || typeof node !== 'object') return node;
-    return Object.fromEntries(Object.entries(node).map(([k, v]) => [k, rename(v, k)]));
+    return node && typeof node === 'object' ? Object.fromEntries(Object.entries(node).map(([k, v]) => [k, rename(v, k)])) : node;
   };
   return rename(model, '');
 }
@@ -60,10 +59,11 @@ const REFERENCE_KEYS = new Set(['id', 'from', 'to', 'attachedTo', 'subject', 'pa
 /** A copy with object keys sorted, so key order never matters in comparisons. */
 export function sorted(value) {
   if (Array.isArray(value)) return value.map(sorted);
-  if (!value || typeof value !== 'object') return value;
-  return Object.fromEntries(
-    Object.keys(value)
-      .sort()
-      .map(k => [k, sorted(value[k])]),
-  );
+  return value && typeof value === 'object'
+    ? Object.fromEntries(
+        Object.keys(value)
+          .sort()
+          .map(k => [k, sorted(value[k])]),
+      )
+    : value;
 }

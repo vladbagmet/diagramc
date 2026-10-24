@@ -33,7 +33,7 @@ export const BAND = 26;
 
 const NUM = String.raw`-?[\d.]+`;
 const round = (n: number): string => String(Math.round(n * 1000) / 1000);
-const num = (tag: string, name: string): number => Number(new RegExp(String.raw`\s${name}="(${NUM})"`, 'u').exec(tag)?.[1] ?? Number.NaN);
+const num = (tag: string, name: string): number => Number(new RegExp(String.raw`\s${name}="(${NUM})"`, 'u').exec(tag)?.[1] ?? NaN);
 const setAttr = (tag: string, name: string, value: number): string =>
   tag.replace(new RegExp(String.raw`(\s${name}=")${NUM}(")`, 'u'), (_match: string, g1: string, g2: string) => `${g1}${round(value)}${g2}`);
 
@@ -88,7 +88,7 @@ function mapY(svg: string, f: (y: number) => number): string {
   return svg.replaceAll(/<(svg|line|rect|polygon|polyline|path|text|ellipse)\b[^>]*>/gu, (tag, name: string) => {
     switch (name) {
       case 'svg': {
-        const h = Number(/ viewBox="[-\d.]+ [-\d.]+ [\d.]+ ([\d.]+)"/u.exec(tag)?.[1] ?? Number.NaN);
+        const h = Number(/ viewBox="[-\d.]+ [-\d.]+ [\d.]+ ([\d.]+)"/u.exec(tag)?.[1] ?? NaN);
         if (!Number.isFinite(h)) return tag;
         const grown = Math.ceil(f(h));
         return tag
@@ -247,8 +247,7 @@ export function fixTimingRows(svg: string, model: TimingDiagram): string {
     if (l.width === theme.stroke.edge && l.x1 === l.x2 && (l.x1 === innerLeft || l.x1 === innerRight) && l.y1 <= f(tops[0]!) + 0.5) return '';
     if (l.y1 === l.y2 && l.x1 === innerLeft && l.x2 === innerRight) return setAttr(setAttr(tag, 'x1', frameLeft), 'x2', frameRight);
     if (l.y1 === l.y2 && l.x1 === innerLeft) return setAttr(tag, 'x1', frameLeft);
-    if (l.y1 === l.y2 && Math.abs(l.y1 - f(axisY)) < 0.01 && l.x1 === axis.x1) return setAttr(tag, 'x2', right);
-    return tag;
+    return l.y1 === l.y2 && Math.abs(l.y1 - f(axisY)) < 0.01 && l.x1 === axis.x1 ? setAttr(tag, 'x2', right) : tag;
   });
 
   // Time grid lines never run through a lifeline's name tab.
@@ -319,8 +318,9 @@ export function fixTimingRows(svg: string, model: TimingDiagram): string {
     const a = x(c.from),
       b = x(c.to);
     svg = svg.replaceAll(new RegExp(`<rect fill="${TIME_CONSTRAINT_MARK}"[^>]*>`, 'gu'), tag => {
-      if (Math.abs(num(tag, 'x') - a) > 2) return tag;
-      return setAttr(setAttr(tag, 'y', top), 'height', bottom - top).replace(TIME_CONSTRAINT_MARK, () => color.frameHeadingFill);
+      return Math.abs(num(tag, 'x') - a) > 2
+        ? tag
+        : setAttr(setAttr(tag, 'y', top), 'height', bottom - top).replace(TIME_CONSTRAINT_MARK, () => color.frameHeadingFill);
     });
     // Its dashed borders and caption, drawn by PlantUML across every row.
     svg = svg.replaceAll(/<line style="[^"]*dasharray:4,4;[^"]*" [^>]*\/>/gu, tag => {
@@ -329,8 +329,9 @@ export function fixTimingRows(svg: string, model: TimingDiagram): string {
     });
     const caption = `{${c.from}..${c.to}}`;
     svg = svg.replaceAll(/<text [^>]*>([^<]*)<\/text>/gu, (whole, content: string) => {
-      if (content.replaceAll(/&#8203;|\u200B/gu, '') !== escapeText(caption) || Math.abs(num(whole, 'x') - a) > 12) return whole;
-      return setAttr(setAttr(whole, 'y', f(row.tabBottom) + k * BAND + 16), 'x', a + 4);
+      return content.replaceAll(/&#8203;|\u{200B}/gu, '') !== escapeText(caption) || Math.abs(num(whole, 'x') - a) > 12
+        ? whole
+        : setAttr(setAttr(whole, 'y', f(row.tabBottom) + k * BAND + 16), 'x', a + 4);
     });
   }
 
@@ -362,7 +363,7 @@ function mapX(svg: string, x0: number, dx: number, top: number): string {
   return svg.replaceAll(/<(svg|line|rect|polygon|polyline|path|text|ellipse)\b[^>]*>/gu, (tag, name: string) => {
     switch (name) {
       case 'svg': {
-        const w = Number(/ viewBox="[-\d.]+ [-\d.]+ ([\d.]+) [\d.]+"/u.exec(tag)?.[1] ?? Number.NaN);
+        const w = Number(/ viewBox="[-\d.]+ [-\d.]+ ([\d.]+) [\d.]+"/u.exec(tag)?.[1] ?? NaN);
         if (!Number.isFinite(w)) return tag;
         const grown = Math.ceil(w + dx);
         return tag
@@ -419,7 +420,7 @@ function mapX(svg: string, x0: number, dx: number, top: number): string {
 
 /** A y in (upper, lower), nearest `prefer`, that cuts through no arrowhead. */
 function freeY(upper: number, lower: number, heads: readonly (readonly [number, number])[], prefer = (upper + lower) / 2): number {
-  const inside = (y: number): boolean => y > upper && y < lower && !heads.some(([a, b]) => y >= a - 0.001 && y <= b + 0.001);
+  const inside = (y: number): boolean => y > upper && y < lower && heads.every(([a, b]) => !(y >= a - 0.001 && y <= b + 0.001));
   const candidates = [prefer, ...heads.flatMap(([a, b]) => [a - 0.002, b + 0.002])];
   for (let d = 0.25; d < lower - upper; d += 0.25) candidates.push(prefer - d, prefer + d);
   return candidates.filter(inside).sort((p, q) => Math.abs(p - prefer) - Math.abs(q - prefer))[0] ?? prefer;
@@ -489,8 +490,7 @@ function centerOpenValues(svg: string): string {
       const x = num(whole, 'x'),
         y = num(whole, 'y'),
         w = num(whole, 'textLength');
-      if (x < left - 0.5 || x > right || y < top || y > bottom + 2) return whole;
-      return setAttr(whole, 'x', (left + right) / 2 - w / 2);
+      return x < left - 0.5 || x > right || y < top || y > bottom + 2 ? whole : setAttr(whole, 'x', (left + right) / 2 - w / 2);
     });
   }
   return svg;

@@ -138,12 +138,10 @@ export function activityToPlantUml(model: ActivityDiagram, metrics?: FontMetrics
  * line they follow, so the rows concatenate to the original text.
  */
 function noteRows(text: string, metrics: FontMetrics | undefined): string[] {
-  if (!metrics) return [text];
-  return wrapMeasured(metrics, text, { size: theme.font.size.body }, theme.size.maxNoteWidth);
+  return metrics ? wrapMeasured(metrics, text, { size: theme.font.size.body }, theme.size.maxNoteWidth) : [text];
 }
 
 /** Action and object node names wrapped to the theme's maximum name width. */
 function nameRows(text: string, metrics: FontMetrics | undefined): string[] {
-  if (!metrics) return [text];
-  return wrapMeasured(metrics, text, { size: theme.font.size.name }, theme.size.maxNameWidth);
+  return metrics ? wrapMeasured(metrics, text, { size: theme.font.size.name }, theme.size.maxNameWidth) : [text];
 }

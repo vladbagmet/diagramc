@@ -56,7 +56,7 @@ export function validateInteractionOverview(model: InteractionOverviewDiagram): 
       diagnostics.push({ code: 'SELF_FLOW', path: pointer(at, 'to'), message: `Flow from "${f.from}" to itself; loop back through a merge node instead` });
       continue;
     }
-    const key = `${f.from}\u0000${f.to}`,
+    const key = `${f.from}\0${f.to}`,
       first = seen.get(key);
     if (first !== undefined) {
       diagnostics.push({ code: 'DUPLICATE_FLOW', path: at, message: `A flow from "${f.from}" to "${f.to}" already exists (${first})` });
@@ -99,7 +99,9 @@ export function validateInteractionOverview(model: InteractionOverviewDiagram): 
     const at = pointer('', 'nodes', i);
     const ins = incoming.get(n.id)?.length ?? 0,
       outs = outgoing.get(n.id)?.length ?? 0;
-    const fail = (code: string, message: string) => diagnostics.push({ code, path: at, message, details: { incoming: ins, outgoing: outs } });
+    const fail = (code: string, message: string) => {
+      diagnostics.push({ code, path: at, message, details: { incoming: ins, outgoing: outs } });
+    };
     switch (n.type) {
       case 'decision':
         if (ins !== 1 || outs < 2)

@@ -115,8 +115,7 @@ export function exportStateMachine(model: StateMachineDiagram, losses: Losses): 
     }
     const label = v.submachine === undefined ? encode(v.name, '":') : `${encode(v.name, '":')} : ${encode(v.submachine, '":')}`;
     const head = `${pad}state ${label === alias ? alias : `"${label}" as ${alias}`}`;
-    if (!v.connectionPoints?.length && !v.regions?.length) lines.push(head);
-    else {
+    if (v.connectionPoints?.length || v.regions?.length) {
       lines.push(`${head} {`);
       for (const point of v.connectionPoints ?? []) {
         const pa = ids.get(point.id);
@@ -130,6 +129,8 @@ export function exportStateMachine(model: StateMachineDiagram, losses: Losses): 
         flush(`${v.id}#${j}`, `${pad}  `);
       }
       lines.push(`${pad}}`);
+    } else {
+      lines.push(head);
     }
     if (v.entry !== undefined) lines.push(`${pad}${alias} : entry / ${encode(v.entry)}`);
     if (v.doActivity !== undefined) lines.push(`${pad}${alias} : do / ${encode(v.doActivity)}`);

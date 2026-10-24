@@ -25,8 +25,7 @@ const BIDI_CONTROLS = /[‪-‮⁦-⁩]/u;
 export function displayTextProblem(text: string): string | undefined {
   if (!text.isWellFormed()) return 'contains an unpaired UTF-16 surrogate';
   if (!text.trim()) return 'is blank';
-  if (BIDI_CONTROLS.test(text)) return 'contains a bidirectional control character';
-  return undefined;
+  return BIDI_CONTROLS.test(text) ? 'contains a bidirectional control character' : undefined;
 }
 
 /** Name of the JSON Schema extension keyword that marks a string as display text. */

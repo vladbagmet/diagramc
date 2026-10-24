@@ -425,8 +425,12 @@ export function detectSequence(lines: readonly SourceLine[]): number {
   let score = 0;
   for (const { text } of lines) {
     if (/^(?:participant|boundary|control|entity|database|collections|queue)\s/u.test(text)) score += 3;
-    else if (/^(?:activate|deactivate|destroy|autonumber|alt|opt|loop|par|break|critical|group|ref over|hnote over)\b/u.test(text)) score += 2;
-    else if (/^note\s+over\b/u.test(text) || /^\[o?-|-o?\]/u.test(text)) score += 2;
+    else if (
+      /^(?:activate|deactivate|destroy|autonumber|alt|opt|loop|par|break|critical|group|ref over|hnote over)\b/u.test(text) ||
+      /^note\s+over\b/u.test(text) ||
+      /^\[o?-|-o?\]/u.test(text)
+    )
+      score += 2;
     else if (/^\S+\s*-{1,2}>{1,2}\s*\S+\s*(?:[*!+-]{2})*\s*(?::|$)/u.test(text) && !/[|*o+]--|--[|*o+]|\(.*\)\s*-|\[\*\]/u.test(text)) score += 1;
   }
   return score;

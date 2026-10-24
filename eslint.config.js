@@ -40,7 +40,67 @@ export default tseslint.config(
       // Chains of === on a discriminant narrow a union type in TypeScript; Array#includes does not.
       'unicorn/prefer-includes-over-repeated-comparisons': 'off',
       // Named imports from node:path (join, resolve) are the convention across the code base.
-      'unicorn/import-style': ['error', { styles: { 'node:path': { named: true } } }],
+      // The rule matches modules without the node: prefix, so the key is `path`.
+      'unicorn/import-style': ['error', { styles: { path: { default: false, named: true } } }],
+      // Match the existing style: conditional spreads use a ternary, one-line JSDoc stays on one line.
+      'unicorn/consistent-conditional-object-spread': ['error', 'ternary'],
+      'unicorn/single-line-block-comment-style': ['error', 'single-line'],
+      // Same reason as prevent-abbreviations above: short conventional names (dir, e, svg) read better here.
+      'unicorn/name-replacements': 'off',
+      // Boolean names follow the UML and model vocabulary (abstract, derived, strict, created); an is or has prefix on each adds noise.
+      'unicorn/consistent-boolean-name': 'off',
+      // Documentation comments keep the standard JSDoc layout with an asterisk on every line.
+      'unicorn/no-asterisk-prefix-in-documentation-comments': 'off',
+      // `for (const c of node.children ?? [])` and a short filter in the loop header are the idiom for optional and selected items.
+      'unicorn/no-unreadable-for-of-expression': 'off',
+      'unicorn/no-duplicate-loops': 'off',
+      // `break` ends a switch case or a search inside the layout and routing loops; moving each loop into a function would split the algorithms.
+      'unicorn/no-break-in-nested-loop': 'off',
+      // Printing a parsed result nests four calls (write, stringify, result, parse); five allows that and still stops deeper chains.
+      'unicorn/max-nested-calls': ['error', { max: 5 }],
+      // Conditions are ordered for type narrowing and short-circuiting (`next === undefined || next.startsWith(...)`), not by size.
+      'unicorn/prefer-simple-condition-first': 'off',
+      // Braces in plain strings are UML and PlantUML notation ({readOnly}, {field}, {static}), not misspelled interpolation.
+      'unicorn/no-incorrect-template-string-interpolation': 'off',
+      // Flags indexed reads of typed arrays and lookup tables, such as the router's blocked-cell grid, which are not existence checks.
+      'unicorn/no-computed-property-existence-check': 'off',
+      // `await promise.catch(() => {})` is the idiom for ignoring a failure that is handled elsewhere (see no-empty-function below).
+      'unicorn/prefer-await': 'off',
+      // The compile target is ES2024 (Node.js 22): Iterator.zip does not exist there, and the TypeScript library has no types for
+      // Iterator#toArray, the other iterator helpers or the new Set methods.
+      'unicorn/prefer-iterator-zip': 'off',
+      'unicorn/prefer-iterator-to-array': 'off',
+      'unicorn/prefer-iterator-helpers': 'off',
+      'unicorn/prefer-set-methods': 'off',
+      // A helper's parameters are its contract even when every caller passes the same value today; the fix inlines the value into the body.
+      'unicorn/no-unnecessary-parameters': 'off',
+      // Modules set up shared state when they load (the Ajv keywords, this config) and keep lazy singletons
+      // (the font loader, the ELK instance) and the schema text collector at the top level by design.
+      'unicorn/no-top-level-side-effects': 'off',
+      'unicorn/no-top-level-assignment-in-function': 'off',
+      // Values computed together are declared together at the top of a block, even when an early exit follows.
+      'unicorn/no-declarations-before-early-exit': 'off',
+      // Whole alternatives side by side (`back ? end(f, 'to') : end(f, 'from')`) read better than a ternary inside an argument,
+      // and `cond ? test : false` keeps the result a boolean where `cond && test` would not.
+      'unicorn/prefer-minimal-ternary': 'off',
+      'unicorn/prefer-logical-operator-over-ternary': 'off',
+      // Class fields are ordered by initialization dependency and reading order, not by visibility.
+      'unicorn/consistent-class-member-order': 'off',
+      // `path || '(document root)'` also replaces the empty string, which a default parameter would not.
+      'unicorn/prefer-default-parameters': 'off',
+      // A pass that repeats on its own result with a depth limit reads as recursion; the loop form is longer.
+      'unicorn/no-useless-recursion': 'off',
+      // SVG lengths carry units ("120px"), which parseFloat reads and Number() turns into NaN.
+      'unicorn/prefer-number-coercion': 'off',
+      // A guarded update (`if (score < best) { best = ... }`) reads better than the negated early exit these rules write.
+      'unicorn/prefer-continue': 'off',
+      'unicorn/prefer-early-return': 'off',
+      // `flatMap(x => (keep ? [value] : []))` filters and maps in one pass with type narrowing.
+      'unicorn/no-unnecessary-array-flat-map': 'off',
+      // `[a[i], a[j]] = [a[j], a[i]]` is the swap idiom.
+      'unicorn/no-unreadable-array-destructuring': 'off',
+      // Default sort is right for strings; the type-aware rule for src below allows it only on string arrays.
+      'unicorn/require-array-sort-compare': 'off',
     },
   },
   {
@@ -58,6 +118,8 @@ export default tseslint.config(
       '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_', destructuredArrayIgnorePattern: '^_' }],
       // `promise.catch(() => {})` is the idiom for ignoring a failure that is handled elsewhere.
       '@typescript-eslint/no-empty-function': ['error', { allow: ['arrowFunctions'] }],
+      // Sorting without a compare function is allowed only where the elements are strings.
+      '@typescript-eslint/require-array-sort-compare': ['error', { ignoreStringArrays: true }],
     },
   },
 );

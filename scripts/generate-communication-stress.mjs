@@ -85,12 +85,12 @@ function handle(node, prefix) {
   const targets = [...(tree[node] ?? []), ...cross.filter(([from]) => from === node).map(([, to]) => to)];
   let k = 0;
   for (const to of targets) {
-    const seq = prefix ? `${prefix}.${++k}` : `${++k}`;
+    const seq = prefix ? `${prefix}.${++k}` : String(++k);
     const sort = asynchronous.has(to) ? 'asynchronous' : 'synchronous';
     const message = { sequence: seq, from: node, to, name: operations[to] ?? 'call', arguments: [] };
     if (sort === 'asynchronous') message.sort = sort;
     if (to === 'fraud') message.guard = 'amount > limit';
-    if (to === 'tax') message.iteration = 'line in cart';
+    else if (to === 'tax') message.iteration = 'line in cart';
     messages.push(message);
     const nested = tree[to] ? handle(to, seq) : 0;
     if (sort === 'synchronous') {

@@ -88,7 +88,7 @@ export function timingToPlantUml(model: TimingDiagram): string {
     lines.push(`${l.notation} "${wrappedDisplayText(lifelineLabel(l), 40)}" as ${alias}`);
     for (const [j, s] of l.states.entries()) {
       const sa = `${alias}s${j}`;
-      stateAlias.set(`${l.id}\u0000${s}`, sa);
+      stateAlias.set(`${l.id}\0${s}`, sa);
       lines.push(`${alias} has "${displayText(s)}" as ${sa}`);
     }
   }
@@ -99,7 +99,7 @@ export function timingToPlantUml(model: TimingDiagram): string {
     if (!events.has(t)) events.set(t, []);
     return events.get(t)!;
   };
-  for (const l of model.lifelines) for (const c of l.changes) at(c.at).push(`${ids.get(l.id)} is ${stateAlias.get(`${l.id}\u0000${c.state}`)}`);
+  for (const l of model.lifelines) for (const c of l.changes) at(c.at).push(`${ids.get(l.id)} is ${stateAlias.get(`${l.id}\0${c.state}`)}`);
   // Block form: one source line per wrapped line keeps long notes under PlantUML's line limit.
   for (const n of model.notes ?? [])
     at(n.at).push(`note ${n.position ?? 'top'} of ${ids.get(n.lifeline)}`, ...wrapLines(n.text, NOTE_WRAP).map(displayText), 'end note');
@@ -108,8 +108,7 @@ export function timingToPlantUml(model: TimingDiagram): string {
   // robust lifeline's final state at the last time used anywhere extends its line
   // without a visible change (concise values already run to the end of the axis).
   if (!events.has(end)) {
-    for (const l of model.lifelines)
-      if (l.notation === 'robust') at(end).push(`${ids.get(l.id)} is ${stateAlias.get(`${l.id}\u0000${l.changes.at(-1)!.state}`)}`);
+    for (const l of model.lifelines) if (l.notation === 'robust') at(end).push(`${ids.get(l.id)} is ${stateAlias.get(`${l.id}\0${l.changes.at(-1)!.state}`)}`);
   }
   if (!events.has(end)) at(end);
   for (const t of [...events.keys()].sort((a, b) => a - b)) lines.push(`@${t}`, ...events.get(t)!);

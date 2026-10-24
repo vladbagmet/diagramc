@@ -77,8 +77,9 @@ export function attachPoint(end: RouteEnd, toward: Point): Point {
       b = end.rect.height / 2;
     // A labelled end stays near the left or right vertex: deep in a corner of the
     // bounding box, its label could only sit far away.
-    if (!end.labelled || Math.abs(hit.y - c.y) <= SIDE_SIN * b) return hit;
-    return { x: c.x + Math.sign(hit.x - c.x || 1) * a * Math.sqrt(1 - SIDE_SIN ** 2), y: c.y + Math.sign(hit.y - c.y) * SIDE_SIN * b };
+    return !end.labelled || Math.abs(hit.y - c.y) <= SIDE_SIN * b
+      ? hit
+      : { x: c.x + Math.sign(hit.x - c.x || 1) * a * Math.sqrt(1 - SIDE_SIN ** 2), y: c.y + Math.sign(hit.y - c.y) * SIDE_SIN * b };
   }
   const side = sidePoint(end.rect, toward, end.shape === 'actor');
   return end.attach ? end.attach(side, toward) : side;
@@ -232,8 +233,12 @@ export class Router {
       if (ignore.has(o.id) || !overlapsRect(o.rect, box)) continue;
       for (const by of o.rect.width > WIDE || o.rect.height > WIDE ? LANES : LANES.slice(0, 2))
         for (const p of cornersOf(inflate(o.rect, by))) {
-          if (this.obstacles.some(x => !ignore.has(x.id) && inside(p, inflate(x.rect, MARGIN)))) continue;
-          if (inside(p, inflate(source.rect, 2)) || inside(p, inflate(target.rect, 2))) continue;
+          if (
+            this.obstacles.some(x => !ignore.has(x.id) && inside(p, inflate(x.rect, MARGIN))) ||
+            inside(p, inflate(source.rect, 2)) ||
+            inside(p, inflate(target.rect, 2))
+          )
+            continue;
           corners.push(p);
         }
     }
@@ -286,8 +291,7 @@ export class Router {
         }
       }
     }
-    if (!prev.has(goal)) return straight;
-    if (prev.get(goal) === -1) return straight;
+    if (!prev.has(goal) || prev.get(goal) === -1) return straight;
     const via: Point[] = [];
     for (let k = prev.get(goal)!; k >= 0; k = prev.get(k)!) via.unshift(corners[k]!);
     const path = (ks: readonly number[]): Point[] => [
@@ -353,8 +357,13 @@ const GATE_TOLERANCE = 2,
 
 /** Length of c-d within `tol` of the segment a-b, ignoring the part within GATE_FAN of `fan` when the two are not parallel (as the gate measures it). */
 function nearRun(a: Point, b: Point, c: Point, d: Point, tol: number, fan?: Point): number {
-  if (Math.min(a.x, b.x) - tol > Math.max(c.x, d.x) || Math.min(c.x, d.x) - tol > Math.max(a.x, b.x)) return 0;
-  if (Math.min(a.y, b.y) - tol > Math.max(c.y, d.y) || Math.min(c.y, d.y) - tol > Math.max(a.y, b.y)) return 0;
+  if (
+    Math.min(a.x, b.x) - tol > Math.max(c.x, d.x) ||
+    Math.min(c.x, d.x) - tol > Math.max(a.x, b.x) ||
+    Math.min(a.y, b.y) - tol > Math.max(c.y, d.y) ||
+    Math.min(c.y, d.y) - tol > Math.max(a.y, b.y)
+  )
+    return 0;
   const length = distance(c, d);
   if (length < 1) return 0;
   const steps = Math.ceil(length / 2),
