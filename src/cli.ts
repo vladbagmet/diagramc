@@ -1,20 +1,31 @@
 #!/usr/bin/env node
-import { readFileSync } from 'node:fs';
-import { readFile } from 'node:fs/promises';
-import { fileURLToPath } from 'node:url';
 import { UmlError } from './core/errors.js';
 import { readInput, writeOutput } from './core/io.js';
 import { MAX_INPUT_BYTES } from './core/limits.js';
-import { parseDocument, suggestKind } from './model/parse.js';
-import { kinds, findKind } from './model/registry.js';
-import type { KindDefinition } from './model/kind.js';
-import { renderChecked, selectBackend, type OutputFormat } from './render.js';
-import { exportDocument, formatFromExtension, formatSupport, importText, parseFormat, type FormatName } from './formats/index.js';
-
-/** The version and install location come from the package itself, so they never drift. */
-const packageRoot = new URL('../', import.meta.url);
-const VERSION = (JSON.parse(readFileSync(new URL('package.json', packageRoot), 'utf8')) as { version: string }).version;
-const SETUP_SCRIPT = fileURLToPath(new URL('scripts/setup-renderer.mjs', packageRoot));
+import { parseDocument } from './model/parse.js';
+import { kinds } from './model/registry.js';
+import { formatSupport, type FormatName } from './formats/index.js';
+import {
+  COMMANDS,
+  BIN,
+  SETUP_SCRIPT,
+  SKILL_FILE,
+  VERSION,
+  exampleText,
+  exportFormat,
+  exportText,
+  guideText,
+  importFormat,
+  importModel,
+  kindArgument,
+  kindSummaries,
+  renderFormat,
+  renderText,
+  schemaOf,
+  usage,
+  validationResult,
+} from './commands.js';
+import { MCP_TOOLS } from './commands.js';
 
 /** The kind names, wrapped to the help text's 80 columns. */
 const kindList = (): string => {
@@ -74,6 +85,9 @@ const backendOption = `  --backend <engine|plantuml>
 
 const help = (): string => `uml ${VERSION} - validated JSON UML models to SVG or PNG, offline
 
+Agents: run \`${BIN} guide\` first for the playbook (discovery, the write, validate
+and render loop, errors), or attach \`${BIN} mcp\` as an MCP server.
+
 Usage:
   uml render <model.json|-> -o <diagram.svg|diagram.png> [options]
   uml validate <model.json|->
@@ -82,6 +96,8 @@ Usage:
   uml example <kind>
   uml schema <kind>
   uml kinds
+  ${BIN} guide [reference]
+  ${BIN} mcp
   uml <command> --help      Details of one command
   uml --version
 
@@ -96,6 +112,9 @@ Commands:
              descriptions and allowed values.
   kinds      Print the ${kinds.length} supported diagram kinds, their backends and
              the formats each exports to and imports from, as JSON.
+  guide      Print the usage guide for agents (the skill in skills/uml/), or
+             with "reference" the per-kind cheat sheet.
+  mcp        ${wrap(`Run an MCP server on stdin and stdout with the tools ${MCP_TOOLS.join(', ')}.`, ' '.repeat(13))}
 
 Render options:
   -o, --output <path>       Output file; its parent directory must exist.
@@ -219,6 +238,31 @@ Kinds:
   ${kindList()}.
 An unknown kind fails with UNKNOWN_KIND (exit 2) and the nearest kind.
 `,
+  guide: () => `Usage: ${BIN} guide [reference]
+
+Prints the usage guide for agents on stdout: when to use uml, the discovery
+commands, the write, validate and render loop, how to read errors and warnings,
+export and import, the renderer setup and the limits. It is the Agent Skill
+shipped in the package, which harnesses that read skills can load directly:
+  ${SKILL_FILE}
+With "reference" it prints the per-kind cheat sheet next to it: every kind's
+top-level properties and the type values of its elements and relationships.
+`,
+  mcp: () => `Usage: ${BIN} mcp
+
+Runs a Model Context Protocol server on stdin and stdout until stdin closes.
+${wrap(`Tools: ${MCP_TOOLS.join(', ')}.`, '')}
+They take the same inputs as the commands (a model as a JSON object, JSON text
+or a file path) and return the same output. A failure is a tool error whose
+text is the same {"error":{...}} object the commands print; warnings come as a
+second text item, {"warnings":[...]}. uml_render returns the SVG text or the PNG
+image, or writes the file and returns {"written":...} when "output" is given.
+
+Attach it to a harness, for example:
+  claude mcp add ${BIN} -- ${BIN} mcp
+  codex mcp add ${BIN} -- ${BIN} mcp
+  {"mcpServers":{"${BIN}":{"command":"${BIN}","args":["mcp"]}}}
+`,
   kinds: () => `Usage: uml kinds
 
 Prints the ${kinds.length} supported diagram kinds as a JSON array on stdout, each
@@ -229,29 +273,14 @@ first backend is the default: "engine" is the built-in layout engine,
 `,
 };
 
-const usage = (message: string): UmlError => new UmlError('USAGE', `${message}${message.endsWith('?') ? '' : '.'} See uml --help`);
-
 function isInput(arg: string | undefined): arg is string {
   return !!arg && (arg === '-' || !arg.startsWith('-'));
-}
-
-/** The kind named on the command line, or UNKNOWN_KIND with the nearest kind. */
-function kindArgument(name: string): KindDefinition {
-  const kind = findKind(name);
-  if (kind) return kind;
-  const nearest = suggestKind(name);
-  throw new UmlError(
-    'UNKNOWN_KIND',
-    `Unknown diagram kind ${JSON.stringify(name)}${nearest ? `; did you mean "${nearest}"?` : ''} Kinds: ${kinds.map(k => k.kind).join(', ')}`,
-    2,
-    { kind: name, available: kinds.map(k => k.kind), ...(nearest ? { suggestion: nearest } : {}) },
-  );
 }
 
 async function render(args: string[]): Promise<void> {
   let input: string | undefined,
     output: string | undefined,
-    format: OutputFormat | undefined,
+    format: string | undefined,
     backend: string | undefined,
     scale: number | undefined,
     strict = false;
@@ -270,10 +299,8 @@ async function render(args: string[]): Promise<void> {
         break;
       }
       case '--format': {
-        const f = value();
-        if (f !== 'svg' && f !== 'png') throw usage('--format must be svg or png');
-        format = f;
-
+        format = value();
+        if (format !== 'svg' && format !== 'png') throw usage('--format must be svg or png');
         break;
       }
       case '--backend': {
@@ -296,24 +323,8 @@ async function render(args: string[]): Promise<void> {
     }
   }
   if (!input || !output) throw usage('Usage: uml render <model.json|-> -o <diagram.svg|diagram.png>');
-  const extension = /\.(svg|png)$/iu.exec(output)?.[1]?.toLowerCase() as OutputFormat | undefined;
-  if (format && extension && format !== extension)
-    throw usage(`--format ${format} does not match the .${extension} extension of ${JSON.stringify(output)}; use a .${format} file name or drop --format`);
-  format ??= extension;
-  if (!format) throw usage('Output must end in .svg or .png, or pass --format');
-  if (format === 'svg' && scale !== undefined) throw usage('--scale only applies to PNG output');
-  const parsed = parseDocument(await readInput(input));
-  selectBackend(parsed, backend);
-  // Never discover or launch a renderer until the entire input has been validated.
-  const { data, warnings } = await renderChecked(parsed, format, { backend, ...(scale === undefined ? {} : { scale }) });
-  if (strict && warnings.length > 0) {
-    throw new UmlError(
-      'LAYOUT_QUALITY',
-      `The drawing fails ${warnings.length} layout check${warnings.length === 1 ? '' : 's'} (nothing was written): ${warnings.map(w => w.message).join(' ')}`,
-      5,
-      { warnings },
-    );
-  }
+  const resolved = renderFormat(output, format, scale);
+  const { data, warnings } = await renderText(await readInput(input), { format: resolved, backend, scale, strict });
   await writeOutput(output, data);
   if (warnings.length > 0) process.stderr.write(JSON.stringify({ warnings }) + '\n');
 }
@@ -344,11 +355,8 @@ function exchangeArgs(args: string[], named: readonly string[]): { input?: strin
 async function exportCommand(args: string[]): Promise<void> {
   const { input, output, values } = exchangeArgs(args, ['--to']);
   if (!input) throw usage('Usage: uml export <model.json|-> --to <plantuml|mermaid> [-o <file>]');
-  const named = values.get('--to');
-  const format: FormatName | undefined = named === undefined ? (output === undefined ? undefined : formatFromExtension(output)) : parseFormat(named, '--to');
-  if (!format) throw usage('Missing --to plantuml or --to mermaid (or an -o file ending in .puml or .mmd)');
-  const parsed = parseDocument(await readInput(input));
-  const { text, warnings } = exportDocument(parsed, format);
+  const format = exportFormat(values.get('--to'), output);
+  const { text, warnings } = exportText(await readInput(input), format);
   if (output === undefined) process.stdout.write(text);
   else await writeOutput(output, Buffer.from(text, 'utf8'));
   if (warnings.length > 0) process.stderr.write(JSON.stringify({ warnings }) + '\n');
@@ -357,38 +365,20 @@ async function exportCommand(args: string[]): Promise<void> {
 async function importCommand(args: string[]): Promise<void> {
   const { input, output, values } = exchangeArgs(args, ['--from', '--kind']);
   if (!input) throw usage('Usage: uml import <diagram.puml|diagram.mmd|-> [--from <plantuml|mermaid>] [-o <model.json>]');
-  const named = values.get('--from');
-  const format: FormatName | undefined = named === undefined ? formatFromExtension(input) : parseFormat(named, '--from');
-  if (!format)
-    throw usage(
-      input === '-'
-        ? 'Reading stdin needs --from plantuml or --from mermaid'
-        : `Cannot tell the format of ${JSON.stringify(input)} from its extension; pass --from plantuml or --from mermaid`,
-    );
+  const format = importFormat(values.get('--from'), input);
   const kind = values.get('--kind');
   if (kind !== undefined) kindArgument(kind);
-  const { model } = importText(await readInput(input), format, kind);
+  const model = importModel(await readInput(input), format, kind);
   const text = JSON.stringify(model, null, 2) + '\n';
   if (output === undefined) process.stdout.write(text);
   else await writeOutput(output, Buffer.from(text, 'utf8'));
-}
-
-/** The minimal example model shipped for a kind (examples/<kind>/minimal.json). */
-async function example(name: string): Promise<string> {
-  const kind = kindArgument(name);
-  const file = fileURLToPath(new URL(`../examples/${kind.kind}/minimal.json`, import.meta.url));
-  try {
-    return await readFile(file, 'utf8');
-  } catch {
-    throw new UmlError('INTERNAL_ERROR', `The example of ${kind.kind} is missing from this installation`, 3);
-  }
 }
 
 async function main(): Promise<void> {
   const args = process.argv.slice(2);
   const [command, ...rest] = args;
   if (command === undefined) throw usage('Missing command');
-  const commands = ['render', 'validate', 'export', 'import', 'example', 'schema', 'kinds', 'help'];
+  const commands: readonly string[] = COMMANDS;
   const asksHelp = command === '--help' || command === '-h' || command === 'help';
   if (asksHelp || rest.includes('--help') || rest.includes('-h')) {
     // `uml help render`, `uml --help render` and `uml render --help` show the render help.
@@ -413,36 +403,33 @@ async function main(): Promise<void> {
       return importCommand(rest);
     case 'validate': {
       if (rest.length !== 1 || !isInput(rest[0])) throw usage('Usage: uml validate <model.json|->');
-      const parsed = parseDocument(await readInput(rest[0]));
-      process.stdout.write(JSON.stringify({ valid: true, kind: parsed.kind.kind, version: parsed.version }) + '\n');
+      process.stdout.write(JSON.stringify(validationResult(parseDocument(await readInput(rest[0])))) + '\n');
       return;
     }
     case 'example': {
       if (rest.length !== 1) throw usage(`Usage: uml example <kind>; kinds: ${kinds.map(k => k.kind).join(', ')}`);
-      process.stdout.write(await example(rest[0]!));
+      process.stdout.write(await exampleText(rest[0]!));
       return;
     }
     case 'schema': {
       if (rest.length !== 1) throw usage('Usage: uml schema <kind>');
-      process.stdout.write(JSON.stringify(kindArgument(rest[0]!).schema, null, 2) + '\n');
+      process.stdout.write(JSON.stringify(schemaOf(rest[0]!), null, 2) + '\n');
       return;
     }
     case 'kinds': {
       if (rest.length > 0) throw usage('Usage: uml kinds');
-      process.stdout.write(
-        JSON.stringify(
-          kinds.map(k => ({
-            kind: k.kind,
-            title: k.title,
-            summary: k.summary,
-            frameKeyword: k.frameKeyword,
-            backends: k.backends.map(b => b.name),
-            ...formatSupport(k.kind),
-          })),
-          null,
-          2,
-        ) + '\n',
-      );
+      process.stdout.write(JSON.stringify(kindSummaries(), null, 2) + '\n');
+      return;
+    }
+    case 'guide': {
+      if (rest.length > 1) throw usage(`Usage: ${BIN} guide [reference]`);
+      process.stdout.write(await guideText(rest[0]));
+      return;
+    }
+    case 'mcp': {
+      if (rest.length > 0) throw usage(`Usage: ${BIN} mcp`);
+      // Loaded only here, so the other commands do not pay for the MCP SDK at start-up.
+      await (await import('./mcp.js')).serveMcp();
       return;
     }
     default: {

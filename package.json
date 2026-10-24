@@ -23,6 +23,7 @@
     "assets/fonts/",
     "scripts/setup-renderer.mjs",
     "examples/",
+    "skills/",
     "THIRD_PARTY_NOTICES.md",
     "CHANGELOG.md"
   ],

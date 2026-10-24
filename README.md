@@ -36,6 +36,20 @@ uml render examples/class/ordering.json -o ordering.png
 Eleven kinds work right away. Sequence, timing and activity diagrams need the
 PlantUML renderer, which one command downloads ([below](#plantuml-renderer-sequence-timing-activity)).
 
+## For agents
+
+`uml` is built to be driven by coding agents. Give yours one of these:
+
+- **The skill.** Load [`skills/uml/`](skills/uml/SKILL.md) as an Agent Skill
+  (Claude Code, Codex, Cursor and others read the format): a short playbook for
+  discovery, the write, validate and render loop, errors and limits, with a
+  per-kind cheat sheet in [`reference.md`](skills/uml/reference.md).
+- **The binary alone.** `uml guide` prints the same playbook from the installed
+  package, and `uml --help` points to it in its first lines.
+- **MCP.** `uml mcp` is a stdio MCP server with the tools `uml_kinds`,
+  `uml_example`, `uml_schema`, `uml_validate`, `uml_render`, `uml_export` and
+  `uml_import`; [MCP server](#mcp-server) has the client configuration.
+
 ## Gallery
 
 One diagram of each kind, rendered by `npm run screenshots` from the example
@@ -116,6 +130,9 @@ cat model.json | uml render - -o diagram.png --scale 3
 uml render model.json -o diagram.svg --backend plantuml
 uml render model.json -o diagram.svg --strict # fail instead of warning on layout defects
 uml kinds                                     # the 14 kinds, their backends and formats, as JSON
+uml guide                                     # the usage playbook for agents (skills/uml/SKILL.md)
+uml guide reference                           # the per-kind cheat sheet
+uml mcp                                       # run as a stdio MCP server
 uml render --help                             # every command has its own help
 ```
 
@@ -124,8 +141,8 @@ The output format follows the `-o` extension unless `--format svg|png` is given;
 atomically, only after a successful render, and its parent directory must
 exist. An existing device or pipe (`-o /dev/null --format svg`,
 `-o /dev/stdout`) is written directly. Successful runs print nothing on stdout,
-except `validate`, `example`, `kinds`, `schema`, and `export` and `import`
-without `-o`.
+except `validate`, `example`, `kinds`, `schema`, `guide`, and `export` and
+`import` without `-o`.
 
 ### Writing models
 
@@ -188,6 +205,53 @@ reports every other line, with its line number, instead of guessing; the result
 is validated like `uml validate`. `uml kinds` lists what each kind exports to
 and imports from. Mapping tables and lossy cases:
 [docs/formats.md](docs/formats.md).
+
+### MCP server
+
+`uml mcp` serves the commands as Model Context Protocol tools on stdin and
+stdout until the client disconnects:
+
+| Tool | Same as | Returns |
+|---|---|---|
+| `uml_kinds` | `uml kinds` | the kinds as JSON |
+| `uml_example` | `uml example <kind>` | a minimal model |
+| `uml_schema` | `uml schema <kind>` | the kind's JSON Schema |
+| `uml_validate` | `uml validate` | `{"valid":true,...}` |
+| `uml_render` | `uml render` | SVG text, a PNG image, or `{"written",...}` with `output` |
+| `uml_export` | `uml export` | PlantUML or Mermaid text |
+| `uml_import` | `uml import` | the model JSON |
+
+A model is passed as `model` (a JSON object or its text) or `file` (a path,
+relative to the server's working directory); `uml_import` takes `text` or
+`file`. The other arguments are the command options without dashes (`output`,
+`format`, `scale`, `strict`, `backend`, `to`, `from`, `kind`). A failure is a
+tool error whose text is the same `{"error":{...}}` object the command prints,
+with every diagnostic; layout and `EXPORT_LOSSY` warnings come as a second text
+item `{"warnings":[...]}`.
+
+Claude Code:
+
+```sh
+claude mcp add uml -- uml mcp
+```
+
+Codex (`codex mcp add uml -- uml mcp`, or in `~/.codex/config.toml`):
+
+```toml
+[mcp_servers.uml]
+command = "uml"
+args = ["mcp"]
+```
+
+Any client that reads the common JSON configuration (Cursor, Claude Desktop and
+others):
+
+```json
+{ "mcpServers": { "uml": { "command": "uml", "args": ["mcp"] } } }
+```
+
+Without `uml` on the PATH, use `node` as the command and
+`["/path/to/uml_cli/dist/cli.js", "mcp"]` as the arguments.
 
 ## Errors
 
@@ -336,7 +400,8 @@ problems as described in [SECURITY.md](SECURITY.md).
 their texts in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md): the Inter font
 (SIL Open Font License 1.1, [`assets/fonts/OFL.txt`](assets/fonts/OFL.txt)), the
 npm dependencies (elkjs EPL-2.0, @resvg/resvg-js MPL-2.0, harfbuzzjs MIT,
-subset-font BSD-3-Clause, Ajv MIT and their dependencies), and the PlantUML jar
+subset-font BSD-3-Clause, Ajv MIT, the MCP TypeScript SDK MIT, Zod MIT and their
+dependencies), and the PlantUML jar
 (the MIT build, [decision 0005](docs/decisions/0005-plantuml-license-build.md))
 and Temurin JRE (GPL v2 with Classpath Exception) that the setup script
 downloads. Downloaded tools are not part of the package.
