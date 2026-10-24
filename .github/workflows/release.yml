@@ -1,0 +1,123 @@
+name: Release
+
+# Pushing a tag v<version> builds the npm tarball and publishes it as a GitHub
+# Release. The process is described in docs/releasing.md.
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    name: Release check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      # The tag must be v plus the package.json version, and CHANGELOG.md must
+      # have a dated section for that version and nothing left under Unreleased.
+      - run: npm run release:check -- --tag "$GITHUB_REF_NAME"
+
+  check:
+    name: Check (Node 22)
+    needs: verify
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm run format:check
+      - run: npm run test:coverage
+
+  integration:
+    name: Integration and gallery (PlantUML)
+    needs: verify
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      # Same cache as ci.yml: the renderer is pinned in scripts/setup-renderer.mjs.
+      - uses: actions/cache@v6
+        with:
+          path: .tools
+          key: renderer-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('scripts/setup-renderer.mjs') }}
+      - run: npm run setup:renderer
+      - run: npm run test:integration
+      - run: npm run gallery
+
+  release:
+    name: Build and publish the GitHub Release
+    needs: [check, integration]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Write the release notes from CHANGELOG.md
+        run: |
+          echo "OUT=$RUNNER_TEMP/release" >> "$GITHUB_ENV"
+          export OUT="$RUNNER_TEMP/release"
+          mkdir -p "$OUT"
+          npm run release:check -- --tag "$GITHUB_REF_NAME" --notes "$OUT/notes.md"
+      - name: Build the tarball
+        id: pack
+        run: |
+          # Build first and skip prepack, so only npm pack's JSON reaches stdout.
+          npm run build
+          file=$(npm pack --ignore-scripts --pack-destination "$OUT" --json | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>console.log(JSON.parse(s)[0].filename))')
+          echo "tarball=$OUT/$file" >> "$GITHUB_OUTPUT"
+          echo "name=$file" >> "$GITHUB_OUTPUT"
+      - name: Install the tarball into a scratch project and run it
+        env:
+          TARBALL: ${{ steps.pack.outputs.tarball }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/smoke" && cd "$RUNNER_TEMP/smoke"
+          npm init -y > /dev/null
+          npm install --no-audit --no-fund "$TARBALL"
+          version=$(npx uml --version)
+          echo "uml --version: $version"
+          if [ "$version" != "${GITHUB_REF_NAME#v}" ]; then
+            echo "uml --version printed $version, expected ${GITHUB_REF_NAME#v}"
+            exit 1
+          fi
+          npx uml example class | npx uml validate -
+      - name: Write the SHA-256 sums
+        env:
+          NAME: ${{ steps.pack.outputs.name }}
+        run: |
+          cd "$OUT"
+          sha256sum "$NAME" > SHA256SUMS.txt
+          cat SHA256SUMS.txt
+      - name: Create the GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TARBALL: ${{ steps.pack.outputs.tarball }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            "$TARBALL" "$OUT/SHA256SUMS.txt" \
+            --title "uml ${GITHUB_REF_NAME#v}" \
+            --notes-file "$OUT/notes.md" \
+            --verify-tag
