@@ -1,7 +1,9 @@
 name: CI
 
 on:
+  # Pull requests get their run from pull_request; push covers main itself, so a PR branch is not checked twice.
   push:
+    branches: [main]
   pull_request:
 
 permissions:
