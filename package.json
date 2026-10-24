@@ -52,7 +52,7 @@
     "@resvg/resvg-js": "2.6.2",
     "ajv": "8.20.0",
     "elkjs": "0.11.1",
-    "harfbuzzjs": "1.6.2",
+    "harfbuzzjs": "1.6.3",
     "subset-font": "2.9.0",
     "zod": "4.6.6"
   },
