@@ -65,7 +65,7 @@ body:
       label: Environment
       description: Output of `diagramc --version`, `node --version`, and your operating system.
       placeholder: |
-        diagramc 1.0.0
+        diagramc 1.1.0
         node v22.x
         macOS 15 arm64
     validations:

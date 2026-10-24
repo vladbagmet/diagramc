@@ -221,7 +221,7 @@ test('CLI help, version, usage and machine-readable read/parse/encoding failures
   for (const flag of ['--format', '--backend', '--scale', '--strict', '-o, --output']) assert.ok(cli(['render', '--help']).stdout.includes(flag), flag);
   assert.equal(cli(['help', 'draw']).status, 2);
   const { version } = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
-  assert.equal(version, '1.0.0');
+  assert.match(version, /^\d+\.\d+\.\d+$/, 'package.json carries a release version');
   assert.equal(cli(['--version']).stdout, `${version}\n`);
   for (const [args, options, code, status] of [
     [[], {}, 'USAGE', 2],

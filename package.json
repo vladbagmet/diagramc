@@ -1,6 +1,6 @@
 {
   "name": "diagramc",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "private": true,
   "description": "Compile validated JSON models into clean UML diagrams. Built for AI agents, offline, with PlantUML and Mermaid export and import.",
   "license": "MIT",

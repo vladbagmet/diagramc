@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.1.0 (2026-10-24)
 
 - The project is renamed to diagramc, to leave room for diagram families beyond
   UML. The npm package `agent-uml-cli` is now `diagramc`, the `uml` command is

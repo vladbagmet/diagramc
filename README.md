@@ -19,7 +19,7 @@ format.
 
 ![Four diagrams drawn by diagramc: a class diagram, a sequence diagram, a state machine and a deployment diagram](docs/images/hero.png)
 
-Version 1.0.0. Changes: [CHANGELOG.md](CHANGELOG.md).
+Version 1.1.0. Changes: [CHANGELOG.md](CHANGELOG.md).
 
 ## Quick start
 
