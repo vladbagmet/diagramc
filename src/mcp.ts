@@ -208,13 +208,18 @@ export function createServer(): McpServer {
 }
 
 /** Serves the tools on `transport` (stdio by default) until it closes. */
-export async function serveMcp(transport: Transport = new StdioServerTransport()): Promise<void> {
+export async function serveMcp(transport: Transport = new StdioServerTransport(), input: NodeJS.ReadableStream = process.stdin): Promise<void> {
   const server = createServer();
   const closed = new Promise<void>(accept => {
     // The SDK reports the end of the session through this callback property; it is not an EventTarget.
     // eslint-disable-next-line unicorn/prefer-add-event-listener
     server.server.onclose = accept;
   });
+  // The SDK's stdio transport does not watch for the end of its input, so a client that closes the pipe
+  // would leave this promise pending and Node would exit with code 13. Closing the server ends the session cleanly.
+  const onEnd = (): void => void server.close();
+  input.once('end', onEnd);
   await server.connect(transport);
   await closed;
+  input.off('end', onEnd);
 }

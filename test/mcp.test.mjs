@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
+import { spawnSync } from 'node:child_process';
 import { BIN, MCP_TOOLS, mcpToolName } from '../dist/commands.js';
 import { kinds } from '../dist/model/registry.js';
 import { cli, fakeJava, fakeSvg, minimal, root, workspace } from './helpers.mjs';
@@ -200,4 +201,10 @@ test('export returns the text with lossy constructs as warnings; import reads te
     assert.equal(failure.isError, true, JSON.stringify(args));
     assert.equal(failure.parsed[0].error.code, code);
   }
+});
+
+test('the MCP server exits with status 0 when the client closes stdin', () => {
+  const result = spawnSync(process.execPath, [join(import.meta.dirname, '../dist/cli.js'), 'mcp'], { input: '', encoding: 'utf8', timeout: 20_000 });
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(result.stdout, '');
 });
