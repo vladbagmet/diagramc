@@ -46,11 +46,13 @@
     "check": "npm run typecheck && npm run lint && npm run format:check && npm run test:coverage && npm run gallery"
   },
   "dependencies": {
+    "@modelcontextprotocol/sdk": "1.32.1",
     "@resvg/resvg-js": "2.6.2",
     "ajv": "8.20.0",
     "elkjs": "0.11.1",
     "harfbuzzjs": "1.6.2",
-    "subset-font": "2.9.0"
+    "subset-font": "2.9.0",
+    "zod": "4.6.6"
   },
   "devDependencies": {
     "@eslint/js": "9.39.5",
