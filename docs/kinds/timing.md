@@ -1,7 +1,7 @@
 # Timing diagram: notation checklist
 
 Backend: PlantUML 1.2025.10 (timing engine, styled through PlantUML's style
-system from the theme tokens). Frame keyword: `sd`. Schema: `uml schema timing`.
+system from the theme tokens). Frame keyword: `sd`. Schema: `diagramc schema timing`.
 Code: `src/kinds/timing/`. UML references are to UML 2.5.1 (formal/17-12-05),
 clause 17.7.
 

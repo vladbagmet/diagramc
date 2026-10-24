@@ -1,7 +1,7 @@
 # Sequence diagram: notation checklist
 
 Backend: PlantUML 1.2025.10 (classic sequence engine, `skinparam style strictuml`,
-`hide footbox`). Frame keyword: `sd`. Schema: `uml schema sequence`. Code:
+`hide footbox`). Frame keyword: `sd`. Schema: `diagramc schema sequence`. Code:
 `src/kinds/sequence/`. UML references are to UML 2.5.1 (formal/17-12-05), clause 17.
 
 Tests referenced below: `unit` = `test/sequence.test.mjs` (no Java: generated

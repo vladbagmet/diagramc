@@ -28,7 +28,7 @@ export interface PlantUmlBackend<M> {
   postProcess?(svg: string, model: M): string;
   /**
    * The QA gates this backend's drawings are held to, when not all of them (a
-   * best-effort fallback renderer). `uml render` warns only about these.
+   * best-effort fallback renderer). `diagramc render` warns only about these.
    */
   readonly gates?: readonly string[];
 }
@@ -50,12 +50,13 @@ export interface LegacyFormat<M> {
  * Everything the CLI needs to know about one diagram kind. A kind lives in
  * src/kinds/<kind>/ and is registered with one line in src/model/registry.ts.
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- the registry holds kinds of every model type; `unknown` would make their validate and render methods unassignable.
 export interface KindDefinition<M = any> {
   /** Value of the `kind` property, lowercase, e.g. "class" or "state-machine". */
   readonly kind: string;
   /** Human title, e.g. "Class diagram". */
   readonly title: string;
-  /** One sentence for `uml kinds`. */
+  /** One sentence for `diagramc kinds`. */
   readonly summary: string;
   /** Keyword in the UML diagram frame heading (UML 2.5.1 Annex A), e.g. "class" or "sd". */
   readonly frameKeyword: string;

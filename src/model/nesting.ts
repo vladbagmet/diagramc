@@ -13,9 +13,25 @@ export function checkOwnership(edges: readonly { from: string; to: string; path:
   const acyclic: { from: string; to: string; path: string }[] = [];
   for (const e of edges) {
     const first = owner.get(e.to);
-    if (first === undefined) { owner.set(e.to, e.from); acyclic.push(e); continue; }
-    if (first === e.from) diagnostics.push({ code: 'DUPLICATE_MEMBER', path: e.path, message: `"${e.to}" is already owned by "${e.from}"`, details: { owner: e.from, member: e.to } });
-    else diagnostics.push({ code: 'MULTIPLE_OWNERS', path: e.path, message: `"${e.to}" is already owned by "${first}"; an element has at most one owner`, details: { owner: first, member: e.to } });
+    if (first === undefined) {
+      owner.set(e.to, e.from);
+      acyclic.push(e);
+      continue;
+    }
+    if (first === e.from)
+      diagnostics.push({
+        code: 'DUPLICATE_MEMBER',
+        path: e.path,
+        message: `"${e.to}" is already owned by "${e.from}"`,
+        details: { owner: e.from, member: e.to },
+      });
+    else
+      diagnostics.push({
+        code: 'MULTIPLE_OWNERS',
+        path: e.path,
+        message: `"${e.to}" is already owned by "${first}"; an element has at most one owner`,
+        details: { owner: first, member: e.to },
+      });
   }
   findCycles(acyclic, 'CONTAINMENT_CYCLE', 'Ownership (nesting and containment) must be acyclic', diagnostics);
   return owner;

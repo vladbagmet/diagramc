@@ -1,7 +1,7 @@
 # State machine diagram: notation checklist
 
 Backend: own engine (see [docs/decisions/0002-state-machine-and-use-case-backend.md](../decisions/0002-state-machine-and-use-case-backend.md)
-for why not PlantUML). Frame keyword: `stm`. Schema: `uml schema state-machine`.
+for why not PlantUML). Frame keyword: `stm`. Schema: `diagramc schema state-machine`.
 Code: `src/kinds/state-machine/`. UML references are to UML 2.5.1 (formal/17-12-05).
 
 Tests referenced below: `sm` = `test/state-machine.test.mjs`, `engine` =

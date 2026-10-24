@@ -8,9 +8,14 @@
 export function displayText(text: string): string {
   // Four-digit tokens also cover supplementary planes via paired surrogate tokens.
   // PlantUML does not recognize six-digit code-point tokens (U+100000 and above).
-  const encoded = text.split('').map(c => `<U+${c.charCodeAt(0).toString(16).toUpperCase().padStart(4, '0')}>`).join('');
+  /* eslint-disable unicorn/prefer-spread, unicorn/prefer-code-point -- UTF-16 code units on purpose, see above. */
+  const encoded = text
+    .split('')
+    .map(c => `<U+${c.charCodeAt(0).toString(16).toUpperCase().padStart(4, '0')}>`)
+    .join('');
+  /* eslint-enable unicorn/prefer-spread, unicorn/prefer-code-point */
   // Fixed zero-width boundaries preserve whitespace and defeat trailing <generic> parsing.
-  return `​${encoded}​`;
+  return `\u200B${encoded}\u200B`;
 }
 
 /**

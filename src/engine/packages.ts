@@ -22,7 +22,14 @@ export interface PackageHeader {
   name: string;
 }
 
-interface Row { text: string; rows: string[]; widths: number[]; style: TextStyle; lineHeight: number; fill?: string }
+interface Row {
+  text: string;
+  rows: string[];
+  widths: number[];
+  style: TextStyle;
+  lineHeight: number;
+  fill?: string;
+}
 
 export interface MeasuredPackage {
   /** True when the package is drawn as a container (name in the tab). */
@@ -43,10 +50,23 @@ function headerRows(metrics: FontMetrics, header: PackageHeader): Row[] {
   const rows: Row[] = [];
   if (header.keywords?.length) {
     const text = `«${header.keywords.join(', ')}»`;
-    rows.push({ text, rows: [text], widths: [metrics.measure(text, KEYWORD)], style: KEYWORD, lineHeight: metrics.lineHeight(KEYWORD.size), fill: theme.color.mutedText });
+    rows.push({
+      text,
+      rows: [text],
+      widths: [metrics.measure(text, KEYWORD)],
+      style: KEYWORD,
+      lineHeight: metrics.lineHeight(KEYWORD.size),
+      fill: theme.color.mutedText,
+    });
   }
   const name = wrapText(metrics, header.name, NAME, theme.size.maxNameWidth);
-  rows.push({ text: header.name, rows: name, widths: name.map(r => metrics.measure(r.trimEnd(), NAME)), style: NAME, lineHeight: metrics.lineHeight(NAME.size) });
+  rows.push({
+    text: header.name,
+    rows: name,
+    widths: name.map(r => metrics.measure(r.trimEnd(), NAME)),
+    style: NAME,
+    lineHeight: metrics.lineHeight(NAME.size),
+  });
   return rows;
 }
 
@@ -81,13 +101,20 @@ export function drawPackageNode(canvas: Canvas, measured: MeasuredPackage, bound
   const stroke = { stroke: theme.color.nodeStroke, 'stroke-width': theme.stroke.node };
   const parts = [
     el('rect', { x: tab.x, y: tab.y, width: tab.width, height: tab.height, fill: theme.color.nodeHeaderFill, ...stroke }),
-    el('rect', { x: bounds.x, y: bounds.y + tab.height, width: bounds.width, height: bounds.height - tab.height, fill: measured.container ? theme.color.background : theme.color.nodeFill, ...stroke }),
+    el('rect', {
+      x: bounds.x,
+      y: bounds.y + tab.height,
+      width: bounds.width,
+      height: bounds.height - tab.height,
+      fill: measured.container ? theme.color.background : theme.color.nodeFill,
+      ...stroke,
+    }),
   ];
   // Container: rows left-aligned in the tab. Empty package: rows centered in the body.
   const bodyTop = bounds.y + tab.height;
   let top = measured.container ? bounds.y + TAB_PAD_Y : bodyTop + (bounds.height - tab.height - contentHeight(measured.rows)) / 2;
   for (const row of measured.rows) {
-    const xs = row.widths.map(w => measured.container ? bounds.x + theme.spacing.padX : bounds.x + (bounds.width - w) / 2);
+    const xs = row.widths.map(w => (measured.container ? bounds.x + theme.spacing.padX : bounds.x + (bounds.width - w) / 2));
     const baseline = top + baselineOffset(canvas.metrics, row.style.size, row.lineHeight);
     parts.push(canvas.lines(row.rows, xs, baseline, row.lineHeight, { ...row.style, fill: row.fill, role: 'text', owner: data.id }));
     top += row.rows.length * row.lineHeight;

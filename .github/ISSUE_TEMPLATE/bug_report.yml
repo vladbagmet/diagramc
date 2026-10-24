@@ -1,0 +1,72 @@
+name: Bug report
+description: A model that is rejected wrongly, renders wrongly, or crashes the CLI.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting. The model JSON and the output you got are what make a bug fixable,
+        so please attach both. Cut the model down as far as you can while the problem still shows.
+        Security problems go to SECURITY.md, not here.
+  - type: dropdown
+    id: kind
+    attributes:
+      label: Diagram kind
+      options:
+        - class
+        - object
+        - package
+        - profile
+        - communication
+        - interaction-overview
+        - component
+        - deployment
+        - composite-structure
+        - sequence
+        - timing
+        - activity
+        - state-machine
+        - use-case
+        - not kind-specific
+    validations:
+      required: true
+  - type: textarea
+    id: model
+    attributes:
+      label: Model JSON
+      description: The input model, pasted here or attached as a file.
+      render: json
+    validations:
+      required: true
+  - type: input
+    id: command
+    attributes:
+      label: Command
+      placeholder: diagramc render model.json -o diagram.svg
+    validations:
+      required: true
+  - type: textarea
+    id: output
+    attributes:
+      label: What you got
+      description: Attach the rendered SVG or PNG (or a screenshot of it), and paste anything printed on stderr.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+      description: For notation problems, say what UML 2.5.1 requires if you know it.
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Output of `diagramc --version`, `node --version`, and your operating system.
+      placeholder: |
+        diagramc 1.1.0
+        node v22.x
+        macOS 15 arm64
+    validations:
+      required: true

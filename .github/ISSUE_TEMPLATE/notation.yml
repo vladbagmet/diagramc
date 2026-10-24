@@ -1,0 +1,42 @@
+name: Diagram notation
+description: A UML construct that is missing or drawn differently from UML 2.5.1, or a new diagram kind.
+labels: ["notation"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Each kind's supported and unsupported constructs are listed in its notation checklist,
+        docs/kinds/<kind>.md. Please check it first; a construct listed as unsupported may have a
+        reason or a workaround there.
+  - type: input
+    id: kind
+    attributes:
+      label: Diagram kind
+      placeholder: state-machine, or the name of a new kind
+    validations:
+      required: true
+  - type: textarea
+    id: construct
+    attributes:
+      label: Construct
+      description: What it is and how UML 2.5.1 draws it (shape, line style, arrowhead, keyword). A clause number or a sketch helps.
+    validations:
+      required: true
+  - type: textarea
+    id: model
+    attributes:
+      label: How you would write it in the model
+      description: A JSON snippet showing the properties you would expect.
+      render: json
+  - type: textarea
+    id: current
+    attributes:
+      label: Current behavior
+      description: Is it rejected by the schema, or drawn differently? Attach the rendered output if it is drawn.
+    validations:
+      required: true
+  - type: textarea
+    id: usage
+    attributes:
+      label: Why it matters
+      description: Where you need it, and how common it is in the diagrams you draw.

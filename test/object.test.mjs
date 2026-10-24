@@ -1,6 +1,18 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { assertBudget, assertDeterministic, assertExamples, assertHostileTextIsLiteral, assertNegativeFixtures, assertPositiveFixtures, dashed, fixtures, isUnderlined, render, renderExample } from './engine-kind-checks.mjs';
+import {
+  assertBudget,
+  assertDeterministic,
+  assertExamples,
+  assertHostileTextIsLiteral,
+  assertNegativeFixtures,
+  assertPositiveFixtures,
+  dashed,
+  fixtures,
+  isUnderlined,
+  render,
+  renderExample,
+} from './engine-kind-checks.mjs';
 
 test('object: negative fixtures fail with the exact code and JSON path', () => assertNegativeFixtures('object', 20));
 test('object: positive fixtures render and pass every QA gate', () => assertPositiveFixtures('object'));
@@ -51,21 +63,35 @@ test('object notation: notes attach with dotted anchor lines; a self link loops 
 });
 
 test('object: hostile and markup-like text stays literal and cannot create active SVG', async () => {
-  const hostile = '" } !include https://evil.invalid <b>bold</b> [[https://evil.invalid]] **x** \\n @enduml';
-  await assertHostileTextIsLiteral({
-    kind: 'object', title: '<script>x</script>',
-    elements: [
-      { id: 'a', type: 'instance', name: hostile, classifier: '<svg onload="alert(1)">', stereotypes: ['<a href="x">'], slots: [{ feature: '&amp;', type: 'url(https://evil.invalid)', value: '<image href="x"/>' }] },
-      { id: 'b', type: 'instance', name: '  🚀 𠀀  ' },
-      { id: 'n', type: 'note', text: '<foreignObject>x</foreignObject>', attachedTo: ['a'] },
-    ],
-    relationships: [{ type: 'link', from: 'a', to: 'b', name: hostile, association: '<use/>', toEnd: { role: '<script>' } }],
-  }, [hostile, '<svg onload="alert(1)">', '<image href="x"/>', '  🚀 𠀀  ', '<use/>', '<script>']);
+  const hostile = String.raw`" } !include https://evil.invalid <b>bold</b> [[https://evil.invalid]] **x** \n @enduml`;
+  await assertHostileTextIsLiteral(
+    {
+      kind: 'object',
+      title: '<script>x</script>',
+      elements: [
+        {
+          id: 'a',
+          type: 'instance',
+          name: hostile,
+          classifier: '<svg onload="alert(1)">',
+          stereotypes: ['<a href="x">'],
+          slots: [{ feature: '&amp;', type: 'url(https://evil.invalid)', value: '<image href="x"/>' }],
+        },
+        { id: 'b', type: 'instance', name: '  🚀 𠀀  ' },
+        { id: 'n', type: 'note', text: '<foreignObject>x</foreignObject>', attachedTo: ['a'] },
+      ],
+      relationships: [{ type: 'link', from: 'a', to: 'b', name: hostile, association: '<use/>', toEnd: { role: '<script>' } }],
+    },
+    [hostile, '<svg onload="alert(1)">', '<image href="x"/>', '  🚀 𠀀  ', '<use/>', '<script>'],
+  );
 });
 
 test('object: the schema publishes the contract', async () => {
   const { objectKind } = await import('../dist/kinds/object/index.js');
   assert.equal(objectKind.schema.properties.kind.const, 'object');
-  assert.deepEqual(objectKind.schema.definitions.element.oneOf.map(b => b.properties.type.const), ['instance', 'note']);
+  assert.deepEqual(
+    objectKind.schema.definitions.element.oneOf.map(b => b.properties.type.const),
+    ['instance', 'note'],
+  );
   assert.equal(objectKind.frameKeyword, 'object');
 });

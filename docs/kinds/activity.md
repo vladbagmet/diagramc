@@ -1,7 +1,7 @@
 # Activity diagram: notation checklist
 
 Backend: PlantUML 1.2025.10, new activity syntax (its dedicated activity engine; no
-Graphviz, no Smetana). Frame keyword: `act`. Schema: `uml schema activity`.
+Graphviz, no Smetana). Frame keyword: `act`. Schema: `diagramc schema activity`.
 Code: `src/kinds/activity/`. UML references are to UML 2.5.1 (formal/17-12-05).
 
 Tests referenced below: `unit` = `test/activity.test.mjs` (no Java), `integration` =

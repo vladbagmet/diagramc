@@ -1,0 +1,55 @@
+# Security policy
+
+## Reporting a vulnerability
+
+Please do not open a public issue, discussion or pull request for a security
+problem. Report it privately through GitHub's private vulnerability reporting:
+
+**[Report a vulnerability](https://github.com/vladbagmet/diagramc/security/advisories/new)**
+(the same form is behind the "Report a vulnerability" button on the
+[Security tab](https://github.com/vladbagmet/diagramc/security)). Only you and
+the maintainer can see the report and the discussion that follows. You need a
+GitHub account; no e-mail address is involved.
+
+Please include:
+
+- the `diagramc --version` output, your Node.js version and your operating system;
+- the command you ran and the smallest model JSON (or other input) that shows
+  the problem;
+- what happened and what you expected, for example the active SVG content that
+  was written or the file that was read;
+- what an attacker gains, if you know it.
+
+What to expect: an acknowledgement within one week, and a first assessment
+(whether it is in scope and how severe it is) within two weeks. Updates are
+posted in the advisory. A fix is released as a new version as soon as it is
+ready, and the advisory is published after that. We are glad to credit you in
+the advisory and the changelog if you want.
+
+## Supported versions
+
+Security fixes go into the latest release only.
+
+## Scope
+
+`diagramc` reads untrusted model files and writes SVG or PNG, so these are in scope:
+
+- **Output safety.** Text from a model must appear literally in the drawing. Any
+  input that produces active SVG content (scripts, event handlers, external
+  references, links) or markup the input did not ask for is a vulnerability.
+- **The PlantUML runner.** Sequence, timing and activity models are turned into
+  PlantUML source and rendered by a Java child process without a shell, under
+  PlantUML's SECURE profile, with time, memory and output limits. Any input that
+  injects PlantUML directives, reads or writes files, opens network connections
+  or escapes those limits is in scope.
+- **The renderer setup.** `npm run setup:renderer` (`scripts/setup-renderer.mjs`)
+  downloads PlantUML and an Eclipse Temurin Java runtime from their official
+  GitHub releases and verifies each download against a SHA-256 pinned in the
+  script before using it. Ways to make it use unverified bytes, write outside its
+  `.tools/` directory, or leave a half-installed runtime in use are in scope.
+- **Resource limits.** Inputs that make the CLI hang, crash or use unbounded
+  memory despite the input size limit (256 KiB) and output limit (8 MiB).
+
+Out of scope: vulnerabilities in Java, PlantUML or npm dependencies themselves
+(report those upstream; tell us if we should update a pin), and setups where
+`DIAGRAMC_JAVA` and `PLANTUML_JAR` point at binaries you chose to trust.

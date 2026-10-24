@@ -1,10 +1,10 @@
 # 0002: State machine and use case diagrams on the own engine
 
-Status: accepted (chunk 5). Date: 2026-10-19.
+Status: accepted. Date: 2026-10-19.
 
 ## Context
 
-The plan ([full-uml-plan.md](../plans/full-uml-plan.md)) assigned state machine and
+The original plan for the 14 kinds assigned state machine and
 use case diagrams to PlantUML, with one rule: if they fail the quality gates on
 realistic fixtures, they move to the own engine. Both go through PlantUML's Smetana
 graph layout (no Graphviz is allowed), which the MVP review already found weak
@@ -78,6 +78,6 @@ What the own engine needed, all generic and tested in `test/engine.test.mjs`:
 - Both kinds pass every gate on minimal, realistic, notation and stress examples
   and on all fixtures, render in well under the 2 s engine budget, need no Java and
   are byte-identical across runs.
-- No PlantUML backend is offered for these kinds (`uml kinds` lists only `engine`).
+- No PlantUML backend is offered for these kinds (`diagramc kinds` lists only `engine`).
 - Layout quality depends on ELK: orthogonal regions are stacked vertically, and
   transitions into nested states may detour around a composite's header.

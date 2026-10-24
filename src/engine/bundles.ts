@@ -49,7 +49,7 @@ export function bundleSpacing(members: readonly BundleMember[]): number {
 
 /** Distance between neighbouring lanes: room for the widest label between two lanes. */
 export function bundlePitch(members: readonly BundleMember[], vertical: boolean): number {
-  const across = Math.max(0, ...members.map(m => m.label ? (vertical ? m.label.width : m.label.height) : 0));
+  const across = Math.max(0, ...members.map(m => (m.label ? (vertical ? m.label.width : m.label.height) : 0)));
   return Math.ceil(Math.max(bundleSpacing(members), across ? across + LABEL_GAP + LABEL_TO_NEXT : 0));
 }
 
@@ -61,22 +61,23 @@ export function bundlePitch(members: readonly BundleMember[], vertical: boolean)
 export function bundleHub(members: readonly BundleMember[], vertical: boolean): BundleHub {
   const n = members.length;
   const pitch = bundlePitch(members, vertical);
-  const acrossOf = (m: BundleMember): number => m.label ? (vertical ? m.label.width : m.label.height) : 0;
-  const alongOf = (m: BundleMember): number => m.label ? (vertical ? m.label.height : m.label.width) : 0;
+  const acrossOf = (m: BundleMember): number => (m.label ? (vertical ? m.label.width : m.label.height) : 0);
+  const alongOf = (m: BundleMember): number => (m.label ? (vertical ? m.label.height : m.label.width) : 0);
   // Lane positions across the bundle, centered; the last label sticks out beyond the last lane.
   const lane = members.map((_, i) => (i - (n - 1) / 2) * pitch);
   const lastLabel = members[n - 1]!.label ? LABEL_GAP + acrossOf(members[n - 1]!) : 0;
   const halfAcross = Math.ceil(Math.max(...lane.map(Math.abs)) + lastLabel + 2);
   const along = Math.max(0, ...members.map(alongOf));
   const length = Math.ceil(along + 2 * (theme.spacing.bendRadius + 2));
-  const at = (t: number, a: number): Point => vertical ? { x: halfAcross + a, y: t } : { x: t, y: halfAcross + a };
+  const at = (t: number, a: number): Point => (vertical ? { x: halfAcross + a, y: t } : { x: t, y: halfAcross + a });
   const mid = length / 2;
   const paths = members.map((_, i) => [at(0, lane[i]!), at(length, lane[i]!)]);
   const labels = members.map((m, i) => {
-    if (!m.label) return undefined;
+    if (!m.label) return;
     const p = at(mid - alongOf(m) / 2, lane[i]! + LABEL_GAP);
     return { x: p.x, y: p.y, width: m.label.width, height: m.label.height };
   });
-  const width = vertical ? 2 * halfAcross : length, height = vertical ? length : 2 * halfAcross;
+  const width = vertical ? 2 * halfAcross : length,
+    height = vertical ? length : 2 * halfAcross;
   return { width, height, enter: paths.map(p => p[0]!), exit: paths.map(p => p.at(-1)!), paths, labels };
 }

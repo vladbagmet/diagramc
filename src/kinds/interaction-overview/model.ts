@@ -2,12 +2,24 @@
 
 export type ControlNodeType = 'initial' | 'final' | 'flow-final' | 'decision' | 'merge' | 'fork' | 'join';
 
-export interface ControlNode { id: string; type: ControlNodeType }
+export interface ControlNode {
+  id: string;
+  type: ControlNodeType;
+}
 
 /** A reference to another interaction (UML InteractionUse), drawn as a `ref` frame. */
-export interface InteractionUse { id: string; type: 'interaction-use'; name: string; arguments?: string[] }
+export interface InteractionUse {
+  id: string;
+  type: 'interaction-use';
+  name: string;
+  arguments?: string[];
+}
 
-export interface FragmentLifeline { id: string; name?: string; type?: string }
+export interface FragmentLifeline {
+  id: string;
+  name?: string;
+  type?: string;
+}
 export interface FragmentMessage {
   id?: string;
   from: string;
@@ -27,7 +39,12 @@ export interface InlineInteraction {
 
 export type OverviewNode = ControlNode | InteractionUse | InlineInteraction;
 
-export interface Flow { id?: string; from: string; to: string; guard?: string }
+export interface Flow {
+  id?: string;
+  from: string;
+  to: string;
+  guard?: string;
+}
 
 export interface InteractionOverviewDiagram {
   kind: 'interaction-overview';

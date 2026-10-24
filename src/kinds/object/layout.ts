@@ -19,7 +19,7 @@ function linkTitle(l: Link): string | undefined {
   return instanceTitle({ name: l.name, classifier: l.association } as Pick<Instance, 'name' | 'classifier'>);
 }
 
-const navigability = (navigable: boolean | undefined): Marker => navigable === undefined ? 'none' : navigable ? 'open-arrow' : 'cross';
+const navigability = (navigable: boolean | undefined): Marker => (navigable === undefined ? 'none' : navigable ? 'open-arrow' : 'cross');
 
 function node(e: ObjectDiagram['elements'][number]): DiagramNodeSpec {
   if (isNote(e)) return { id: e.id, type: 'note', shape: { kind: 'note', text: e.text } };
@@ -39,8 +39,13 @@ export function objectDiagramSpec(model: ObjectDiagram): DiagramSpec {
     if (l.fromEnd?.role !== undefined) ends.push({ end: 'source', text: l.fromEnd.role, kind: 'role' });
     if (l.toEnd?.role !== undefined) ends.push({ end: 'target', text: l.toEnd.role, kind: 'role' });
     return {
-      id: l.id ?? `relationships/${i}`, type: 'link', source: l.from, target: l.to, style: 'solid',
-      sourceMarker: navigability(l.fromEnd?.navigable), targetMarker: navigability(l.toEnd?.navigable),
+      id: l.id ?? `relationships/${i}`,
+      type: 'link',
+      source: l.from,
+      target: l.to,
+      style: 'solid',
+      sourceMarker: navigability(l.fromEnd?.navigable),
+      targetMarker: navigability(l.toEnd?.navigable),
       ...(title === undefined ? {} : { center: [{ text: title, underline: true }] }),
       ends,
       ...(order.get(l.from)! > order.get(l.to)! ? { reversed: true, priority: 1 } : {}),
@@ -48,7 +53,8 @@ export function objectDiagramSpec(model: ObjectDiagram): DiagramSpec {
   });
   for (const e of model.elements) {
     if (!isNote(e)) continue;
-    for (const target of e.attachedTo ?? []) edges.push({ id: `${e.id}->${target}`, type: 'note-anchor', source: e.id, target, style: 'dashed', sourceMarker: 'none', targetMarker: 'none' });
+    for (const target of e.attachedTo ?? [])
+      edges.push({ id: `${e.id}->${target}`, type: 'note-anchor', source: e.id, target, style: 'dashed', sourceMarker: 'none', targetMarker: 'none' });
   }
   return { kind: 'object', frameKeyword: 'object', title: model.title, nodes: model.elements.map(node), edges, directions: ['DOWN', 'RIGHT'], wrap: true };
 }

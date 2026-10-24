@@ -50,8 +50,19 @@ export interface TimeConstraint {
   to: number;
 }
 
-export interface Highlight { id?: string; from: number; to: number; label?: string }
-export interface Note { id?: string; lifeline: string; at: number; position?: 'top' | 'bottom'; text: string }
+export interface Highlight {
+  id?: string;
+  from: number;
+  to: number;
+  label?: string;
+}
+export interface Note {
+  id?: string;
+  lifeline: string;
+  at: number;
+  position?: 'top' | 'bottom';
+  text: string;
+}
 
 export interface TimingDiagram {
   kind: 'timing';

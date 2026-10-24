@@ -1,18 +1,29 @@
 {
-  "name": "agent-uml-cli",
-  "version": "1.0.0",
+  "name": "diagramc",
+  "version": "1.1.0",
   "private": true,
-  "description": "Agent-first CLI: validated JSON UML models to SVG/PNG, offline",
+  "description": "Compile validated JSON models into clean UML diagrams. Built for AI agents, offline, with PlantUML and Mermaid export and import.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/vladbagmet/diagramc.git"
+  },
+  "bugs": {
+    "url": "https://github.com/vladbagmet/diagramc/issues"
+  },
+  "homepage": "https://github.com/vladbagmet/diagramc#readme",
   "type": "module",
   "bin": {
-    "uml": "dist/cli.js"
+    "diagramc": "dist/cli.js"
   },
   "files": [
     "dist/",
+    "!dist/**/*.map",
     "schema/",
     "assets/fonts/",
     "scripts/setup-renderer.mjs",
     "examples/",
+    "skills/",
     "THIRD_PARTY_NOTICES.md",
     "CHANGELOG.md"
   ],
@@ -21,22 +32,38 @@
   },
   "scripts": {
     "build": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\" && tsc && node scripts/finish-build.mjs",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "format": "prettier --write \"**/*.{ts,mjs,js}\"",
+    "format:check": "prettier --check \"**/*.{ts,mjs,js}\"",
     "prepack": "npm run build",
     "setup:renderer": "node scripts/setup-renderer.mjs",
     "test": "npm run build && node --test \"test/*.test.mjs\"",
+    "test:coverage": "npm run build && node --enable-source-maps --test --experimental-test-coverage --test-reporter=spec \"--test-coverage-include=dist/**\" \"--test-coverage-include=src/**\" \"--test-coverage-exclude=src/types/**\" --test-coverage-lines=90 --test-coverage-branches=80 --test-coverage-functions=90 \"test/*.test.mjs\"",
     "test:integration": "npm run build && node --test \"test/integration/*.test.mjs\"",
     "gallery": "npm run build && node scripts/gallery.mjs",
-    "render:example": "node dist/cli.js render examples/class/ordering.json -o artifacts/gallery/example.svg"
+    "screenshots": "npm run build && node scripts/screenshots.mjs",
+    "release:check": "node scripts/release-check.mjs",
+    "render:example": "node dist/cli.js render examples/class/ordering.json -o artifacts/gallery/example.svg",
+    "check": "npm run typecheck && npm run lint && npm run format:check && npm run test:coverage && npm run gallery"
   },
   "dependencies": {
+    "@modelcontextprotocol/sdk": "1.32.1",
     "@resvg/resvg-js": "2.6.2",
     "ajv": "8.20.0",
     "elkjs": "0.11.1",
     "harfbuzzjs": "1.6.2",
-    "subset-font": "2.9.0"
+    "subset-font": "2.9.0",
+    "zod": "4.6.6"
   },
   "devDependencies": {
+    "@eslint/js": "9.39.5",
     "@types/node": "22.15.30",
-    "typescript": "5.8.3"
+    "eslint": "9.39.5",
+    "eslint-plugin-unicorn": "65.0.1",
+    "globals": "17.13.0",
+    "prettier": "3.9.10",
+    "typescript": "5.8.3",
+    "typescript-eslint": "8.72.0"
   }
 }

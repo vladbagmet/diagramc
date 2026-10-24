@@ -23,7 +23,8 @@ function icon(node: PlacedNode, ports: readonly Rect[]): string[] {
   for (let round = 0; round < 4; round++) {
     const hit = ports.find(p => overlaps(inflate(p, ICON_GAP), { ...at, ...size }));
     if (!hit) break;
-    const left = { x: hit.x - ICON_GAP - size.width - 0.5, y: at.y }, down = { x: at.x, y: hit.y + hit.height + ICON_GAP + 0.5 };
+    const left = { x: hit.x - ICON_GAP - size.width - 0.5, y: at.y },
+      down = { x: at.x, y: hit.y + hit.height + ICON_GAP + 0.5 };
     at = at.x - left.x <= down.y - at.y ? left : down;
   }
   return [node.node.icon === 'component' ? componentIcon(at.x, at.y) : artifactIcon(at.x, at.y)];
@@ -42,28 +43,63 @@ export async function drawStructure(scene: StructScene, metrics: FontMetrics): P
     const data = { id: n.node.id, type: n.node.type, parent: n.parent };
     const layer = n.container ? canvas.frame : canvas.nodes;
     switch (n.node.shape) {
-      case 'note': layer.push(drawNote(canvas, n.noteRows ?? [], n.bounds, data)); break;
-      case 'node3d': layer.push(drawNode3d(canvas, n.box!, n.bounds, data, { above: icon(n, portsOf(n.node.id)), middle: !n.container })); break;
-      case 'ellipse': layer.push(drawEllipse(canvas, n.box!, n.bounds, data, { textTop: n.ellipse!.textTop, ...(n.ellipse!.separatorY !== undefined ? { separatorY: n.ellipse!.separatorY } : {}), dashed: n.node.dashed !== false })); break;
-      default: layer.push(drawBox(canvas, n.box!, n.bounds, data, { dashed: !!n.node.dashed, above: icon(n, portsOf(n.node.id)), middle: !n.container }));
+      case 'note':
+        layer.push(drawNote(canvas, n.noteRows ?? [], n.bounds, data));
+        break;
+      case 'node3d':
+        layer.push(drawNode3d(canvas, n.box!, n.bounds, data, { above: icon(n, portsOf(n.node.id)), middle: !n.container }));
+        break;
+      case 'ellipse':
+        layer.push(
+          drawEllipse(canvas, n.box!, n.bounds, data, {
+            textTop: n.ellipse!.textTop,
+            ...(n.ellipse!.separatorY === undefined ? {} : { separatorY: n.ellipse!.separatorY }),
+            dashed: n.node.dashed !== false,
+          }),
+        );
+        break;
+      default:
+        layer.push(drawBox(canvas, n.box!, n.bounds, data, { dashed: !!n.node.dashed, above: icon(n, portsOf(n.node.id)), middle: !n.container }));
     }
   }
   for (const edge of scene.edges) canvas.edges.push(drawEdge(edge));
   for (const s of scene.symbols) {
-    const data = { id: s.id, type: s.kind === 'port' ? 'port' : s.kind === 'ball' ? 'provided-interface' : s.kind === 'socket' ? 'required-interface' : 'assembly', parent: s.parent };
-    if (s.kind === 'port') canvas.nodes.push(drawPort(s.bounds, data));
-    else if (s.kind === 'ball') canvas.nodes.push(drawBall(s.center, data));
-    else if (s.kind === 'socket') canvas.nodes.push(drawSocket(s.center, s.u!, data));
-    else canvas.nodes.push(drawJoint(s.center, s.u!, data));
+    const data = {
+      id: s.id,
+      type: s.kind === 'port' ? 'port' : s.kind === 'ball' ? 'provided-interface' : s.kind === 'socket' ? 'required-interface' : 'assembly',
+      parent: s.parent,
+    };
+    switch (s.kind) {
+      case 'port': {
+        canvas.nodes.push(drawPort(s.bounds, data));
+        break;
+      }
+      case 'ball': {
+        canvas.nodes.push(drawBall(s.center, data));
+        break;
+      }
+      case 'socket': {
+        canvas.nodes.push(drawSocket(s.center, s.u!, data));
+        break;
+      }
+      default:
+        canvas.nodes.push(drawJoint(s.center, s.u!, data));
+    }
   }
   for (const label of scene.labels) {
     const lh = metrics.lineHeight(label.style.size);
     const { x, y, width } = label.rect;
     const xs = label.widths.map(w => x + (width - w) / 2);
-    canvas.labels.push(canvas.lines(label.lines, xs, y + baselineOffset(metrics, label.style.size, lh), lh, {
-      ...label.style, fill: label.fill ?? theme.color.edgeText, role: 'label', owner: label.owner, halo: true,
-      data: label.end ? { 'data-uml-end': label.end, 'data-uml-anchor': `${num(label.anchor!.x)},${num(label.anchor!.y)}` } : startsData(label.starts),
-    }));
+    canvas.labels.push(
+      canvas.lines(label.lines, xs, y + baselineOffset(metrics, label.style.size, lh), lh, {
+        ...label.style,
+        fill: label.fill ?? theme.color.edgeText,
+        role: 'label',
+        owner: label.owner,
+        halo: true,
+        data: label.end ? { 'data-uml-end': label.end, 'data-uml-anchor': `${num(label.anchor!.x)},${num(label.anchor!.y)}` } : startsData(label.starts),
+      }),
+    );
   }
   return canvas.finish({ width: scene.width, height: scene.height, kind: scene.kind, title: scene.frame?.title });
 }

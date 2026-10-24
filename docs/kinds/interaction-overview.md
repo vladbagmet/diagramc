@@ -2,7 +2,7 @@
 
 Backend: own engine. Frame keyword: `sd` (an interaction overview is an interaction;
 UML 2.5.1 Annex A and figure 17.27, heading `sd <name> lifelines <list>`). Schema:
-`uml schema interaction-overview`. Code: `src/kinds/interaction-overview/`. UML
+`diagramc schema interaction-overview`. Code: `src/kinds/interaction-overview/`. UML
 references are to UML 2.5.1 (formal/17-12-05): clause 17.10 for the diagram,
 15.3 for the control nodes and flows.
 

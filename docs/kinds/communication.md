@@ -1,7 +1,7 @@
 # Communication diagram: notation checklist
 
 Backend: own engine. Frame keyword: `sd` (a communication diagram shows an
-interaction; UML 2.5.1 Annex A and figure 17.25). Schema: `uml schema communication`.
+interaction; UML 2.5.1 Annex A and figure 17.25). Schema: `diagramc schema communication`.
 Code: `src/kinds/communication/`. UML references are to UML 2.5.1 (formal/17-12-05),
 clause 17.9 unless noted.
 

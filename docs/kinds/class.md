@@ -1,7 +1,7 @@
 # Class diagram: notation checklist
 
 Backend: own engine (default); PlantUML fallback via `--backend plantuml`.
-Frame keyword: `class`. Schema: `uml schema class`. Code: `src/kinds/class/`.
+Frame keyword: `class`. Schema: `diagramc schema class`. Code: `src/kinds/class/`.
 UML references are to UML 2.5.1 (formal/17-12-05).
 
 Tests referenced below: `class` = `test/class.test.mjs`, `engine` =
@@ -68,7 +68,7 @@ Tests referenced below: `class` = `test/class.test.mjs`, `engine` =
   subsets): not drawn yet; model them with notes.
 - Template parameters (dashed box at the top-right corner) and bound templates.
 - Generalization sets (`{complete, disjoint}`), powertypes.
-- Packages inside class diagrams: the package kind (chunk 1) covers them.
+- Packages inside class diagrams: the package kind covers them.
 - Ports, parts and interfaces in lollipop/socket notation: component and composite
   structure kinds.
 - Member constraints other than `{readOnly}` and `{query}`.

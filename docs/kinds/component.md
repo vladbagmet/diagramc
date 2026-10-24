@@ -1,6 +1,6 @@
 # Component diagram: notation checklist
 
-Backend: own engine. Frame keyword: `cmp`. Schema: `uml schema component`.
+Backend: own engine. Frame keyword: `cmp`. Schema: `diagramc schema component`.
 Code: `src/kinds/component/` (model, schema, validation, mapping) on the shared
 structure layout in `src/kinds/structure/` (also used by the deployment and
 composite structure kinds). UML references are to UML 2.5.1 (formal/17-12-05).
