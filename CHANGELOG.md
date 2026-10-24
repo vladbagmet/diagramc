@@ -49,6 +49,9 @@
   between elements of two top-level containers decide their order: the
   containers can sit side by side. The deployment stress example now passes
   every layout check (5120 x 3892 instead of 3906 x 6762, no lines around a region).
+- `-o /dev/stdout` works on Linux when the output is a socket, as it is for a
+  process started from Node. The output now goes through the process stream
+  instead of opening the path, which Linux refused with `OUTPUT_WRITE_FAILED`.
 
 ### Development
 

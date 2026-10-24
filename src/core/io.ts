@@ -49,13 +49,37 @@ export async function readInput(path: string): Promise<string> {
   }
 }
 
+/** Paths that name this process's standard output. */
+const STDOUT_PATHS = new Set(['/dev/stdout', '/dev/fd/1', '/proc/self/fd/1']);
+
+/** Writes to standard output and resolves once the data is handed to the system. */
+function writeStdout(data: Buffer): Promise<void> {
+  return new Promise((resolve, reject) => {
+    process.stdout.write(data, error => {
+      if (error) reject(error);
+      else resolve();
+    });
+  });
+}
+
 /**
  * Writes through a temporary sibling and renames, so an existing file is replaced
  * only on success. An existing target that is not a regular file (a device such
- * as /dev/null or /dev/stdout, a named pipe) cannot be replaced by a rename: it
- * is written directly.
+ * as /dev/null, a named pipe) cannot be replaced by a rename: it is written
+ * directly. Standard output is written through the process stream instead of
+ * being opened by path, because Linux refuses to open /dev/stdout when it is a
+ * socket, which is how Node connects the output of a child process.
  */
 export async function writeOutput(path: string, data: Buffer): Promise<void> {
+  if (STDOUT_PATHS.has(path)) {
+    try {
+      await writeStdout(data);
+      return;
+    } catch (error) {
+      const details = ioDetails(path, error);
+      throw new UmlError('OUTPUT_WRITE_FAILED', `Could not write output ${JSON.stringify(path)}: ${details.reason}`, 4, { ...details, output: path });
+    }
+  }
   const existing = await stat(path).catch(() => {});
   if (existing && !existing.isFile() && !existing.isDirectory()) {
     try {
