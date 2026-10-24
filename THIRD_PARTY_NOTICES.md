@@ -43,7 +43,7 @@ its own license file. Versions are those pinned in `package-lock.json`.
 | depd | 2.0.0 | MIT | https://github.com/dougwilson/nodejs-depd |
 | dunder-proto | 1.0.1 | MIT | https://github.com/es-shims/dunder-proto |
 | ee-first | 1.1.1 | MIT | https://github.com/jonathanong/ee-first |
-| elkjs | 0.11.1 | EPL-2.0 | https://github.com/kieler/elkjs |
+| elkjs | 0.12.0 | EPL-2.0 OR GPL-3.0-or-later | https://github.com/kieler/elkjs |
 | encodeurl | 2.0.0 | MIT | https://github.com/pillarjs/encodeurl |
 | es-define-property | 1.0.1 | MIT | https://github.com/ljharb/es-define-property |
 | es-errors | 1.3.0 | MIT | https://github.com/ljharb/es-errors |
@@ -64,7 +64,7 @@ its own license file. Versions are those pinned in `package-lock.json`.
 | get-intrinsic | 1.3.0 | MIT | https://github.com/ljharb/get-intrinsic |
 | get-proto | 1.0.1 | MIT | https://github.com/ljharb/get-proto |
 | gopd | 1.2.0 | MIT | https://github.com/ljharb/gopd |
-| harfbuzzjs | 1.6.2 | MIT | https://github.com/harfbuzz/harfbuzzjs |
+| harfbuzzjs | 1.6.3 | MIT | https://github.com/harfbuzz/harfbuzzjs |
 | has-symbols | 1.1.0 | MIT | https://github.com/inspect-js/has-symbols |
 | hasown | 2.0.4 | MIT | https://github.com/inspect-js/hasOwn |
 | hono | 4.13.13 | MIT | https://github.com/honojs/hono |
@@ -122,7 +122,7 @@ its own license file. Versions are those pinned in `package-lock.json`.
 | woff2sfnt-sfnt2woff | 1.0.0 | MIT | https://github.com/digi3colin/woff2sfnt-sfnt2woff |
 | wrappy | 1.0.2 | ISC | https://github.com/npm/wrappy |
 | yocto-queue | 0.1.0 | MIT | https://github.com/sindresorhus/yocto-queue |
-| zod | 4.6.6 | MIT | https://github.com/colinhacks/zod |
+| zod | 4.6.7 | MIT | https://github.com/colinhacks/zod |
 | zod-to-json-schema | 3.25.2 | ISC | https://github.com/StefanTerdell/zod-to-json-schema |
 
 `@resvg/resvg-js` loads a platform binary package (`@resvg/resvg-js-<platform>`)
@@ -1306,7 +1306,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 ```
 
-### elkjs 0.11.1 (EPL-2.0)
+### elkjs 0.12.0 (EPL-2.0 OR GPL-3.0-or-later, used under EPL-2.0)
 
 ```text
 # Eclipse Public License - v 2.0
@@ -1561,8 +1561,7 @@ No third-party beneficiary rights are created under this Agreement.
 
 “This Source Code may also be made available under the following
 Secondary Licenses when the conditions for such availability set forth
-in the Eclipse Public License, v. 2.0 are satisfied: {name license(s),
-version(s), and exceptions or additional permissions here}.”
+in the Eclipse Public License, v. 2.0 are satisfied: GNU General Public License v3.0 or later”
 
 > Simply including a copy of this Agreement, including this Exhibit A is
 > not sufficient to license the Source Code under Secondary Licenses.
@@ -2122,7 +2121,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-### harfbuzzjs 1.6.2 (MIT)
+### harfbuzzjs 1.6.3 (MIT)
 
 ```text
 Copyright (c) 2019-2026 The harfbuzzjs project authors
@@ -3572,7 +3571,7 @@ The above copyright notice and this permission notice shall be included in all c
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ```
 
-### zod 4.6.6 (MIT)
+### zod 4.6.7 (MIT)
 
 ```text
 MIT License

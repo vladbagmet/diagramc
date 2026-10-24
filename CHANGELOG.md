@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.1.1 (2026-10-24)
 
 - Text containing `$&`, `$'`, `` $` ``, `$$` or `$1` now stays literal in
   sequence and timing diagrams. Before, a participant name next to an actor head
@@ -8,6 +8,12 @@
   replacement pattern while the SVG was post-processed, which broke the SVG and
   made `render` fail with `INTERNAL_ERROR`. Every string replacement on drawn
   output now passes its value through a function, so no pattern is expanded.
+- Runtime dependencies: elkjs 0.12.0 (layout engine; every example renders
+  as before), harfbuzzjs 1.6.3 and zod 4.6.7. elkjs now declares
+  `EPL-2.0 OR GPL-3.0-or-later`; diagramc still uses it under EPL-2.0, and
+  `THIRD_PARTY_NOTICES.md` carries its new license text.
+- Development tools: ESLint 10, @eslint/js 10 and eslint-plugin-unicorn 78,
+  with the code fixed or the rules configured for their new checks.
 
 ## 1.1.0 (2026-10-24)
 
