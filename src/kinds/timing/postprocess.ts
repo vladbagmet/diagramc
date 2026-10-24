@@ -42,7 +42,7 @@ export function liftConstraints(svg: string): string {
       return match;
     const line = match
       .slice(0, match.indexOf('/>') + 2)
-      .replace(/ y1="[^"]*" y2="[^"]*"/u, ` y1="${round(Number(y) - CONSTRAINT_LIFT)}" y2="${round(Number(y) - CONSTRAINT_LIFT)}"`);
+      .replace(/ y1="[^"]*" y2="[^"]*"/u, () => ` y1="${round(Number(y) - CONSTRAINT_LIFT)}" y2="${round(Number(y) - CONSTRAINT_LIFT)}"`);
     return `${line}${shift(p1)}${shift(p2)}${textOpen}${round(Number(ty) - CONSTRAINT_LIFT)}${textClose}`;
   });
 }
@@ -63,7 +63,7 @@ export function encloseFooter(svg: string): string {
   const needed = baseline + size * 0.35 + theme.spacing.frame / 2 - top;
   if (needed <= height) return svg;
   const grow = needed - height;
-  let out = svg.replace(frame[0], frame[0].replace(`height="${frame[1]}"`, `height="${round(needed)}"`));
+  let out = svg.replace(frame[0], () => frame[0].replace(`height="${frame[1]}"`, () => `height="${round(needed)}"`));
   out = out.replace(/<svg\s[^>]*>/u, root =>
     root
       .replace(/ height="([\d.]+)px"/u, (_, h: string) => ` height="${Math.ceil(Number(h) + grow)}px"`)

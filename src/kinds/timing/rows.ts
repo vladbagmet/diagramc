@@ -34,7 +34,8 @@ export const BAND = 26;
 const NUM = String.raw`-?[\d.]+`;
 const round = (n: number): string => String(Math.round(n * 1000) / 1000);
 const num = (tag: string, name: string): number => Number(new RegExp(String.raw`\s${name}="(${NUM})"`, 'u').exec(tag)?.[1] ?? Number.NaN);
-const setAttr = (tag: string, name: string, value: number): string => tag.replace(new RegExp(String.raw`(\s${name}=")${NUM}(")`, 'u'), `$1${round(value)}$2`);
+const setAttr = (tag: string, name: string, value: number): string =>
+  tag.replace(new RegExp(String.raw`(\s${name}=")${NUM}(")`, 'u'), (_match: string, g1: string, g2: string) => `${g1}${round(value)}${g2}`);
 
 interface Line {
   tag: string;
@@ -91,9 +92,9 @@ function mapY(svg: string, f: (y: number) => number): string {
         if (!Number.isFinite(h)) return tag;
         const grown = Math.ceil(f(h));
         return tag
-          .replace(/ height="[\d.]+px"/u, ` height="${grown}px"`)
-          .replace(/height:[\d.]+px;/u, `height:${grown}px;`)
-          .replace(/( viewBox="[-\d.]+ [-\d.]+ [\d.]+ )[\d.]+"/u, `$1${grown}"`);
+          .replace(/ height="[\d.]+px"/u, () => ` height="${grown}px"`)
+          .replace(/height:[\d.]+px;/u, () => `height:${grown}px;`)
+          .replace(/( viewBox="[-\d.]+ [-\d.]+ [\d.]+ )[\d.]+"/u, (_match: string, g1: string) => `${g1}${grown}"`);
       }
       case 'line':
         return setAttr(setAttr(tag, 'y1', f(num(tag, 'y1'))), 'y2', f(num(tag, 'y2')));
@@ -303,7 +304,7 @@ export function fixTimingRows(svg: string, model: TimingDiagram): string {
       `<line style="stroke:${edge};stroke-width:${theme.stroke.edge};" x1="${round(a)}" x2="${round(b)}" y1="${round(y)}" y2="${round(y)}"/>${head(a, 1)}${head(b, -1)}`;
     if (label) {
       const w = num(label, 'textLength');
-      added += setAttr(setAttr(label, 'x', (a + b) / 2 - w / 2), 'y', y - 5).replace(/fill="#[0-9A-Fa-f]{6}"/u, `fill="${edgeText}"`);
+      added += setAttr(setAttr(label, 'x', (a + b) / 2 - w / 2), 'y', y - 5).replace(/fill="#[0-9A-Fa-f]{6}"/u, () => `fill="${edgeText}"`);
     }
   }
 
@@ -319,7 +320,7 @@ export function fixTimingRows(svg: string, model: TimingDiagram): string {
       b = x(c.to);
     svg = svg.replaceAll(new RegExp(`<rect fill="${TIME_CONSTRAINT_MARK}"[^>]*>`, 'gu'), tag => {
       if (Math.abs(num(tag, 'x') - a) > 2) return tag;
-      return setAttr(setAttr(tag, 'y', top), 'height', bottom - top).replace(TIME_CONSTRAINT_MARK, color.frameHeadingFill);
+      return setAttr(setAttr(tag, 'y', top), 'height', bottom - top).replace(TIME_CONSTRAINT_MARK, () => color.frameHeadingFill);
     });
     // Its dashed borders and caption, drawn by PlantUML across every row.
     svg = svg.replaceAll(/<line style="[^"]*dasharray:4,4;[^"]*" [^>]*\/>/gu, tag => {
@@ -334,7 +335,7 @@ export function fixTimingRows(svg: string, model: TimingDiagram): string {
   }
 
   // 6. The last concise value is centered in its open band, like every other value.
-  svg = centerOpenValues(added ? svg.replace(/<\/g>(?![\s\S]*<\/g>)/u, `${added}</g>`) : svg);
+  svg = centerOpenValues(added ? svg.replace(/<\/g>(?![\s\S]*<\/g>)/u, () => `${added}</g>`) : svg);
 
   // 7. At least LABEL_GAP px between the widest state label and the start of the time axis.
   const widest = Math.max(
@@ -365,9 +366,9 @@ function mapX(svg: string, x0: number, dx: number, top: number): string {
         if (!Number.isFinite(w)) return tag;
         const grown = Math.ceil(w + dx);
         return tag
-          .replace(/ width="[\d.]+px"/u, ` width="${grown}px"`)
-          .replace(/width:[\d.]+px;/u, `width:${grown}px;`)
-          .replace(/( viewBox="[-\d.]+ [-\d.]+ )[\d.]+/u, `$1${grown}`);
+          .replace(/ width="[\d.]+px"/u, () => ` width="${grown}px"`)
+          .replace(/width:[\d.]+px;/u, () => `width:${grown}px;`)
+          .replace(/( viewBox="[-\d.]+ [-\d.]+ )[\d.]+/u, (_match: string, g1: string) => `${g1}${grown}`);
       }
       case 'line':
         return setAttr(setAttr(tag, 'x1', f(num(tag, 'x1'))), 'x2', f(num(tag, 'x2')));

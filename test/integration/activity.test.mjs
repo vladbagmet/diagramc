@@ -141,6 +141,7 @@ test('activity: hostile text stays literal in every text slot and creates no act
     '  spaced  ',
     'Unicode: 🚀 注文 \u{1F600}',
     '|lane| :act; <<object>> end',
+    "Dollar patterns: $& $' $` $$ $1",
   ];
   for (const text of samples) {
     const doc = {

@@ -317,7 +317,7 @@ export function separateFragmentEdges(svg: string): string {
   svg = svg.replace(pattern, (match, h: string, w: string, x: string, y: string) => {
     const f = frames.get(`${w},${x},${y},${h}`)!;
     const r = right.get(f)!;
-    return r - (f.x + f.width) < 0.01 ? match : match.replace(` width="${w}"`, ` width="${round(r - f.x)}"`);
+    return r - (f.x + f.width) < 0.01 ? match : match.replace(` width="${w}"`, () => ` width="${round(r - f.x)}"`);
   });
   // Operand separators run across their fragment: from its left to its right border.
   svg = svg.replaceAll(
@@ -338,7 +338,7 @@ export function separateFragmentEdges(svg: string): string {
   const view = Number(/ viewBox="[-\d.]+ [-\d.]+ ([\d.]+) /u.exec(svg)?.[1] ?? Infinity);
   const extra = Math.max(0, widest + FRAGMENT_INSET - (outer ? Number(outer[3]) + Number(outer[2]) : view));
   if (extra < 0.01) return svg;
-  if (outer) svg = svg.replace(outer[0], outer[0].replace(` width="${outer[2]}"`, ` width="${round(Number(outer[2]) + extra)}"`));
+  if (outer) svg = svg.replace(outer[0], () => outer[0].replace(` width="${outer[2]}"`, () => ` width="${round(Number(outer[2]) + extra)}"`));
   return svg.replace(/<svg\s[^>]*>/u, root =>
     root
       .replace(/ width="([\d.]+)px"/u, (_, v: string) => ` width="${Math.ceil(Number(v) + extra)}px"`)
@@ -422,7 +422,7 @@ export function cropSpacerRows(svg: string): string {
   const keep = (n: number): string => String(Math.round(n * 10_000) / 10_000);
   svg = svg.replaceAll(lifeline, (m, h: string, _w: string, _x: string, y: string, _lx: string, y1: string, y2: string) => {
     if (Number(y2) < bottom - 0.01) return m;
-    return m.replace(`height="${h}"`, `height="${keep(Number(h) - cut)}"`).replace(`y2="${y2}"`, `y2="${keep(Number(y2) - cut)}"`);
+    return m.replace(`height="${h}"`, () => `height="${keep(Number(h) - cut)}"`).replace(`y2="${y2}"`, () => `y2="${keep(Number(y2) - cut)}"`);
   });
   svg = svg.replace(/<rect fill="#FFFFFF" height="([\d.]+)"/u, (_, h: string) => `<rect fill="#FFFFFF" height="${keep(Number(h) - cut)}"`);
   return svg.replace(/<svg\s[^>]*>/u, root =>
@@ -529,7 +529,7 @@ export function alignHeads(svg: string): string {
     if (!h.rect || Number(h.rect[4]) > row || h.baseline >= row - 0.5) continue;
     const dy = row - h.baseline;
     const moved = h.body.replaceAll(/(<(?:rect|text) [^>]* y=")(-?[\d.]+)(")/gu, (_m, a: string, y: string, b: string) => `${a}${round(Number(y) + dy)}${b}`);
-    svg = svg.replace(h.whole, h.whole.replace(h.body, moved));
+    svg = svg.replace(h.whole, () => h.whole.replace(h.body, () => moved));
     const center = Number(h.rect[3]) + Number(h.rect[2]) / 2,
       bottom = Number(h.rect[4]) + Number(h.rect[1]) + dy;
     svg = svg.replaceAll(

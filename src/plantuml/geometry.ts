@@ -8,7 +8,8 @@
 const NUM = String.raw`-?[\d.]+`;
 const round = (n: number): string => String(Math.round(n * 1000) / 1000);
 const num = (tag: string, name: string): number => Number(new RegExp(String.raw`\s${name}="(${NUM})"`, 'u').exec(tag)?.[1] ?? Number.NaN);
-const setAttr = (tag: string, name: string, value: number): string => tag.replace(new RegExp(String.raw`(\s${name}=")${NUM}(")`, 'u'), `$1${round(value)}$2`);
+const setAttr = (tag: string, name: string, value: number): string =>
+  tag.replace(new RegExp(String.raw`(\s${name}=")${NUM}(")`, 'u'), (_match: string, g1: string, g2: string) => `${g1}${round(value)}${g2}`);
 
 export interface Mapping {
   x?: (x: number) => number;
@@ -80,11 +81,11 @@ export function setCanvas(svg: string, width: number, height: number): string {
     h = Math.ceil(height);
   return svg.replace(/<svg\s[^>]*>/u, root =>
     root
-      .replace(/ width="[\d.]+px"/u, ` width="${w}px"`)
-      .replace(/ height="[\d.]+px"/u, ` height="${h}px"`)
-      .replace(/width:[\d.]+px;/u, `width:${w}px;`)
-      .replace(/height:[\d.]+px;/u, `height:${h}px;`)
-      .replace(/ viewBox="([-\d.]+) ([-\d.]+) [\d.]+ [\d.]+"/u, ` viewBox="$1 $2 ${w} ${h}"`),
+      .replace(/ width="[\d.]+px"/u, () => ` width="${w}px"`)
+      .replace(/ height="[\d.]+px"/u, () => ` height="${h}px"`)
+      .replace(/width:[\d.]+px;/u, () => `width:${w}px;`)
+      .replace(/height:[\d.]+px;/u, () => `height:${h}px;`)
+      .replace(/ viewBox="([-\d.]+) ([-\d.]+) [\d.]+ [\d.]+"/u, (_match: string, g1: string, g2: string) => ` viewBox="${g1} ${g2} ${w} ${h}"`),
   );
 }
 

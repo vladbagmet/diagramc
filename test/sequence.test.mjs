@@ -349,17 +349,17 @@ test('QA reader: the message-endpoints gate catches arrows that miss their lifel
           .map((v, i) => (i % 2 ? v : Number(v) - 40))
           .join(',')}"`,
     );
-  const report = await checkSvg(svg.replace(group, shifted));
+  const report = await checkSvg(svg.replace(group, () => shifted));
   const gate = report.gates.find(g => g.gate === 'message-endpoints');
   assert.ok(!gate.ok && gate.failures.some(f => /not on lifeline/.test(f)), JSON.stringify(gate));
   // Mirror the open arrowhead to the sending end: it now points away from the line.
   const main = [...group.matchAll(/<line style="[^"]*" x1="([\d.]+)" x2="([\d.]+)"/g)].find(l => Math.abs(l[1] - l[2]) > 20);
   const sum = Number(main[1]) + Number(main[2]);
   const flipped = group.replaceAll(/<line style="stroke:#334155;stroke-width:1.25;" x1="([\d.]+)" x2="([\d.]+)"/g, (m, a, b) =>
-    Math.abs(a - b) <= 16 ? m.replace(`x1="${a}" x2="${b}"`, `x1="${sum - a}" x2="${sum - b}"`) : m,
+    Math.abs(a - b) <= 16 ? m.replace(`x1="${a}" x2="${b}"`, () => `x1="${sum - a}" x2="${sum - b}"`) : m,
   );
   assert.notEqual(flipped, group);
-  const report2 = await checkSvg(svg.replace(group, flipped));
+  const report2 = await checkSvg(svg.replace(group, () => flipped));
   assert.ok(!report2.gates.find(g => g.gate === 'message-endpoints').ok);
 });
 
@@ -377,12 +377,12 @@ test('QA: lifeline-crossing fails when a lifeline crosses a message label or a g
     .match(/<rect fill="#F8FAFC" height="[\d.]+" style="stroke:#334155;stroke-width:1;" width="10" x="([\d.]+)" y="[\d.]+"\/>/g)
     .map(r => Number(r.match(/ x="([\d.]+)"/)[1]))
     .find(x => x < Number(guard[1]) && Number(guard[1]) - x < 40);
-  const onBar = await gate(svg.replace(guard[0], guard[0].replace(`x="${guard[1]}"`, `x="${bar - 4}"`)));
+  const onBar = await gate(svg.replace(guard[0], () => guard[0].replace(`x="${guard[1]}"`, () => `x="${bar - 4}"`)));
   assert.ok(!onBar.ok && onBar.failures.some(f => /result\.accepted.*activation bar/.test(f)), JSON.stringify(onBar.failures));
   // A halo behind the guard on the bar does not help: the bar would look interrupted.
   const box = guard[0].match(/textLength="([\d.]+)"[^>]*y="([\d.]+)"/);
   const haloed = `<rect fill="#FFFFFF" height="20" rx="3" ry="3" width="${Number(box[1]) + 8}" x="${bar - 8}" y="${Number(box[2]) - 14}"/>`;
-  const behind = await gate(svg.replace(guard[0], haloed + guard[0].replace(`x="${guard[1]}"`, `x="${bar - 4}"`)));
+  const behind = await gate(svg.replace(guard[0], () => haloed + guard[0].replace(`x="${guard[1]}"`, () => `x="${bar - 4}"`)));
   assert.ok(!behind.ok && behind.failures.some(f => /result\.accepted.*activation bar/.test(f)), JSON.stringify(behind.failures));
 });
 

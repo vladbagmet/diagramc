@@ -185,8 +185,8 @@ function fitSelfAssociations(svg: string): string {
     if (!dimensions) return root;
     const height = Number(dimensions[2]) - top;
     return root
-      .replace(dimensions[0], ` viewBox="0 ${top} ${dimensions[1]} ${height}"`)
-      .replace(/ height="[\d.]+px"/u, ` height="${height}px"`)
-      .replace(/height:[\d.]+px;/u, `height:${height}px;`);
+      .replace(dimensions[0], () => ` viewBox="0 ${top} ${dimensions[1]} ${height}"`)
+      .replace(/ height="[\d.]+px"/u, () => ` height="${height}px"`)
+      .replace(/height:[\d.]+px;/u, () => `height:${height}px;`);
   });
 }

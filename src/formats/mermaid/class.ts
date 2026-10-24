@@ -33,7 +33,7 @@ const BY_ANNOTATION = new Map<string, ClassifierType>([
 
 /** Braces of the notation's own markers as entity codes; a trailing `$` or `*` of model text encoded so it is not a suffix. */
 function memberLine(text: string, suffix: string): string {
-  let t = text.replaceAll('{', entity('{')).replaceAll('}', entity('}'));
+  let t = text.replaceAll('{', () => entity('{')).replaceAll('}', () => entity('}'));
   if (/[$*]$/u.test(t)) t = t.slice(0, -1) + entity(t.at(-1)!);
   return t + suffix;
 }
@@ -64,7 +64,12 @@ export function exportClass(model: ClassDiagram, losses: Losses): string {
     if ((e.stereotypes ?? []).some(s => BY_ANNOTATION.has(s) || s === 'abstract'))
       losses.add(`/elements/${i}/stereotypes`, 'A stereotype named like a classifier type or "abstract" reads back as that type');
     for (const literal of e.literals ?? [])
-      body.push(memberLine(literalText(literal, codec).replace(/^([^\s:()[\]={}]+)\s(?=[^\s:()[\]={}]+$)/u, `$1${entity(' ')}`), ''));
+      body.push(
+        memberLine(
+          literalText(literal, codec).replace(/^([^\s:()[\]={}]+)\s(?=[^\s:()[\]={}]+$)/u, (_match: string, g1: string) => `${g1}${entity(' ')}`),
+          '',
+        ),
+      );
     for (const [j, a] of (e.attributes ?? []).entries()) {
       if (isLegacy(a)) {
         losses.add(`/elements/${i}/attributes/${j}`, 'A v1 member text is written as it is');
@@ -75,7 +80,10 @@ export function exportClass(model: ClassDiagram, losses: Losses): string {
       if (e.type === 'enumeration' && a.visibility === undefined && a.type === undefined)
         losses.add(`/elements/${i}/attributes/${j}`, 'An enumeration attribute without visibility or type reads back as a literal');
       // `+two words` would read as Mermaid's type-first `+Type name`: the space is encoded.
-      const text = attributeText(a, codec).replace(/^([-+#~]?\/?[^\s:()[\]={}]+)\s(?=[^\s:()[\]={}]+$)/u, `$1${entity(' ')}`);
+      const text = attributeText(a, codec).replace(
+        /^([-+#~]?\/?[^\s:()[\]={}]+)\s(?=[^\s:()[\]={}]+$)/u,
+        (_match: string, g1: string) => `${g1}${entity(' ')}`,
+      );
       body.push(memberLine(text, a.static ? '$' : ''));
     }
     for (const [j, o] of (e.operations ?? []).entries()) {
