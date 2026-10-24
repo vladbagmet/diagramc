@@ -2,6 +2,23 @@
 
 ## Unreleased
 
+- Agent entry points. `skills/uml/SKILL.md` is a usage skill in the Agent
+  Skills format (discovery, the write, validate and render loop, reading errors
+  and warnings, export and import, renderer setup, limits), with a per-kind
+  cheat sheet in `skills/uml/reference.md` generated from the kinds and
+  schemas. Both ship in the package.
+- New command `uml guide [reference]` prints that skill (or the cheat sheet)
+  from the installed package; `uml --help` points to it in its first lines.
+- New command `uml mcp` runs a stdio MCP server with the tools `uml_kinds`,
+  `uml_example`, `uml_schema`, `uml_validate`, `uml_render`, `uml_export` and
+  `uml_import`. They call the same code as the commands and return what the
+  commands print; a failure is a tool error carrying the same `{"error":...}`
+  object, warnings a second item. `uml_render` returns SVG text or a PNG image,
+  or writes the file given as `output`. Client configuration for Claude Code,
+  Codex and JSON-configured clients is in the README.
+- New runtime dependencies for the MCP server: `@modelcontextprotocol/sdk`
+  1.32.1 and `zod` 4.6.6 (both MIT). `fast-uri` moves to 3.1.9 for its
+  security advisories.
 - New command `uml export <model.json|-> --to plantuml|mermaid [-o file]`:
   writes a model as readable PlantUML (all 14 kinds) or Mermaid (class,
   sequence, state machine, and activity and use case as flowcharts). Model IDs

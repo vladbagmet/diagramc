@@ -52,7 +52,10 @@ generated from the same tokens (`src/plantuml/skin.ts`).
 
 | Path | Contents |
 |---|---|
-| `src/cli.ts` | Commands (`render`, `validate`, `example`, `schema`, `kinds`), argument parsing, help, exit codes |
+| `src/cli.ts` | Commands (`render`, `validate`, `export`, `import`, `example`, `schema`, `kinds`, `guide`, `mcp`), argument parsing, help, exit codes |
+| `src/commands.ts` | The operation behind each command, shared by the command line and the MCP server |
+| `src/mcp.ts` | `uml mcp`: the commands as MCP tools on stdio, a thin layer over `src/commands.ts` |
+| `src/formats/` | PlantUML and Mermaid export and import |
 | `src/render.ts` | Backend selection, rendering, layout warnings |
 | `src/core/` | Errors and diagnostics, I/O, limits, text rules, theme tokens |
 | `src/model/` | Kind interface, registry, schema envelope (`kindSchema()`), shared rules, parsing, correction hints |
@@ -60,7 +63,8 @@ generated from the same tokens (`src/plantuml/skin.ts`).
 | `src/engine/` | Own engine: fonts and text measurement, ELK adapter, orthogonal router and route repair, aspect-ratio choice, shapes, symbols, edges, labels, self-loops, SVG writer, PNG |
 | `src/plantuml/` | Display-text encoding, the sandboxed runner, skinparams, font embedding, SVG geometry fixes |
 | `src/qa/` | SVG inspection into a scene and the gates run on it, plus advice per problem |
-| `scripts/` | Renderer setup, gallery, build finishing, stress model generators |
+| `scripts/` | Renderer setup, gallery, build finishing, stress model generators, the skill reference generator |
+| `skills/uml/` | The usage skill for agents (`uml guide` prints it); `reference.md` is generated |
 | `test/` | `node:test` suites; `test/integration/` needs the PlantUML runtime |
 
 ## Rendering details that matter

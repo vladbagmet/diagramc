@@ -3,6 +3,9 @@
 This file tells an agent how to work in this repository. Humans: the same rules
 are in [CONTRIBUTING.md](CONTRIBUTING.md).
 
+These are the rules for changing the tool; an agent that only uses `uml` to draw
+diagrams wants the usage skill in [skills/uml/SKILL.md](skills/uml/SKILL.md) instead.
+
 `uml` is a TypeScript CLI (Node.js 22 or later, ES modules) that validates a JSON
 model of one UML 2.5.1 diagram and renders it to SVG or PNG, offline. 14 diagram
 kinds; 11 are drawn by the own engine (elkjs layout plus hand-written SVG), and
@@ -13,6 +16,8 @@ Read [docs/architecture.md](docs/architecture.md) once before larger changes.
 
 ```
 src/cli.ts              commands, argument parsing, help text, exit codes
+src/commands.ts         the operation behind each command, shared by the CLI and the MCP server
+src/mcp.ts              `uml mcp`: the commands as MCP tools on stdio, no logic of its own
 src/render.ts           backend selection, rendering, layout warnings
 src/core/               errors (UmlError, Diagnostic, pointer()), limits, text rules, theme tokens
 src/model/              KindDefinition (kind.ts), registry.ts, schema envelope, shared rules, parse.ts
@@ -23,6 +28,7 @@ src/plantuml/           display-text encoding, sandboxed runner, skinparams, fon
 src/qa/                 SVG inspection and the QA gates, advice per problem
 schema/                 JSON Schema of the legacy v1 class format
 examples/<kind>/        example models (shipped in the npm package; `uml example` reads minimal.json)
+skills/uml/             usage skill for agents (SKILL.md); reference.md is generated, do not edit it
 test/                   node:test suites (*.test.mjs), helpers, fixtures
 test/integration/       tests that need the real PlantUML runtime
 test/fixtures/          per-kind valid.json and invalid.json, regression/ models, agent-first/, review/
@@ -83,6 +89,11 @@ The full recipe, including which engine helper to use for what, is
 [docs/kinds/README.md](docs/kinds/README.md). The notation checklists in
 `docs/kinds/<kind>.md` list every supported construct with the test that proves
 it; update the checklist whenever you change what a kind draws.
+
+After a schema change, regenerate the skill reference with
+`node scripts/generate-skill-reference.mjs` (the tests fail while it is stale),
+and keep `skills/uml/SKILL.md` in step with any command, flag or error code you
+add or rename.
 
 ## QA gates
 
