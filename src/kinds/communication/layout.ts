@@ -125,13 +125,13 @@ function plan(model: CommunicationDiagram, metrics: FontMetrics): LinkPlan[] {
   const lh = metrics.lineHeight(LABEL.size);
   const plans = (model.links ?? []).map((l, i): LinkPlan => ({ id: l.id ?? `links/${i}`, from: l.from, to: l.to, self: l.from === l.to, groups: [] }));
   const byPair = new Map<string, LinkPlan>();
-  for (const p of plans) byPair.set(`${p.from}\u0000${p.to}`, p).set(`${p.to}\u0000${p.from}`, p);
+  for (const p of plans) byPair.set(`${p.from}\0${p.to}`, p).set(`${p.to}\0${p.from}`, p);
   const buckets = new Map<string, { link: LinkPlan; forward: boolean; sort: MessageSort; messages: Message[] }>();
   for (const m of model.messages ?? []) {
-    const link = byPair.get(`${m.from}\u0000${m.to}`)!;
+    const link = byPair.get(`${m.from}\0${m.to}`)!;
     const forward = link.self || m.from === link.from;
     const sort = m.sort ?? 'synchronous';
-    const key = `${link.id}\u0000${forward}\u0000${sort}`;
+    const key = `${link.id}\0${forward}\0${sort}`;
     if (!buckets.has(key)) buckets.set(key, { link, forward, sort, messages: [] });
     buckets.get(key)!.messages.push(m);
   }
@@ -184,7 +184,7 @@ function sideBlock(groups: readonly Group[], a: Point, b: Point, t: number, sign
   const u = direction(a, b),
     n = { x: u.y * sign, y: -u.x * sign };
   const horizontal = Math.abs(u.x) >= Math.abs(u.y);
-  const dominant = horizontal ? Math.abs(u.x) : Math.abs(u.y);
+  const dominant = Math.abs(horizontal ? u.x : u.y);
   const extent = (g: Group) => Math.max(horizontal ? g.width : g.height, length);
   const total = groups.reduce((s, g) => s + extent(g), 0) + GROUP_GAP * (groups.length - 1);
   const base = { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t };
@@ -376,8 +376,7 @@ function gridCost(pos: ReadonlyMap<string, Point>, pairs: readonly [string, stri
       dy = Math.abs(p.y - q.y);
     cost += Math.hypot(dx, dy) + (dx === 0 || dy === 0 ? 0 : dx === dy ? 0.45 : 1.2);
     for (const [id, c] of pos) {
-      if (id === a || id === b) continue;
-      if (Math.abs(c.x - p.x) + Math.abs(c.y - p.y) > dx + dy) continue;
+      if (id === a || id === b || Math.abs(c.x - p.x) + Math.abs(c.y - p.y) > dx + dy) continue;
       if (distanceToSegment(c, p, q) < 0.3) cost += 6;
     }
     for (let j = i + 1; j < placed.length; j++) {
@@ -846,7 +845,7 @@ export async function layoutCommunicationDiagram(model: CommunicationDiagram, me
       const forward = k.groups.filter(g => g.forward),
         backward = k.groups.filter(g => !g.forward);
       // Left of the travel direction; with one direction only, prefer above / right.
-      const nicer: 1 | -1 = (horizontal ? u.x > 0 : u.y > 0) ? 1 : -1;
+      const nicer: 1 | -1 = (horizontal ? u.x : u.y) > 0 ? 1 : -1;
       const ts = [0.5, 0.42, 0.58, 0.34, 0.66, 0.26, 0.74];
       for (const [groups, sign] of [
         [forward, 1],

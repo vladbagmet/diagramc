@@ -77,7 +77,9 @@ delete elements[48].attributes;
 delete elements[48].operations;
 elements[48].literals = ['ADMIN', 'CLINICIAN', 'BILLING', 'AUDITOR'];
 const rel = [];
-const gen = (a, b) => rel.push({ type: 'generalization', from: a, to: b });
+const gen = (a, b) => {
+  rel.push({ type: 'generalization', from: a, to: b });
+};
 gen('patient', 'person');
 gen('staff', 'person');
 gen('doctor', 'staff');

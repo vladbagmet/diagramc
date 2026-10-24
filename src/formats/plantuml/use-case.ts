@@ -17,8 +17,7 @@ const MULTIPLICITY = new RegExp(commonDefinitions.multiplicity.pattern, 'u');
 /** `"Name\n--\nextension points\npoint"`, one display line per `\n`. */
 function useCaseLabel(u: UseCase): string {
   const name = encode(u.name, '"');
-  if (!u.extensionPoints?.length) return `"${name}"`;
-  return `"${[name, '--', 'extension points', ...u.extensionPoints.map(p => encode(p, '"'))].join(String.raw`\n`)}"`;
+  return u.extensionPoints?.length ? `"${[name, '--', 'extension points', ...u.extensionPoints.map(p => encode(p, '"'))].join(String.raw`\n`)}"` : `"${name}"`;
 }
 
 export function exportUseCase(model: UseCaseDiagram, losses: Losses): string {

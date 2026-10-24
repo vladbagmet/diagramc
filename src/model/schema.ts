@@ -133,6 +133,8 @@ function at(document: unknown, path: string): unknown {
 
 /** JSON Schema type name of a value. */
 const jsonType = (v: unknown): string =>
+  // JSON Schema calls every whole number an integer, also one beyond the safe range.
+  // eslint-disable-next-line unicorn/prefer-number-is-safe-integer
   v === null ? 'null' : Array.isArray(v) ? 'array' : typeof v === 'number' ? (Number.isInteger(v) ? 'integer' : 'number') : typeof v;
 const typeName = (v: unknown): string =>
   v === null
@@ -258,7 +260,7 @@ interface Issue {
 function describeErrors(errors: ErrorObject[], root: Schema, document: unknown): Diagnostic[] {
   // Errors inside the alternatives of a failed oneOf/anyOf are summarized by that error.
   const unions = errors.filter(e => e.keyword === 'oneOf' || e.keyword === 'anyOf').map(e => e.schemaPath);
-  const relevant = errors.filter(e => !unions.some(u => e.schemaPath.startsWith(`${u}/`)));
+  const relevant = errors.filter(e => unions.every(u => !e.schemaPath.startsWith(`${u}/`)));
 
   // Unknown and missing properties per object, so a misnamed property is one problem ("rename").
   const unknown = new Map<string, { names: string[]; schema: Schema }>();
@@ -519,7 +521,7 @@ function describeErrors(errors: ErrorObject[], root: Schema, document: unknown):
   // One diagnostic per problem.
   const seen = new Set<string>();
   return issues
-    .filter(i => !seen.has(`${i.path}\u0000${i.keyword}\u0000${i.message}`) && seen.add(`${i.path}\u0000${i.keyword}\u0000${i.message}`))
+    .filter(i => !seen.has(`${i.path}\0${i.keyword}\0${i.message}`) && seen.add(`${i.path}\0${i.keyword}\0${i.message}`))
     .map(i => ({ code: 'SCHEMA_INVALID', path: i.path, message: i.message, details: { rule: i.keyword, ...i.details } }));
 }
 
@@ -563,8 +565,7 @@ function specialPropertyHint(name: string, allowed: readonly string[], node: unk
   if (n === 'stereotype' && allowed.includes('stereotypes')) return '(a list without guillemets: "stereotypes": ["entity"])';
   if ((n === 'name' || n === 'label' || n === 'condition') && type === 'decision')
     return '(a decision node has no name: write the conditions as the guards of its outgoing flows)';
-  if (n === 'usecases' && type === 'subject') return '(set "subject": "<this subject\'s id>" on each use case inside it instead)';
-  return undefined;
+  return n === 'usecases' && type === 'subject' ? '(set "subject": "<this subject\'s id>" on each use case inside it instead)' : undefined;
 }
 
 /** Diagnostics in document order: array items by index, properties in the order the document lists them. */

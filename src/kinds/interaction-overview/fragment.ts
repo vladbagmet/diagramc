@@ -81,7 +81,7 @@ export function layoutFragment(metrics: FontMetrics, node: InlineInteraction): F
   // Horizontal: centers, widened until every label fits between its lifelines.
   const n = heads.length;
   const centers: number[] = [];
-  for (const [i, h] of heads.entries()) centers.push(i === 0 ? PAD + h.boxWidth / 2 : centers[i - 1]! + heads[i - 1]!.boxWidth / 2 + MIN_GAP + h.boxWidth / 2);
+  for (const [i, h] of heads.entries()) centers.push((i === 0 ? PAD : centers[i - 1]! + heads[i - 1]!.boxWidth / 2 + MIN_GAP) + h.boxWidth / 2);
   const push = (from: number, by: number) => {
     for (let i = from; i < n; i++) centers[i]! += by;
   };

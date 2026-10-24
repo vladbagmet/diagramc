@@ -116,7 +116,7 @@ const closedRegions = m => {
       b = chains.get(t.to);
     let common = 0;
     while (common < a.length && common < b.length && a[common] === b[common]) common++;
-    return ![...a.slice(common), ...b.slice(common)].some(k => !k.endsWith('#0'));
+    return [...a.slice(common), ...b.slice(common)].every(k => k.endsWith('#0'));
   });
   if (m.transitions.length === 0) delete m.transitions;
   return m;
@@ -166,7 +166,7 @@ function mermaidState(m) {
   };
   const strip = elements =>
     elements
-      .filter(e => !(pseudo.has(e.id) && canonicalId(e.id) !== e.id))
+      .filter(e => !pseudo.has(e.id) || canonicalId(e.id) === e.id)
       .map(e => {
         const out = pseudo.has(e.id) ? { id: e.id, type: pseudo.get(e.id).type } : e;
         return out.regions ? { ...out, regions: out.regions.map(r => ({ ...r, elements: strip(r.elements) })) } : out;
@@ -329,8 +329,7 @@ export const LOSSES = {
             case 'ref':
               return [{ type: 'note', position: 'over', lifelines: outermost(m, item.covered), text: `ref ${call(item.name, item.arguments)}` }];
             case 'message': {
-              if (!(item.activate && item.deactivate)) return [item];
-              return [without(item, 'deactivate'), { type: 'deactivate', lifeline: item.from }];
+              return item.activate && item.deactivate ? [without(item, 'deactivate'), { type: 'deactivate', lifeline: item.from }] : [item];
             }
             case 'fragment': {
               if (!['alt', 'opt', 'loop', 'par', 'break', 'critical'].includes(item.operator)) return item.operands.flatMap(o => rewrite(o.items));

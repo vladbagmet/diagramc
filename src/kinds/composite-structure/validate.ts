@@ -40,7 +40,7 @@ export function buildCompositeTree(
     tree.add({ id: e.id, path, type: e.type, parent: undefined, value: e as unknown as Record<string, unknown> });
     context.set(e.id, e.id);
     if (e.type === 'note') notes.push({ note: e, path });
-    if (e.type === 'class') {
+    else if (e.type === 'class') {
       for (const [k, q] of (e.ports ?? []).entries()) port(q, pointer(path, 'ports', k), e.id, e.id);
       for (const [k, q] of (e.parts ?? []).entries()) part(q, pointer(path, 'parts', k), e.id, e.id);
       for (const [k, u] of (e.collaborationUses ?? []).entries()) {
@@ -53,8 +53,7 @@ export function buildCompositeTree(
         });
         context.set(u.id, e.id);
       }
-    }
-    if (e.type === 'collaboration')
+    } else
       for (const [k, r] of e.roles.entries()) {
         const at = pointer(path, 'roles', k);
         tree.add({ id: r.id, path: at, type: 'role', parent: e.id, value: r as unknown as Record<string, unknown> });

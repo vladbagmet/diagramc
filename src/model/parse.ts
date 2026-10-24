@@ -115,7 +115,7 @@ const REPAIR_ROUNDS = 3;
 function afterFixes(kind: KindDefinition, document: unknown, diagnostics: readonly Diagnostic[]): Diagnostic[] {
   let copy = structuredClone(document);
   let current = diagnostics;
-  const key = (d: Diagnostic, path = d.path): string => `${d.code}\u0000${path}\u0000${(d.details as { rule?: string } | undefined)?.rule ?? ''}`;
+  const key = (d: Diagnostic, path = d.path): string => `${d.code}\0${path}\0${(d.details as { rule?: string } | undefined)?.rule ?? ''}`;
   const reported = new Set(diagnostics.map(d => key(d)));
   const found: Diagnostic[] = [];
   const renames = new Map<string, string>();
@@ -378,7 +378,7 @@ function swapHints(kind: KindDefinition, document: unknown, diagnostics: readonl
     if (validateSchema(kind.schema, copy).diagnostics.length > 0) continue;
     const after = kind.validate(copy);
     const before = diagnostics.filter(d => itemPath(d.path) === path).length;
-    if (before && !after.some(d => itemPath(d.path) === path) && after.length < diagnostics.length) {
+    if (before && after.every(d => itemPath(d.path) !== path) && after.length < diagnostics.length) {
       out.set(path, {
         from: item.from,
         to: item.to,

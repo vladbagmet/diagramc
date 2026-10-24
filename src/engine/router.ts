@@ -91,8 +91,8 @@ function attachments(end: RouteEnd, toward: Rect, margin: number, sameSideOnly =
     [2, 'y'],
     [3, 'x'],
   ] as const) {
-    const lo = along === 'x' ? r.x + inset : r.y + inset;
-    const hi = along === 'x' ? r.x + r.width - inset : r.y + r.height - inset;
+    const lo = (along === 'x' ? r.x : r.y) + inset;
+    const hi = (along === 'x' ? r.x + r.width : r.y + r.height) - inset;
     if (hi < lo) continue;
     const mid = (lo + hi) / 2;
     const span = hi - lo;

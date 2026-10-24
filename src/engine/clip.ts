@@ -40,8 +40,7 @@ export function outlineHit(from: Point, to: Point, rect: Rect, shape: NodeShape)
   } else {
     return to;
   }
-  if (t === undefined) return to;
-  return { x: from.x + t * d.x, y: from.y + t * d.y };
+  return t === undefined ? to : { x: from.x + t * d.x, y: from.y + t * d.y };
 }
 
 /**

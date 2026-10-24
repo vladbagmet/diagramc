@@ -162,7 +162,7 @@ async function layoutVariant(model: UseCaseDiagram, metrics: FontMetrics, separa
   };
   const related = (id: string): boolean =>
     relationships.some(({ r }) => r.type === 'generalization' && (r.from === id || r.to === id) && actorIds.includes(r.from) && actorIds.includes(r.to));
-  const onlyTarget = actorIds.filter(id => associations.some(r => r.to === id) && !associations.some(r => r.from === id));
+  const onlyTarget = actorIds.filter(id => associations.some(r => r.to === id) && associations.every(r => r.from !== id));
   const systems = actorIds.filter(id => isSystem(id) && !related(id));
   const right = new Set([...onlyTarget, ...systems]);
   const secondary = right.size < actorIds.length ? right : new Set(onlyTarget);
@@ -170,7 +170,7 @@ async function layoutVariant(model: UseCaseDiagram, metrics: FontMetrics, separa
     changed = false;
     for (const { r } of relationships) {
       if (r.type !== 'generalization' || !actorIds.includes(r.from) || !actorIds.includes(r.to)) continue;
-      if (secondary.has(r.from) !== secondary.has(r.to) && !associations.some(a => a.from === r.from) && secondary.has(r.to)) {
+      if (secondary.has(r.from) !== secondary.has(r.to) && associations.every(a => a.from !== r.from) && secondary.has(r.to)) {
         secondary.add(r.from);
         changed = true;
       }
@@ -494,7 +494,7 @@ async function layoutVariant(model: UseCaseDiagram, metrics: FontMetrics, separa
         const members = plans.filter(m => m.r.type === 'generalization' && m.r.to === p.r.to);
         for (const extra of [0, 20, 40, 60]) {
           const hub = { x: tree.tip.x + tree.out.x * (tree.trunk + extra), y: tree.tip.y + tree.out.y * (tree.trunk + extra) };
-          if (!members.some(m => wrapsAround(treeRoute(m, { tip: tree.tip, hub })))) {
+          if (members.every(m => !wrapsAround(treeRoute(m, { tip: tree.tip, hub })))) {
             tree.hub = hub;
             break;
           }
@@ -508,7 +508,7 @@ async function layoutVariant(model: UseCaseDiagram, metrics: FontMetrics, separa
     // A second (third...) line between the same two elements bends at a point
     // beside the middle of the first, alternately on either side, so it is
     // visibly its own line.
-    const pair = [p.r.from, p.r.to].sort().join('\u0000'),
+    const pair = [p.r.from, p.r.to].sort().join('\0'),
       k = pairs.get(pair) ?? 0;
     pairs.set(pair, k + 1);
     const source = endOf(p.r.from, 'none', gen, labelled('source')),
@@ -629,7 +629,7 @@ async function layoutVariant(model: UseCaseDiagram, metrics: FontMetrics, separa
   const reroutable = new Map<string, () => Point[]>();
   for (const p of plans) {
     if (p.r.type === 'generalization' && trees.has(p.r.to)) continue;
-    if (sceneEdges.filter(e => [e.source, e.target].sort().join('\u0000') === [p.r.from, p.r.to].sort().join('\u0000')).length > 1) continue;
+    if (sceneEdges.filter(e => [e.source, e.target].sort().join('\0') === [p.r.from, p.r.to].sort().join('\0')).length > 1) continue;
     const labelled = (end: string) => p.ends.some(e => e.end === end),
       gen = p.r.type === 'generalization';
     reroutable.set(p.key, () => {
@@ -708,7 +708,7 @@ async function layoutVariant(model: UseCaseDiagram, metrics: FontMetrics, separa
     const walls = (p: Point): Rect[] => subjectIds.filter(id => !around(note, { ...p, width: 0, height: 0 }).includes(id)).map(id => rect(id));
     const candidates = samples(line)
       .map(p => ({ p, from: rectHit(p, note) }))
-      .filter(({ p, from }) => !others.some(o => segmentIntersectsRect(from, p, o)) && !walls(p).some(w => segmentIntersectsRect(from, p, w)))
+      .filter(({ p, from }) => others.every(o => !segmentIntersectsRect(from, p, o)) && walls(p).every(w => !segmentIntersectsRect(from, p, w)))
       .sort((a, b) => distance(a.p, a.from) - distance(b.p, b.from));
     let points: Point[];
     if (candidates[0]) points = [candidates[0].from, candidates[0].p];
@@ -865,7 +865,7 @@ function reorderColumns(
   const columns = new Map<string, string[]>();
   for (const e of movable) {
     const r = nodes.get(e.id)!;
-    const key = `${e.type === 'actor' ? 'actor' : (subjectOf.get(e.id) ?? '')}\u0000${Math.round(r.x + r.width / 2)}`;
+    const key = `${e.type === 'actor' ? 'actor' : (subjectOf.get(e.id) ?? '')}\0${Math.round(r.x + r.width / 2)}`;
     columns.set(key, [...(columns.get(key) ?? []), e.id]);
   }
   // Use cases stay below their subject's name (as high as the highest one was).
@@ -905,8 +905,9 @@ function reorderColumns(
   const others = (skip: readonly string[]) => [...nodes].filter(([id]) => !skip.includes(id) && !subjects.has(id));
   const fits = (id: string, r: Rect, skip: readonly string[]): boolean => {
     const s = subjectOf.get(id);
-    if (s !== undefined && (!contains(nodes.get(s)!, inflate(r, 8)) || r.y < (top.get(s) ?? -Infinity) - 0.5)) return false;
-    return !others(skip).some(([o, q]) => overlapArea(inflate(box(id, r), 8), box(o, q)) > 0);
+    return s !== undefined && (!contains(nodes.get(s)!, inflate(r, 8)) || r.y < (top.get(s) ?? -Infinity) - 0.5)
+      ? false
+      : others(skip).every(([o, q]) => !(overlapArea(inflate(box(id, r), 8), box(o, q)) > 0));
   };
   for (let pass = 0; pass < 3; pass++) {
     let improved = false;
@@ -941,7 +942,7 @@ function reorderColumns(
       const r = nodes.get(e.id)!;
       const s = subjectOf.get(e.id);
       const lo = s === undefined ? all.y : nodes.get(s)!.y,
-        hi = s === undefined ? all.y + all.height - r.height : nodes.get(s)!.y + nodes.get(s)!.height - r.height;
+        hi = (s === undefined ? all.y + all.height : nodes.get(s)!.y + nodes.get(s)!.height) - r.height;
       const steps = Math.min(40, Math.max(1, Math.floor((hi - lo) / 16)));
       let best = r,
         current = local([e.id]);

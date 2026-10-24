@@ -122,7 +122,7 @@ export function sequenceToPlantUml(model: SequenceDiagram): string {
     for (const [i, operand] of f.operands.entries()) {
       if (i > 0) {
         lines.push(`${pad}else${operand.guard === undefined ? '' : ` ${guard(operand.guard)}`}`);
-      } else if (NATIVE.has(f.operator) && !(f.operator === 'loop' && f.min !== undefined)) {
+      } else if (NATIVE.has(f.operator) && (f.operator !== 'loop' || f.min === undefined)) {
         lines.push(`${pad}${f.operator}${operand.guard === undefined ? '' : ` ${guard(operand.guard)}`}`);
       } else {
         const heading = f.operator === 'loop' ? loopHeading(f.min, f.max) : f.operator;
@@ -140,7 +140,7 @@ export function sequenceToPlantUml(model: SequenceDiagram): string {
   // post-processor removes the empty rows they add at the bottom.
   for (const [pair, px] of noteSpacers(model)) {
     const spaces = Math.min(MAX_LABEL_UNITS, Math.ceil(px / NBSP_PX));
-    lines.push(`${alias(model.lifelines[pair]!.id)} -[hidden]> ${alias(model.lifelines[pair + 1]!.id)} : ${displayText('\u00A0'.repeat(spaces))}`);
+    lines.push(`${alias(model.lifelines[pair]!.id)} -[hidden]> ${alias(model.lifelines[pair + 1]!.id)} : ${displayText('\u{A0}'.repeat(spaces))}`);
   }
   return plantUmlDocument(lines);
 }

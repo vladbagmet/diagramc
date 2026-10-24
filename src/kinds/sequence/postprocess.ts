@@ -59,11 +59,9 @@ export function endDestroyedLifelines(svg: string): string {
         top = Number(y1),
         bottom = Number(y2);
       if (Number(x2) !== x) return match;
-      const end = crosses
-        .filter(c => Math.abs(c.x - x) < 1 && c.y > top && c.y < bottom)
-        .map(c => c.y)
-        .sort((p, q) => p - q)[0];
-      if (end === undefined) return match;
+      const ys = crosses.filter(c => Math.abs(c.x - x) < 1 && c.y > top && c.y < bottom).map(c => c.y);
+      if (ys.length === 0) return match;
+      const end = Math.min(...ys);
       const cut = (n: number): string => String(Math.round(n * 10_000) / 10_000);
       return `${open}${cut(Math.min(Number(height), end - Number(y)))}${mid}${y}${l1}${x1}${l2}${x2}${l3}${y1}${l4}${cut(end)}${close}`;
     },
@@ -94,11 +92,8 @@ export function attachSelfMessages(svg: string): string {
     const x = Number(x1),
       y = Number(y1);
     if (y !== Number(y2) || Number(x2) <= x) return match;
-    const edge = bars
-      .filter(b => y >= b.top - 0.5 && y <= b.bottom + 0.5 && b.right < x && x - b.right <= 5.01)
-      .map(b => b.right)
-      .sort((p, q) => q - p)[0];
-    return edge === undefined ? match : `${open}${edge}${mid}${y1}${sep}${y2}"`;
+    const edges = bars.filter(b => y >= b.top - 0.5 && y <= b.bottom + 0.5 && b.right < x && x - b.right <= 5.01).map(b => b.right);
+    return edges.length === 0 ? match : `${open}${Math.max(...edges)}${mid}${y1}${sep}${y2}"`;
   });
 }
 
@@ -111,7 +106,7 @@ interface Box {
 /** Gap kept between a moved label and the lifeline or bar it avoids. */
 export const LABEL_CLEARANCE = 4;
 
-const attr = (tag: string, name: string): number => Number(new RegExp(String.raw`\s${name}="(-?[\d.]+)"`, 'u').exec(tag)?.[1] ?? Number.NaN);
+const attr = (tag: string, name: string): number => Number(new RegExp(String.raw`\s${name}="(-?[\d.]+)"`, 'u').exec(tag)?.[1] ?? NaN);
 const round = (n: number): string => String(Math.round(n * 10_000) / 10_000);
 /** Box of a run of <text> tags (each line: baseline y, font-size, textLength). */
 function textBlock(tags: readonly string[]): Box {
@@ -142,15 +137,15 @@ const halo = (b: Box): string =>
  * are added.
  */
 export function clearLabels(svg: string): string {
-  const lifelines: { x: number; top: number; bottom: number }[] = [];
-  for (const m of svg.matchAll(
-    new RegExp(
-      String.raw`<g><title>[^<]*</title><rect fill="#000000" fill-opacity="0.00000"[^>]*/><line style="[^"]*" x1="${NUM}" x2="\1" y1="${NUM}" y2="${NUM}"/></g>`,
-      'gu',
+  const lifelines: { x: number; top: number; bottom: number }[] = Array.from(
+    svg.matchAll(
+      new RegExp(
+        String.raw`<g><title>[^<]*</title><rect fill="#000000" fill-opacity="0.00000"[^>]*/><line style="[^"]*" x1="${NUM}" x2="\1" y1="${NUM}" y2="${NUM}"/></g>`,
+        'gu',
+      ),
     ),
-  )) {
-    lifelines.push({ x: Number(m[1]), top: Number(m[2]), bottom: Number(m[3]) });
-  }
+    m => ({ x: Number(m[1]), top: Number(m[2]), bottom: Number(m[3]) }),
+  );
   const bars: Box[] = [];
   for (const m of svg.matchAll(
     new RegExp(
@@ -159,7 +154,7 @@ export function clearLabels(svg: string): string {
     ),
   )) {
     const b = { height: Number(m[1]), width: Number(m[2]), x: Number(m[3]), y: Number(m[4]) };
-    if (!bars.some(o => o.x === b.x && o.y === b.y && o.width === b.width && o.height === b.height)) bars.push(b);
+    if (bars.every(o => !(o.x === b.x && o.y === b.y && o.width === b.width && o.height === b.height))) bars.push(b);
   }
   const onLifeline = (b: Box): boolean =>
     lifelines.some(l => l.x > b.x - LABEL_CLEARANCE && l.x < b.x + b.width + LABEL_CLEARANCE && l.bottom > b.y && l.top < b.y + b.height);
@@ -266,7 +261,7 @@ export function tightenNotes(svg: string): string {
       const keep = moveTexts(texts, l + NOTE_LEFT - block.x);
       const narrowed = (): string => match.slice(0, match.indexOf('<text ')) + keep;
       if (width >= r - l - 1) return narrowed();
-      const middle = covered.length > 0 ? (Math.min(...covered) + Math.max(...covered)) / 2 : (l + r) / 2;
+      const middle = (covered.length > 0 ? Math.min(...covered) + Math.max(...covered) : l + r) / 2;
       const nl = Math.min(Math.max(l, middle - width / 2), r - width),
         nr = nl + width;
       if (covered.length > 0 && (Math.min(...covered) - nl < NOTE_OVERHANG - 0.5 || nr - Math.max(...covered) < NOTE_OVERHANG - 0.5)) return narrowed();
@@ -382,8 +377,9 @@ export function invariantsBesideBars(svg: string): string {
       const dx = Math.max(...under.map(b => b.x + b.width)) + 2 - box.x;
       const moved = { ...box, x: box.x + dx };
       const own = new Set([...inner.matchAll(/<text [^>]*>/gu)].map(m => m[0]));
-      if (bars.some(b => !under.includes(b) && overlaps(b, moved)) || texts.some(t => !own.has(t.tag) && overlaps(t.box, moved))) return match;
-      return match.replaceAll(/ x="(-?[\d.]+)"/gu, (_m, v: string) => ` x="${round(Number(v) + dx)}"`);
+      return bars.some(b => !under.includes(b) && overlaps(b, moved)) || texts.some(t => !own.has(t.tag) && overlaps(t.box, moved))
+        ? match
+        : match.replaceAll(/ x="(-?[\d.]+)"/gu, (_m, v: string) => ` x="${round(Number(v) + dx)}"`);
     },
   );
 }
@@ -421,8 +417,9 @@ export function cropSpacerRows(svg: string): string {
   if (cut <= 0.5) return svg;
   const keep = (n: number): string => String(Math.round(n * 10_000) / 10_000);
   svg = svg.replaceAll(lifeline, (m, h: string, _w: string, _x: string, y: string, _lx: string, y1: string, y2: string) => {
-    if (Number(y2) < bottom - 0.01) return m;
-    return m.replace(`height="${h}"`, () => `height="${keep(Number(h) - cut)}"`).replace(`y2="${y2}"`, () => `y2="${keep(Number(y2) - cut)}"`);
+    return Number(y2) < bottom - 0.01
+      ? m
+      : m.replace(`height="${h}"`, () => `height="${keep(Number(h) - cut)}"`).replace(`y2="${y2}"`, () => `y2="${keep(Number(y2) - cut)}"`);
   });
   svg = svg.replace(/<rect fill="#FFFFFF" height="([\d.]+)"/u, (_, h: string) => `<rect fill="#FFFFFF" height="${keep(Number(h) - cut)}"`);
   return svg.replace(/<svg\s[^>]*>/u, root =>
@@ -553,8 +550,9 @@ export function alignHeads(svg: string): string {
         y2: string,
         f: string,
       ) => {
-        if (Math.abs(Number(x1) - center) > 2 || Number(y1) >= bottom) return m;
-        return `${a}${round(Number(y2) - bottom)}${b}${round(bottom)}${c}${x1}${d}${round(bottom)}${e}${y2}${f}`;
+        return Math.abs(Number(x1) - center) > 2 || Number(y1) >= bottom
+          ? m
+          : `${a}${round(Number(y2) - bottom)}${b}${round(bottom)}${c}${x1}${d}${round(bottom)}${e}${y2}${f}`;
       },
     );
   }
@@ -564,13 +562,19 @@ export function alignHeads(svg: string): string {
 /** All fix-ups applied to PlantUML's sequence SVG. */
 export function postProcessSequence(svg: string, model?: SequenceDiagram): string {
   const cropped = model && noteSpacers(model).size > 0 ? cropSpacerRows(svg) : svg;
-  const fixed = regularGuards(
-    clearLabels(
-      tightenNotes(
-        invariantsBesideBars(keepFoundAndLostInside(separateFragmentEdges(attachSelfMessages(endDestroyedLifelines(alignHeads(fillFrameHeading(cropped))))))),
-      ),
-    ),
-  );
+  const steps: ((svg: string) => string)[] = [
+    fillFrameHeading,
+    alignHeads,
+    endDestroyedLifelines,
+    attachSelfMessages,
+    separateFragmentEdges,
+    keepFoundAndLostInside,
+    invariantsBesideBars,
+    tightenNotes,
+    clearLabels,
+    regularGuards,
+  ];
+  const fixed = steps.reduce((s, step) => step(s), cropped);
   // Without a title there is no frame: give the drawing the own engine's canvas margin.
   return model && model.title === undefined ? padCanvas(fixed, theme.spacing.canvas) : fixed;
 }

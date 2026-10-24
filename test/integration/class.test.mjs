@@ -21,7 +21,7 @@ function visibleText(svg) {
       .replaceAll('&gt;', '>')
       .replaceAll('&quot;', '"')
       .replaceAll('&amp;', '&')
-      .replaceAll(/^\u200B|\u200B$/g, ''),
+      .replaceAll(/^\u{200B}|\u{200B}$/gu, ''),
   );
 }
 // Smetana (PlantUML's built-in layout) can put labels on nodes and draws note
@@ -71,7 +71,7 @@ test('PlantUML backend: the pinned runtime measures with Inter and the SVG embed
   assert.match(svg, /<style>@font-face\{font-family:"Inter";[^}]*src:url\(data:font\/woff2;base64,/);
   const metrics = await loadFonts();
   const [, length] =
-    svg.match(/textLength="([\d.]+)"[^>]*>&#8203;placeOrder : Order&#8203;/) ?? svg.match(/textLength="([\d.]+)"[^>]*>\u200BplaceOrder : Order\u200B/);
+    svg.match(/textLength="([\d.]+)"[^>]*>&#8203;placeOrder : Order&#8203;/) ?? svg.match(/textLength="([\d.]+)"[^>]*>\u{200B}placeOrder : Order\u{200B}/u);
   const expected = metrics.measure('placeOrder : Order', { size: 13 });
   assert.ok(Math.abs(Number(length) - expected) / expected < 0.03, `Java measured ${length}, Inter is ${expected}`);
 });
@@ -102,7 +102,7 @@ test('PlantUML backend preserves boundary spaces, generics, nested escapes and m
     '<U+0041> &amp; [[https://evil.invalid]]',
     '<svg onload="alert(1)">',
     String.raw`{static} __under__ //italic// \n 🚀`,
-    '\u200Bvisible\u200B',
+    '\u{200B}visible\u{200B}',
     'Unicode: 🚀 𠀀 \u{100000} \u{10FFFD}',
   ];
   const model = parseDocument(

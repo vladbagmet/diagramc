@@ -100,7 +100,7 @@ test('the QA XML reader rejects malformed input instead of guessing', () => {
 });
 
 /** PlantUML source with the <U+XXXX> display tokens decoded, for reading. */
-const readable = source => source.replaceAll('\u200B', '').replaceAll(/<U\+([0-9A-F]{4})>/g, (_, hex) => String.fromCodePoint(Number.parseInt(hex, 16)));
+const readable = source => source.replaceAll('\u{200B}', '').replaceAll(/<U\+([0-9A-F]{4})>/g, (_, hex) => String.fromCodePoint(Number.parseInt(hex, 16)));
 
 test('class PlantUML source: every keyword, end, arrow and note maps to PlantUML syntax', () => {
   const { model } = parseDocument(

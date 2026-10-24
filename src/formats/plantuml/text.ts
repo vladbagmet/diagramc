@@ -11,7 +11,7 @@ import type { Problems, SourceLine } from '../types.js';
 
 /** Characters encoded everywhere: escapes, Creole's escape character and every control character. */
 // eslint-disable-next-line no-control-regex -- control characters are exactly what must be escaped.
-const ALWAYS = /[\\~\u0000-\u001F\u007F-\u009F]/u;
+const ALWAYS = /[\\~\u{0}-\u{1F}\u{7F}-\u{9F}]/u;
 /** Creole and HTML-like markup: the second character of `**`, `//`, `""`, `--`, `__`, `^^`, `[[`, `]]`, `<<`, `>>`, `''`, `==`, `..`. */
 const PAIRS = new Set(['**', '//', '""', '--', '__', '^^', '~~', '[[', ']]', '<<', '>>', "''", '==', '..', "/'", "'/"]);
 /** `<` opening a Creole or HTML tag, a sprite, an icon or a Unicode token. */
@@ -58,7 +58,7 @@ const PRESENTATION =
  * unterminated block comments and style blocks.
  */
 export function readPlantUml(text: string, problems: Problems): SourceLine[] {
-  const raw = text.replace(/^\uFEFF/u, '').split(/\r\n|\r|\n/u);
+  const raw = text.replace(/^\u{FEFF}/u, '').split(/\r\n|\r|\n/u);
   const out: SourceLine[] = [];
   let started = false,
     ended = false,
@@ -146,8 +146,7 @@ export function nameAndAlias(text: string): { name: string; alias?: string; rest
   m = /^"([^"]*)"(.*)$/u.exec(text);
   if (m) return { name: decode(m[1]!), rest: m[2]!.trim() };
   m = /^([\p{L}\p{N}_.]+)(.*)$/u.exec(text);
-  if (m) return { name: m[1]!, alias: m[1]!, rest: m[2]!.trim() };
-  return undefined;
+  return m ? { name: m[1]!, alias: m[1]!, rest: m[2]!.trim() } : undefined;
 }
 
 /** `<<text>>`, where the text may hold `<U+XXXX>` tokens and single angle brackets. */

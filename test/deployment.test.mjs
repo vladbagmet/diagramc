@@ -49,7 +49,10 @@ test('UML notation: nodes are 3D boxes; devices and execution environments carry
   }
   assert.equal(node(s, 'rack').type, 'node');
   assert.ok(text(s, '«device»') && text(s, '«blade»') && s.texts.filter(t => t.content === '«executionEnvironment»').length === 2);
-  assert.ok(!s.texts.some(t => t.content === '«node»'), 'a plain node has no keyword');
+  assert.ok(
+    s.texts.every(t => t.content !== '«node»'),
+    'a plain node has no keyword',
+  );
   for (const [outer, innerId] of [
     ['rack', 'srv'],
     ['srv', 'os'],

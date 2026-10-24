@@ -15,8 +15,9 @@ export const formatSlot = (s: Slot): string => `${s.feature}${s.type === undefin
 
 /** `name : association`, `: association` or `name` for a link label. */
 function linkTitle(l: Link): string | undefined {
-  if (l.name === undefined && l.association === undefined) return undefined;
-  return instanceTitle({ name: l.name, classifier: l.association } as Pick<Instance, 'name' | 'classifier'>);
+  return l.name === undefined && l.association === undefined
+    ? undefined
+    : instanceTitle({ name: l.name, classifier: l.association } as Pick<Instance, 'name' | 'classifier'>);
 }
 
 const navigability = (navigable: boolean | undefined): Marker => (navigable === undefined ? 'none' : navigable ? 'open-arrow' : 'cross');

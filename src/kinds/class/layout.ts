@@ -52,8 +52,9 @@ function compartments(c: Classifier): Compartment[] {
 const navigability = (navigable: boolean | undefined): Marker => (navigable === undefined ? 'none' : navigable ? 'open-arrow' : 'cross');
 
 function node(e: Element): DiagramNodeSpec {
-  if (isNote(e)) return { id: e.id, type: 'note', shape: { kind: 'note', text: e.text } };
-  return { id: e.id, type: e.type, shape: { kind: 'box', compartments: compartments(e) } };
+  return isNote(e)
+    ? { id: e.id, type: 'note', shape: { kind: 'note', text: e.text } }
+    : { id: e.id, type: e.type, shape: { kind: 'box', compartments: compartments(e) } };
 }
 
 /** Maps a validated class diagram to the generic diagram pipeline (src/engine/diagram.ts). */

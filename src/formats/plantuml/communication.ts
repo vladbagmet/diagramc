@@ -13,8 +13,10 @@ import { document, encode, plantumlAliases, quoted } from './text.js';
 
 export function exportCommunication(model: CommunicationDiagram, losses: Losses): string {
   const ids = plantumlAliases();
-  const lines: string[] = [];
-  for (const l of model.lifelines) lines.push(`${l.multiObject ? 'collections' : 'rectangle'} ${quoted(lifelineLabel(l) || ' ')} as ${ids.get(l.id)}`);
+  const lines: string[] = Array.from(
+    model.lifelines,
+    l => `${l.multiObject ? 'collections' : 'rectangle'} ${quoted(lifelineLabel(l) || ' ')} as ${ids.get(l.id)}`,
+  );
   const links: Link[] = [...(model.links ?? [])];
   const onLink = new Map<Link, Message[]>(links.map(l => [l, []]));
   const pair = (l: { from: string; to: string }, m: Message): boolean => (l.from === m.from && l.to === m.to) || (l.from === m.to && l.to === m.from);

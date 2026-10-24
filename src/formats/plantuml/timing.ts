@@ -20,7 +20,7 @@ export function exportTiming(model: TimingDiagram, losses: Losses): string {
     lines.push(`${l.notation} ${quoted(lifelineLabel(l) || ' ')} as ${alias}`);
     for (const [j, s] of l.states.entries()) {
       const sa = `${alias}_s${j}`;
-      stateAlias.set(`${l.id}\u0000${s}`, sa);
+      stateAlias.set(`${l.id}\0${s}`, sa);
       lines.push(`${alias} has ${quoted(s)} as ${sa}`);
     }
   }
@@ -29,7 +29,7 @@ export function exportTiming(model: TimingDiagram, losses: Losses): string {
     if (!events.has(t)) events.set(t, []);
     return events.get(t)!;
   };
-  for (const l of model.lifelines) for (const c of l.changes) at(c.at).push(`${ids.get(l.id)} is ${stateAlias.get(`${l.id}\u0000${c.state}`)}`);
+  for (const l of model.lifelines) for (const c of l.changes) at(c.at).push(`${ids.get(l.id)} is ${stateAlias.get(`${l.id}\0${c.state}`)}`);
   for (const n of model.notes ?? []) at(n.at).push(`note ${n.position ?? 'top'} of ${ids.get(n.lifeline)}`, encode(n.text), 'end note');
   for (const t of [...events.keys()].sort((a, b) => a - b)) lines.push(`@${t}`, ...events.get(t)!);
   for (const c of model.durationConstraints ?? []) lines.push(`${ids.get(c.lifeline)}@${c.from} <-> @${c.to} : ${encode(`{${c.min}..${c.max}}`)}`);

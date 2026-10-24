@@ -3,7 +3,9 @@
 //   node scripts/generate-state-machine-stress.mjs > examples/state-machine/stress.json
 const elements = [],
   transitions = [];
-const t = (from, to, label = {}) => transitions.push({ from, to, ...label });
+const t = (from, to, label = {}) => {
+  transitions.push({ from, to, ...label });
+};
 const state = (id, name, extra = {}) => ({ id, type: 'state', name, ...extra });
 const chain = (prefix, names, triggers) =>
   names

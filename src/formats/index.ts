@@ -27,8 +27,7 @@ export function formatSupport(kind: string): { exports: FormatName[]; imports: F
 export function formatFromExtension(path: string): FormatName | undefined {
   const extension = /\.([A-Za-z]+)$/u.exec(path)?.[1]?.toLowerCase();
   if (extension === 'puml' || extension === 'plantuml' || extension === 'pu' || extension === 'iuml' || extension === 'wsd') return 'plantuml';
-  if (extension === 'mmd' || extension === 'mermaid') return 'mermaid';
-  return undefined;
+  return extension === 'mmd' || extension === 'mermaid' ? 'mermaid' : undefined;
 }
 
 export function parseFormat(value: string, option: string): FormatName {
@@ -123,8 +122,7 @@ function detect(lines: readonly SourceLine[], format: FormatName, candidates: re
     .filter(s => s.score > 0)
     .sort((a, b) => b.score - a.score);
   if (scored.length === 0) return undefined;
-  if (scored.length > 1 && scored[0]!.score === scored[1]!.score) return undefined;
-  return scored[0]!.k;
+  return scored.length > 1 && scored[0]!.score === scored[1]!.score ? undefined : scored[0]!.k;
 }
 
 function unsupportedHeader(line: SourceLine, header: string, problems: Problems, candidates: readonly KindFormat[]): void {

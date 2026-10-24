@@ -33,7 +33,7 @@ export function validateCommunicationDiagram(model: CommunicationDiagram): Diagn
       });
   }
 
-  const pair = (a: string, b: string): string => (a < b ? `${a}\u0000${b}` : `${b}\u0000${a}`);
+  const pair = (a: string, b: string): string => (a < b ? `${a}\0${b}` : `${b}\0${a}`);
   const linked = new Map<string, string>();
   for (const [i, link] of links.entries()) {
     const at = pointer('', 'links', i);

@@ -99,7 +99,22 @@ test('inheritance direction, cycles, self-inheritance and legal association cycl
   });
 });
 test('rejects line breaks, controls, blank text, bidi controls, invalid XML characters and unpaired surrogates', () => {
-  for (const text of ['A\n@enduml', 'A\n', 'A\r', 'A\r\n', 'A\u2028', 'A\u2029', 'x\r!include a', 'x\tY', '\0', '\u0085', '\u2028', '\u2029', '￾', '￿']) {
+  for (const text of [
+    'A\n@enduml',
+    'A\n',
+    'A\r',
+    'A\r\n',
+    'A\u{2028}',
+    'A\u{2029}',
+    'x\r!include a',
+    'x\tY',
+    '\0',
+    '\u{85}',
+    '\u{2028}',
+    '\u{2029}',
+    '￾',
+    '￿',
+  ]) {
     for (const field of ['name', 'attributes', 'methods']) {
       fails({ ...minimal, classes: [{ id: 'a', name: 'A', [field]: field === 'name' ? text : [text] }] }, 'SCHEMA_INVALID');
     }
@@ -110,7 +125,7 @@ test('rejects line breaks, controls, blank text, bidi controls, invalid XML char
       '/elements/0/attributes/0/type',
     );
   }
-  for (const name of [' ', '\uD800', '‮Evil']) {
+  for (const name of [' ', '\u{D800}', '‮Evil']) {
     fails({ ...minimal, classes: [{ id: 'a', name }] }, 'INVALID_TEXT', '/classes/0/name');
     fails({ ...minimalV2, title: name }, 'INVALID_TEXT', '/title');
   }
@@ -146,7 +161,7 @@ test('hostile display text is encoded, never used as PlantUML source syntax or I
   assert.ok(!source.includes(text));
   assert.ok(!source.includes('private_id'));
   assert.equal(source.split('\n').filter(x => x === '@enduml').length, 1);
-  assert.match(displayText('"{}<>\\'), /^\u200B(<U\+[0-9A-F]+>)+\u200B$/);
+  assert.match(displayText('"{}<>\\'), /^\u{200B}(<U\+[0-9A-F]+>)+\u{200B}$/u);
   assert.equal(source, classToPlantUml(parse(model).model));
 });
 
@@ -300,7 +315,7 @@ test('invalid input never spawns renderer or creates/replaces output', async t =
     [JSON.stringify({ ...minimal, extra: true }), 'SCHEMA_INVALID'],
     [JSON.stringify({ ...minimal, classes: [minimal.classes[0], minimal.classes[0]] }), 'DUPLICATE_ID'],
     [JSON.stringify({ ...minimal, classes: [{ id: 'a', name: '￾' }] }), 'SCHEMA_INVALID'],
-    [JSON.stringify({ ...minimal, classes: [{ id: 'a', name: '\uD800' }] }), 'INVALID_TEXT'],
+    [JSON.stringify({ ...minimal, classes: [{ id: 'a', name: '\u{D800}' }] }), 'INVALID_TEXT'],
     [JSON.stringify({ ...minimal, relationships: [{ type: 'inheritance', from: 'a', to: 'a' }] }), 'INHERITANCE_CYCLE'],
     [JSON.stringify({ ...minimalV2, kind: 'nope' }), 'UNKNOWN_KIND'],
   ]) {
@@ -372,7 +387,7 @@ test('CLI runtime failures preserve output, success supports stdin and atomic re
   await writeFile(join(directoryOutput, 'keep'), 'original directory');
   await assert.rejects(writeOutput(directoryOutput, Buffer.from(fakeSvg)), { code: 'OUTPUT_WRITE_FAILED' });
   assert.equal(await readFile(join(directoryOutput, 'keep'), 'utf8'), 'original directory');
-  assert.ok(!(await readdir(dir)).some(name => name.endsWith('.tmp')));
+  assert.ok((await readdir(dir)).every(name => !name.endsWith('.tmp')));
   // Existing targets that are not regular files are written directly (no rename over a device).
   await writeOutput('/dev/null', Buffer.from(fakeSvg));
   result = cli(['render', join(root, 'examples/class/ordering.json'), '-o', '/dev/null', '--format', 'svg']);

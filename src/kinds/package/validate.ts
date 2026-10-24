@@ -67,7 +67,7 @@ export function validatePackageDiagram(model: PackageDiagram): Diagnostic[] {
       diagnostics.push({ code: 'SELF_RELATIONSHIP', path: pointer(at, 'to'), message: `A ${r.type} cannot connect "${r.from}" to itself` });
       continue;
     }
-    const key = `${r.type}\u0000${r.from}\u0000${r.to}`;
+    const key = `${r.type}\0${r.from}\0${r.to}`;
     const first = seen.get(key);
     if (first !== undefined) {
       diagnostics.push({ code: 'DUPLICATE_RELATIONSHIP', path: at, message: `Duplicate ${r.type} from "${r.from}" to "${r.to}" (first at ${first})` });
@@ -104,7 +104,7 @@ export function validatePackageDiagram(model: PackageDiagram): Diagnostic[] {
   const owner = checkOwnership(ownership, diagnostics);
   // A relationship between a package and its own (nested) member is meaningless
   // (a package already sees its members) and cannot be drawn sensibly.
-  if (!diagnostics.some(d => d.code === 'CONTAINMENT_CYCLE')) {
+  if (diagnostics.every(d => d.code !== 'CONTAINMENT_CYCLE')) {
     for (const { index, from, to } of checked) {
       if (nestedIn(from.id, to.id, owner)) {
         diagnostics.push({

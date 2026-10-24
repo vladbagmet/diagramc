@@ -12,7 +12,7 @@ import { cli, root } from './helpers.mjs';
 // Java-free tests of the timing kind. Real renders are in test/integration/timing.test.mjs.
 const fixtures = name => readFile(join(root, 'test/fixtures/timing', name), 'utf8').then(JSON.parse);
 const source = doc => timingToPlantUml(parseDocument(JSON.stringify(doc)).model);
-const decode = s => s.replaceAll(/<U\+([0-9A-F]{4})>/g, (_, h) => String.fromCodePoint(Number.parseInt(h, 16))).replaceAll('\u200B', '');
+const decode = s => s.replaceAll(/<U\+([0-9A-F]{4})>/g, (_, h) => String.fromCodePoint(Number.parseInt(h, 16))).replaceAll('\u{200B}', '');
 const T = (id, notation, states, changes, extra = {}) => ({ id, name: id, notation, states, changes: changes.map(([at, state]) => ({ at, state })), ...extra });
 
 test('negative fixtures fail with the exact code and JSON path', async () => {
@@ -208,7 +208,7 @@ test('hostile text in every slot is encoded and never becomes PlantUML syntax', 
     highlights: [{ from: 1, to: 10, label: hostile }],
     notes: [{ lifeline: 'c', at: 0, text: hostile }],
   });
-  const skeleton = src.replaceAll(/\u200B(?:<U\+[0-9A-F]{4}>)*\u200B/g, 'TEXT');
+  const skeleton = src.replaceAll(/\u{200B}(?:<U\+[0-9A-F]{4}>)*\u{200B}/gu, 'TEXT');
   for (const fragment of ['!include', 'evil', '<b>', '[[', '#red', ' is has']) assert.ok(!skeleton.includes(fragment), fragment);
   assert.equal(skeleton.match(/@enduml/g).length, 1);
   assert.ok(!src.includes('"r"') && !src.includes(' r@'), 'user IDs never reach the source');

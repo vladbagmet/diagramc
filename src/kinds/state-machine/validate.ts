@@ -109,7 +109,7 @@ export function validateStateMachine(model: StateMachineDiagram): Diagnostic[] {
       diagnostics.push({ code: 'INITIAL_HAS_INCOMING', path: pointer(at, 'to'), message: `Initial pseudostate "${t.to}" cannot have incoming transitions` });
     if (source === 'final')
       diagnostics.push({ code: 'FINAL_STATE_HAS_OUTGOING', path: pointer(at, 'from'), message: `Final state "${t.from}" cannot have outgoing transitions` });
-    if (source === 'terminate')
+    else if (source === 'terminate')
       diagnostics.push({
         code: 'TERMINATE_HAS_OUTGOING',
         path: pointer(at, 'from'),
@@ -197,7 +197,7 @@ export function validateStateMachine(model: StateMachineDiagram): Diagnostic[] {
         break;
       case 'choice':
         degree('CHOICE_DEGREE', ins >= 1 && outs.length > 0, 'at least one incoming and one outgoing transition');
-        if (outs.length > 0 && !outs.some(i => transitions[i]!.guard !== undefined))
+        if (outs.length > 0 && outs.every(i => transitions[i]!.guard === undefined))
           diagnostics.push({ code: 'CHOICE_WITHOUT_GUARD', path: p.path, message: `Choice "${id}" needs a guard on at least one outgoing transition` });
         break;
       case 'junction':
@@ -224,8 +224,8 @@ function orthogonal(a: Placement, b: Placement): string | undefined {
     rb = b.regions;
   for (let i = 0; i < Math.min(ra.length, rb.length); i++) {
     if (ra[i] === rb[i]) continue;
-    const [sa] = ra[i]!.split('#'),
-      [sb] = rb[i]!.split('#');
+    const [sa] = ra[i]!.split('#', 1),
+      [sb] = rb[i]!.split('#', 1);
     return sa === sb ? sa : undefined;
   }
   return undefined;

@@ -57,10 +57,10 @@ export function readPlantUmlActivity(root: XmlElement, scene: Scene): void {
       add(unique === 4 ? 'diamond' : 'signal', boundsOfPoints(p));
     } else if (e.tag === 'ellipse') {
       const r = { x: num(a.cx) - num(a.rx), y: num(a.cy) - num(a.ry), width: 2 * num(a.rx), height: 2 * num(a.ry) };
-      if (!nodes.some(n => n.type === 'circle' && contains(n.bounds, r, 0.5))) add('circle', r);
+      if (nodes.every(n => !(n.type === 'circle' && contains(n.bounds, r, 0.5)))) add('circle', r);
     } else if (e.tag === 'path' && same(a.fill, color.noteFill)) {
       const r = boundsOfPoints(pathPts(a.d));
-      if (!nodes.some(n => n.type === 'note' && contains(n.bounds, r, 0.5))) add('note', r);
+      if (nodes.every(n => !(n.type === 'note' && contains(n.bounds, r, 0.5)))) add('note', r);
     } else if (e.tag === 'line' && same(strokeOf(e), color.edge) && !e.attrs.style?.includes('stroke-dasharray')) {
       const p = { x: num(a.x1), y: num(a.y1) },
         q = { x: num(a.x2), y: num(a.y2) };
@@ -134,7 +134,7 @@ export function readPlantUmlActivity(root: XmlElement, scene: Scene): void {
     if (!isEnd(point)) continue;
     for (const i of list) if (!used.has(i)) chains.push(follow(point, i));
   }
-  for (const [i, _] of segments.entries()) {
+  for (const i of segments.keys()) {
     if (!used.has(i)) chains.push(follow(segments[i]![0], i));
   }
 

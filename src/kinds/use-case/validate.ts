@@ -42,8 +42,7 @@ export function validateUseCaseDiagram(model: UseCaseDiagram): Diagnostic[] {
           });
         seen.add(p);
       }
-    }
-    if (e.type === 'note') {
+    } else if (e.type === 'note') {
       for (const [j, id] of (e.attachedTo ?? []).entries()) {
         const path = pointer(at, 'attachedTo', j);
         if (reference(id, path, elements, diagnostics) && elements.get(id)!.type === 'note')
@@ -81,7 +80,7 @@ export function validateUseCaseDiagram(model: UseCaseDiagram): Diagnostic[] {
     }
     if (from.type === 'note' || to.type === 'note' || from.type === 'subject' || to.type === 'subject') continue;
     if (r.type !== 'association') {
-      const key = `${r.type}\u0000${r.from}\u0000${r.to}`;
+      const key = `${r.type}\0${r.from}\0${r.to}`;
       const first = pairs.get(key);
       if (first === undefined) {
         pairs.set(key, at);

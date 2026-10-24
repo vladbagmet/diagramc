@@ -36,9 +36,10 @@ export function wordPieces(word: string): string[] {
     const c = chars[i]!,
       next = chars[i + 1],
       prev = chars[i - 1];
-    if (i > 0 && (c === '(' || c === '[' || c === '{' || c === '«')) cut(offset);
-    else if (i > 0 && next !== undefined && /\p{Lu}/u.test(c) && (/[\p{Ll}\p{Nd}]/u.test(prev!) || (/\p{Lu}/u.test(prev!) && /\p{Ll}/u.test(next))))
-      cut(offset);
+    // Cut before an opening bracket, and before a capital that starts a new word (camelCase, or the last capital of an acronym).
+    const opens = c === '(' || c === '[' || c === '{' || c === '«';
+    const capital = next !== undefined && /\p{Lu}/u.test(c) && (/[\p{Ll}\p{Nd}]/u.test(prev!) || (/\p{Lu}/u.test(prev!) && /\p{Ll}/u.test(next)));
+    if (i > 0 && (opens || capital)) cut(offset);
     offset += c.length;
     if (/[._\-/,:;»)\]}]/u.test(c) && next !== undefined && !/[._\-/,:;»)\]}]/u.test(next)) cut(offset);
   }
@@ -127,8 +128,7 @@ export function wrapText(metrics: FontMetrics, text: string, style: TextStyle, m
   // A word kept whole widens the text anyway: when the whole text is not much wider
   // than that, one line reads better than a stub ("r2 :" above a long classifier name).
   const widest = Math.max(maxWidth, ...lines.map(width));
-  if (lines.length > 1 && widest > maxWidth && width(text) <= widest * ONE_LINE_SLACK) return [text];
-  return lines;
+  return lines.length > 1 && widest > maxWidth && width(text) <= widest * ONE_LINE_SLACK ? [text] : lines;
 }
 
 /** See wrapText: how much wider than its widest whole word a text may stay on one line. */
