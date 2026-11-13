@@ -22,7 +22,7 @@ its own license file. Versions are those pinned in `package-lock.json`.
 
 | Package | Version | License | Source |
 |---|---|---|---|
-| @hono/node-server | 2.1.5 | MIT | https://github.com/honojs/node-server |
+| @hono/node-server | 2.1.8 | MIT | https://github.com/honojs/node-server |
 | @modelcontextprotocol/sdk | 1.32.1 | MIT | https://github.com/modelcontextprotocol/typescript-sdk |
 | @resvg/resvg-js | 2.6.2 | MPL-2.0 | https://github.com/yisibl/resvg-js |
 | accepts | 2.0.0 | MIT | https://github.com/jshttp/accepts |
@@ -67,7 +67,7 @@ its own license file. Versions are those pinned in `package-lock.json`.
 | harfbuzzjs | 1.6.3 | MIT | https://github.com/harfbuzz/harfbuzzjs |
 | has-symbols | 1.1.0 | MIT | https://github.com/inspect-js/has-symbols |
 | hasown | 2.0.4 | MIT | https://github.com/inspect-js/hasOwn |
-| hono | 4.13.13 | MIT | https://github.com/honojs/hono |
+| hono | 4.13.18 | MIT | https://github.com/honojs/hono |
 | http-errors | 2.0.1 | MIT | https://github.com/jshttp/http-errors |
 | iconv-lite | 0.7.3 | MIT | https://github.com/pillarjs/iconv-lite |
 | inherits | 2.0.4 | ISC | https://github.com/isaacs/inherits |
@@ -164,7 +164,7 @@ The setup also copies the Inter fonts above into that runtime's font directory.
 
 ## License texts of the npm dependencies
 
-### @hono/node-server 2.1.5 (MIT)
+### @hono/node-server 2.1.8 (MIT)
 
 ```text
 MIT License
@@ -2197,7 +2197,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-### hono 4.13.13 (MIT)
+### hono 4.13.18 (MIT)
 
 ```text
 MIT License
