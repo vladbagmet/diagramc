@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.1.2 (2026-11-13)
+
+### Security
+
+- @hono/node-server: 2.1.5 to 2.1.8 (GHSA-qv5m-9pm6-hqp3, GHSA-jpvv-r467-5p4w).
+  Transitive dependency of @modelcontextprotocol/sdk.
+- hono: 4.13.13 to 4.13.18 (GHSA-4m76-xfj5-7975, GHSA-h7mg-cq63-vhpq,
+  GHSA-3gg2-335m-rxc6, GHSA-46wx-v44x-9hh2, GHSA-4h7h-rv7c-7m2v). Transitive
+  dependency of @modelcontextprotocol/sdk.
+
 ## 1.1.1 (2026-10-24)
 
 - Text containing `$&`, `$'`, `` $` ``, `$$` or `$1` now stays literal in
